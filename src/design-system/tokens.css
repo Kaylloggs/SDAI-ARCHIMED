@@ -1,0 +1,109 @@
+/**
+ * Tokens de design — source de vérité visuelle. Reflète design.md.
+ * Toute valeur visuelle du projet vient d'ici. Aucune couleur/durée en dur ailleurs.
+ */
+@import "tailwindcss";
+
+@theme {
+  /* ── Neutres (thème sombre par défaut) ─────────────────────────── */
+  --color-bg: oklch(0.155 0.006 265);
+  --color-bg-subtle: oklch(0.175 0.006 265);
+  --color-surface-1: oklch(0.205 0.007 265);
+  --color-surface-2: oklch(0.235 0.008 265);
+  --color-surface-3: oklch(0.27 0.009 265);
+  --color-border: oklch(1 0 0 / 0.07);
+  --color-border-strong: oklch(1 0 0 / 0.13);
+  --color-text: oklch(0.96 0.003 265);
+  --color-text-muted: oklch(0.74 0.01 265);
+  --color-text-subtle: oklch(0.58 0.01 265);
+  --color-glass: oklch(0.22 0.008 265 / 0.62);
+  --color-scrim: oklch(0.08 0 0 / 0.55);
+
+  /* ── Accent « laiton d'Archimède » ─────────────────────────────── */
+  --color-accent: oklch(0.8 0.115 80);
+  --color-accent-hover: oklch(0.84 0.115 80);
+  --color-accent-fg: oklch(0.2 0.03 80);
+  --color-accent-soft: oklch(0.8 0.115 80 / 0.14);
+
+  /* ── Sémantiques ───────────────────────────────────────────────── */
+  --color-success: oklch(0.76 0.13 155);
+  --color-success-soft: oklch(0.76 0.13 155 / 0.14);
+  --color-info: oklch(0.74 0.1 240);
+  --color-info-soft: oklch(0.74 0.1 240 / 0.14);
+  --color-warning: oklch(0.76 0.15 55);
+  --color-warning-soft: oklch(0.76 0.15 55 / 0.14);
+  --color-danger: oklch(0.66 0.2 27);
+  --color-danger-soft: oklch(0.66 0.2 27 / 0.14);
+
+  /* ── Identité des agents ───────────────────────────────────────── */
+  --color-agent-claude: oklch(0.7 0.13 42);
+  --color-agent-antigravity: oklch(0.72 0.12 255);
+  --color-agent-neutral: oklch(0.72 0.01 265);
+
+  /* ── Typographie ───────────────────────────────────────────────── */
+  --font-sans:
+    "Geist Variable", "Segoe UI Variable", system-ui, -apple-system, sans-serif;
+  --font-mono: "Geist Mono Variable", "Cascadia Code", ui-monospace, monospace;
+
+  --text-caption: 0.6875rem; /* 11 */
+  --text-caption--line-height: 1rem;
+  --text-footnote: 0.75rem; /* 12 */
+  --text-footnote--line-height: 1rem;
+  --text-body-sm: 0.8125rem; /* 13 */
+  --text-body-sm--line-height: 1.25rem;
+  --text-body: 0.875rem; /* 14 */
+  --text-body--line-height: 1.375rem;
+  --text-message: 0.9375rem; /* 15 */
+  --text-message--line-height: 1.5rem;
+  --text-title-3: 1.0625rem; /* 17 */
+  --text-title-3--line-height: 1.5rem;
+  --text-title-2: 1.25rem; /* 20 */
+  --text-title-2--line-height: 1.75rem;
+  --text-title-1: 1.5rem; /* 24 */
+  --text-title-1--line-height: 2rem;
+  --text-display: 2rem; /* 32 */
+  --text-display--line-height: 2.5rem;
+
+  /* ── Rayons ────────────────────────────────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* ── Ombres ────────────────────────────────────────────────────── */
+  --shadow-float:
+    0 8px 32px oklch(0 0 0 / 0.45), inset 0 1px 0 oklch(1 0 0 / 0.04);
+  --shadow-modal: 0 24px 64px oklch(0 0 0 / 0.55);
+
+  /* ── Durées / easings (miroir de motion.ts) ────────────────────── */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* ── Dimensions de layout ──────────────────────────────────────── */
+  --spacing-titlebar: 40px;
+  --spacing-statusbar: 28px;
+  --spacing-sidebar: 248px;
+  --spacing-sidebar-rail: 56px;
+  --spacing-column: 760px;
+}
+
+/* Thème clair (secondaire) */
+:root[data-theme="light"] {
+  --color-bg: oklch(0.985 0.002 265);
+  --color-bg-subtle: oklch(0.965 0.003 265);
+  --color-surface-1: oklch(1 0 0);
+  --color-surface-2: oklch(0.965 0.003 265);
+  --color-surface-3: oklch(1 0 0);
+  --color-border: oklch(0.2 0.01 265 / 0.1);
+  --color-border-strong: oklch(0.2 0.01 265 / 0.18);
+  --color-text: oklch(0.22 0.01 265);
+  --color-text-muted: oklch(0.45 0.01 265);
+  --color-text-subtle: oklch(0.6 0.01 265);
+  --color-glass: oklch(1 0 0 / 0.72);
+  --color-accent: oklch(0.62 0.12 75);
+  --color-accent-fg: oklch(0.99 0.01 80);
+  --shadow-float:
+    0 8px 32px oklch(0.2 0.02 265 / 0.12), inset 0 1px 0 oklch(1 0 0 / 0.6);
+}

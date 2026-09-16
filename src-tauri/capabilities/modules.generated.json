@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "modules-generated",
+  "description": "GÉNÉRÉ par build.rs — ne pas éditer. Permissions des modules.",
+  "windows": ["main"],
+  "permissions": [
+    "skills:default"
+  ]
+}

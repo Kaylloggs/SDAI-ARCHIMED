@@ -1,0 +1,135 @@
+pub mod antigravity;
+pub mod claude;
+
+use std::path::PathBuf;
+
+use serde_json::Value;
+
+use super::event::{
+    AdapterInfo, AutoMode, EngineEvent, InteractivePrompt, ModelInfo, PromptAnswer, TransportKind,
+};
+
+/// Ce que l'adaptateur veut envoyer à la CLI après une réponse utilisateur.
+#[derive(Debug, Clone)]
+pub enum AnswerAction {
+    /// Ligne NDJSON à écrire sur stdin.
+    Stdin(String),
+    /// Séquence de touches (transport PTY — Phase 2).
+    #[allow(dead_code)]
+    Keys(Vec<u8>),
+    /// Rien à envoyer (réponse purement locale).
+    None,
+}
+
+/// Contexte donné au décodeur pour les décisions locales (policy, ids).
+pub struct DecodeCtx<'a> {
+    pub session_id: &'a str,
+    pub auto_mode: AutoMode,
+}
+
+/// Contrat d'une CLI encapsulée (guidelines.md §5).
+pub trait CliAdapter: Send + Sync {
+    fn id(&self) -> &'static str;
+    fn name(&self) -> &'static str;
+    fn accent(&self) -> &'static str;
+    fn transport(&self) -> TransportKind;
+
+    /// Noms d'exécutables à chercher dans le PATH.
+    fn binary_names(&self) -> &'static [&'static str];
+
+    /// Emplacements supplémentaires (installations hors PATH).
+    fn extra_locations(&self) -> Vec<PathBuf> {
+        Vec::new()
+    }
+
+    fn version(&self, _binary: &std::path::Path) -> Option<String> {
+        None
+    }
+
+    fn models(&self, binary: Option<&std::path::Path>) -> Vec<ModelInfo>;
+    fn default_model(&self) -> Option<String>;
+    fn missing_hint(&self) -> &'static str;
+
+    /// Arguments de lancement d'une session.
+    fn spawn_args(&self, model: Option<&str>) -> Vec<String>;
+
+    /// Encode un message utilisateur (NDJSON pour les transports structurés).
+    fn encode_user_message(&self, text: &str) -> String;
+
+    /// Traduit une ligne de sortie en événements pour le frontend.
+    fn decode_line(&mut self, line: &str, ctx: &DecodeCtx) -> Vec<EngineEvent>;
+
+    /// Traduit une réponse utilisateur en action vers la CLI.
+    fn encode_answer(
+        &mut self,
+        prompt: &InteractivePrompt,
+        answer: &PromptAnswer,
+        allowed: bool,
+    ) -> AnswerAction;
+}
+
+/// Résout un binaire : PATH d'abord, puis emplacements spécifiques.
+pub fn resolve_binary(adapter: &dyn CliAdapter) -> Option<PathBuf> {
+    for name in adapter.binary_names() {
+        if let Ok(path) = which::which(name) {
+            return Some(path);
+        }
+    }
+    adapter.extra_locations().into_iter().find(|p| p.exists())
+}
+
+pub fn describe(adapter: &dyn CliAdapter) -> AdapterInfo {
+    let binary = resolve_binary(adapter);
+    let models = adapter.models(binary.as_deref());
+    AdapterInfo {
+        id: adapter.id().to_string(),
+        name: adapter.name().to_string(),
+        installed: binary.is_some(),
+        version: binary.as_deref().and_then(|b| adapter.version(b)),
+        binary_path: binary.as_ref().map(|p| p.display().to_string()),
+        transport: adapter.transport(),
+        default_model: adapter
+            .default_model()
+            .or_else(|| models.first().map(|m| m.id.clone())),
+        models,
+        accent: adapter.accent().to_string(),
+        hint: if binary.is_none() {
+            Some(adapter.missing_hint().to_string())
+        } else {
+            None
+        },
+    }
+}
+
+pub fn build_all() -> Vec<Box<dyn CliAdapter>> {
+    vec![
+        Box::new(claude::ClaudeAdapter::default()),
+        Box::new(antigravity::AntigravityAdapter),
+    ]
+}
+
+/// Extrait un texte représentatif d'une entrée d'outil pour la classification de risque.
+pub fn payload_of(input: &Value) -> String {
+    const KEYS: &[&str] = &[
+        "command",
+        "CommandLine",
+        "file_path",
+        "path",
+        "url",
+        "pattern",
+        "query",
+        "content",
+    ];
+    if let Some(object) = input.as_object() {
+        let mut parts = Vec::new();
+        for key in KEYS {
+            if let Some(Value::String(value)) = object.get(*key) {
+                parts.push(value.clone());
+            }
+        }
+        if !parts.is_empty() {
+            return parts.join(" ");
+        }
+    }
+    input.to_string()
+}
