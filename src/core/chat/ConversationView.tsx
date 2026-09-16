@@ -14,9 +14,11 @@ type Props = {
   session: ChatSession;
   agentName: string;
   onAnswer: (promptId: string, answer: PromptAnswer) => void;
+  /** Colonne étroite (panneau latéral du module Code). */
+  compact?: boolean;
 };
 
-export function Timeline({ session, agentName, onAnswer }: Props) {
+export function ConversationView({ session, agentName, onAnswer, compact = false }: Props) {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,7 +26,12 @@ export function Timeline({ session, agentName, onAnswer }: Props) {
   }, [session.timeline.length, session.timeline.at(-1)]);
 
   return (
-    <div className="mx-auto flex w-full max-w-[var(--spacing-column)] flex-col gap-6 px-6 py-6">
+    <div
+      className={cn(
+        "mx-auto flex w-full flex-col gap-6 py-6",
+        compact ? "max-w-full px-3" : "max-w-[var(--spacing-column)] px-6",
+      )}
+    >
       {session.timeline.map((item) => {
         switch (item.kind) {
           case "user":

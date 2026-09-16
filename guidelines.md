@@ -420,6 +420,7 @@ Une tâche est terminée quand : le code compile, les vérifications passent, le
 - Éditer les fichiers générés : `src/core/ipc/bindings/**`, `capabilities/modules.generated.json`, `src-tauri/binaries/**`, `src/design-system/components/ui/**` (sauf re-génération shadcn documentée).
 - Lancer une CLI avec `--dangerously-skip-permissions` / `bypassPermissions` : le Mode Auto passe **toujours** par la policy ARCHIMED.
 - Ajouter une police, une couleur ou une lib d'animation hors `design.md`.
+- Utiliser un `<select>` natif ou `window.confirm/alert/prompt` : passer par `Select` et les cartes/boutons de confirmation du design system.
 - Charger des ressources depuis un CDN à l'exécution (l'app doit fonctionner hors ligne pour son UI).
 - Supprimer définitivement des fichiers utilisateur sans confirmation `Critical`.
 - Committer des secrets, des logs, ou `src-tauri/target/`.

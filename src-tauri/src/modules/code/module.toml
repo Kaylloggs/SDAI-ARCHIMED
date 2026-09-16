@@ -1,0 +1,2 @@
+id = "code"
+commands = ["list_dir", "read_file", "project_info", "search_files"]

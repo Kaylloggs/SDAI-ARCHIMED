@@ -220,9 +220,14 @@ Structure commune : en-tête (icône d'outil + titre `text-title-3` + badge de r
 
 Badge de risque : Low `--success` · Medium `--info` · High `--warning` · Critical `--danger` + icône bouclier. Une action **Critical** a un bouton `Danger` et exige un second clic de confirmation (le libellé devient « Confirmer la suppression »).
 
+### 7.3.bis Module Code
+Trois colonnes élastiques : arborescence `clamp(180px, 18%, 264px)` · éditeur `min-width 280px` · assistant `clamp(300px, 30%, 440px)`, repliable. Onglets de fichiers en `text-footnote`, hauteur 28. L'éditeur (CodeMirror 6) n'a **pas** de thème propre : ses couleurs sont mappées sur les tokens (`--color-text`, `--color-accent`, `--font-mono`), donc il suit automatiquement le preset choisi.
+Un fichier glissé de l'arborescence vers le composer devient une **cible** (chip accent) ; un fichier glissé depuis Windows devient une **pièce jointe** (chip neutre). Pendant un survol de dépôt, le composer prend un anneau `--accent` et affiche l'action attendue.
+
 ### 7.4 Contrôles
 Boutons : hauteurs 28 (sm) / 32 (md) / 40 (lg). Variantes `primary` (accent), `secondary` (`--surface-2`), `ghost`, `danger`. Focus ring : 2 px `--accent` + offset 2 px `--bg`, toujours visible au clavier (`:focus-visible`).
 Icônes : `lucide-react`, trait 1.75, tailles 14 / 16 / 20 uniquement.
+**Menus déroulants** : toujours la primitive `Select` (`design-system/primitives/Select.tsx`), jamais un `<select>` natif — ses options sont dessinées par le système et ignorent le thème. La liste est rendue dans un portail, en couche L3 (glass), navigable au clavier (`↑` `↓` `Entrée` `Échap`).
 
 ---
 
@@ -246,6 +251,7 @@ Textes UI : français, phrases courtes, verbes d'action (« Autoriser », pas «
 - Afficher `[Y/n]`, codes ANSI ou JSON brut dans la conversation.
 - Spinners infinis sans texte après 2 s ; animations en boucle.
 - Valeurs en dur (`#hex`, `px` hors échelle, durées arbitraires).
+- `<select>`, `alert()`, `confirm()` ou `prompt()` natifs : ils cassent le thème.
 - Modales pour des confirmations qui peuvent vivre dans une carte.
 
 ---

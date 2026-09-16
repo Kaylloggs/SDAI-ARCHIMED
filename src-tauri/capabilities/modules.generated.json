@@ -4,6 +4,7 @@
   "description": "GÉNÉRÉ par build.rs — ne pas éditer. Permissions des modules.",
   "windows": ["main"],
   "permissions": [
+    "code:default",
     "skills:default"
   ]
 }

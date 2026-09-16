@@ -3,22 +3,56 @@ import { MessagesSquare, Loader2, FolderOpen } from "lucide-react";
 import { Slot } from "@/core/modules";
 import { Badge, Button, EmptyState } from "@/design-system/primitives";
 import type { AutoMode, PromptAnswer } from "@/core/engine/types";
-import { useAdapters, useChat } from "./hooks/useChatSession";
+import { useAdapters } from "@/core/engine/useAdapters";
+import { useChat } from "@/core/engine/useChat";
 import { engineApi } from "@/core/engine/engine.api";
-import { Composer } from "./components/Composer";
+import { Composer, ConversationView } from "@/core/chat";
+import { useService } from "@/core/modules";
+import { useUiStore } from "@/core/stores/ui.store";
 import { SessionList, folderName, formatDate } from "./components/SessionList";
-import { Timeline } from "./components/Timeline";
+import { ProjectBanner } from "./components/ProjectBanner";
 import { RawTerminalDrawer } from "./components/RawTerminalDrawer";
+
+/** Contrat minimal du service `code.project` (le type réel vit dans le module Code). */
+type DetectedProject = {
+  root: string;
+  name: string;
+  kinds: string[];
+  isProject: boolean;
+};
+type CodeProjectService = { projectInfo: (path: string) => Promise<DetectedProject> };
 
 export default function ChatModule() {
   const { adapters, loading, error } = useAdapters();
   const chat = useChat();
   const [defaultCwd, setDefaultCwd] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [project, setProject] = useState<DetectedProject | null>(null);
+  const [dismissed, setDismissed] = useState<string[]>([]);
+  const openModule = useUiStore((s) => s.openModule);
+  // Service optionnel : si le module Code est désactivé, aucune proposition n'apparaît.
+  const codeProject = useService<CodeProjectService>("code.project");
 
   const installed = useMemo(() => adapters.filter((a) => a.installed), [adapters]);
   const session = chat.session;
   const adapter = adapters.find((a) => a.id === session?.adapter);
+
+  // Le dossier de travail ressemble-t-il à un projet de code ?
+  useEffect(() => {
+    const cwd = session?.cwd;
+    if (!codeProject || !cwd) {
+      setProject(null);
+      return;
+    }
+    let alive = true;
+    codeProject
+      .projectInfo(cwd)
+      .then((info) => alive && setProject(info.isProject ? info : null))
+      .catch(() => alive && setProject(null));
+    return () => {
+      alive = false;
+    };
+  }, [codeProject, session?.cwd]);
 
   useEffect(() => {
     engineApi
@@ -39,11 +73,11 @@ export default function ChatModule() {
     setActionError(null);
   };
 
-  const handleSend = async (text: string, attachments: string[]) => {
+  const handleSend = async (text: string, attachments: string[], targets: string[]) => {
     if (!session) return;
     setActionError(null);
     try {
-      await chat.send(session, text, attachments);
+      await chat.send(session, text, attachments, targets);
     } catch (e) {
       setActionError((e as { message?: string }).message ?? "Impossible de démarrer la session");
       chat.patch(session.id, { status: "error" });
@@ -118,9 +152,20 @@ export default function ChatModule() {
           </div>
         </header>
 
+        {project && session?.cwd && !dismissed.includes(project.root) && (
+          <div className="px-6 pt-3">
+            <ProjectBanner
+              name={project.name}
+              kinds={project.kinds}
+              onOpen={() => openModule("code", { cwd: project.root })}
+              onDismiss={() => setDismissed((current) => [...current, project.root])}
+            />
+          </div>
+        )}
+
         <div className="min-h-0 flex-1 overflow-y-auto">
           {session && session.timeline.length > 0 ? (
-            <Timeline
+            <ConversationView
               session={session}
               agentName={adapter?.name ?? session.adapter}
               onAnswer={handleAnswer}
@@ -176,7 +221,7 @@ export default function ChatModule() {
             onModelChange={(model) => chat.patch(session.id, { model })}
             onCwdChange={(cwd) => chat.patch(session.id, { cwd })}
             onAutoModeChange={handleAutoMode}
-            onSend={(text, attachments) => void handleSend(text, attachments)}
+            onSend={(text, attachments, targets) => void handleSend(text, attachments, targets)}
           />
         )}
       </div>

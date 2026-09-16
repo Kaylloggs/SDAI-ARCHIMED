@@ -67,13 +67,15 @@ SDAI ARCHIMED/
 ├── src/                                 # ═════════ FRONTEND ═════════
 │   ├── main.tsx
 │   ├── core/
+│   │   ├── chat/                        # Composer · ConversationView · useOsFileDrop
+│   │   │                                # (UI de conversation partagée chat/code)
 │   │   ├── modules/                     # define-module · manifest.schema · registry
 │   │   │                                # · useModules · services · slots · types · index
 │   │   ├── shell/                       # AppShell · TitleBar · Sidebar · StatusBar
 │   │   │                                # · CommandPalette · ModuleErrorBoundary
 │   │   ├── ipc/                         # invoke.ts (invokeCore/invokeModule) · index
 │   │   │   └── bindings/                # GÉNÉRÉ par ts-rs — ne pas éditer
-│   │   ├── engine/                      # types · engine.api · useAdapters
+│   │   ├── engine/                      # types · engine.api · useAdapters · useChat
 │   │   │                                # · session.store (conversations persistées) · __tests__
 │   │   ├── cards/                       # PromptCard · DiffView · ToolCallCard
 │   │   ├── bus/event-bus.ts
@@ -83,14 +85,16 @@ SDAI ARCHIMED/
 │   │   ├── tokens.css                   # source de vérité visuelle (@theme Tailwind v4)
 │   │   ├── themes.ts                    # presets de thème (Archimède, Papier, Tokyo Néon…)
 │   │   ├── globals.css · motion.ts
-│   │   └── primitives/                  # Button · Card · GlassPanel · Badge · Kbd
-│   │                                    # · SectionHeader · EmptyState
+│   │   └── primitives/                  # Button · Select (menus aux tokens) · Card
+│   │                                    # · GlassPanel · Badge · Kbd · SectionHeader · EmptyState
 │   └── modules/
 │       ├── _template/                   # copié par new-module (ignoré par le registre)
 │       ├── home/                        # launchpad
-│       ├── chat/                        # module.config · index · README · hooks/
-│       │   └── components/              # SessionList · Timeline · Composer
-│       │                                # · RawTerminalDrawer
+│       ├── chat/                        # module.config · index · README
+│       │   └── components/              # SessionList · ProjectBanner · RawTerminalDrawer
+│       ├── code/                        # module.config · index · api · README
+│       │   ├── components/              # FileTree · CodeEditor (CodeMirror 6)
+│       │   └── services/project.ts      # service `code.project` exposé au chat
 │       ├── skills/                      # module.config · index · api · README
 │       ├── settings/                    # index + components/ (ThemeSection · EngineSection)
 │       ├── files/                       # (prévu) explorateur et actions système
@@ -119,6 +123,7 @@ SDAI ARCHIMED/
         ├── system/                      # (prévu) fs · shell · net
         └── modules/
             ├── mod.rs                   # registre : `pub mod x;` + `register!(builder, x);`
+            ├── code/                    # arborescence, lecture de fichiers, détection de projet
             └── skills/                  # module.toml · mod.rs · commands.rs
                                          # · service.rs · types.rs
 ```
@@ -216,6 +221,7 @@ fn main() {
 | Slot | `launchpad.widgets` | home | widgets sur l'accueil |
 | Slot | `statusbar.items` | shell | indicateurs globaux |
 | Slot | `settings.sections` | settings | (auto : `manifest.settings`) |
+| Service | `code.project` | code | savoir si un dossier est un projet (consommé par le chat) |
 | Service | `engine.session` | core | démarrer/envoyer/écouter une session |
 | Service | `system.fs` / `system.shell` | core | actions système passant par la policy |
 | Service | `notify.toast` | core | notifications UI |
@@ -408,7 +414,13 @@ Côté frontend, `card-registry` choisit le composant : `Permission` + `Diff` �
 
 ---
 
-### 7.8 Conversations multiples
+### 7.8 Passage de relais entre modules
+`useUiStore.openModule(moduleId, params)` ouvre un module en lui transmettant un contexte ;
+le module cible lit `moduleParams[id]` puis appelle `clearModuleParams(id)`.
+Exemple : le chat détecte un projet via le service `code.project`, propose une bannière,
+et ouvre le module Code sur le dossier de la conversation.
+
+### 7.9 Conversations multiples
 Une **conversation** (frontend, persistée) est distincte d'une **session moteur** (processus CLI vivant) :
 `ChatSession.engineSessionId` vaut `null` tant qu'aucun processus ne tourne. Le premier message
 démarre le processus avec l'agent, le modèle et le dossier de la conversation ; la fin du processus

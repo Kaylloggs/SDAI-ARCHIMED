@@ -53,6 +53,7 @@ Résultat dans `release/<version>/` : `SDAI-Archimed.exe` (portable) + installeu
 |---|---|---|---|
 | `home` | Essentiel | Launchpad : une tuile par module actif | — |
 | `chat` | Intelligence | Conversations multi-CLI : sessions multiples, dossier de travail, pièces jointes, cartes de validation, Mode Auto | moteur core |
+| `code` | Intelligence | Éditeur de projet façon VS Code : arborescence, onglets, coloration syntaxique, chat latéral, drag & drop de fichiers à modifier | plugin `code` |
 | `skills` | Intelligence | Bibliothèque de skills, activation, synchronisation vers les CLI | plugin `skills` |
 | `settings` | Réglages | Thèmes, détection des CLI, modules, données | — |
 

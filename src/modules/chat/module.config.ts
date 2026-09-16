@@ -13,6 +13,6 @@ export default defineModule({
   enabledByDefault: true,
   page: lazy(() => import("./index")),
   launchpad: { size: "lg", accent: true },
-  consumes: ["voice.transcribe"],
+  consumes: ["voice.transcribe", "code.project"],
   commands: [{ id: "chat.open", title: "Ouvrir le chat", run: "navigate" }],
 });

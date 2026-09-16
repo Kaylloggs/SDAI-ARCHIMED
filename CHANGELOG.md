@@ -26,6 +26,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Réglages > Données** : suppression de tout l'historique.
 - `pnpm check` impose désormais que chaque module soit listé dans `README.md` et `architecture.md`.
 
+### Ajouté — Module Code
+- **Nouveau module `code`** : arborescence de projet (chargement paresseux, dossiers lourds grisés), onglets de fichiers, lecture avec coloration syntaxique via CodeMirror 6 (~35 langages), détection du type de projet.
+- **Assistant intégré** au module Code : même moteur et mêmes conversations que le module Chat, panneau repliable.
+- **Drag & drop** : un fichier glissé de l'arborescence devient une cible de modification ; des fichiers glissés depuis Windows deviennent des pièces jointes (`useOsFileDrop`).
+- **Passage de relais Chat → Code** : quand le dossier de travail est un projet (détecté via le service `code.project`), le chat propose de l'ouvrir dans le module Code.
+- **UI de conversation mutualisée** dans `@/core/chat` (`Composer`, `ConversationView`) et `@/core/engine/useChat`.
+- **Primitive `Select`** : les menus déroulants suivent enfin le thème de l'application (les `<select>` natifs utilisaient le style du système).
+
 ### Connu / à faire (Phase 2)
 - Transport PTY (`portable-pty` + `vt100`) et règles de détection TOML pour les CLI sans protocole.
 - Validation interactive des permissions Antigravity (aujourd'hui refus automatique en headless).
@@ -34,3 +42,5 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - Continuité de contexte au redémarrage d'un processus (`--resume` Claude, `--conversation` agy, `codex exec resume`).
 - Envoi natif des images aux CLI qui le supportent (aujourd'hui : chemins transmis à l'agent).
 - Validation des flags Codex sur une machine où la CLI est installée.
+- Édition directe dans le module Code (aujourd'hui lecture seule : les modifications passent par l'IA).
+- Palette de fichiers (`search_files` est déjà exposée côté Rust, pas encore branchée).
