@@ -63,6 +63,20 @@ Espace **OKLCH**. Thème **sombre par défaut** ; le thème clair existe mais es
 | `--glass-bg` | `oklch(0.22 0.008 265 / 0.62)` | couches L3 |
 | `--scrim` | `oklch(0.08 0 0 / 0.55)` | voile de modale |
 
+### 3.1.bis Presets de thème
+`design-system/themes.ts` + blocs `:root[data-theme="<id>"]` de `tokens.css`. Un preset **ne redéfinit que les couleurs** ; typographie, espacements, rayons et motion restent communs.
+
+| Preset | Id | Mode | Accent |
+|---|---|---|---|
+| Archimède (défaut) | `archimed` | sombre | laiton `oklch(0.80 0.115 80)` |
+| Papier | `light` | clair | ocre `oklch(0.62 0.12 75)` |
+| Tokyo Néon | `tokyo-neon` | sombre indigo | magenta `oklch(0.74 0.19 330)` |
+| Nord | `nord` | sombre froid | glacier `oklch(0.78 0.09 220)` |
+| Terra | `solar-terra` | sombre chaud | terracotta `oklch(0.72 0.14 40)` |
+| Encre | `monochrome` | sombre neutre | blanc `oklch(0.92 0 0)` |
+
+Ajouter un preset = une entrée dans `THEMES` + un bloc CSS redéfinissant **tous** les tokens de couleur utilisés (neutres, accent, sémantiques). Vérifier le contraste AA dans le preset avant de le proposer.
+
 ### 3.2 Accent — « Laiton d'Archimède »
 | Token | Valeur | Usage |
 |---|---|---|
@@ -186,9 +200,11 @@ Règles : animer seulement `transform`, `opacity` (et `filter` léger). Interact
 - **Launchpad** : blocs L2 en grille bento, icône 20 px, titre `text-title-3`, description `text-footnote` sur 2 lignes max, statut éventuel (ex : « 3 skills actifs »). Survol : `--surface-2` + bordure `--border-strong`, `duration.instant`.
 
 ### 7.2 Chat
+- **Liste des conversations** (rail 256 px à gauche du chat) : titre dérivé du premier message, puis date, modèle et dossier en `text-caption`. Suppression : icône au survol, **second clic** pour confirmer.
 - **Bulle utilisateur** : alignée à droite, `--surface-2`, rayon `lg`, max 80 % de la colonne.
 - **Message IA** : **sans bulle**, pleine largeur de colonne, avatar d'agent 20 px + nom + modèle en `text-footnote`. Markdown rendu, code en blocs `Geist Mono` 13/20 sur `--surface-1` avec bouton copier.
-- **Composer** (L3 glass) : champ multi-ligne, à gauche AgentPicker + ModelPicker (menus compacts), slot `chat.composer.actions`, à droite toggle **Mode Auto** puis bouton envoyer (accent). `Entrée` envoie, `Maj+Entrée` nouvelle ligne.
+- **Composer** (L3 glass) : champ multi-ligne, à gauche AgentPicker + ModelPicker, **sélecteur de dossier de travail** et **bouton pièces jointes**, slot `chat.composer.actions`, à droite toggle **Mode Auto** puis bouton envoyer (accent). `Entrée` envoie, `Maj+Entrée` nouvelle ligne.
+- **Pièces jointes** : chips au-dessus du champ (icône trombone + nom de fichier tronqué + croix). Les chemins complets sont transmis à l'agent, qui ouvre les fichiers avec son propre outil de lecture.
 - **Toggle Mode Auto** : 3 états `Désactivé / Intelligent / Complet`. En `Complet`, un liseré `--warning` de 1 px sur le composer et une chip dans la statusbar rappellent l'état en permanence.
 - **Terminal brut** : tiroir bas, fermé par défaut, ouvrable via `Ctrl+J` ou « Voir la sortie brute » dans une carte.
 

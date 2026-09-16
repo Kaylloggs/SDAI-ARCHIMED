@@ -19,6 +19,7 @@
 2. **Le core n'importe JAMAIS un module.** Les modules sont découverts automatiquement.
 3. **Un module n'importe JAMAIS un autre module.** Il passe par les *services*, *slots* et le *bus d'événements* du core.
 4. **Supprimer un dossier de module ne doit rien casser** : l'app compile, démarre, et le module disparaît simplement de l'UI.
+   Et **tout module existe dans la doc** : `README.md` (tableau des modules) + `architecture.md` (arborescence) + son propre `README.md`.
 5. **Tout appel Rust passe par la couche `api.ts` du module** (jamais d'`invoke()` dispersé dans les composants).
 6. **Types partagés Rust ↔ TS générés** (`ts-rs`), jamais recopiés à la main.
 7. **Aucune valeur de design en dur** : couleurs, espacements, rayons, durées = tokens de `design.md`.
@@ -255,6 +256,7 @@ Noms de slots, services et événements : `domaine.sujet.action` en minuscules. 
 - [ ] Aucun token de design en dur, aucune chaîne UI en dur hors `i18n/`.
 - [ ] Types Rust exportés via `ts-rs` et bindings régénérés (`pnpm gen:bindings`).
 - [ ] Ligne ajoutée dans `CHANGELOG.md`.
+- [ ] **Module listé dans la documentation** : tableau « Modules livrés » du `README.md` ET arborescence d'`architecture.md` §2 (vérifié par `pnpm check`).
 
 ---
 
@@ -401,7 +403,7 @@ Exigences minimales de tests :
 
 | Si tu… | …mets à jour |
 |---|---|
-| ajoutes/supprimes un module | `README.md` du module, `CHANGELOG.md` |
+| ajoutes/supprimes un module | son `README.md`, le tableau « Modules livrés » du `README.md` racine, l'arborescence d'`architecture.md` §2, `CHANGELOG.md` — **obligatoire, `pnpm check` échoue sinon** |
 | ajoutes un slot, service core, événement global | `src/core/modules/slots.ts` + `architecture.md` §5 |
 | modifies le contrat `EngineEvent` / `InteractivePrompt` | `architecture.md` §7 + bindings |
 | ajoutes une CLI | `architecture.md` §6 (tableau des adaptateurs) + `README.md` (prérequis) |

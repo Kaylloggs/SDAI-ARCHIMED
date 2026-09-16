@@ -54,6 +54,18 @@ for (const file of walk(join(root, "src", "core")).concat(walk(join(root, "src",
   }
 }
 
+// Chaque module doit être documenté (guidelines.md, règle d'or n°4).
+const readme = readFileSync(join(root, "README.md"), "utf8");
+const architecture = readFileSync(join(root, "architecture.md"), "utf8");
+for (const id of frontModules) {
+  if (!readme.includes("`" + id + "`")) {
+    errors.push(`README.md: module "${id}" absent du tableau « Modules livrés »`);
+  }
+  if (!architecture.includes(`${id}/`)) {
+    errors.push(`architecture.md: module "${id}" absent de l'arborescence (§2)`);
+  }
+}
+
 const backendDir = join(root, "src-tauri", "src", "modules");
 if (existsSync(backendDir)) {
   const registry = readFileSync(join(backendDir, "mod.rs"), "utf8");

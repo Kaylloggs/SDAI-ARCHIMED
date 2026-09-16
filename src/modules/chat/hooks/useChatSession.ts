@@ -1,83 +1,90 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { Channel } from "@/core/ipc";
 import { engineApi } from "@/core/engine/engine.api";
-import { useSessionStore } from "@/core/engine/session.store";
-import type { AdapterInfo, AutoMode, EngineEvent, PromptAnswer } from "@/core/engine/types";
+export { useAdapters } from "@/core/engine/useAdapters";
+import { useSessionStore, type ChatSession } from "@/core/engine/session.store";
+import type { AutoMode, EngineEvent, PromptAnswer } from "@/core/engine/types";
 import { bus } from "@/core/bus/event-bus";
 
-export function useAdapters() {
-  const [adapters, setAdapters] = useState<AdapterInfo[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let alive = true;
-    engineApi
-      .listAdapters()
-      .then((list) => alive && setAdapters(list))
-      .catch((e: { message?: string }) => alive && setError(e.message ?? "Erreur inconnue"))
-      .finally(() => alive && setLoading(false));
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  return { adapters, error, loading };
+/** Compose le message envoyé à la CLI à partir du texte et des pièces jointes. */
+export function buildPrompt(text: string, attachments: string[]): string {
+  if (attachments.length === 0) return text;
+  const list = attachments.map((path) => `- ${path}`).join("\n");
+  return `${text}\n\n[Pièces jointes — ouvre ces fichiers avec ton outil de lecture]\n${list}`;
 }
 
-export function useChatSession() {
-  const { sessions, activeSessionId, createSession, appendUser, apply, patch, setActive } =
-    useSessionStore();
-  const session = activeSessionId ? sessions[activeSessionId] : undefined;
+export function useChat() {
+  const store = useSessionStore();
+  const session = store.sessions.find((s) => s.id === store.activeId) ?? null;
 
-  const start = useCallback(
-    async (adapter: string, model: string | null, autoMode: AutoMode, cwd: string | null) => {
+  /** Démarre (ou redémarre) le processus CLI d'une conversation. */
+  const ensureEngine = useCallback(
+    async (chat: ChatSession): Promise<string> => {
+      if (chat.engineSessionId) return chat.engineSessionId;
+
       const channel = new Channel<EngineEvent>();
-      const pendingId = { current: "" };
+      const state = { engineId: "" };
       channel.onmessage = (event) => {
-        if (pendingId.current) apply(pendingId.current, event);
+        if (state.engineId) useSessionStore.getState().apply(state.engineId, event);
       };
-      const sessionId = await engineApi.startSession({ adapter, model, cwd, autoMode, onEvent: channel });
-      pendingId.current = sessionId;
-      createSession({
-        id: sessionId,
-        adapter,
-        model: model ?? "",
-        autoMode,
-        status: "starting",
-        timeline: [],
-        raw: "",
-        usage: { inputTokens: 0, outputTokens: 0, costUsd: null },
-        pendingPromptId: null,
+
+      useSessionStore.getState().patch(chat.id, { status: "starting" });
+      const engineSessionId = await engineApi.startSession({
+        adapter: chat.adapter,
+        model: chat.model,
+        cwd: chat.cwd,
+        autoMode: chat.autoMode,
+        onEvent: channel,
       });
-      bus.emit("engine.session.started", { sessionId, adapter });
-      return sessionId;
-    },
-    [apply, createSession],
-  );
 
-  const send = useCallback(
-    async (sessionId: string, text: string) => {
-      appendUser(sessionId, text);
-      await engineApi.sendMessage(sessionId, text);
-    },
-    [appendUser],
-  );
-
-  const answer = useCallback(
-    async (sessionId: string, promptId: string, payload: PromptAnswer) => {
-      await engineApi.answerPrompt(sessionId, promptId, payload);
+      // Le store doit connaître l'id avant que le premier événement n'arrive.
+      useSessionStore.getState().patch(chat.id, { engineSessionId, status: "running" });
+      state.engineId = engineSessionId;
+      bus.emit("engine.session.started", { sessionId: engineSessionId, adapter: chat.adapter });
+      return engineSessionId;
     },
     [],
   );
 
-  const setAutoMode = useCallback(
-    async (sessionId: string, mode: AutoMode) => {
-      patch(sessionId, { autoMode: mode });
-      await engineApi.setAutoMode(sessionId, mode);
+  const send = useCallback(
+    async (chat: ChatSession, text: string, attachments: string[]) => {
+      const engineSessionId = await ensureEngine(chat);
+      useSessionStore.getState().appendUser(chat.id, text, attachments);
+      await engineApi.sendMessage(engineSessionId, buildPrompt(text, attachments));
     },
-    [patch],
+    [ensureEngine],
   );
 
-  return { sessions, session, activeSessionId, setActive, start, send, answer, setAutoMode };
+  const answer = useCallback(
+    async (chat: ChatSession, promptId: string, payload: PromptAnswer) => {
+      if (!chat.engineSessionId) return;
+      await engineApi.answerPrompt(chat.engineSessionId, promptId, payload);
+    },
+    [],
+  );
+
+  const setAutoMode = useCallback(async (chat: ChatSession, mode: AutoMode) => {
+    useSessionStore.getState().patch(chat.id, { autoMode: mode });
+    if (chat.engineSessionId) await engineApi.setAutoMode(chat.engineSessionId, mode);
+  }, []);
+
+  const remove = useCallback(async (chat: ChatSession) => {
+    if (chat.engineSessionId) {
+      await engineApi.stopSession(chat.engineSessionId).catch(() => undefined);
+    }
+    useSessionStore.getState().removeSession(chat.id);
+  }, []);
+
+  return {
+    sessions: store.sessions,
+    session,
+    activeId: store.activeId,
+    setActive: store.setActive,
+    createSession: store.createSession,
+    patch: store.patch,
+    send,
+    answer,
+    setAutoMode,
+    remove,
+  };
 }

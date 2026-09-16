@@ -73,13 +73,15 @@ SDAI ARCHIMED/
 │   │   │                                # · CommandPalette · ModuleErrorBoundary
 │   │   ├── ipc/                         # invoke.ts (invokeCore/invokeModule) · index
 │   │   │   └── bindings/                # GÉNÉRÉ par ts-rs — ne pas éditer
-│   │   ├── engine/                      # types · engine.api · session.store · __tests__
+│   │   ├── engine/                      # types · engine.api · useAdapters
+│   │   │                                # · session.store (conversations persistées) · __tests__
 │   │   ├── cards/                       # PromptCard · DiffView · ToolCallCard
 │   │   ├── bus/event-bus.ts
-│   │   ├── stores/                      # modules.store · ui.store
+│   │   ├── stores/                      # modules.store · ui.store · theme.store
 │   │   └── lib/cn.ts
 │   ├── design-system/
 │   │   ├── tokens.css                   # source de vérité visuelle (@theme Tailwind v4)
+│   │   ├── themes.ts                    # presets de thème (Archimède, Papier, Tokyo Néon…)
 │   │   ├── globals.css · motion.ts
 │   │   └── primitives/                  # Button · Card · GlassPanel · Badge · Kbd
 │   │                                    # · SectionHeader · EmptyState
@@ -87,9 +89,10 @@ SDAI ARCHIMED/
 │       ├── _template/                   # copié par new-module (ignoré par le registre)
 │       ├── home/                        # launchpad
 │       ├── chat/                        # module.config · index · README · hooks/
-│       │   └── components/              # Timeline · Composer · RawTerminalDrawer
+│       │   └── components/              # SessionList · Timeline · Composer
+│       │                                # · RawTerminalDrawer
 │       ├── skills/                      # module.config · index · api · README
-│       ├── settings/
+│       ├── settings/                    # index + components/ (ThemeSection · EngineSection)
 │       ├── files/                       # (prévu) explorateur et actions système
 │       ├── voice/                       # (prévu)
 │       └── image-gen/                   # (prévu)
@@ -103,13 +106,14 @@ SDAI ARCHIMED/
     ├── resources/                       # (prévu) adapters/*.toml · prompt-rules/*.toml
     └── src/
         ├── main.rs · lib.rs             # plugins, state, registre des modules, commandes
-        ├── core/                        # error.rs (AppError) · paths.rs · mod.rs
+        ├── core/                        # error.rs (AppError) · paths.rs · config.rs (overrides) · mod.rs
         ├── engine/
         │   ├── mod.rs · commands.rs     # engine_* exposées au frontend
         │   ├── manager.rs · session.rs  # SessionManager, boucle de session tokio
         │   ├── event.rs                 # EngineEvent, InteractivePrompt, AdapterInfo
         │   ├── policy.rs                # risque + Mode Auto (+ tests)
-        │   ├── adapters/                # mod.rs (trait CliAdapter) · claude.rs · antigravity.rs
+        │   ├── adapters/                # mod.rs (trait CliAdapter) · claude.rs
+        │   │                            # · antigravity.rs · codex.rs (expérimental)
         │   ├── transport/               # (prévu) pty.rs (portable-pty + vt100)
         │   └── parser/                  # (prévu) screen · rules · detector · menu · keys
         ├── system/                      # (prévu) fs · shell · net
@@ -250,9 +254,17 @@ pub trait CliAdapter: Send + Sync {
 |---|---|---|---|---|---|
 | Claude Code | `claude` | Structured : `-p --input-format stream-json --output-format stream-json --verbose` | `--permission-prompt-tool stdio` → `control_request`/`control_response` (§7.2) | `--model` (opus/sonnet/haiku) | relance avec `--resume <session_id> --model <nouveau>` |
 | Antigravity | `agy` | Structured : `-p --input-format stream-json --output-format stream-json` | pas d'outil de prompt exposé → **PTY interactif** (`agy -i`) quand la validation est requise, `--mode accept-edits` en Mode Auto smart | `agy models`, `--model` | relance avec `--conversation <id> --model <nouveau>` |
-| Déclaratif (Codex…) | via TOML | PTY | règles de parsing | TOML | relance |
+| Codex (expérimental) | `codex` | Structured one-shot : `codex exec --json -` | aucune (à valider) | `--model` | nouveau processus à chaque message |
+| Déclaratif (autres) | via TOML | PTY (Phase 2) | règles de parsing | TOML | relance |
 
 > Flags vérifiés sur `agy --help` (machine de dev, 2026-09-16). À **revalider à chaque mise à jour de CLI** ; la version testée est notée dans chaque adaptateur.
+
+### 6.2.bis Détection des CLI
+Au chargement du chat et des réglages, `engine_list_adapters` sonde chaque adaptateur :
+chemin forcé par l'utilisateur (`engine.json`) → PATH (`which`) → emplacements connus
+(ex. Claude Code embarqué par Claude Desktop dans `%APPDATA%\Claude\claude-code\<version>\`).
+Une CLI installée apparaît donc **automatiquement** dans le sélecteur d'agent ; sinon elle est
+grisée avec son aide d'installation, et Réglages > Moteur permet de désigner l'exécutable à la main.
 
 ### 6.3 Cycle de vie d'une session
 `Starting → Running ⇄ AwaitingInput → Stopping → Ended` (+ `Crashed` → redémarrage proposé avec reprise de conversation).
@@ -396,6 +408,13 @@ Côté frontend, `card-registry` choisit le composant : `Permission` + `Diff` �
 
 ---
 
+### 7.8 Conversations multiples
+Une **conversation** (frontend, persistée) est distincte d'une **session moteur** (processus CLI vivant) :
+`ChatSession.engineSessionId` vaut `null` tant qu'aucun processus ne tourne. Le premier message
+démarre le processus avec l'agent, le modèle et le dossier de la conversation ; la fin du processus
+(`SessionEnded`) remet `engineSessionId` à `null` sans perdre l'historique. Supprimer une conversation
+arrête son processus puis efface son entrée.
+
 ## 8. Mode Auto et policy de sécurité
 
 `policy::evaluate(action, ctx) -> Decision { verdict: Allow|Ask|Deny, risk, reason }`
@@ -437,7 +456,9 @@ Côté frontend, `card-registry` choisit le composant : `Permission` + `Diff` �
 |---|---|
 | Réglages | `%APPDATA%\com.sdai.archimed\settings.json` (tauri-plugin-store) |
 | Secrets | Gestionnaire d'identifiants Windows (`keyring`) |
-| Sessions / historique | `%APPDATA%\com.sdai.archimed\sessions\<id>.jsonl` (événements rejouables) |
+| Conversations (titre, agent, modèle, dossier, timeline) | `localStorage` du WebView, clé `archimed.sessions` — migration vers `%APPDATA%\com.sdai.archimed\sessions\<id>.jsonl` en Phase 2 |
+| Thème choisi | `localStorage`, clé `archimed.theme` |
+| Chemins de CLI forcés | `%APPDATA%\com.sdai.archimed\engine.json` |
 | Skills | `%APPDATA%\com.sdai.archimed\skills\` |
 | Logs | `%APPDATA%\com.sdai.archimed\logs\` (`app.log` rotatif, `audit.jsonl`) |
 | Données d'un module | `%APPDATA%\com.sdai.archimed\modules\<id>\` (via `core::paths::module_dir`) |

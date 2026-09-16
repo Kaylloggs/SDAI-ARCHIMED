@@ -2,16 +2,16 @@ import { useEffect, useRef } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion } from "motion/react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Paperclip } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { PromptCard } from "@/core/cards/PromptCard";
 import { ToolCallCard } from "@/core/cards/ToolCallCard";
-import type { SessionState } from "@/core/engine/session.store";
+import type { ChatSession } from "@/core/engine/session.store";
 import type { PromptAnswer } from "@/core/engine/types";
 import { enterUp } from "@/design-system/motion";
 
 type Props = {
-  session: SessionState;
+  session: ChatSession;
   agentName: string;
   onAnswer: (promptId: string, answer: PromptAnswer) => void;
 };
@@ -36,8 +36,22 @@ export function Timeline({ session, agentName, onAnswer }: Props) {
                 animate="visible"
                 className="flex justify-end"
               >
-                <div className="selectable max-w-[80%] rounded-lg bg-surface-2 px-3.5 py-2.5 text-message whitespace-pre-wrap">
-                  {item.text}
+                <div className="selectable max-w-[80%] space-y-2 rounded-lg bg-surface-2 px-3.5 py-2.5">
+                  <p className="whitespace-pre-wrap text-message">{item.text}</p>
+                  {item.attachments && item.attachments.length > 0 && (
+                    <ul className="flex flex-wrap gap-1.5 border-t border-border pt-2">
+                      {item.attachments.map((path) => (
+                        <li
+                          key={path}
+                          title={path}
+                          className="flex max-w-56 items-center gap-1 text-caption text-text-subtle"
+                        >
+                          <Paperclip size={10} strokeWidth={1.75} className="shrink-0" />
+                          <span className="truncate">{path.split(/[\\/]/).at(-1)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </motion.div>
             );

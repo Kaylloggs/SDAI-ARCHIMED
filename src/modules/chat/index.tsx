@@ -1,61 +1,62 @@
 import { useEffect, useMemo, useState } from "react";
-import { MessagesSquare, Loader2 } from "lucide-react";
+import { MessagesSquare, Loader2, FolderOpen } from "lucide-react";
 import { Slot } from "@/core/modules";
-import { EmptyState } from "@/design-system/primitives";
+import { Badge, Button, EmptyState } from "@/design-system/primitives";
 import type { AutoMode, PromptAnswer } from "@/core/engine/types";
-import { useAdapters, useChatSession } from "./hooks/useChatSession";
+import { useAdapters, useChat } from "./hooks/useChatSession";
+import { engineApi } from "@/core/engine/engine.api";
 import { Composer } from "./components/Composer";
+import { SessionList, folderName, formatDate } from "./components/SessionList";
 import { Timeline } from "./components/Timeline";
 import { RawTerminalDrawer } from "./components/RawTerminalDrawer";
 
 export default function ChatModule() {
   const { adapters, loading, error } = useAdapters();
-  const { session, start, send, answer, setAutoMode } = useChatSession();
-  const [adapterId, setAdapterId] = useState<string>("");
-  const [model, setModel] = useState<string | null>(null);
-  const [autoMode, setLocalAutoMode] = useState<AutoMode>("off");
-  const [starting, setStarting] = useState(false);
-  const [startError, setStartError] = useState<string | null>(null);
+  const chat = useChat();
+  const [defaultCwd, setDefaultCwd] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const installed = useMemo(() => adapters.filter((a) => a.installed), [adapters]);
+  const session = chat.session;
+  const adapter = adapters.find((a) => a.id === session?.adapter);
 
   useEffect(() => {
-    if (!adapterId && installed.length > 0) {
-      const first = installed[0];
-      if (first) {
-        setAdapterId(first.id);
-        setModel(first.defaultModel);
-      }
-    }
-  }, [installed, adapterId]);
+    engineApi
+      .defaultCwd()
+      .then(setDefaultCwd)
+      .catch(() => setDefaultCwd(null));
+  }, []);
 
-  const adapter = adapters.find((a) => a.id === adapterId);
-  const busy = session?.status === "starting" || starting;
+  const createSession = () => {
+    const first = installed[0];
+    if (!first) return;
+    chat.createSession({
+      adapter: first.id,
+      model: first.defaultModel,
+      cwd: session?.cwd ?? defaultCwd,
+      autoMode: "off",
+    });
+    setActionError(null);
+  };
 
-  const handleSend = async (text: string) => {
-    setStartError(null);
+  const handleSend = async (text: string, attachments: string[]) => {
+    if (!session) return;
+    setActionError(null);
     try {
-      let sessionId = session?.id;
-      if (!sessionId || session?.status === "ended") {
-        setStarting(true);
-        sessionId = await start(adapterId, model, autoMode, null);
-      }
-      await send(sessionId, text);
+      await chat.send(session, text, attachments);
     } catch (e) {
-      setStartError((e as { message?: string }).message ?? "Impossible de démarrer la session");
-    } finally {
-      setStarting(false);
+      setActionError((e as { message?: string }).message ?? "Impossible de démarrer la session");
+      chat.patch(session.id, { status: "error" });
     }
   };
 
   const handleAnswer = (promptId: string, payload: PromptAnswer) => {
     if (!session) return;
-    void answer(session.id, promptId, payload);
+    void chat.answer(session, promptId, payload);
   };
 
   const handleAutoMode = (mode: AutoMode) => {
-    setLocalAutoMode(mode);
-    if (session) void setAutoMode(session.id, mode);
+    if (session) void chat.setAutoMode(session, mode);
   };
 
   if (loading) {
@@ -76,59 +77,109 @@ export default function ChatModule() {
     );
   }
 
-  return (
-    <div className="flex h-full flex-col">
-      <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-4">
-        <span className="text-body-sm font-medium">
-          {adapter?.name ?? "Chat"}
-          {session ? "" : " · nouvelle conversation"}
-        </span>
-        {session && (
-          <span className="text-footnote text-text-subtle">
-            {session.usage.inputTokens + session.usage.outputTokens} tokens
-          </span>
-        )}
-        <div className="ml-auto flex items-center gap-2">
-          <Slot name="chat.header.right" />
-        </div>
-      </header>
+  const busy = session?.status === "starting";
+  const started = Boolean(session && session.timeline.length > 0);
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {session && session.timeline.length > 0 ? (
-          <Timeline session={session} agentName={adapter?.name ?? "Agent"} onAnswer={handleAnswer} />
-        ) : (
-          <EmptyState
-            icon={<MessagesSquare size={28} strokeWidth={1.5} />}
-            title={installed.length === 0 ? "Aucune CLI détectée" : "Démarrer une conversation"}
-            description={
-              installed.length === 0
-                ? adapters.map((a) => a.hint).filter(Boolean).join(" · ") ||
-                  "Installez Claude Code ou Antigravity CLI, puis relancez."
-                : "Posez une question, demandez une modification de fichier, ou lancez une commande."
+  return (
+    <div className="flex h-full">
+      <SessionList
+        sessions={chat.sessions}
+        activeId={chat.activeId}
+        onSelect={chat.setActive}
+        onCreate={createSession}
+        onDelete={(target) => void chat.remove(target)}
+      />
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-4">
+          {session ? (
+            <>
+              <span className="truncate text-body-sm font-medium">{session.title}</span>
+              <Badge tone="neutral">{adapter?.name ?? session.adapter}</Badge>
+              {session.model && <Badge tone="neutral">{session.model}</Badge>}
+              <span className="hidden items-center gap-1 text-footnote text-text-subtle md:inline-flex">
+                <FolderOpen size={11} strokeWidth={1.75} />
+                {folderName(session.cwd)}
+              </span>
+              <span className="text-footnote text-text-subtle">
+                · {formatDate(session.createdAt)}
+              </span>
+              {session.usage.inputTokens + session.usage.outputTokens > 0 && (
+                <span className="text-footnote text-text-subtle">
+                  · {session.usage.inputTokens + session.usage.outputTokens} tokens
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-body-sm text-text-subtle">Aucune conversation ouverte</span>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <Slot name="chat.header.right" />
+          </div>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {session && session.timeline.length > 0 ? (
+            <Timeline
+              session={session}
+              agentName={adapter?.name ?? session.adapter}
+              onAnswer={handleAnswer}
+            />
+          ) : (
+            <EmptyState
+              icon={<MessagesSquare size={28} strokeWidth={1.5} />}
+              title={
+                installed.length === 0
+                  ? "Aucune CLI détectée"
+                  : session
+                    ? "Conversation prête"
+                    : "Démarrer une conversation"
+              }
+              description={
+                installed.length === 0
+                  ? "Installez Claude Code, Antigravity ou Codex — ou indiquez le chemin d'un exécutable dans Réglages > Moteur."
+                  : session
+                    ? `Dossier de travail : ${session.cwd ?? "par défaut"}. Posez une question ou demandez une modification.`
+                    : "Créez une conversation pour commencer."
+              }
+              action={
+                installed.length > 0 && !session ? (
+                  <Button variant="primary" onClick={createSession}>
+                    Nouvelle conversation
+                  </Button>
+                ) : undefined
+              }
+            />
+          )}
+          {actionError && (
+            <p className="pb-4 text-center text-footnote text-danger">{actionError}</p>
+          )}
+        </div>
+
+        <RawTerminalDrawer raw={session?.raw ?? ""} />
+
+        {session && (
+          <Composer
+            adapters={adapters}
+            adapterId={session.adapter}
+            model={session.model}
+            cwd={session.cwd}
+            autoMode={session.autoMode}
+            busy={busy || installed.length === 0}
+            locked={started}
+            onAdapterChange={(id) =>
+              chat.patch(session.id, {
+                adapter: id,
+                model: adapters.find((a) => a.id === id)?.defaultModel ?? null,
+              })
             }
+            onModelChange={(model) => chat.patch(session.id, { model })}
+            onCwdChange={(cwd) => chat.patch(session.id, { cwd })}
+            onAutoModeChange={handleAutoMode}
+            onSend={(text, attachments) => void handleSend(text, attachments)}
           />
         )}
-        {startError && (
-          <p className="pb-4 text-center text-footnote text-danger">{startError}</p>
-        )}
       </div>
-
-      <RawTerminalDrawer raw={session?.raw ?? ""} />
-
-      <Composer
-        adapters={adapters}
-        adapterId={adapterId}
-        model={model}
-        autoMode={autoMode}
-        busy={busy || installed.length === 0}
-        onAdapterChange={(id) => {
-          setAdapterId(id);
-          setModel(adapters.find((a) => a.id === id)?.defaultModel ?? null);
-        }}
-        onModelChange={setModel}
-        onAutoModeChange={handleAutoMode}
-        onSend={(text) => void handleSend(text)}
-      />
     </div>
   );
 }

@@ -1,26 +1,37 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import type {
   AutoMode,
   EngineEvent,
   InteractivePrompt,
   ResolvedBy,
-  SessionId,
 } from "./types";
 
 export type TimelineItem =
-  | { kind: "user"; id: string; text: string }
+  | { kind: "user"; id: string; text: string; attachments?: string[] }
   | { kind: "assistant"; id: string; text: string; done: boolean }
   | { kind: "tool"; id: string; tool: string; input: unknown; output?: string; ok?: boolean }
   | { kind: "prompt"; id: string; prompt: InteractivePrompt; resolvedBy?: ResolvedBy; optionId?: string | null }
   | { kind: "error"; id: string; message: string; code: string }
   | { kind: "system"; id: string; text: string };
 
-export type SessionState = {
-  id: SessionId;
+export type SessionStatus = "idle" | "starting" | "running" | "awaiting" | "ended" | "error";
+
+/**
+ * Une conversation persistée. Son identité (`id`) survit à l'arrêt du processus CLI :
+ * `engineSessionId` pointe vers la session backend vivante, ou `null` si elle est terminée.
+ */
+export type ChatSession = {
+  id: string;
+  title: string;
   adapter: string;
-  model: string;
+  model: string | null;
+  cwd: string | null;
   autoMode: AutoMode;
-  status: "starting" | "running" | "awaiting" | "ended" | "error";
+  createdAt: number;
+  updatedAt: number;
+  engineSessionId: string | null;
+  status: SessionStatus;
   timeline: TimelineItem[];
   raw: string;
   usage: { inputTokens: number; outputTokens: number; costUsd: number | null };
@@ -28,64 +39,143 @@ export type SessionState = {
 };
 
 type Store = {
-  sessions: Record<SessionId, SessionState>;
-  activeSessionId: SessionId | null;
-  createSession: (session: SessionState) => void;
-  setActive: (id: SessionId | null) => void;
-  appendUser: (id: SessionId, text: string) => void;
-  apply: (id: SessionId, event: EngineEvent) => void;
-  patch: (id: SessionId, patch: Partial<SessionState>) => void;
+  sessions: ChatSession[];
+  activeId: string | null;
+
+  createSession: (init: {
+    adapter: string;
+    model: string | null;
+    cwd: string | null;
+    autoMode: AutoMode;
+  }) => string;
+  removeSession: (id: string) => void;
+  clearAll: () => void;
+  setActive: (id: string | null) => void;
+  patch: (id: string, patch: Partial<ChatSession>) => void;
+  appendUser: (id: string, text: string, attachments?: string[]) => void;
+  apply: (engineSessionId: string, event: EngineEvent) => void;
 };
 
 const MAX_RAW = 200_000;
+const MAX_SESSIONS = 100;
 
-export const useSessionStore = create<Store>()((set) => ({
-  sessions: {},
-  activeSessionId: null,
+function titleFrom(text: string): string {
+  const clean = text.trim().replace(/\s+/g, " ");
+  return clean.length > 48 ? `${clean.slice(0, 48)}…` : clean;
+}
 
-  createSession: (session) =>
-    set((state) => ({
-      sessions: { ...state.sessions, [session.id]: session },
-      activeSessionId: session.id,
-    })),
+export const useSessionStore = create<Store>()(
+  persist(
+    (set, get) => ({
+      sessions: [],
+      activeId: null,
 
-  setActive: (activeSessionId) => set({ activeSessionId }),
+      createSession: ({ adapter, model, cwd, autoMode }) => {
+        const id = crypto.randomUUID();
+        const now = Date.now();
+        const session: ChatSession = {
+          id,
+          title: "Nouvelle conversation",
+          adapter,
+          model,
+          cwd,
+          autoMode,
+          createdAt: now,
+          updatedAt: now,
+          engineSessionId: null,
+          status: "idle",
+          timeline: [],
+          raw: "",
+          usage: { inputTokens: 0, outputTokens: 0, costUsd: null },
+          pendingPromptId: null,
+        };
+        set((state) => ({
+          sessions: [session, ...state.sessions].slice(0, MAX_SESSIONS),
+          activeId: id,
+        }));
+        return id;
+      },
 
-  appendUser: (id, text) =>
-    set((state) => {
-      const session = state.sessions[id];
-      if (!session) return state;
-      const item: TimelineItem = { kind: "user", id: crypto.randomUUID(), text };
-      return {
-        sessions: {
-          ...state.sessions,
-          [id]: { ...session, timeline: [...session.timeline, item], status: "running" },
-        },
-      };
+      removeSession: (id) =>
+        set((state) => {
+          const sessions = state.sessions.filter((s) => s.id !== id);
+          return {
+            sessions,
+            activeId: state.activeId === id ? (sessions[0]?.id ?? null) : state.activeId,
+          };
+        }),
+
+      clearAll: () => set({ sessions: [], activeId: null }),
+
+      setActive: (activeId) => set({ activeId }),
+
+      patch: (id, patch) =>
+        set((state) => ({
+          sessions: state.sessions.map((session) =>
+            session.id === id ? { ...session, ...patch, updatedAt: Date.now() } : session,
+          ),
+        })),
+
+      appendUser: (id, text, attachments) =>
+        set((state) => ({
+          sessions: state.sessions.map((session) => {
+            if (session.id !== id) return session;
+            const item: TimelineItem = {
+              kind: "user",
+              id: crypto.randomUUID(),
+              text,
+              ...(attachments && attachments.length > 0 ? { attachments } : {}),
+            };
+            return {
+              ...session,
+              status: "running",
+              updatedAt: Date.now(),
+              title:
+                session.timeline.length === 0 || session.title === "Nouvelle conversation"
+                  ? titleFrom(text)
+                  : session.title,
+              timeline: [...session.timeline, item],
+            };
+          }),
+        })),
+
+      apply: (engineSessionId, event) => {
+        const target = get().sessions.find((s) => s.engineSessionId === engineSessionId);
+        if (!target) return;
+        set((state) => ({
+          sessions: state.sessions.map((session) =>
+            session.id === target.id ? reduce(session, event) : session,
+          ),
+        }));
+      },
     }),
+    {
+      name: "archimed.sessions",
+      // La sortie brute et l'état transitoire ne sont pas persistés.
+      partialize: (state) => ({
+        activeId: state.activeId,
+        sessions: state.sessions.map((session) => ({
+          ...session,
+          raw: "",
+          engineSessionId: null,
+          pendingPromptId: null,
+          status: session.status === "ended" ? "ended" : ("idle" as SessionStatus),
+          timeline: session.timeline.filter(
+            (item) => !(item.kind === "prompt" && !item.resolvedBy),
+          ),
+        })),
+      }),
+    },
+  ),
+);
 
-  patch: (id, patch) =>
-    set((state) => {
-      const session = state.sessions[id];
-      if (!session) return state;
-      return { sessions: { ...state.sessions, [id]: { ...session, ...patch } } };
-    }),
-
-  apply: (id, event) =>
-    set((state) => {
-      const session = state.sessions[id];
-      if (!session) return state;
-      const next = reduce(session, event);
-      return { sessions: { ...state.sessions, [id]: next } };
-    }),
-}));
-
-function reduce(session: SessionState, event: EngineEvent): SessionState {
+function reduce(session: ChatSession, event: EngineEvent): ChatSession {
   const timeline = session.timeline;
+  const touched = { updatedAt: Date.now() };
 
   switch (event.type) {
     case "sessionStarted":
-      return { ...session, status: "running", model: event.model, adapter: event.adapter };
+      return { ...session, ...touched, status: "running", model: event.model || session.model };
 
     case "messageDelta": {
       const index = timeline.findIndex(
@@ -94,6 +184,7 @@ function reduce(session: SessionState, event: EngineEvent): SessionState {
       if (index === -1) {
         return {
           ...session,
+          ...touched,
           status: "running",
           timeline: [
             ...timeline,
@@ -104,21 +195,24 @@ function reduce(session: SessionState, event: EngineEvent): SessionState {
       const existing = timeline[index] as Extract<TimelineItem, { kind: "assistant" }>;
       const updated = [...timeline];
       updated[index] = { ...existing, text: existing.text + event.text };
-      return { ...session, timeline: updated };
+      return { ...session, ...touched, timeline: updated };
     }
 
-    case "messageCompleted": {
-      const updated = timeline.map((item) =>
-        item.kind === "assistant" && item.id === event.messageId
-          ? { ...item, done: true }
-          : item,
-      );
-      return { ...session, timeline: updated };
-    }
+    case "messageCompleted":
+      return {
+        ...session,
+        ...touched,
+        timeline: timeline.map((item) =>
+          item.kind === "assistant" && item.id === event.messageId
+            ? { ...item, done: true }
+            : item,
+        ),
+      };
 
     case "toolCall":
       return {
         ...session,
+        ...touched,
         timeline: [
           ...timeline,
           { kind: "tool", id: event.callId, tool: event.tool, input: event.input },
@@ -128,6 +222,7 @@ function reduce(session: SessionState, event: EngineEvent): SessionState {
     case "toolResult":
       return {
         ...session,
+        ...touched,
         timeline: timeline.map((item) =>
           item.kind === "tool" && item.id === event.callId
             ? { ...item, output: event.output, ok: event.ok }
@@ -138,6 +233,7 @@ function reduce(session: SessionState, event: EngineEvent): SessionState {
     case "prompt":
       return {
         ...session,
+        ...touched,
         status: "awaiting",
         pendingPromptId: event.prompt.promptId,
         timeline: [
@@ -149,6 +245,7 @@ function reduce(session: SessionState, event: EngineEvent): SessionState {
     case "promptResolved":
       return {
         ...session,
+        ...touched,
         status: "running",
         pendingPromptId:
           session.pendingPromptId === event.promptId ? null : session.pendingPromptId,
@@ -162,20 +259,20 @@ function reduce(session: SessionState, event: EngineEvent): SessionState {
     case "promptInvalidated":
       return {
         ...session,
+        ...touched,
         pendingPromptId: null,
         timeline: timeline.filter(
           (item) => !(item.kind === "prompt" && item.id === event.promptId && !item.resolvedBy),
         ),
       };
 
-    case "rawOutput": {
-      const raw = (session.raw + event.chunk).slice(-MAX_RAW);
-      return { ...session, raw };
-    }
+    case "rawOutput":
+      return { ...session, raw: (session.raw + event.chunk).slice(-MAX_RAW) };
 
     case "usage":
       return {
         ...session,
+        ...touched,
         usage: {
           inputTokens: session.usage.inputTokens + event.inputTokens,
           outputTokens: session.usage.outputTokens + event.outputTokens,
@@ -186,6 +283,7 @@ function reduce(session: SessionState, event: EngineEvent): SessionState {
     case "error":
       return {
         ...session,
+        ...touched,
         status: event.recoverable ? session.status : "error",
         timeline: [
           ...timeline,
@@ -194,7 +292,7 @@ function reduce(session: SessionState, event: EngineEvent): SessionState {
       };
 
     case "sessionEnded":
-      return { ...session, status: "ended" };
+      return { ...session, ...touched, status: "ended", engineSessionId: null };
 
     default:
       return session;

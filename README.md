@@ -46,6 +46,16 @@ Résultat dans `release/<version>/` : `SDAI-Archimed.exe` (portable) + installeu
 | `pnpm gen:bindings` | régénère les types TS depuis Rust |
 | `pnpm new:module <id> [--backend]` | crée un nouveau bloc |
 
+## Modules livrés
+> **Règle** : tout module ajouté doit apparaître dans ce tableau, dans `architecture.md` (§2) et dans `CHANGELOG.md`. `pnpm check` échoue sinon.
+
+| Module | Catégorie | Rôle | Backend |
+|---|---|---|---|
+| `home` | Essentiel | Launchpad : une tuile par module actif | — |
+| `chat` | Intelligence | Conversations multi-CLI : sessions multiples, dossier de travail, pièces jointes, cartes de validation, Mode Auto | moteur core |
+| `skills` | Intelligence | Bibliothèque de skills, activation, synchronisation vers les CLI | plugin `skills` |
+| `settings` | Réglages | Thèmes, détection des CLI, modules, données | — |
+
 ## Carte de la documentation
 | Fichier | Contenu |
 |---|---|

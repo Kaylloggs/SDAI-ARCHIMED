@@ -1,6 +1,7 @@
 use tauri::ipc::Channel;
 use tauri::State;
 
+use crate::core::config::ConfigStore;
 use crate::core::{AppError, AppResult};
 
 use super::adapters::{self, CliAdapter};
@@ -16,21 +17,34 @@ fn find_adapter(id: &str) -> AppResult<Box<dyn CliAdapter>> {
 }
 
 #[tauri::command]
-pub async fn engine_list_adapters() -> AppResult<Vec<AdapterInfo>> {
+pub async fn engine_list_adapters(config: State<'_, ConfigStore>) -> AppResult<Vec<AdapterInfo>> {
+    let overrides = config.snapshot().await.binary_overrides;
     // Sondage du système (which, --version, models) : hors du thread async.
-    tokio::task::spawn_blocking(|| {
+    tokio::task::spawn_blocking(move || {
         adapters::build_all()
             .iter()
-            .map(|adapter| adapters::describe(adapter.as_ref()))
+            .map(|adapter| adapters::describe(adapter.as_ref(), &overrides))
             .collect()
     })
     .await
     .map_err(|e| AppError::internal(e.to_string()))
 }
 
+/// Force le chemin d'une CLI installée hors PATH (`null` efface le réglage).
+#[tauri::command]
+pub async fn engine_set_binary_override(
+    config: State<'_, ConfigStore>,
+    adapter: String,
+    path: Option<String>,
+) -> AppResult<()> {
+    find_adapter(&adapter)?;
+    config.set_binary_override(&adapter, path).await
+}
+
 #[tauri::command]
 pub async fn engine_start_session(
     manager: State<'_, SessionManager>,
+    config: State<'_, ConfigStore>,
     adapter: String,
     model: Option<String>,
     cwd: Option<String>,
@@ -38,8 +52,9 @@ pub async fn engine_start_session(
     on_event: Channel<EngineEvent>,
 ) -> AppResult<SessionId> {
     let adapter = find_adapter(&adapter)?;
+    let overrides = config.snapshot().await.binary_overrides;
     let id = uuid::Uuid::new_v4().to_string();
-    let handle = session::spawn(id.clone(), adapter, model, cwd, auto_mode, on_event)?;
+    let handle = session::spawn(id.clone(), adapter, model, cwd, auto_mode, on_event, &overrides)?;
     manager.insert(handle).await;
     Ok(id)
 }
@@ -53,9 +68,7 @@ pub async fn engine_send_message(
     if text.trim().is_empty() {
         return Err(AppError::invalid("message vide"));
     }
-    manager
-        .send(&session_id, SessionCommand::Send(text))
-        .await
+    manager.send(&session_id, SessionCommand::Send(text)).await
 }
 
 #[tauri::command]

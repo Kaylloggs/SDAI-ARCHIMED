@@ -1,6 +1,8 @@
 pub mod antigravity;
 pub mod claude;
+pub mod codex;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use serde_json::Value;
@@ -46,6 +48,12 @@ pub trait CliAdapter: Send + Sync {
         None
     }
 
+    /// `true` si la CLI attend la fermeture de stdin pour traiter le message
+    /// (CLI « one-shot » comme `codex exec`).
+    fn closes_stdin_after_message(&self) -> bool {
+        false
+    }
+
     fn models(&self, binary: Option<&std::path::Path>) -> Vec<ModelInfo>;
     fn default_model(&self) -> Option<String>;
     fn missing_hint(&self) -> &'static str;
@@ -68,8 +76,13 @@ pub trait CliAdapter: Send + Sync {
     ) -> AnswerAction;
 }
 
-/// Résout un binaire : PATH d'abord, puis emplacements spécifiques.
-pub fn resolve_binary(adapter: &dyn CliAdapter) -> Option<PathBuf> {
+/// Résout un binaire : chemin forcé par l'utilisateur, puis PATH, puis emplacements connus.
+pub fn resolve_binary(adapter: &dyn CliAdapter, overrides: &HashMap<String, String>) -> Option<PathBuf> {
+    if let Some(path) = overrides.get(adapter.id()).map(PathBuf::from) {
+        if path.is_file() {
+            return Some(path);
+        }
+    }
     for name in adapter.binary_names() {
         if let Ok(path) = which::which(name) {
             return Some(path);
@@ -78,8 +91,8 @@ pub fn resolve_binary(adapter: &dyn CliAdapter) -> Option<PathBuf> {
     adapter.extra_locations().into_iter().find(|p| p.exists())
 }
 
-pub fn describe(adapter: &dyn CliAdapter) -> AdapterInfo {
-    let binary = resolve_binary(adapter);
+pub fn describe(adapter: &dyn CliAdapter, overrides: &HashMap<String, String>) -> AdapterInfo {
+    let binary = resolve_binary(adapter, overrides);
     let models = adapter.models(binary.as_deref());
     AdapterInfo {
         id: adapter.id().to_string(),
@@ -105,6 +118,7 @@ pub fn build_all() -> Vec<Box<dyn CliAdapter>> {
     vec![
         Box::new(claude::ClaudeAdapter::default()),
         Box::new(antigravity::AntigravityAdapter),
+        Box::new(codex::CodexAdapter),
     ]
 }
 

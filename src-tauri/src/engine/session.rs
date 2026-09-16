@@ -42,8 +42,9 @@ pub fn spawn(
     cwd: Option<String>,
     auto_mode: AutoMode,
     channel: Channel<EngineEvent>,
+    binary_overrides: &HashMap<String, String>,
 ) -> AppResult<SessionHandle> {
-    let binary = adapters::resolve_binary(adapter.as_ref())
+    let binary = adapters::resolve_binary(adapter.as_ref(), binary_overrides)
         .ok_or_else(|| AppError::cli_missing(adapter.missing_hint()))?;
 
     let mut command = Command::new(&binary);
@@ -164,6 +165,9 @@ pub fn spawn(
                                     message: error.message,
                                     recoverable: false,
                                 });
+                            } else if adapter.closes_stdin_after_message() {
+                                // CLI one-shot (codex exec) : elle ne traite le prompt qu'à EOF.
+                                let _ = stdin.shutdown().await;
                             }
                         }
                         SessionCommand::Answer { prompt_id, answer } => {

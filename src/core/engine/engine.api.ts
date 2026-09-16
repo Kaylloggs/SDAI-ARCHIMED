@@ -10,6 +10,10 @@ import type {
 export const engineApi = {
   listAdapters: () => invokeCore<AdapterInfo[]>("engine_list_adapters"),
 
+  /** Force le chemin d'une CLI hors PATH (`null` = détection automatique). */
+  setBinaryOverride: (adapter: string, path: string | null) =>
+    invokeCore<void>("engine_set_binary_override", { adapter, path }),
+
   startSession: (params: {
     adapter: string;
     model: string | null;
