@@ -5,6 +5,7 @@
 pub mod code;
 pub mod planner;
 pub mod skills;
+pub mod usage;
 
 macro_rules! register {
     ($builder:expr, $module:ident) => {
@@ -18,5 +19,6 @@ pub fn register_all<R: tauri::Runtime>(
     register!(builder, code);
     register!(builder, planner);
     register!(builder, skills);
+    register!(builder, usage);
     builder
 }

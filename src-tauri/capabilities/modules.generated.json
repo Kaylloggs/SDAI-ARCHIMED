@@ -6,6 +6,7 @@
   "permissions": [
     "code:default",
     "planner:default",
-    "skills:default"
+    "skills:default",
+    "usage:default"
   ]
 }
