@@ -7,9 +7,12 @@ import { pageFade } from "@/design-system/motion";
 import { CommandPalette } from "./CommandPalette";
 import { ModuleErrorBoundary } from "./ModuleErrorBoundary";
 import { Sidebar } from "./Sidebar";
-import { StatusBar } from "./StatusBar";
 import { TitleBar } from "./TitleBar";
 
+/**
+ * Cadre de l'application (design.md §2) :
+ *   fond ambiant → rail de navigation en verre + [barre de titre, panneau de contenu arrondi].
+ */
 export function AppShell() {
   const modules = useEnabledModules();
   const { activeModuleId, navigate } = useUiStore();
@@ -29,11 +32,13 @@ export function AppShell() {
   }, [active, activeModuleId, navigate]);
 
   return (
-    <div className="flex h-full flex-col bg-bg text-text">
-      <TitleBar />
-      <div className="flex min-h-0 flex-1">
-        <Sidebar />
-        <main className="relative min-w-0 flex-1 overflow-y-auto">
+    <div className="app-backdrop flex h-full gap-2 p-2 text-text">
+      <Sidebar />
+
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <TitleBar />
+
+        <main className="content-panel relative min-h-0 flex-1 overflow-hidden rounded-[20px]">
           <AnimatePresence mode="wait">
             <motion.div
               key={active?.id ?? "empty"}
@@ -41,11 +46,13 @@ export function AppShell() {
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="h-full"
+              className="h-full overflow-y-auto"
             >
               {active ? (
                 <ModuleErrorBoundary moduleId={active.id}>
-                  <Suspense fallback={<div className="p-8 text-body-sm text-text-subtle">Chargement…</div>}>
+                  <Suspense
+                    fallback={<div className="p-8 text-body-sm text-text-subtle">Chargement…</div>}
+                  >
                     {createElement(active.page)}
                   </Suspense>
                 </ModuleErrorBoundary>
@@ -56,7 +63,7 @@ export function AppShell() {
           </AnimatePresence>
         </main>
       </div>
-      <StatusBar />
+
       <CommandPalette />
     </div>
   );

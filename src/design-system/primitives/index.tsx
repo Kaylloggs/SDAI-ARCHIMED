@@ -3,6 +3,7 @@ import { cn } from "@/core/lib/cn";
 
 export { Button } from "./Button";
 export { Select, type SelectOption } from "./Select";
+export { Tooltip } from "./Tooltip";
 
 /** Carte de contenu (couche L2). */
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {

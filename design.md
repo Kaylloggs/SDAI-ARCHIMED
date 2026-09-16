@@ -33,15 +33,37 @@ Ordre recommandé : **`ui-ux-pro-max`** (concevoir) → **`apple-design`** (affi
 
 | Couche | Usage | Traitement |
 |---|---|---|
-| L0 — Fond | fenêtre | `--bg` opaque (option Mica Windows 11 : fond de fenêtre translucide, voir §8) |
-| L1 — Structure | sidebar, zones de page | `--bg-subtle`, sans ombre, séparées par `--border` |
+| L0 — Fond | fenêtre | `.app-backdrop` : `--bg` + deux halos très doux (accent, info) qui donnent de la matière au verre |
+| L1 — Verre fonctionnel | rail de navigation, recherche et contrôles de fenêtre | `.glass-chrome` : surface à 58 %, `blur(28px) saturate(170%)`, liseré lumineux en haut, ombre douce, rayon 22 px |
+| L1bis — Panneau de contenu | zone du module actif | `.content-panel` : **opaque**, rayon 20 px, posé sur le cadre avec 8 px de marge |
 | L2 — Contenu | cartes, bulles, blocs du launchpad | `--surface-1`, bordure `--border`, rayon `lg` |
 | L3 — Flottant | composer, palette, popovers, menus, toasts | **glass** : `--glass-bg` + `backdrop-filter: blur(24px) saturate(140%)` + `--border-strong` + `--shadow-float` |
 | L4 — Modal | dialogues | `--surface-3` opaque + voile `--scrim` |
 
-**Le glassmorphism est réservé à L3.** Jamais de glass sur une carte de contenu ni sur un fond qui contient du texte dense. Fallback sans `backdrop-filter` : `--surface-3` opaque.
+**Le verre est réservé à la couche fonctionnelle** (L1 navigation, L3 flottant). Jamais de verre sous du texte dense : les panneaux de contenu restent opaques. Fallback sans `backdrop-filter` et avec « transparence réduite » (`prefers-reduced-transparency`) : surfaces opaques.
+
+### 2.bis Structure du cadre (inspirée d'une maquette glassmorphism fournie par l'utilisateur)
+```
+┌──────┐ ┌─────────────────────────────────────────────────────────┐
+│ logo │ │ Titre du module     (  Rechercher…  Ctrl K )  [– □ ×]  │  ← barre de titre intégrée
+│ ──── │ ├─────────────────────────────────────────────────────────┤
+│  ▣   │ │                                                         │
+│  ▢   │ │               panneau de contenu (arrondi 20)           │
+│  ▢   │ │                                                         │
+│ ──── │ │                                                         │
+│      │ │                                                         │
+│  ⚙   │ │                                                         │
+│  ⇤   │ │                                                         │
+└──────┘ └─────────────────────────────────────────────────────────┘
+ rail en verre (64 px replié / 228 px déployé)
+```
 
 ---
+
+## 2.ter Marque
+- **Logo** : spirale d'Archimède (r = a + bθ), laiton `#F2D58E → #D9A94F → #A9772E` sur squircle sombre `#2A2C33 → #15161A`. Elle dit « avancer tour après tour », ce que fait un assistant qui itère.
+- Source de l'icône d'application : `src-tauri/icons/archimed-icon.svg` (régénérer avec `pnpm tauri icon src-tauri/icons/archimed-icon.svg`).
+- Composant d'interface : `design-system/brand/ArchimedLogo.tsx` (`tone="brand"` ou `"mono"`). La marque apparaît deux fois : rail et filigrane du héros — jamais répétée ailleurs.
 
 ## 3. Couleurs
 
@@ -196,8 +218,8 @@ Règles : animer seulement `transform`, `opacity` (et `filter` léger). Interact
 ## 7. Composants et patterns
 
 ### 7.1 Navigation
-- **Sidebar** par catégories (libellé `text-caption` en `--text-subtle`, majuscules interdites → casse de phrase). Item : icône 16 px + libellé `text-body-sm`, hauteur 32, rayon `sm`. Actif : fond `--accent-soft`, icône `--accent`. Section « Sessions récentes » repliable sous le module Chat. Réglages épinglé en bas.
-- **Launchpad** : blocs L2 en grille bento, icône 20 px, titre `text-title-3`, description `text-footnote` sur 2 lignes max, statut éventuel (ex : « 3 skills actifs »). Survol : `--surface-2` + bordure `--border-strong`, `duration.instant`.
+- **Rail de navigation** (`core/shell/Sidebar.tsx`) : verre fonctionnel flottant. Logo en haut (retour à l'accueil), modules groupés par catégorie et séparés par un filet de 24 px, catégorie « Réglages » épinglée en bas avec le bouton replier/déployer. Items 40 × 40, rayon 12, icône 18 px. Actif : fond texte à 12 % + icône accent + trait accent de 3 px à gauche (animé `spring.snappy`). Replié : infobulles `Tooltip` (jamais l'attribut `title`, qui affiche une bulle système).
+- **Launchpad** : grille bento 4 colonnes. Héros (module `launchpad.accent`, 3 × 2) avec la spirale en filigrane, colonne « Récemment » (1 × 2), puis une tuile par module. Tuiles rayon 20, survol `--surface-2` + bordure `--border-strong`.
 
 ### 7.2 Chat
 - **Liste des conversations** (rail 256 px à gauche du chat) : titre dérivé du premier message, puis date, modèle et dossier en `text-caption`. Suppression : icône au survol, **second clic** pour confirmer.

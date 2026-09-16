@@ -71,7 +71,7 @@ SDAI ARCHIMED/
 │   │   │                                # (UI de conversation partagée chat/code)
 │   │   ├── modules/                     # define-module · manifest.schema · registry
 │   │   │                                # · useModules · services · slots · types · index
-│   │   ├── shell/                       # AppShell · TitleBar · Sidebar · StatusBar
+│   │   ├── shell/                       # AppShell (cadre) · TitleBar · Sidebar (rail en verre)
 │   │   │                                # · CommandPalette · ModuleErrorBoundary
 │   │   ├── ipc/                         # invoke.ts (invokeCore/invokeModule) · index
 │   │   │   └── bindings/                # GÉNÉRÉ par ts-rs — ne pas éditer
@@ -85,7 +85,8 @@ SDAI ARCHIMED/
 │   │   ├── tokens.css                   # source de vérité visuelle (@theme Tailwind v4)
 │   │   ├── themes.ts                    # presets de thème (Archimède, Papier, Tokyo Néon…)
 │   │   ├── globals.css · motion.ts
-│   │   └── primitives/                  # Button · Select (menus aux tokens) · Card
+│   │   ├── brand/ArchimedLogo.tsx       # marque (spirale d'Archimède)
+│   │   └── primitives/                  # Button · Select (menus aux tokens) · Tooltip · Card
 │   │                                    # · GlassPanel · Badge · Kbd · SectionHeader · EmptyState
 │   └── modules/
 │       ├── _template/                   # copié par new-module (ignoré par le registre)

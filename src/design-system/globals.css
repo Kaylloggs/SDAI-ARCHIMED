@@ -59,6 +59,40 @@
 }
 
 @layer components {
+  /* ── Fond ambiant de la fenêtre ─────────────────────────────────────
+     Deux halos très doux (accent + info) donnent de la matière au verre
+     des couches fonctionnelles, sans jamais concurrencer le contenu. */
+  .app-backdrop {
+    background:
+      radial-gradient(60% 50% at 8% 0%, color-mix(in oklab, var(--color-accent) 14%, transparent), transparent 70%),
+      radial-gradient(50% 45% at 100% 100%, color-mix(in oklab, var(--color-info) 12%, transparent), transparent 70%),
+      var(--color-bg);
+  }
+
+  /* ── Verre fonctionnel (rail de navigation, barre de titre) ─────────
+     Façon « Liquid Glass » : translucide, flou saturé, liseré lumineux en haut,
+     ombre portée douce. Réservé à la navigation et aux contrôles (design.md §2). */
+  .glass-chrome {
+    background: color-mix(in oklab, var(--color-surface-1) 58%, transparent);
+    backdrop-filter: blur(28px) saturate(170%);
+    -webkit-backdrop-filter: blur(28px) saturate(170%);
+    border: 1px solid color-mix(in oklab, var(--color-text) 9%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, white 14%, transparent),
+      inset 0 -1px 0 color-mix(in oklab, black 18%, transparent),
+      0 12px 40px -12px oklch(0 0 0 / 0.45);
+  }
+
+  /* ── Panneau de contenu (L2 posé sur le cadre) ──────────────────────
+     Opaque : le texte dense ne se lit jamais à travers du verre. */
+  .content-panel {
+    background: color-mix(in oklab, var(--color-surface-1) 92%, var(--color-bg));
+    border: 1px solid var(--color-border);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, white 5%, transparent),
+      0 20px 50px -24px oklch(0 0 0 / 0.5);
+  }
+
   /* Couche flottante L3 — seul endroit autorisé pour le glass (design.md §2) */
   .glass {
     background: var(--color-glass);
@@ -72,6 +106,19 @@
     .glass {
       background: var(--color-surface-3);
     }
+  }
+}
+
+/* Transparence réduite (Windows : Paramètres > Accessibilité > Effets visuels) */
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-chrome {
+    background: var(--color-surface-2);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .app-backdrop {
+    background: var(--color-bg);
   }
 }
 

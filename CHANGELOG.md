@@ -50,6 +50,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Journal d'audit** `logs/audit.jsonl` : décisions de permission (utilisateur, Mode Auto, policy) et écritures de fichiers, avec rotation à 5 Mo.
 - Slot `code.editor.footer`.
 
+### Ajouté — Identité et navigation
+- **Logo** : spirale d'Archimède laiton ; icônes de l'application régénérées (`.ico`, `.icns`, PNG).
+- **Refonte du cadre** inspirée de la maquette fournie : rail de navigation flottant en verre (logo, groupes, réglages épinglés, replier/déployer), barre de titre intégrée avec recherche et contrôles de fenêtre en pastille, panneau de contenu arrondi, fond ambiant.
+- **Accueil en grille bento** : héros, conversations récentes (Chat et Code), tuiles de modules.
+- Primitive `Tooltip` aux couleurs du thème ; prise en charge de « transparence réduite ».
+- La barre d'état du bas est supprimée ; le slot `statusbar.items` s'affiche dans la barre de titre.
+
 ### Connu / à faire (Phase 2)
 - Transport PTY (`portable-pty` + `vt100`) et règles de détection TOML pour les CLI sans protocole.
 - Validation interactive des permissions Antigravity (aujourd'hui refus automatique en headless).
