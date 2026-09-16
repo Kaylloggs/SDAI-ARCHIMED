@@ -34,6 +34,9 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **UI de conversation mutualisée** dans `@/core/chat` (`Composer`, `ConversationView`) et `@/core/engine/useChat`.
 - **Primitive `Select`** : les menus déroulants suivent enfin le thème de l'application (les `<select>` natifs utilisaient le style du système).
 
+### Corrigé
+- **Positionnement du `Select`** : correction du menu déroulant qui flottait trop haut au-dessus du bouton lors de l'ouverture vers le haut (le calcul utilisait une hauteur arbitraire au lieu d'ancrer le bas de la liste au déclencheur via `bottom`).
+
 ### Connu / à faire (Phase 2)
 - Transport PTY (`portable-pty` + `vt100`) et règles de détection TOML pour les CLI sans protocole.
 - Validation interactive des permissions Antigravity (aujourd'hui refus automatique en headless).

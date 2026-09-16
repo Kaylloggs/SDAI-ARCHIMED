@@ -46,6 +46,7 @@ export function Select({
   const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const listId = useId();
 
   const selected = options.find((option) => option.value === value);
@@ -55,6 +56,12 @@ export function Select({
     setRect(triggerRef.current?.getBoundingClientRect() ?? null);
     setHighlight(Math.max(0, options.findIndex((option) => option.value === value)));
   }, [open, options, value]);
+
+  useEffect(() => {
+    if (open) {
+      itemRefs.current[highlight]?.scrollIntoView({ block: "nearest" });
+    }
+  }, [open, highlight]);
 
   useEffect(() => {
     if (!open) return;
@@ -115,6 +122,12 @@ export function Select({
     }
   };
 
+  const spaceBelow = rect ? window.innerHeight - rect.bottom : 0;
+  const spaceAbove = rect ? rect.top : 0;
+  const openAbove = rect ? spaceBelow < 260 && spaceAbove > spaceBelow : false;
+  const minWidth = rect ? Math.max(rect.width, 200) : 200;
+  const left = rect ? Math.max(8, Math.min(rect.left, window.innerWidth - minWidth - 8)) : 0;
+
   return (
     <>
       <button
@@ -156,16 +169,25 @@ export function Select({
               initial="hidden"
               animate="visible"
               exit="exit"
-              style={{
-                position: "fixed",
-                left: Math.min(rect.left, window.innerWidth - 280),
-                top:
-                  rect.bottom + 260 > window.innerHeight
-                    ? Math.max(8, rect.top - 264)
-                    : rect.bottom + 6,
-                minWidth: Math.max(rect.width, 200),
-                transformOrigin: "top left",
-              }}
+              style={
+                openAbove
+                  ? {
+                      position: "fixed",
+                      left,
+                      bottom: Math.max(8, window.innerHeight - rect.top + 6),
+                      minWidth,
+                      maxHeight: Math.min(256, Math.max(80, spaceAbove - 16)),
+                      transformOrigin: "bottom left",
+                    }
+                  : {
+                      position: "fixed",
+                      left,
+                      top: rect.bottom + 6,
+                      minWidth,
+                      maxHeight: Math.min(256, Math.max(80, spaceBelow - 16)),
+                      transformOrigin: "top left",
+                    }
+              }
               className="glass z-50 max-h-64 overflow-y-auto rounded-md p-1"
             >
               {options.map((option, index) => {
@@ -173,6 +195,9 @@ export function Select({
                 return (
                   <button
                     key={option.value}
+                    ref={(el) => {
+                      itemRefs.current[index] = el;
+                    }}
                     role="option"
                     aria-selected={isSelected}
                     disabled={option.disabled}
