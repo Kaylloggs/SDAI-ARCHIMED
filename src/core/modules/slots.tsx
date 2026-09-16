@@ -1,8 +1,12 @@
 import { Suspense, createElement, type ReactNode } from "react";
+import type { SlotContext } from "./types";
 import { useEnabledModules } from "./useModules";
 
 /**
  * Points d'extension UI officiels. Ajouter un slot ici ET dans architecture.md §5.3.
+ * Props transmises (contrat, voir `SlotProps` ci-dessous) :
+ *  - chat.message.actions → { text: string; cwd: string | null }
+ *  - code.editor.footer   → { root: string }
  * Un module contribue via `slots: { "chat.composer.actions": lazy(...) }`.
  */
 export const SLOT_NAMES = [
@@ -20,10 +24,12 @@ type SlotProps = {
   name: SlotName;
   /** Rendu si aucun module ne contribue (optionnel). */
   fallback?: ReactNode;
+  /** Contexte transmis aux contributions (voir le contrat en tête de fichier). */
+  props?: SlotContext;
 };
 
 /** Rend toutes les contributions des modules actifs pour ce slot. */
-export function Slot({ name, fallback = null }: SlotProps) {
+export function Slot({ name, fallback = null, props }: SlotProps) {
   const modules = useEnabledModules();
   const contributions = modules.flatMap((m) => {
     const component = m.slots?.[name];
@@ -36,7 +42,7 @@ export function Slot({ name, fallback = null }: SlotProps) {
     <>
       {contributions.map(({ key, component }) => (
         <Suspense key={key} fallback={null}>
-          {createElement(component)}
+          {createElement(component, props)}
         </Suspense>
       ))}
     </>

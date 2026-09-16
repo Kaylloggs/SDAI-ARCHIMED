@@ -96,6 +96,10 @@ SDAI ARCHIMED/
 │       ├── code/                        # module.config · index · api · README
 │       │   ├── components/              # FileTree · CodeEditor (CodeMirror 6)
 │       │   └── services/project.ts      # service `code.project` exposé au chat
+│       ├── planner/                     # module.config · index · api · store · types · README
+│       │   ├── components/              # BoardSidebar · BoardView · CardItem · CardPanel
+│       │   ├── lib/                     # board (synchro roadmap) · extract · calendar
+│       │   └── slots/                   # MessageActions (chat) · RoadmapFooter (code)
 │       ├── skills/                      # module.config · index · api · README
 │       ├── settings/                    # index + components/ (ThemeSection · EngineSection)
 │       ├── files/                       # (prévu) explorateur et actions système
@@ -125,7 +129,8 @@ SDAI ARCHIMED/
         ├── system/                      # (prévu) fs · shell · net
         └── modules/
             ├── mod.rs                   # registre : `pub mod x;` + `register!(builder, x);`
-            ├── code/                    # arborescence, lecture de fichiers, détection de projet
+            ├── code/                    # arborescence, lecture/écriture de fichiers, détection de projet
+            ├── planner/                 # boards.json, roadmap.rs (parse/réécriture), ics.rs, watcher notify
             └── skills/                  # module.toml · mod.rs · commands.rs
                                          # · service.rs · types.rs
 ```
@@ -218,16 +223,17 @@ fn main() {
 | Type | Nom | Fourni par | Usage |
 |---|---|---|---|
 | Slot | `chat.composer.actions` | chat | boutons à côté de l'envoi (micro, image, pièce jointe) |
-| Slot | `chat.message.actions` | chat | actions sur un message (copier, lire à voix haute) |
+| Slot | `chat.message.actions` | core (ConversationView) | actions sous un message terminé de l'assistant. Props : `{ text, cwd }`. Ex : Planner |
 | Slot | `chat.header.right` | chat | indicateurs de session |
 | Slot | `launchpad.widgets` | home | widgets sur l'accueil |
-| Slot | `code.editor.footer` | code | bandeau sous l'éditeur (ex : roadmap du projet) |
+| Slot | `code.editor.footer` | code | bandeau sous l'éditeur. Props : `{ root }`. Ex : roadmap du projet (Planner) |
 | Slot | `statusbar.items` | shell | indicateurs globaux |
 | Slot | `settings.sections` | settings | (auto : `manifest.settings`) |
 | Service | `code.project` | code | savoir si un dossier est un projet (consommé par le chat) |
 | Service | `engine.session` | core | démarrer/envoyer/écouter une session |
 | Service | `system.fs` / `system.shell` | core | actions système passant par la policy |
 | Service | `notify.toast` | core | notifications UI |
+| Événement backend | `planner:roadmap-changed` | planner | un roadmap.md surveillé a changé sur disque |
 | Événement | `skills.changed`, `settings.changed`, `modules.changed`, `engine.cli_detected` | core/modules | |
 
 Ajouter un slot = l'ajouter dans `src/core/modules/slots.ts` **et** dans ce tableau.

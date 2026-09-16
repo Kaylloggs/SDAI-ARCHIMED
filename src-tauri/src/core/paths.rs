@@ -31,7 +31,6 @@ impl Paths {
         self.data.join("logs")
     }
 
-    #[allow(dead_code)] // utilisé par les modules à état persistant
     pub fn module_dir(&self, module_id: &str) -> PathBuf {
         self.data.join("modules").join(module_id)
     }

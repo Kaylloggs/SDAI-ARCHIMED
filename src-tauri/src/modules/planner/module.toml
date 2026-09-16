@@ -1,0 +1,2 @@
+id = "planner"
+commands = ["load_boards", "save_boards", "read_roadmap", "set_roadmap_task", "append_roadmap_tasks", "find_roadmap", "watch_roadmap", "unwatch_roadmap", "export_ics"]

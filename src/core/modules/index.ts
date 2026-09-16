@@ -9,4 +9,5 @@ export {
   type ModuleManifest,
   type LoadedModule,
   type ModuleCategory,
+  type SlotContext,
 } from "./types";

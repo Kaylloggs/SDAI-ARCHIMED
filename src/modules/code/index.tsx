@@ -353,7 +353,7 @@ export default function CodeModule() {
           )}
         </div>
 
-        <Slot name="code.editor.footer" />
+        <Slot name="code.editor.footer" props={{ root }} />
         {error && <p className="px-4 pb-2 text-footnote text-danger">{error}</p>}
       </div>
 

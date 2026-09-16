@@ -9,6 +9,7 @@ import { ToolCallCard } from "@/core/cards/ToolCallCard";
 import type { ChatSession } from "@/core/engine/session.store";
 import type { PromptAnswer } from "@/core/engine/types";
 import { enterUp } from "@/design-system/motion";
+import { Slot } from "@/core/modules";
 
 type Props = {
   session: ChatSession;
@@ -82,6 +83,11 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
                     <span className="ml-0.5 inline-block h-4 w-[2px] animate-pulse bg-accent align-middle" />
                   )}
                 </div>
+                {item.done && (
+                  <div className="flex flex-wrap items-center gap-2 pt-2 empty:hidden">
+                    <Slot name="chat.message.actions" props={{ text: item.text, cwd: session.cwd }} />
+                  </div>
+                )}
               </motion.div>
             );
 

@@ -57,6 +57,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - Primitive `Tooltip` aux couleurs du thème ; prise en charge de « transparence réduite ».
 - La barre d'état du bas est supprimée ; le slot `statusbar.items` s'affiche dans la barre de titre.
 
+### Ajouté — Module Planner
+- **Tableaux multiples** type Trello : colonnes, cartes (échéance, étiquettes, notes, sous-tâches), glisser-déposer, progression, renommage et suppression confirmée.
+- **Lien avec un `roadmap.md`** : sections → colonnes, cases → cartes. Cocher une carte réécrit la case dans le fichier ; une modification du fichier (par une IA) resynchronise le tableau via un watcher `notify`. Notes et étiquettes conservées d'une synchronisation à l'autre.
+- **Agenda** : « Ajouter à Google Agenda » (lien pré-rempli) et export `.ics` d'un tableau.
+- **Suggestions contextuelles** : sous un message de l'IA contenant des tâches ou des dates (slot `chat.message.actions`), et bandeau « Roadmap détectée » dans le module Code (slot `code.editor.footer`).
+- Nouvelle catégorie de navigation « Organisation » ; les slots peuvent recevoir un contexte typé (`SlotContext`).
+
 ### Connu / à faire (Phase 2)
 - Transport PTY (`portable-pty` + `vt100`) et règles de détection TOML pour les CLI sans protocole.
 - Validation interactive des permissions Antigravity (aujourd'hui refus automatique en headless).
@@ -65,3 +72,4 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - Continuité de contexte au redémarrage d'un processus (`--resume` Claude, `--conversation` agy, `codex exec resume`).
 - Envoi natif des images aux CLI qui le supportent (aujourd'hui : chemins transmis à l'agent).
 - Validation des flags Codex sur une machine où la CLI est installée.
+- Synchronisation bidirectionnelle avec l'API Google Calendar (nécessite un identifiant OAuth Google Cloud fourni par l'utilisateur).
