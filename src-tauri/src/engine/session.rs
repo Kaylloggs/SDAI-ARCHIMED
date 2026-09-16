@@ -62,6 +62,31 @@ pub fn spawn(
     let binary = adapters::resolve_binary(adapter.as_ref(), binary_overrides)
         .ok_or_else(|| AppError::cli_missing(adapter.missing_hint()))?;
 
+    if adapter.transport() == super::event::TransportKind::Pty {
+        let _ = channel.send(EngineEvent::SessionStarted {
+            session_id: id.clone(),
+            adapter: adapter.id().to_string(),
+            model: model.clone().unwrap_or_default(),
+            transport: adapter.transport(),
+        });
+        let tx = super::pty_session::spawn(
+            super::pty_session::PtySpawn {
+                session_id: id.clone(),
+                binary: &binary,
+                args: adapter.spawn_args(model.as_deref(), resume.as_deref()),
+                cwd,
+                auto_mode,
+                extra_rules: adapter.prompt_rules(),
+            },
+            channel,
+        )?;
+        return Ok(SessionHandle {
+            id,
+            adapter_id: adapter.id().to_string(),
+            tx,
+        });
+    }
+
     let mut command = Command::new(&binary);
     command
         .args(adapter.spawn_args(model.as_deref(), resume.as_deref()))

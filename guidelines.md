@@ -78,7 +78,7 @@ src-tauri/src/core/  → erreurs, état global, chemins, config, logs.
 src-tauri/src/engine/→ moteur multi-CLI : sessions, transports, adaptateurs, parsing, policy.
 src-tauri/src/system/→ primitives système (fs, shell, net) utilisées par le moteur et les modules.
 src-tauri/src/modules/<id>/ → backend d'un module (= plugin Tauri inline).
-src-tauri/resources/adapters/      → déclarations TOML des CLI.
+src-tauri/resources/adapters/      → exemple d'adaptateur TOML (les vrais : %APPDATA%\com.sdai.archimeddapters\).
 src-tauri/resources/prompt-rules/  → règles TOML de détection de questions.
 scripts/             → outillage (scaffolding, vérifications).
 docs/adr/            → décisions d'architecture (ADR).
@@ -131,7 +131,7 @@ export default defineModule({
   description: "Génère et édite des images à partir d'un prompt.",
   version: "0.1.0",                   // semver du module
   icon: ImageIcon,
-  category: "creative",               // core | ai | system | creative | automation | settings
+  category: "creative",               // core | ai | productivity | system | creative | automation | settings
   order: 40,                          // tri dans sa catégorie
   enabledByDefault: true,
 
@@ -262,24 +262,33 @@ Noms de slots, services et événements : `domaine.sujet.action` en minuscules. 
 
 ## 5. Ajouter une CLI d'IA (adaptateur)
 
-**Cas 1 — CLI « simple » (PTY + règles) : zéro Rust.**
-Créer `src-tauri/resources/adapters/<id>.toml` :
+**Cas 1 — CLI interactive quelconque : zéro Rust.**
+Déposer un fichier `<id>.toml` dans `%APPDATA%\com.sdai.archimed\adapters\` (bouton **Réglages › Moteur › Ajouter une CLI…**). Un exemple commenté y est créé au premier lancement (`exemple.toml.txt`, source : `src-tauri/resources/adapters/exemple.toml`).
 ```toml
-id = "codex"
-name = "Codex"
-binary = ["codex", "codex.cmd"]          # résolus via PATH (crate `which`)
-transport = "pty"                         # "pty" | "structured"
-models_command = []                       # commande listant les modèles, ou liste statique ci-dessous
-models = ["gpt-5-codex"]
-args = ["--model", "{model}"]
-auto_mode_args = ["--full-auto"]
-prompt_rules = ["generic", "codex"]       # fichiers de resources/prompt-rules/
-skills_dir = ""                           # dossier de skills de la CLI, vide si non supporté
-accent = "neutral"                        # couleur d'identité (design.md §3.4)
+id = "ma-cli"                          # kebab-case, unique (claude, antigravity, codex réservés)
+name = "Ma CLI"
+binary = ["ma-cli", "ma-cli.cmd"]      # cherchés dans le PATH
+args = ["--model", "{model}"]          # sans modèle, « --model » est retiré
+resume_args = ["--resume", "{resume}"] # ajoutés pour reprendre une conversation
+models = [{ id = "rapide", label = "Rapide" }]
+default_model = "rapide"
+hint = "Installez ma-cli avec …"
+
+[[rule]]                               # questions propres à la CLI (optionnel)
+id = "ma-cli.deploy"
+kind = "confirm"
+confidence = 0.95
+pattern = '''^(?P<question>Déployer en production) \? \(oui/non\)\s*$'''
+  [[rule.option]]
+  id = "yes"
+  label = "Déployer"
+  keys = "oui\r"
+  variant = "danger"
 ```
+La CLI tourne dans un vrai terminal (transport PTY) ; ses questions sont lues à l'écran et deviennent des cartes. Un fichier invalide est ignoré (avertissement dans les logs), jamais bloquant.
 
 **Cas 2 — CLI avec sortie structurée (stream-json) : un fichier Rust.**
-Implémenter le trait `CliAdapter` dans `src-tauri/src/engine/adapters/<id>.rs` (voir `architecture.md` §6) et l'ajouter à `adapters/mod.rs`. Adaptateurs de référence : `claude.rs`, `antigravity.rs`.
+Implémenter le trait `CliAdapter` dans `src-tauri/src/engine/adapters/<id>.rs` (voir `architecture.md` §6) et l'ajouter à `build_all()` dans `adapters/mod.rs`. Adaptateurs de référence : `claude.rs`, `antigravity.rs`. Émettre `EngineEvent::CliSession` dès que la CLI communique son identifiant de conversation, et gérer `resume` dans `spawn_args` : c'est ce qui permet de reprendre le contexte après un redémarrage.
 
 Toujours : vérifier les flags réels avec `<cli> --help` et **consigner la version testée** en tête du fichier (`// Testé avec agy x.y.z le AAAA-MM-JJ`).
 
@@ -287,8 +296,10 @@ Toujours : vérifier les flags réels avec `<cli> --help` et **consigner la vers
 
 ## 6. Ajouter une règle de Parsing Intelligent
 
-Fichier `src-tauri/resources/prompt-rules/<cli>.toml`. Chaque règle doit avoir **un test de fixture** : capture d'écran texte dans `src-tauri/tests/fixtures/prompts/<rule_id>.txt` + résultat attendu. Une règle sans fixture est refusée.
-Détails du format : `architecture.md` §7.5.
+- **Règle générique** (utile à toutes les CLI) : `src-tauri/resources/prompt-rules/generic.toml` (embarqué dans l'exécutable).
+- **Règle propre à une CLI** : dans son adaptateur TOML (`[[rule]]`), testée avant les génériques.
+
+Chaque règle générique doit avoir **un test de fixture** dans `src-tauri/src/engine/parser/detector.rs` (module `tests`) : un écran texte, la règle attendue, le titre, l'option par défaut et les touches envoyées. Une règle sans fixture est refusée. Format : `architecture.md` §7.5.
 
 ---
 

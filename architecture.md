@@ -112,7 +112,7 @@ SDAI ARCHIMED/
     │   ├── default.json                 # fenêtre, plugins officiels, fs/shell
     │   └── modules.generated.json       # GÉNÉRÉ par build.rs
     ├── icons/ · binaries/               # binaries/ : sidecars éventuels (aucun aujourd'hui)
-    ├── resources/                       # (prévu) adapters/*.toml · prompt-rules/*.toml
+    ├── resources/                       # prompt-rules/generic.toml · adapters/exemple.toml (embarqués)
     └── src/
         ├── main.rs · lib.rs             # plugins, state, registre des modules, commandes
         ├── core/                        # error.rs (AppError) · paths.rs · config.rs (overrides)
@@ -122,10 +122,10 @@ SDAI ARCHIMED/
         │   ├── manager.rs · session.rs  # SessionManager, boucle de session tokio
         │   ├── event.rs                 # EngineEvent, InteractivePrompt, AdapterInfo
         │   ├── policy.rs                # risque + Mode Auto (+ tests)
-        │   ├── adapters/                # mod.rs (trait CliAdapter) · claude.rs
-        │   │                            # · antigravity.rs · codex.rs (expérimental)
-        │   ├── transport/               # (prévu) pty.rs (portable-pty + vt100)
-        │   └── parser/                  # (prévu) screen · rules · detector · menu · keys
+        │   ├── adapters/                # mod.rs (trait CliAdapter) · claude.rs · antigravity.rs
+        │   │                            # · codex.rs (expérimental) · declarative.rs (TOML)
+        │   ├── pty_session.rs           # transport PTY (ConPTY), boucle de détection
+        │   └── parser/                  # screen (vt100) · rules (TOML) · detector
         ├── system/                      # (prévu) fs · shell · net
         └── modules/
             ├── mod.rs                   # registre : `pub mod x;` + `register!(builder, x);`
@@ -268,9 +268,9 @@ pub trait CliAdapter: Send + Sync {
 | CLI | Binaire | Transport principal | Permissions | Modèles | Switch de modèle |
 |---|---|---|---|---|---|
 | Claude Code | `claude` | Structured : `-p --input-format stream-json --output-format stream-json --verbose` | `--permission-prompt-tool stdio` → `control_request`/`control_response` (§7.2) | `--model` (opus/sonnet/haiku) | relance avec `--resume <session_id> --model <nouveau>` |
-| Antigravity | `agy` | Structured : `-p --input-format stream-json --output-format stream-json` | pas d'outil de prompt exposé → **PTY interactif** (`agy -i`) quand la validation est requise, `--mode accept-edits` en Mode Auto smart | `agy models`, `--model` | relance avec `--conversation <id> --model <nouveau>` |
+| Antigravity | `agy` | Structured : `-p --input-format stream-json --output-format stream-json` | refus automatique en headless, remonté en carte d'erreur (pas d'outil de prompt exposé) | `agy models`, `--model` | relance avec `--conversation <id> --model <nouveau>` |
 | Codex (expérimental) | `codex` | Structured one-shot : `codex exec --json -` | aucune (à valider) | `--model` | nouveau processus à chaque message |
-| Déclaratif (autres) | via TOML | PTY (Phase 2) | règles de parsing | TOML | relance |
+| Déclaratif (`adapters/*.toml`) | via TOML | **PTY** (ConPTY) | questions lues à l'écran (§7.4) | TOML | `resume_args` |
 
 > Flags vérifiés sur `agy --help` (machine de dev, 2026-09-16). À **revalider à chaque mise à jour de CLI** ; la version testée est notée dans chaque adaptateur.
 
@@ -283,8 +283,9 @@ grisée avec son aide d'installation, et Réglages > Moteur permet de désigner 
 
 ### 6.3 Cycle de vie d'une session
 `Starting → Running ⇄ AwaitingInput → Stopping → Ended` (+ `Crashed` → redémarrage proposé avec reprise de conversation).
-- Une session = une tâche tokio qui possède le transport et un `mpsc` de commandes (`Send`, `Answer`, `SetModel`, `SetAutoMode`, `Stop`).
-- Changement de modèle/CLI à la volée : la session courante est arrêtée proprement et une nouvelle démarre en **reprenant l'identifiant de conversation** quand la CLI le permet ; sinon le frontend affiche un séparateur « Nouveau contexte ».
+- Une session = une tâche tokio qui possède le transport et un `mpsc` de commandes (`Send`, `Answer`, `SetAutoMode`, `Stop`). `session::spawn` aiguille vers `pty_session::spawn` quand `adapter.transport() == Pty`.
+- **Reprise de contexte** : la CLI communique son identifiant de conversation (`EngineEvent::CliSession` : `session_id` de Claude, `conversation_id` d'agy), mémorisé dans `ChatSession.cliSessionId`. Tout redémarrage du processus le repasse (`--resume`, `--conversation`, `resume_args`).
+- **Changement de modèle à chaud** : `useChat.setModel` arrête le processus ; le message suivant le relance avec le nouveau modèle et la reprise de contexte. L'agent, lui, est fixé dès le premier message.
 - Windows : binaire résolu par `which` (`claude.cmd`/`claude.exe`), `CREATE_NO_WINDOW`, arrêt de l'arbre de processus via Job Object.
 
 ---
@@ -340,61 +341,60 @@ Une ligne = un objet JSON. Le décodeur de l'adaptateur mappe :
 `system/init` → `SessionStarted` · `stream_event` (deltas) → `MessageDelta` · `assistant` avec `tool_use` → `ToolCall` · `user` avec `tool_result` → `ToolResult` · `result` → `MessageCompleted` + `Usage`.
 Lignes non-JSON ou types inconnus → loggés en `debug`, **jamais** de crash (tolérance aux évolutions de CLI). Chaque adaptateur a des tests sur des flux enregistrés (`tests/fixtures/streams/`).
 
-### 7.4 N3 — Pipeline PTY
+### 7.4 N3 — Pipeline PTY (`engine/pty_session.rs`, `engine/parser/`)
 
 ```
-ConPTY ─► thread lecteur (bloquant, 8 Ko) ─► mpsc ─► tâche tokio de session
-   ├─► RawOutput (lots de 16 ms) ─────────────────────► xterm (tiroir debug)
-   └─► vt100::Parser.process(bytes)   // écran virtuel 200×50, gère les redessins TUI
-          └─ détecteur de quiescence : aucune sortie depuis 120 ms
-               ET (curseur hors début de ligne OU écran changé)
-                 └─► snapshot des 15 dernières lignes non vides (texte brut, sans ANSI)
-                      └─► Detector
-                           1. règles spécifiques à la CLI (TOML)
-                           2. règles génériques (TOML)
-                           3. heuristique menu TUI (menu.rs)
-                           4. heuristique « question ouverte » (ligne finit par ? ou :)
-                      └─► meilleur candidat, score ≥ seuil ?
-                           ├─ oui → policy::evaluate → Allow (auto, touches envoyées) | Ask → Prompt
-                           └─ non → rien (si la CLI attend > 4 s sans candidat :
-                                     Prompt kind=FreeText « La CLI semble attendre une réponse »)
+ConPTY ─► thread lecteur (8 Ko) ─► mpsc ─► boucle tokio de session
+   ├─► réponse aux requêtes DSR « ESC[6n » (position du curseur)
+   ├─► RawOutput (lots de 16 ms) ───────────────────────► tiroir « sortie brute »
+   └─► screen.rs : vt100, écran virtuel 200 × 50
+          └─ 120 ms sans sortie
+               └─► detector.rs sur les 12 dernières lignes non vides
+                    1. règles de la CLI (TOML), puis règles génériques — 3 lignes du bas
+                    2. heuristique menu (numéroté, ou curseur ❯ › > ● ▶ → *)
+                    3. heuristique question ouverte (ligne finissant par « ? » ou « : »)
+                    └─► confiance ≥ 0.55 et empreinte nouvelle ?
+                         ├─ oui → Prompt (source Screen { ruleId, confidence })
+                         │        Mode Auto « complet » : option par défaut envoyée
+                         │        (en « intelligent », toujours demandé : le risque n'est pas évaluable)
+                         └─ question disparue de l'écran → PromptInvalidated
+réponse ─► touches de l'option (ou texte + Entrée) ─► thread écrivain ─► ConPTY
 ```
 
-**Pourquoi `vt100` et pas un simple strip ANSI :** les CLI modernes (Ink/React TUI, Bubble Tea) redessinent l'écran avec des déplacements de curseur. Supprimer les codes ANSI d'un flux produit du texte dupliqué et illisible ; lire l'**écran rendu** donne exactement ce qu'un humain voit.
+**Pourquoi `vt100` et pas un simple strip ANSI :** les CLI modernes (Ink/React TUI, Bubble Tea) redessinent l'écran avec des déplacements de curseur. Supprimer les codes ANSI d'un flux produit du texte dupliqué et illisible ; lire l'**écran rendu** donne exactement ce qu'un humain voit (test `screen::renders_redraws_instead_of_concatenating`).
 
-**Déduplication / invalidation :** chaque prompt a un `fingerprint` (hash de la zone détectée). Même fingerprint → pas de nouvel événement. Si la zone disparaît de l'écran (l'utilisateur a répondu dans le terminal brut, ou la CLI a continué) → `PromptInvalidated`.
+**ConPTY et `ESC[6n` :** au démarrage, ConPTY demande la position du curseur et **bloque** tant qu'aucun terminal ne répond. La session répond `ESC[ligne;colonneR` depuis l'écran virtuel. Sans cela, le programme lancé ne démarre jamais.
 
-**Vérification de la réponse :** après envoi des touches, l'écran doit changer sous 2 s ; sinon la carte repasse en état « réponse non prise en compte » avec option d'ouvrir le terminal brut.
+**Déduplication / invalidation :** chaque question a une empreinte (hash de la règle et de la zone). Même empreinte → pas de nouvel événement.
+
+**Vérifié de bout en bout** (`pty_session::tests::answers_a_real_interactive_prompt`, Windows) : PowerShell `Read-Host 'Continuer ? [Y/n]'` dans ConPTY → carte « Continuer » (défaut Oui) → réponse → la sortie contient `REPONSE=y`.
 
 ### 7.5 Format des règles (TOML)
 
 ```toml
-# resources/prompt-rules/generic.toml
+# src-tauri/resources/prompt-rules/generic.toml (extrait)
 [[rule]]
 id = "generic.yes_no"
-kind = "confirm"
+kind = "confirm"                    # confirm | choice | permission | freeText
 confidence = 0.92
-# (?m) multi-ligne ; groupe nommé question ; Y majuscule = défaut
-pattern = '''(?m)^(?P<question>.{3,200}?)\s*[\[\(](?P<opts>[yY]/[nN])[\]\)]\s*[:?]?\s*$'''
-default_from = "uppercase"          # l'option en majuscule devient le bouton primaire
-risk_hint = "inherit"               # inherit | low | medium | high
+# groupes nommés : question (titre de la carte), choices (pour default_from)
+pattern = '''(?i)^(?P<question>.{2,200}?)\s*[\[\(](?P<choices>y(?:es)?\s*/\s*n(?:o)?)[\]\)]\s*[:?]?\s*$'''
+default_from = "uppercase"          # « [Y/n] » → Oui par défaut, « (y/N) » → Non
   [[rule.option]]
-  id = "yes";  label = "Oui";  keys = "y\r"; variant = "primary"; shortcut = "Y"
-  [[rule.option]]
-  id = "no";   label = "Non";  keys = "n\r"; variant = "default"; shortcut = "N"
-
-[[rule]]
-id = "generic.press_enter"
-kind = "confirm"
-confidence = 0.85
-pattern = '''(?mi)^.*press (enter|return) to (?P<question>continue|proceed).*$'''
-  [[rule.option]]
-  id = "continue"; label = "Continuer"; keys = "\r"; variant = "primary"
+  id = "yes"
+  label = "Oui"
+  keys = "y\r"                     # séquence envoyée au terminal
+  variant = "primary"               # primary | default | danger
+  letter = "y"                      # lettre associée pour default_from
 ```
 
-Menus TUI (`menu.rs`, sans règle) : détection d'un bloc de lignes consécutives alignées, dont une porte un marqueur de sélection (`❯`, `›`, `>`, `●`) et/ou sont numérotées (`1.`, `2)`). Ligne précédant le bloc = question. Réponse :
-- options numérotées → envoi du chiffre (`"2"`), + `\r` si la règle l'exige ;
-- sinon → `↓`×(cible − index courant) (`\x1b[B`) ou `↑` (`\x1b[A`), puis `\r`.
+Règles génériques fournies : `generic.yes_no`, `generic.oui_non`, `generic.press_enter`, `generic.overwrite`.
+
+Menus TUI (heuristique, sans règle) : lignes consécutives en bas d'écran, numérotées (`1.`, `2)`) ou avec un curseur de sélection, surmontées d'une ligne-question. Réponse :
+- options numérotées → envoi du chiffre ;
+- sinon → `↓` (`\x1b[B`) ou `↑` (`\x1b[A`) depuis l'option sélectionnée, puis `\r`.
+
+Un menu non numéroté exige une ligne-question terminée par `?` ou `:` (évite de prendre une sortie ordinaire pour un menu).
 
 ### 7.6 Le contrat `InteractivePrompt`
 
@@ -479,9 +479,12 @@ arrête son processus puis efface son entrée.
 |---|---|
 | Réglages | `%APPDATA%\com.sdai.archimed\settings.json` (tauri-plugin-store) |
 | Secrets | Gestionnaire d'identifiants Windows (`keyring`) |
-| Conversations (titre, agent, modèle, dossier, timeline) | `localStorage` du WebView, clé `archimed.sessions` — migration vers `%APPDATA%\com.sdai.archimed\sessions\<id>.jsonl` en Phase 2 |
+| Conversations (titre, origine, agent, modèle, dossier, timeline, id de reprise) | `%APPDATA%\com.sdai.archimed\sessions\conversations.json` (atomique, regroupé toutes les 500 ms ; migré depuis l'ancien `localStorage`) |
 | Thème choisi | `localStorage`, clé `archimed.theme` |
 | Chemins de CLI forcés | `%APPDATA%\com.sdai.archimed\engine.json` |
+| Adaptateurs déclaratifs | `%APPDATA%\com.sdai.archimed\adapters\*.toml` |
+| Tableaux du Planner | `%APPDATA%\com.sdai.archimed\modules\planner\boards.json` |
+| Journal d'audit | `%APPDATA%\com.sdai.archimed\logs\audit.jsonl` (rotation 5 Mo) |
 | Skills | `%APPDATA%\com.sdai.archimed\skills\` |
 | Logs | `%APPDATA%\com.sdai.archimed\logs\` (`app.log` rotatif, `audit.jsonl`) |
 | Données d'un module | `%APPDATA%\com.sdai.archimed\modules\<id>\` (via `core::paths::module_dir`) |

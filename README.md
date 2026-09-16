@@ -68,5 +68,5 @@ Résultat dans `release/<version>/` : `SDAI-Archimed.exe` (portable) + installeu
 | `docs/adr/` | décisions d'architecture |
 
 ## Statut
-**Phase 1 terminée** : l'application se lance, découvre ses modules, détecte les CLI installées et dialogue avec Claude Code (protocole de permission → cartes cliquables) et Antigravity.
-Voir `CHANGELOG.md` pour le détail et la liste des travaux de Phase 2 (transport PTY, règles de parsing, validation interactive Antigravity, persistance des sessions).
+**Phases 1 et 2 terminées.** L'application découvre ses modules, détecte les CLI installées, dialogue avec Claude Code (permissions en cartes cliquables), Antigravity et toute CLI déclarée en TOML (questions lues à l'écran via PTY), reprend le contexte des conversations, et fournit les modules Chat, Code, Planner, Skills et Réglages.
+Voir `CHANGELOG.md` pour le détail et les travaux de Phase 3.

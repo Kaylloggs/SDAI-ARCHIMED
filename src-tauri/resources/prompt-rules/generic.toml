@@ -1,0 +1,76 @@
+# Règles génériques de détection de questions sur l'écran d'une CLI (transport PTY).
+# Format documenté dans architecture.md §7.5. Chaque règle doit avoir un test de fixture
+# (src-tauri/src/engine/parser/detector.rs, module tests).
+#
+# - pattern      : regex appliquée à chaque ligne de la fin de l'écran (du bas vers le haut)
+# - question     : groupe nommé optionnel donnant le titre de la carte
+# - default_from : "uppercase" → l'option dont la lettre est en majuscule dans le motif est proposée par défaut
+# - keys         : séquence envoyée au terminal (\r = Entrée)
+
+[[rule]]
+id = "generic.yes_no"
+kind = "confirm"
+confidence = 0.92
+pattern = '''(?i)^(?P<question>.{2,200}?)\s*[\[\(](?P<choices>y(?:es)?\s*/\s*n(?:o)?)[\]\)]\s*[:?]?\s*$'''
+default_from = "uppercase"
+  [[rule.option]]
+  id = "yes"
+  label = "Oui"
+  keys = "y\r"
+  variant = "primary"
+  letter = "y"
+  [[rule.option]]
+  id = "no"
+  label = "Non"
+  keys = "n\r"
+  variant = "default"
+  letter = "n"
+
+[[rule]]
+id = "generic.oui_non"
+kind = "confirm"
+confidence = 0.9
+pattern = '''(?i)^(?P<question>.{2,200}?)\s*[\[\(](?P<choices>o(?:ui)?\s*/\s*n(?:on)?)[\]\)]\s*[:?]?\s*$'''
+default_from = "uppercase"
+  [[rule.option]]
+  id = "yes"
+  label = "Oui"
+  keys = "o\r"
+  variant = "primary"
+  letter = "o"
+  [[rule.option]]
+  id = "no"
+  label = "Non"
+  keys = "n\r"
+  variant = "default"
+  letter = "n"
+
+[[rule]]
+id = "generic.press_enter"
+kind = "confirm"
+confidence = 0.85
+pattern = '''(?i)^.*(?:press|appuyez sur)\s+(?:enter|return|entrée)\s+(?:to|pour)\s+(?P<question>.+?)\.*\s*$'''
+  [[rule.option]]
+  id = "continue"
+  label = "Continuer"
+  keys = "\r"
+  variant = "primary"
+
+[[rule]]
+id = "generic.overwrite"
+kind = "confirm"
+confidence = 0.88
+pattern = '''(?i)^(?P<question>.*(?:overwrite|écraser|replace|remplacer).*?)\s*\?\s*\[?(?P<choices>y/N|Y/n|yes/no)?\]?\s*$'''
+default_from = "uppercase"
+  [[rule.option]]
+  id = "yes"
+  label = "Remplacer"
+  keys = "y\r"
+  variant = "danger"
+  letter = "y"
+  [[rule.option]]
+  id = "no"
+  label = "Conserver"
+  keys = "n\r"
+  variant = "default"
+  letter = "n"

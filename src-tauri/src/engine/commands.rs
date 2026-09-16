@@ -160,6 +160,17 @@ pub async fn engine_save_conversations<R: tauri::Runtime>(
     .map_err(|e| AppError::internal(e.to_string()))?
 }
 
+/// Ouvre le dossier des adaptateurs TOML (ajout d'une CLI sans code).
+#[tauri::command]
+pub async fn engine_open_adapters_dir<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> AppResult<()> {
+    use tauri_plugin_opener::OpenerExt;
+    let dir = super::adapters::declarative::user_dir()
+        .ok_or_else(|| AppError::internal("dossier des adaptateurs non initialisé"))?;
+    app.opener()
+        .open_path(dir.display().to_string(), None::<&str>)
+        .map_err(|e| AppError::internal(e.to_string()))
+}
+
 #[tauri::command]
 pub async fn engine_default_cwd() -> AppResult<String> {
     let dir = crate::core::paths::dirs_home()

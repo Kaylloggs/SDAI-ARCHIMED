@@ -31,6 +31,11 @@ impl Paths {
         self.data.join("logs")
     }
 
+    /// Adaptateurs de CLI déclarés en TOML par l'utilisateur.
+    pub fn adapters(&self) -> PathBuf {
+        self.data.join("adapters")
+    }
+
     pub fn module_dir(&self, module_id: &str) -> PathBuf {
         self.data.join("modules").join(module_id)
     }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { RefreshCw, FolderSearch, Loader2, Check, X } from "lucide-react";
+import { RefreshCw, FolderSearch, FolderPlus, Loader2, Check, X } from "lucide-react";
 import { engineApi } from "@/core/engine/engine.api";
 import { useAdapters } from "@/core/engine/useAdapters";
 import { Badge, Button, Card } from "@/design-system/primitives";
@@ -56,10 +56,21 @@ export function EngineSection() {
         <p className="text-footnote text-text-subtle">
           Les CLI présentes dans le PATH sont détectées automatiquement au démarrage.
         </p>
-        <Button size="sm" variant="ghost" onClick={() => void refresh()}>
-          <RefreshCw size={13} strokeWidth={1.75} />
-          Rafraîchir
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => void engineApi.openAdaptersDir().catch(() => undefined)}
+            title="Déposez un fichier .toml pour ajouter n'importe quelle CLI (exemple fourni)"
+          >
+            <FolderPlus size={13} strokeWidth={1.75} />
+            Ajouter une CLI…
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => void refresh()}>
+            <RefreshCw size={13} strokeWidth={1.75} />
+            Rafraîchir
+          </Button>
+        </div>
       </div>
 
       {error && <p className="text-footnote text-danger">{error}</p>}
@@ -81,6 +92,9 @@ export function EngineSection() {
             )}
             {adapter.version && <Badge tone="neutral">{adapter.version}</Badge>}
             <Badge tone="neutral">{adapter.models.length} modèle(s)</Badge>
+            <Badge tone={adapter.transport === "pty" ? "info" : "neutral"}>
+              {adapter.transport === "pty" ? "terminal (PTY)" : "flux structuré"}
+            </Badge>
 
             <div className="ml-auto flex items-center gap-2">
               <Button

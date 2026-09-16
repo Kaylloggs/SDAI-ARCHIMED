@@ -1,6 +1,7 @@
 pub mod antigravity;
 pub mod claude;
 pub mod codex;
+pub mod declarative;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -45,6 +46,11 @@ pub trait CliAdapter: Send + Sync {
     }
 
     fn version(&self, _binary: &std::path::Path) -> Option<String> {
+        None
+    }
+
+    /// Règles de questions propres à la CLI (TOML), pour le transport PTY.
+    fn prompt_rules(&self) -> Option<String> {
         None
     }
 
@@ -116,11 +122,16 @@ pub fn describe(adapter: &dyn CliAdapter, overrides: &HashMap<String, String>) -
 }
 
 pub fn build_all() -> Vec<Box<dyn CliAdapter>> {
-    vec![
+    let mut adapters: Vec<Box<dyn CliAdapter>> = vec![
         Box::new(claude::ClaudeAdapter::default()),
         Box::new(antigravity::AntigravityAdapter),
         Box::new(codex::CodexAdapter),
-    ]
+    ];
+    let reserved: Vec<&str> = adapters.iter().map(|a| a.id()).collect();
+    for adapter in declarative::load_user_adapters(&reserved) {
+        adapters.push(Box::new(adapter));
+    }
+    adapters
 }
 
 /// Extrait un texte représentatif d'une entrée d'outil pour la classification de risque.

@@ -1,0 +1,38 @@
+# Exemple d'adaptateur déclaratif SDAI ARCHIMED.
+# Pour l'activer : copier ce fichier en « ma-cli.toml » dans ce dossier, l'adapter,
+# puis Réglages > Moteur > Rafraîchir. La CLI tourne dans un vrai terminal (PTY) :
+# ses questions sont lues à l'écran et transformées en cartes cliquables.
+
+id = "exemple-cli"
+name = "Exemple de CLI"
+binary = ["exemple-cli", "exemple-cli.cmd"]
+
+# {model} est remplacé par le modèle choisi ; sans modèle, « --model » est retiré.
+args = ["--model", "{model}"]
+# Ajoutés au redémarrage d'une conversation, si la CLI sait reprendre un contexte.
+resume_args = ["--resume", "{resume}"]
+
+models = [
+  { id = "rapide", label = "Rapide" },
+  { id = "precis", label = "Précis" },
+]
+default_model = "rapide"
+hint = "Installez exemple-cli, ou indiquez son chemin dans Réglages > Moteur."
+
+# Règles de questions propres à cette CLI, testées avant les règles génériques
+# ([Y/n], (o/N), « Appuyez sur Entrée », menus numérotés…).
+[[rule]]
+id = "exemple-cli.deploy"
+kind = "confirm"
+confidence = 0.95
+pattern = '''^(?P<question>Déployer en production) \? \(oui/non\)\s*$'''
+  [[rule.option]]
+  id = "yes"
+  label = "Déployer"
+  keys = "oui\r"
+  variant = "danger"
+  [[rule.option]]
+  id = "no"
+  label = "Annuler"
+  keys = "non\r"
+  variant = "primary"

@@ -37,4 +37,7 @@ export const engineApi = {
     invokeCore<void>("engine_stop_session", { sessionId }),
 
   defaultCwd: () => invokeCore<string>("engine_default_cwd"),
+
+  /** Ouvre le dossier des adaptateurs TOML (ajouter une CLI sans code). */
+  openAdaptersDir: () => invokeCore<void>("engine_open_adapters_dir"),
 };

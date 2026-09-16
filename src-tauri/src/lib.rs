@@ -27,6 +27,7 @@ pub fn run() {
             let paths = core::paths::Paths::resolve(app.handle())?;
             paths.ensure_all()?;
             core::audit::init(&paths.logs());
+            engine::adapters::declarative::init_user_dir(&paths.adapters());
             app.manage(ConfigStore::load(&paths.data));
             Ok(())
         });
@@ -43,6 +44,7 @@ pub fn run() {
             engine_commands::engine_set_auto_mode,
             engine_commands::engine_stop_session,
             engine_commands::engine_default_cwd,
+            engine_commands::engine_open_adapters_dir,
             engine_commands::engine_load_conversations,
             engine_commands::engine_save_conversations,
         ])

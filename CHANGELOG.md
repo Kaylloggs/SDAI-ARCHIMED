@@ -64,12 +64,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Suggestions contextuelles** : sous un message de l'IA contenant des tâches ou des dates (slot `chat.message.actions`), et bandeau « Roadmap détectée » dans le module Code (slot `code.editor.footer`).
 - Nouvelle catégorie de navigation « Organisation » ; les slots peuvent recevoir un contexte typé (`SlotContext`).
 
-### Connu / à faire (Phase 2)
-- Transport PTY (`portable-pty` + `vt100`) et règles de détection TOML pour les CLI sans protocole.
-- Validation interactive des permissions Antigravity (aujourd'hui refus automatique en headless).
-- Génération des types TS depuis Rust (`ts-rs`) branchée dans `pnpm gen:bindings`.
-- Persistance des conversations côté Rust (`sessions/<id>.jsonl`) au lieu du `localStorage`.
-- Continuité de contexte au redémarrage d'un processus (`--resume` Claude, `--conversation` agy, `codex exec resume`).
+### Ajouté — Phase 2 (2/3 et 3/3)
+- **Reprise de contexte** : l'identifiant de conversation de la CLI est mémorisé et repassé au redémarrage (`--resume`, `--conversation`). Changement de modèle à chaud sans perte de contexte.
+- **Conversations sur disque** (`sessions/conversations.json`, écriture atomique regroupée), migration automatique depuis le `localStorage`.
+- **Transport PTY (ConPTY)** et **Parsing Intelligent à l'écran** : écran virtuel `vt100`, règles TOML génériques (`[Y/n]`, `(o/N)`, « Appuyez sur Entrée », écrasement), menus numérotés ou à curseur, questions ouvertes ; réponse aux requêtes de position du curseur de ConPTY. Vérifié de bout en bout sur un vrai `Read-Host` PowerShell.
+- **Adaptateurs déclaratifs** : ajouter n'importe quelle CLI par un fichier TOML dans `%APPDATA%\com.sdai.archimeddapters\` (exemple fourni, bouton « Ajouter une CLI… » dans Réglages › Moteur), avec ses propres règles de questions.
+
+### Connu / à faire (Phase 3)
+- Validation interactive des permissions Antigravity : `agy` refuse toujours en headless ; son interface interactive (`agy -i`) n'a pas encore été observée pour écrire ses règles d'écran.
+- Génération des types TS depuis Rust (`ts-rs`) : seuls les codes d'erreur sont générés, les types du moteur sont encore recopiés à la main.
 - Envoi natif des images aux CLI qui le supportent (aujourd'hui : chemins transmis à l'agent).
-- Validation des flags Codex sur une machine où la CLI est installée.
+- Validation des flags Codex sur une machine où la CLI est installée ; reprise de contexte Codex (`codex exec resume`).
 - Synchronisation bidirectionnelle avec l'API Google Calendar (nécessite un identifiant OAuth Google Cloud fourni par l'utilisateur).
