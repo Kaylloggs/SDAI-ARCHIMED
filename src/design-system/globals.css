@@ -109,6 +109,16 @@
   }
 }
 
+/* Reflet sur le libellé d'activité en direct (« Réflexion… ») */
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
 /* Transparence réduite (Windows : Paramètres > Accessibilité > Effets visuels) */
 @media (prefers-reduced-transparency: reduce) {
   .glass,

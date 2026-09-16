@@ -5,11 +5,11 @@ import { motion } from "motion/react";
 import { AlertTriangle, Paperclip } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { PromptCard } from "@/core/cards/PromptCard";
-import { ToolCallCard } from "@/core/cards/ToolCallCard";
 import type { ChatSession } from "@/core/engine/session.store";
 import type { PromptAnswer } from "@/core/engine/types";
 import { enterUp } from "@/design-system/motion";
 import { Slot } from "@/core/modules";
+import { ActivityGroup, LiveActivity, TurnFooter, groupTimeline } from "./ActivityViews";
 
 type Props = {
   session: ChatSession;
@@ -24,7 +24,7 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [session.timeline.length, session.timeline.at(-1)]);
+  }, [session.timeline.length, session.timeline.at(-1), session.activity?.label]);
 
   return (
     <div
@@ -33,7 +33,7 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
         compact ? "max-w-full px-3" : "max-w-[var(--spacing-column)] px-6",
       )}
     >
-      {session.timeline.map((item) => {
+      {groupTimeline(session.timeline).map((item, index, all) => {
         switch (item.kind) {
           case "user":
             return (
@@ -91,12 +91,15 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
               </motion.div>
             );
 
-          case "tool":
+          case "tools":
             return (
               <motion.div key={item.id} variants={enterUp} initial="hidden" animate="visible">
-                <ToolCallCard tool={item.tool} input={item.input} output={item.output} ok={item.ok} />
+                <ActivityGroup items={item.items} running={index === all.length - 1 && session.status !== "idle"} />
               </motion.div>
             );
+
+          case "turn":
+            return <TurnFooter key={item.id} turn={item} />;
 
           case "prompt":
             return (
@@ -137,6 +140,7 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
             return null;
         }
       })}
+      <LiveActivity session={session} />
       <div ref={endRef} />
     </div>
   );

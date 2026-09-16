@@ -100,6 +100,7 @@ SDAI ARCHIMED/
 │       │   ├── components/              # BoardSidebar · BoardView · CardItem · CardPanel
 │       │   ├── lib/                     # board (synchro roadmap) · extract · calendar
 │       │   └── slots/                   # MessageActions (chat) · RoadmapFooter (code)
+│       ├── usage/                       # Crédits : module.config · index · api · lib/format · README
 │       ├── skills/                      # module.config · index · api · README
 │       ├── settings/                    # index + components/ (ThemeSection · EngineSection)
 │       ├── files/                       # (prévu) explorateur et actions système
@@ -116,7 +117,7 @@ SDAI ARCHIMED/
     └── src/
         ├── main.rs · lib.rs             # plugins, state, registre des modules, commandes
         ├── core/                        # error.rs (AppError) · paths.rs · config.rs (overrides)
-        │                                # · audit.rs (audit.jsonl) · mod.rs
+        │                                # · audit.rs (audit.jsonl) · usage.rs (registre de consommation) · mod.rs
         ├── engine/
         │   ├── mod.rs · commands.rs     # engine_* exposées au frontend
         │   ├── manager.rs · session.rs  # SessionManager, boucle de session tokio
@@ -130,6 +131,7 @@ SDAI ARCHIMED/
         └── modules/
             ├── mod.rs                   # registre : `pub mod x;` + `register!(builder, x);`
             ├── code/                    # arborescence, lecture/écriture de fichiers, détection de projet
+            ├── usage/                   # résumé du registre, compte et limites Claude
             ├── planner/                 # boards.json, roadmap.rs (parse/réécriture), ics.rs, watcher notify
             └── skills/                  # module.toml · mod.rs · commands.rs
                                          # · service.rs · types.rs
@@ -161,18 +163,22 @@ Contrat du moteur (types générés par `ts-rs`) :
 #[derive(Serialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum EngineEvent {
-    SessionStarted   { session_id: SessionId, adapter: String, model: String, transport: TransportKind },
-    MessageDelta     { message_id: String, text: String },
-    MessageCompleted { message_id: String },
-    ToolCall         { call_id: String, tool: String, input: serde_json::Value },
-    ToolResult       { call_id: String, ok: bool, output: String },
+    SessionStarted   { session_id, adapter, model, transport },
+    CliSession       { cli_session_id },                 // reprise de contexte (--resume…)
+    Activity         { phase: Thinking|Responding|Tool, label },  // « Réflexion… », « Création de main.rs… »
+    MessageDelta     { message_id, text },
+    MessageCompleted { message_id },
+    ToolCall         { call_id, tool, input },
+    ToolResult       { call_id, ok, output },
     Prompt(InteractivePrompt),
-    PromptResolved   { prompt_id: String, by: ResolvedBy, option_id: Option<String> },
-    PromptInvalidated{ prompt_id: String },
-    RawOutput        { chunk: String },          // PTY uniquement → xterm (lot de 16 ms)
-    Usage            { input_tokens: u64, output_tokens: u64, cost_usd: Option<f64> },
-    Error            { code: AppErrorCode, message: String, recoverable: bool },
-    SessionEnded     { exit_code: Option<i32> },
+    PromptResolved   { prompt_id, by, option_id },
+    PromptInvalidated{ prompt_id },
+    RawOutput        { chunk },                          // PTY uniquement
+    TurnCompleted    { duration_ms, input_tokens, output_tokens, thinking_tokens, cache_tokens, cost_usd, ok },
+    RateLimit        { status, windows: [{ id, utilization, resets_at }] },  // Claude : 5 h / 7 jours
+    Usage            { input_tokens, output_tokens, cost_usd },  // Codex (compteur intermédiaire)
+    Error            { code, message, recoverable },
+    SessionEnded     { exit_code },
 }
 ```
 
@@ -234,6 +240,7 @@ fn main() {
 | Service | `system.fs` / `system.shell` | core | actions système passant par la policy |
 | Service | `notify.toast` | core | notifications UI |
 | Événement backend | `planner:roadmap-changed` | planner | un roadmap.md surveillé a changé sur disque |
+| Événement | `engine.turn.completed` | core (session.store) | fin d'un tour d'agent : demande, réponse, outils utilisés |
 | Événement | `skills.changed`, `settings.changed`, `modules.changed`, `engine.cli_detected` | core/modules | |
 
 Ajouter un slot = l'ajouter dans `src/core/modules/slots.ts` **et** dans ce tableau.
@@ -268,7 +275,7 @@ pub trait CliAdapter: Send + Sync {
 | CLI | Binaire | Transport principal | Permissions | Modèles | Switch de modèle |
 |---|---|---|---|---|---|
 | Claude Code | `claude` | Structured : `-p --input-format stream-json --output-format stream-json --verbose` | `--permission-prompt-tool stdio` → `control_request`/`control_response` (§7.2) | `--model` (opus/sonnet/haiku) | relance avec `--resume <session_id> --model <nouveau>` |
-| Antigravity | `agy` | Structured : `-p --input-format stream-json --output-format stream-json` | refus automatique en headless, remonté en carte d'erreur (pas d'outil de prompt exposé) | `agy models`, `--model` | relance avec `--conversation <id> --model <nouveau>` |
+| Antigravity | `agy` | Structured : `--input-format stream-json --output-format stream-json -p=` (**`-p` attend une valeur : `-p=` en dernier**) ; entrée `{"event":"user","message":{…}}` | refus automatique en headless, remonté en carte d'erreur (pas d'outil de prompt exposé) | `agy models`, `--model` | relance avec `--conversation <id> --model <nouveau>` |
 | Codex (expérimental) | `codex` | Structured one-shot : `codex exec --json -` | aucune (à valider) | `--model` | nouveau processus à chaque message |
 | Déclaratif (`adapters/*.toml`) | via TOML | **PTY** (ConPTY) | questions lues à l'écran (§7.4) | TOML | `resume_args` |
 
@@ -422,6 +429,12 @@ Côté frontend, `card-registry` choisit le composant : `Permission` + `Diff` �
 `answer_prompt { sessionId, promptId, optionId?, text?, editedInput? }` → `Session` vérifie que le prompt est encore actif (sinon `PROMPT_EXPIRED`) → `adapter.encode_answer` → `AnswerAction::Bridge(json)` (N1) ou `AnswerAction::Keys(bytes)` (N3) ou `AnswerAction::Stdin(ndjson)` (N2).
 
 ---
+
+### 7.7.bis Activité et bilan de tour
+- **En direct** : `Activity` met à jour `ChatSession.activity` ; `LiveActivity` (core/chat) affiche « Réflexion… », « Création de main.rs… », « Exécution de pnpm test… » avec un chronomètre.
+- **Regroupement** : les outils consécutifs deviennent un `ActivityGroup` dépliable résumé par `summarizeTools` (« 2 fichiers créés · 1 fichier modifié · 2 commandes exécutées »). Correspondance nom d'outil → catégorie dans `core/chat/activity.ts` (Claude, Antigravity, Codex).
+- **Fin de réponse** : `TurnCompleted` ajoute un élément `turn` à la timeline, rendu par `TurnFooter` (durée, tokens dont cache et réflexion, coût estimé), et diffuse `engine.turn.completed` sur le bus (résumé : demande, réponse, outils).
+- **Registre** : chaque `TurnCompleted` et `RateLimit` est aussi écrit par le moteur dans `usage/ledger.jsonl` et `usage/limits.json` (`core/usage.rs`).
 
 ### 7.8 Passage de relais entre modules
 `useUiStore.openModule(moduleId, params)` ouvre un module en lui transmettant un contexte ;

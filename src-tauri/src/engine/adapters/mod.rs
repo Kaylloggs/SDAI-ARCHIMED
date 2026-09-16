@@ -9,7 +9,8 @@ use std::path::PathBuf;
 use serde_json::Value;
 
 use super::event::{
-    AdapterInfo, AutoMode, EngineEvent, InteractivePrompt, ModelInfo, PromptAnswer, TransportKind,
+    AdapterInfo, AutoMode, EngineEvent, InteractivePrompt, LaunchOptions, ModelInfo, PromptAnswer,
+    TransportKind,
 };
 
 /// Ce que l'adaptateur veut envoyer à la CLI après une réponse utilisateur.
@@ -64,9 +65,9 @@ pub trait CliAdapter: Send + Sync {
     fn default_model(&self) -> Option<String>;
     fn missing_hint(&self) -> &'static str;
 
-    /// Arguments de lancement d'une session. `resume` : identifiant de conversation
-    /// de la CLI à reprendre (émis précédemment via `EngineEvent::CliSession`).
-    fn spawn_args(&self, model: Option<&str>, resume: Option<&str>) -> Vec<String>;
+    /// Arguments de lancement d'une session (modèle, conversation à reprendre émise
+    /// précédemment via `EngineEvent::CliSession`, Mode Auto).
+    fn spawn_args(&self, options: LaunchOptions<'_>) -> Vec<String>;
 
     /// Encode un message utilisateur (NDJSON pour les transports structurés).
     fn encode_user_message(&self, text: &str) -> String;

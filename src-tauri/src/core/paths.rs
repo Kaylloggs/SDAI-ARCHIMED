@@ -31,6 +31,11 @@ impl Paths {
         self.data.join("logs")
     }
 
+    /// Consommation des CLI (registre et limites).
+    pub fn usage(&self) -> PathBuf {
+        self.data.join("usage")
+    }
+
     /// Adaptateurs de CLI déclarés en TOML par l'utilisateur.
     pub fn adapters(&self) -> PathBuf {
         self.data.join("adapters")

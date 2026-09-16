@@ -70,6 +70,24 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Transport PTY (ConPTY)** et **Parsing Intelligent à l'écran** : écran virtuel `vt100`, règles TOML génériques (`[Y/n]`, `(o/N)`, « Appuyez sur Entrée », écrasement), menus numérotés ou à curseur, questions ouvertes ; réponse aux requêtes de position du curseur de ConPTY. Vérifié de bout en bout sur un vrai `Read-Host` PowerShell.
 - **Adaptateurs déclaratifs** : ajouter n'importe quelle CLI par un fichier TOML dans `%APPDATA%\com.sdai.archimeddapters\` (exemple fourni, bouton « Ajouter une CLI… » dans Réglages › Moteur), avec ses propres règles de questions.
 
+### Corrigé — Antigravity
+- **Antigravity ne répondait jamais** : deux erreurs dans l'adaptateur, reproduites puis corrigées sur la CLI réelle (agy 1.2.3).
+  - `-p` attend une valeur : placé avant les autres options, il avalait `--input-format` comme prompt (« -p took "--input-format" as its prompt »). Lancement désormais `… --output-format stream-json -p=`.
+  - Format des messages : `agy` exige `{"event":"user","message":{"role":"user","content":[{"type":"text","text":…}]}}` (« stream input message is missing the "event" field »).
+  - Vérifié : réponse reçue, plusieurs messages enchaînés dans le même processus, même conversation.
+- Mode Auto intelligent ou complet : `--mode accept-edits` (modifications de fichiers acceptées sans demande).
+
+### Ajouté — Activité de l'agent et bilan de réponse
+- Indicateur en direct façon application Claude : « Réflexion… », « Création de main.rs… », « Exécution de pnpm test… », avec chronomètre.
+- Outils regroupés et résumés (« 2 fichiers créés · 2 commandes exécutées »), dépliables pour voir le détail.
+- Sous chaque réponse : durée, tokens (entrée, cache, sortie, réflexion en infobulle) et coût estimé.
+- Nouveaux événements moteur `Activity`, `TurnCompleted`, `RateLimit` ; registre de consommation `usage/ledger.jsonl` et `usage/limits.json`.
+
+### Ajouté — Module Crédits
+- **Limites d'abonnement Claude** : fenêtre de 5 h et semaine glissante (% restant, niveau d'alerte, réinitialisation), abonnement lu via `claude auth status`. Relevées à chaque réponse de Claude, ou à la demande (« Actualiser », message Haiku très court). Vérifié sur le compte réel.
+- **Consommation mesurée** par CLI et par jour : réponses, tokens, coût estimé, temps de travail (période 24 h / 7 j / 30 j).
+- Antigravity et les CLI TOML ne communiquent pas de quota : seule leur consommation est affichée, et c'est indiqué.
+
 ### Connu / à faire (Phase 3)
 - Validation interactive des permissions Antigravity : `agy` refuse toujours en headless ; son interface interactive (`agy -i`) n'a pas encore été observée pour écrire ses règles d'écran.
 - Génération des types TS depuis Rust (`ts-rs`) : seuls les codes d'erreur sont générés, les types du moteur sont encore recopiés à la main.

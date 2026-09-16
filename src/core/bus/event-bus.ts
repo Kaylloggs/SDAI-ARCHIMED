@@ -10,6 +10,17 @@ export type BusEvents = {
   "modules.changed": { id: string; enabled: boolean };
   "engine.session.started": { sessionId: string; adapter: string };
   "engine.prompt.resolved": { sessionId: string; promptId: string };
+  /** Fin d'un tour d'agent (voir `turnSummary`, session.store.ts). */
+  "engine.turn.completed": {
+    conversationId: string;
+    origin: "chat" | "code";
+    title: string;
+    adapter: string;
+    cwd: string | null;
+    request: string;
+    answer: string;
+    tools: Array<{ tool: string; input: unknown; ok?: boolean }>;
+  };
 };
 
 type Handler<K extends keyof BusEvents> = (payload: BusEvents[K]) => void;

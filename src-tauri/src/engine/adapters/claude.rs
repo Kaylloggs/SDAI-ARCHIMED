@@ -12,8 +12,8 @@ use std::path::{Path, PathBuf};
 use serde_json::{json, Value};
 
 use crate::engine::event::{
-    EngineEvent, InteractivePrompt, ModelInfo, OptionVariant, PromptAnswer, PromptDetail,
-    PromptKind, PromptOption, PromptSource, TransportKind,
+    ActivityPhase, EngineEvent, InteractivePrompt, LaunchOptions, ModelInfo, OptionVariant,
+    PromptAnswer, PromptDetail, PromptKind, PromptOption, PromptSource, RateWindow, TransportKind,
 };
 use crate::engine::policy;
 
@@ -98,7 +98,8 @@ impl CliAdapter for ClaudeAdapter {
         "Claude Code introuvable. Installez-le puis relancez ARCHIMED."
     }
 
-    fn spawn_args(&self, model: Option<&str>, resume: Option<&str>) -> Vec<String> {
+    fn spawn_args(&self, options: LaunchOptions<'_>) -> Vec<String> {
+        let LaunchOptions { model, resume, .. } = options;
         let mut args: Vec<String> = [
             "-p",
             "--input-format",
@@ -145,6 +146,7 @@ impl CliAdapter for ClaudeAdapter {
             Some("user") => decode_tool_results(&value),
             Some("control_request") => self.decode_control_request(&value, ctx),
             Some("result") => decode_result(&value),
+            Some("rate_limit_event") => decode_rate_limit(&value),
             _ => Vec::new(),
         }
     }
@@ -293,18 +295,24 @@ fn detail_for(tool: &str, input: &Value) -> PromptDetail {
 
 /// `system/init` porte le `session_id` réutilisable avec `--resume`.
 fn decode_system(value: &Value) -> Vec<EngineEvent> {
-    if value.get("subtype").and_then(Value::as_str) != Some("init") {
-        return Vec::new();
+    match value.get("subtype").and_then(Value::as_str) {
+        // `init` porte le `session_id` réutilisable avec `--resume`.
+        Some("init") => value
+            .get("session_id")
+            .and_then(Value::as_str)
+            .map(|id| {
+                vec![EngineEvent::CliSession {
+                    cli_session_id: id.to_string(),
+                }]
+            })
+            .unwrap_or_default(),
+        // Émis pendant la réflexion du modèle (contenu non exposé).
+        Some("thinking_tokens") => vec![EngineEvent::Activity {
+            phase: ActivityPhase::Thinking,
+            label: None,
+        }],
+        _ => Vec::new(),
     }
-    value
-        .get("session_id")
-        .and_then(Value::as_str)
-        .map(|id| {
-            vec![EngineEvent::CliSession {
-                cli_session_id: id.to_string(),
-            }]
-        })
-        .unwrap_or_default()
 }
 
 fn decode_assistant(value: &Value) -> Vec<EngineEvent> {
@@ -321,9 +329,17 @@ fn decode_assistant(value: &Value) -> Vec<EngineEvent> {
     let mut events = Vec::new();
     for block in content {
         match block.get("type").and_then(Value::as_str) {
+            Some("thinking") | Some("redacted_thinking") => events.push(EngineEvent::Activity {
+                phase: ActivityPhase::Thinking,
+                label: None,
+            }),
             Some("text") => {
                 if let Some(text) = block.get("text").and_then(Value::as_str) {
                     if !text.is_empty() {
+                        events.push(EngineEvent::Activity {
+                            phase: ActivityPhase::Responding,
+                            label: None,
+                        });
                         events.push(EngineEvent::MessageDelta {
                             message_id: message_id.clone(),
                             text: text.to_string(),
@@ -335,6 +351,16 @@ fn decode_assistant(value: &Value) -> Vec<EngineEvent> {
                 }
             }
             Some("tool_use") => {
+                let name = block.get("name").and_then(Value::as_str).unwrap_or("outil");
+                let summary = payload_of(block.get("input").unwrap_or(&Value::Null));
+                events.push(EngineEvent::Activity {
+                    phase: ActivityPhase::Tool,
+                    label: Some(if summary.is_empty() || summary == "null" {
+                        name.to_string()
+                    } else {
+                        format!("{name} · {}", summary.chars().take(120).collect::<String>())
+                    }),
+                });
                 events.push(EngineEvent::ToolCall {
                     call_id: block
                         .get("id")
@@ -387,24 +413,25 @@ fn decode_tool_results(value: &Value) -> Vec<EngineEvent> {
 }
 
 fn decode_result(value: &Value) -> Vec<EngineEvent> {
-    let usage = value.get("usage");
-    let mut events = Vec::new();
+    let usage = value.get("usage").unwrap_or(&Value::Null);
+    let count = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let is_error = value.get("is_error").and_then(Value::as_bool) == Some(true);
 
-    if let Some(usage) = usage {
-        events.push(EngineEvent::Usage {
-            input_tokens: usage
-                .get("input_tokens")
-                .and_then(Value::as_u64)
-                .unwrap_or(0),
-            output_tokens: usage
-                .get("output_tokens")
-                .and_then(Value::as_u64)
-                .unwrap_or(0),
-            cost_usd: value.get("total_cost_usd").and_then(Value::as_f64),
-        });
-    }
+    let mut events = vec![EngineEvent::TurnCompleted {
+        duration_ms: value.get("duration_ms").and_then(Value::as_u64),
+        input_tokens: count("input_tokens"),
+        output_tokens: count("output_tokens"),
+        thinking_tokens: usage
+            .get("output_tokens_details")
+            .and_then(|details| details.get("thinking_tokens"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        cache_tokens: count("cache_creation_input_tokens") + count("cache_read_input_tokens"),
+        cost_usd: value.get("total_cost_usd").and_then(Value::as_f64),
+        ok: !is_error,
+    }];
 
-    if value.get("is_error").and_then(Value::as_bool) == Some(true) {
+    if is_error {
         events.push(EngineEvent::Error {
             code: "CLI_ERROR".to_string(),
             message: value
@@ -417,6 +444,35 @@ fn decode_result(value: &Value) -> Vec<EngineEvent> {
     }
 
     events
+}
+
+/// `rate_limit_event` : utilisation des fenêtres d'abonnement (Claude Pro/Max).
+fn decode_rate_limit(value: &Value) -> Vec<EngineEvent> {
+    let info = value.get("rate_limit_info").unwrap_or(&Value::Null);
+    let Some(windows) = info.get("unifiedWindows").and_then(Value::as_object) else {
+        return Vec::new();
+    };
+    let windows = windows
+        .iter()
+        .filter_map(|(id, window)| {
+            Some(RateWindow {
+                id: id.clone(),
+                utilization: window.get("utilization").and_then(Value::as_f64)?,
+                resets_at: window.get("resetsAt").and_then(Value::as_i64),
+            })
+        })
+        .collect::<Vec<_>>();
+    if windows.is_empty() {
+        return Vec::new();
+    }
+    vec![EngineEvent::RateLimit {
+        status: info
+            .get("status")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown")
+            .to_string(),
+        windows,
+    }]
 }
 
 #[cfg(test)]
@@ -474,10 +530,41 @@ mod tests {
         );
         assert!(matches!(&events[0], EngineEvent::CliSession { cli_session_id } if cli_session_id == "52dd-abc"));
 
-        let args = adapter.spawn_args(Some("haiku"), Some("52dd-abc"));
+        let args = adapter.spawn_args(LaunchOptions::new(Some("haiku"), Some("52dd-abc")));
         let resume = args.iter().position(|a| a == "--resume").unwrap();
         assert_eq!(args[resume + 1], "52dd-abc");
-        assert!(!adapter.spawn_args(None, None).contains(&"--resume".to_string()));
+        assert!(!adapter
+            .spawn_args(LaunchOptions::new(None, None))
+            .contains(&"--resume".to_string()));
+    }
+
+    #[test]
+    fn decodes_recorded_turn_and_rate_limits() {
+        // Extraits réels (claude 2.1.271, 2026-09-16).
+        let mut adapter = ClaudeAdapter::default();
+        let lines = [
+            r#"{"type":"system","subtype":"thinking_tokens","estimated_tokens":50,"estimated_tokens_delta":50}"#,
+            r#"{"type":"assistant","message":{"id":"m1","content":[{"type":"tool_use","id":"t1","name":"Write","input":{"file_path":"C:/spike/hello.txt","content":"hi."}}]}}"#,
+            r#"{"type":"rate_limit_event","rate_limit_info":{"status":"allowed","resetsAt":1789579800,"unifiedWindows":{"five_hour":{"utilization":0.31,"resetsAt":1789579800},"seven_day":{"utilization":0.16,"resetsAt":1790139600}}}}"#,
+            r#"{"type":"result","duration_ms":5367,"is_error":false,"total_cost_usd":0.0749616,"usage":{"input_tokens":18,"cache_creation_input_tokens":34745,"cache_read_input_tokens":34236,"output_tokens":406,"output_tokens_details":{"thinking_tokens":258}}}"#,
+        ];
+        let events: Vec<EngineEvent> = lines.iter().flat_map(|l| adapter.decode_line(l, &ctx())).collect();
+
+        assert!(matches!(&events[0], EngineEvent::Activity { phase: ActivityPhase::Thinking, .. }));
+        assert!(events.iter().any(|e| matches!(e, EngineEvent::Activity { phase: ActivityPhase::Tool, label: Some(l) } if l.starts_with("Write · "))));
+        let windows = events.iter().find_map(|e| match e {
+            EngineEvent::RateLimit { windows, .. } => Some(windows.clone()),
+            _ => None,
+        }).unwrap();
+        assert_eq!(windows.len(), 2);
+        assert!(windows.iter().any(|w| w.id == "five_hour" && (w.utilization - 0.31).abs() < 1e-9));
+        let turn = events.iter().find_map(|e| match e {
+            EngineEvent::TurnCompleted { duration_ms, input_tokens, output_tokens, thinking_tokens, cache_tokens, cost_usd, ok } => {
+                Some((*duration_ms, *input_tokens, *output_tokens, *thinking_tokens, *cache_tokens, *cost_usd, *ok))
+            }
+            _ => None,
+        }).unwrap();
+        assert_eq!(turn, (Some(5367), 18, 406, 258, 68981, Some(0.0749616), true));
     }
 
     #[test]
@@ -485,7 +572,8 @@ mod tests {
         let mut adapter = ClaudeAdapter::default();
         let line = r#"{"type":"assistant","message":{"id":"m1","content":[{"type":"text","text":"bonjour"}]}}"#;
         let events = adapter.decode_line(line, &ctx());
-        assert!(matches!(events[0], EngineEvent::MessageDelta { .. }));
-        assert!(matches!(events[1], EngineEvent::MessageCompleted { .. }));
+        assert!(matches!(events[0], EngineEvent::Activity { phase: ActivityPhase::Responding, .. }));
+        assert!(matches!(events[1], EngineEvent::MessageDelta { .. }));
+        assert!(matches!(events[2], EngineEvent::MessageCompleted { .. }));
     }
 }

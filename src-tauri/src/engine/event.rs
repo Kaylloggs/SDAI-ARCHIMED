@@ -137,9 +137,29 @@ pub enum EngineEvent {
     MessageDelta { message_id: String, text: String },
     #[serde(rename_all = "camelCase")]
     MessageCompleted { message_id: String },
+    /// Ce que fait l'agent en ce moment (affiché en direct : « Réflexion… »).
     #[serde(rename_all = "camelCase")]
-    #[allow(dead_code)]
-    Thinking { text: String },
+    Activity {
+        phase: ActivityPhase,
+        label: Option<String>,
+    },
+    /// Fin d'un tour de l'agent : durée et consommation (affichées sous la réponse).
+    #[serde(rename_all = "camelCase")]
+    TurnCompleted {
+        duration_ms: Option<u64>,
+        input_tokens: u64,
+        output_tokens: u64,
+        thinking_tokens: u64,
+        cache_tokens: u64,
+        cost_usd: Option<f64>,
+        ok: bool,
+    },
+    /// Fenêtres de limite d'usage communiquées par la CLI (Claude : 5 h, 7 jours).
+    #[serde(rename_all = "camelCase")]
+    RateLimit {
+        status: String,
+        windows: Vec<RateWindow>,
+    },
     #[serde(rename_all = "camelCase")]
     ToolCall {
         call_id: String,
@@ -180,6 +200,45 @@ pub enum EngineEvent {
     },
     #[serde(rename_all = "camelCase")]
     SessionEnded { exit_code: Option<i32> },
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum ActivityPhase {
+    Thinking,
+    Responding,
+    Tool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RateWindow {
+    /// `five_hour`, `seven_day`…
+    pub id: String,
+    /// Part consommée, de 0 à 1.
+    pub utilization: f64,
+    /// Réinitialisation (secondes Unix).
+    pub resets_at: Option<i64>,
+}
+
+/// Options de lancement d'une CLI (voir `CliAdapter::spawn_args`).
+#[derive(Debug, Clone, Copy)]
+pub struct LaunchOptions<'a> {
+    pub model: Option<&'a str>,
+    /// Identifiant de conversation de la CLI à reprendre.
+    pub resume: Option<&'a str>,
+    pub auto_mode: AutoMode,
+}
+
+#[cfg(test)]
+impl<'a> LaunchOptions<'a> {
+    pub fn new(model: Option<&'a str>, resume: Option<&'a str>) -> Self {
+        Self {
+            model,
+            resume,
+            auto_mode: AutoMode::Off,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]

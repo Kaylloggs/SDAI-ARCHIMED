@@ -30,7 +30,7 @@ use std::sync::OnceLock;
 
 use serde::Deserialize;
 
-use crate::engine::event::{EngineEvent, InteractivePrompt, ModelInfo, PromptAnswer, TransportKind};
+use crate::engine::event::{EngineEvent, InteractivePrompt, LaunchOptions, ModelInfo, PromptAnswer, TransportKind};
 
 use super::{AnswerAction, CliAdapter, DecodeCtx};
 
@@ -169,7 +169,8 @@ impl CliAdapter for DeclarativeAdapter {
         Some(self.rules_source.clone())
     }
 
-    fn spawn_args(&self, model: Option<&str>, resume: Option<&str>) -> Vec<String> {
+    fn spawn_args(&self, options: LaunchOptions<'_>) -> Vec<String> {
+        let LaunchOptions { model, resume, .. } = options;
         let mut args = expand(&self.args, "model", model);
         if resume.is_some() {
             args.extend(expand(&self.resume_args, "resume", resume));
@@ -254,9 +255,9 @@ args = ["chat", "--model", "{model}"]
 resume_args = ["--resume", "{resume}"]
 "#;
         let adapter = DeclarativeAdapter::parse(source).unwrap();
-        assert_eq!(adapter.spawn_args(Some("fast"), None), vec!["chat", "--model", "fast"]);
-        assert_eq!(adapter.spawn_args(None, None), vec!["chat"]);
-        assert_eq!(adapter.spawn_args(None, Some("abc")), vec!["chat", "--resume", "abc"]);
+        assert_eq!(adapter.spawn_args(LaunchOptions::new(Some("fast"), None)), vec!["chat", "--model", "fast"]);
+        assert_eq!(adapter.spawn_args(LaunchOptions::new(None, None)), vec!["chat"]);
+        assert_eq!(adapter.spawn_args(LaunchOptions::new(None, Some("abc"))), vec!["chat", "--resume", "abc"]);
     }
 
     #[test]

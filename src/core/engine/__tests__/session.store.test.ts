@@ -21,6 +21,8 @@ const BASE: ChatSession = {
   raw: "",
   usage: { inputTokens: 0, outputTokens: 0, costUsd: null },
   pendingPromptId: null,
+  activity: null,
+  turnStartedAt: null,
 };
 
 const prompt: InteractivePrompt = {
@@ -148,6 +150,24 @@ describe("session.store", () => {
     const session = apply({ type: "sessionEnded", exitCode: 0 });
     expect(session.status).toBe("ended");
     expect(session.engineSessionId).toBeNull();
+  });
+
+  it("ajoute un bilan de tour (durée, tokens) et vide l'activité", () => {
+    apply({ type: "activity", phase: "tool", label: "Write · a.ts" });
+    expect(useSessionStore.getState().sessions[0]?.activity?.phase).toBe("tool");
+    const session = apply({
+      type: "turnCompleted",
+      durationMs: 5367,
+      inputTokens: 18,
+      outputTokens: 406,
+      thinkingTokens: 258,
+      cacheTokens: 68981,
+      costUsd: 0.07,
+      ok: true,
+    });
+    expect(session.activity).toBeNull();
+    expect(session.status).toBe("idle");
+    expect(session.timeline.at(-1)).toMatchObject({ kind: "turn", durationMs: 5367, outputTokens: 406 });
   });
 
   it("cumule l'usage", () => {

@@ -73,7 +73,7 @@ pub fn spawn(
             super::pty_session::PtySpawn {
                 session_id: id.clone(),
                 binary: &binary,
-                args: adapter.spawn_args(model.as_deref(), resume.as_deref()),
+                args: adapter.spawn_args(super::event::LaunchOptions { model: model.as_deref(), resume: resume.as_deref(), auto_mode }),
                 cwd,
                 auto_mode,
                 extra_rules: adapter.prompt_rules(),
@@ -89,7 +89,7 @@ pub fn spawn(
 
     let mut command = Command::new(&binary);
     command
-        .args(adapter.spawn_args(model.as_deref(), resume.as_deref()))
+        .args(adapter.spawn_args(super::event::LaunchOptions { model: model.as_deref(), resume: resume.as_deref(), auto_mode }))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -159,7 +159,7 @@ pub fn spawn(
         let _ = channel.send(EngineEvent::SessionStarted {
             session_id: session_id.clone(),
             adapter: adapter_id.clone(),
-            model: model_label,
+            model: model_label.clone(),
             transport,
         });
 
@@ -168,6 +168,7 @@ pub fn spawn(
                 Some(line) = line_rx.recv() => {
                     let ctx = DecodeCtx { session_id: &session_id, auto_mode };
                     for event in adapter.decode_line(&line, &ctx) {
+                        record_usage(&adapter_id, &model_label, &event);
                         if let EngineEvent::Prompt { prompt } = &event {
                             let auto = try_auto_resolve(prompt, auto_mode);
                             prompts.insert(prompt.prompt_id.clone(), prompt.clone());
@@ -237,6 +238,35 @@ pub fn spawn(
     });
 
     Ok(handle)
+}
+
+/// Alimente le registre de consommation (module Crédits) sans bloquer la session.
+fn record_usage(adapter: &str, model: &str, event: &EngineEvent) {
+    match event {
+        EngineEvent::TurnCompleted {
+            duration_ms,
+            input_tokens,
+            output_tokens,
+            thinking_tokens,
+            cache_tokens,
+            cost_usd,
+            ..
+        } => crate::core::usage::record_turn(&crate::core::usage::TurnRecord {
+            at: chrono::Utc::now().timestamp(),
+            adapter: adapter.to_string(),
+            model: model.to_string(),
+            input_tokens: *input_tokens,
+            output_tokens: *output_tokens,
+            thinking_tokens: *thinking_tokens,
+            cache_tokens: *cache_tokens,
+            cost_usd: *cost_usd,
+            duration_ms: *duration_ms,
+        }),
+        EngineEvent::RateLimit { status, windows } => {
+            crate::core::usage::record_limits(adapter, status, windows)
+        }
+        _ => {}
+    }
 }
 
 /// Décide si le Mode Auto peut répondre seul. `None` = demander à l'utilisateur.

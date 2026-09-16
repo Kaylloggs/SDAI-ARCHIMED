@@ -64,12 +64,27 @@ export type InteractivePrompt = {
 
 export type ResolvedBy = "user" | "auto" | "policy";
 
+export type ActivityPhase = "thinking" | "responding" | "tool";
+
+export type RateWindow = { id: string; utilization: number; resetsAt: number | null };
+
 export type EngineEvent =
   | { type: "sessionStarted"; sessionId: SessionId; adapter: AdapterId; model: string; transport: TransportKind }
   | { type: "cliSession"; cliSessionId: string }
   | { type: "messageDelta"; messageId: string; text: string }
   | { type: "messageCompleted"; messageId: string }
-  | { type: "thinking"; text: string }
+  | { type: "activity"; phase: ActivityPhase; label: string | null }
+  | {
+      type: "turnCompleted";
+      durationMs: number | null;
+      inputTokens: number;
+      outputTokens: number;
+      thinkingTokens: number;
+      cacheTokens: number;
+      costUsd: number | null;
+      ok: boolean;
+    }
+  | { type: "rateLimit"; status: string; windows: RateWindow[] }
   | { type: "toolCall"; callId: string; tool: string; input: unknown }
   | { type: "toolResult"; callId: string; ok: boolean; output: string }
   | { type: "prompt"; prompt: InteractivePrompt }

@@ -13,7 +13,7 @@ use std::path::Path;
 use serde_json::Value;
 
 use crate::engine::event::{
-    EngineEvent, InteractivePrompt, ModelInfo, PromptAnswer, TransportKind,
+    EngineEvent, InteractivePrompt, LaunchOptions, ModelInfo, PromptAnswer, TransportKind,
 };
 
 use super::{AnswerAction, CliAdapter, DecodeCtx};
@@ -75,7 +75,8 @@ impl CliAdapter for CodexAdapter {
         "Codex CLI introuvable. Installez-la, ou indiquez son chemin dans Réglages > Moteur."
     }
 
-    fn spawn_args(&self, model: Option<&str>, _resume: Option<&str>) -> Vec<String> {
+    fn spawn_args(&self, options: LaunchOptions<'_>) -> Vec<String> {
+        let model = options.model;
         let mut args: Vec<String> = ["exec", "--json", "--skip-git-repo-check"]
             .iter()
             .map(|s| s.to_string())

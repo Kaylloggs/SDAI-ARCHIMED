@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { conversationStorage } from "./conversation-storage";
+import { bus } from "@/core/bus/event-bus";
 import type {
+  ActivityPhase,
   AutoMode,
   EngineEvent,
   InteractivePrompt,
@@ -14,6 +16,17 @@ export type TimelineItem =
   | { kind: "tool"; id: string; tool: string; input: unknown; output?: string; ok?: boolean }
   | { kind: "prompt"; id: string; prompt: InteractivePrompt; resolvedBy?: ResolvedBy; optionId?: string | null }
   | { kind: "error"; id: string; message: string; code: string }
+  | {
+      kind: "turn";
+      id: string;
+      durationMs: number | null;
+      inputTokens: number;
+      outputTokens: number;
+      thinkingTokens: number;
+      cacheTokens: number;
+      costUsd: number | null;
+      ok: boolean;
+    }
   | { kind: "system"; id: string; text: string };
 
 export type SessionStatus = "idle" | "starting" | "running" | "awaiting" | "ended" | "error";
@@ -43,6 +56,10 @@ export type ChatSession = {
   raw: string;
   usage: { inputTokens: number; outputTokens: number; costUsd: number | null };
   pendingPromptId: string | null;
+  /** Action en cours de l'agent (non persisté). */
+  activity: { phase: ActivityPhase; label: string | null; since: number } | null;
+  /** Début du tour en cours, pour mesurer la durée si la CLI ne la fournit pas. */
+  turnStartedAt: number | null;
 };
 
 type Store = {
@@ -101,6 +118,8 @@ export const useSessionStore = create<Store>()(
           raw: "",
           usage: { inputTokens: 0, outputTokens: 0, costUsd: null },
           pendingPromptId: null,
+          activity: null,
+          turnStartedAt: null,
         };
         set((state) => ({
           sessions: [session, ...state.sessions].slice(0, MAX_SESSIONS),
@@ -143,6 +162,8 @@ export const useSessionStore = create<Store>()(
             return {
               ...session,
               status: "running",
+              activity: { phase: "thinking", label: null, since: Date.now() },
+              turnStartedAt: Date.now(),
               updatedAt: Date.now(),
               title:
                 session.title === "Nouvelle conversation" ? titleFrom(text) : session.title,
@@ -154,11 +175,11 @@ export const useSessionStore = create<Store>()(
       apply: (engineSessionId, event) => {
         const target = get().sessions.find((s) => s.engineSessionId === engineSessionId);
         if (!target) return;
+        const next = reduce(target, event);
         set((state) => ({
-          sessions: state.sessions.map((session) =>
-            session.id === target.id ? reduce(session, event) : session,
-          ),
+          sessions: state.sessions.map((session) => (session.id === target.id ? next : session)),
         }));
+        if (event.type === "turnCompleted") bus.emit("engine.turn.completed", turnSummary(next));
       },
     }),
     {
@@ -188,6 +209,8 @@ export const useSessionStore = create<Store>()(
         sessions: state.sessions.map((session) => ({
           ...session,
           raw: "",
+          activity: null,
+          turnStartedAt: null,
           engineSessionId: null as string | null,
           pendingPromptId: null as string | null,
           status: session.status === "ended" ? "ended" : ("idle" as SessionStatus),
@@ -200,11 +223,72 @@ export const useSessionStore = create<Store>()(
   ),
 );
 
+/** Ce qui s'est passé pendant le dernier tour : diffusé sur le bus (`engine.turn.completed`). */
+export function turnSummary(session: ChatSession) {
+  const lastUser = session.timeline.map((item) => item.kind).lastIndexOf("user");
+  const turn = session.timeline.slice(lastUser === -1 ? 0 : lastUser);
+  const request = turn.find((item) => item.kind === "user");
+  const answer = turn.filter((item) => item.kind === "assistant").map((item) => item.text).join("\n\n");
+  const tools = turn.flatMap((item) =>
+    item.kind === "tool" ? [{ tool: item.tool, input: item.input, ok: item.ok }] : [],
+  );
+  return {
+    conversationId: session.id,
+    origin: session.origin,
+    title: session.title,
+    adapter: session.adapter,
+    cwd: session.cwd,
+    request: request?.kind === "user" ? request.text : "",
+    answer,
+    tools,
+  };
+}
+
 function reduce(session: ChatSession, event: EngineEvent): ChatSession {
   const timeline = session.timeline;
   const touched = { updatedAt: Date.now() };
 
   switch (event.type) {
+    case "activity":
+      return { ...session, activity: { phase: event.phase, label: event.label, since: Date.now() } };
+
+    case "turnCompleted": {
+      const durationMs =
+        event.durationMs ?? (session.turnStartedAt ? Date.now() - session.turnStartedAt : null);
+      return {
+        ...session,
+        ...touched,
+        status: "idle",
+        activity: null,
+        turnStartedAt: null,
+        usage: {
+          inputTokens: session.usage.inputTokens + event.inputTokens + event.cacheTokens,
+          outputTokens: session.usage.outputTokens + event.outputTokens,
+          costUsd:
+            event.costUsd === null
+              ? session.usage.costUsd
+              : (session.usage.costUsd ?? 0) + event.costUsd,
+        },
+        timeline: [
+          ...timeline,
+          {
+            kind: "turn",
+            id: crypto.randomUUID(),
+            durationMs,
+            inputTokens: event.inputTokens,
+            outputTokens: event.outputTokens,
+            thinkingTokens: event.thinkingTokens,
+            cacheTokens: event.cacheTokens,
+            costUsd: event.costUsd,
+            ok: event.ok,
+          },
+        ],
+      };
+    }
+
+    case "rateLimit":
+      return session;
+
     case "cliSession":
       return { ...session, cliSessionId: event.cliSessionId };
 
@@ -212,6 +296,7 @@ function reduce(session: ChatSession, event: EngineEvent): ChatSession {
       return { ...session, ...touched, status: "running", model: event.model || session.model };
 
     case "messageDelta": {
+      session = { ...session, activity: { phase: "responding", label: null, since: session.activity?.since ?? Date.now() } };
       const index = timeline.findIndex(
         (item) => item.kind === "assistant" && item.id === event.messageId,
       );
@@ -326,7 +411,7 @@ function reduce(session: ChatSession, event: EngineEvent): ChatSession {
       };
 
     case "sessionEnded":
-      return { ...session, ...touched, status: "ended", engineSessionId: null };
+      return { ...session, ...touched, status: "ended", activity: null, engineSessionId: null };
 
     default:
       return session;
