@@ -6,6 +6,7 @@ const ENGINE_ID = "engine-1";
 
 const BASE: ChatSession = {
   id: "s1",
+  origin: "chat",
   title: "Nouvelle conversation",
   adapter: "claude",
   model: "sonnet",
@@ -62,6 +63,21 @@ describe("session.store", () => {
     expect(state.activeId).toBe(id);
     expect(state.sessions[0]?.id).toBe(id);
     expect(state.sessions).toHaveLength(2);
+  });
+
+  it("ne change pas la conversation active pour une conversation du module Code", () => {
+    useSessionStore.getState().createSession({
+      adapter: "claude",
+      model: null,
+      cwd: "F:/projet",
+      autoMode: "off",
+      origin: "code",
+      title: "Projet projet",
+      activate: false,
+    });
+    const state = useSessionStore.getState();
+    expect(state.activeId).toBe("s1");
+    expect(state.sessions[0]).toMatchObject({ origin: "code", title: "Projet projet" });
   });
 
   it("titre la conversation avec le premier message", () => {

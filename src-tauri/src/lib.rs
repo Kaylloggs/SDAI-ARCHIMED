@@ -26,6 +26,7 @@ pub fn run() {
         .setup(|app| {
             let paths = core::paths::Paths::resolve(app.handle())?;
             paths.ensure_all()?;
+            core::audit::init(&paths.logs());
             app.manage(ConfigStore::load(&paths.data));
             Ok(())
         });

@@ -32,7 +32,8 @@ export function buildPrompt(
 /** Cycle de vie des conversations, partagé par tous les modules qui parlent aux CLI. */
 export function useChat() {
   const store = useSessionStore();
-  const session = store.sessions.find((s) => s.id === store.activeId) ?? null;
+  const session =
+    store.sessions.find((s) => s.id === store.activeId && s.origin === "chat") ?? null;
 
   /** Démarre (ou redémarre) le processus CLI d'une conversation. */
   const ensureEngine = useCallback(async (chat: ChatSession): Promise<string> => {

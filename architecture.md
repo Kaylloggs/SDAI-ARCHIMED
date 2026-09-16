@@ -110,7 +110,8 @@ SDAI ARCHIMED/
     ├── resources/                       # (prévu) adapters/*.toml · prompt-rules/*.toml
     └── src/
         ├── main.rs · lib.rs             # plugins, state, registre des modules, commandes
-        ├── core/                        # error.rs (AppError) · paths.rs · config.rs (overrides) · mod.rs
+        ├── core/                        # error.rs (AppError) · paths.rs · config.rs (overrides)
+        │                                # · audit.rs (audit.jsonl) · mod.rs
         ├── engine/
         │   ├── mod.rs · commands.rs     # engine_* exposées au frontend
         │   ├── manager.rs · session.rs  # SessionManager, boucle de session tokio
@@ -219,6 +220,7 @@ fn main() {
 | Slot | `chat.message.actions` | chat | actions sur un message (copier, lire à voix haute) |
 | Slot | `chat.header.right` | chat | indicateurs de session |
 | Slot | `launchpad.widgets` | home | widgets sur l'accueil |
+| Slot | `code.editor.footer` | code | bandeau sous l'éditeur (ex : roadmap du projet) |
 | Slot | `statusbar.items` | shell | indicateurs globaux |
 | Slot | `settings.sections` | settings | (auto : `manifest.settings`) |
 | Service | `code.project` | code | savoir si un dossier est un projet (consommé par le chat) |
@@ -421,6 +423,8 @@ Exemple : le chat détecte un projet via le service `code.project`, propose une 
 et ouvre le module Code sur le dossier de la conversation.
 
 ### 7.9 Conversations multiples
+Chaque conversation porte une **origine** (`chat` | `code`) : un module n'affiche que les siennes,
+et la conversation active du Chat n'est jamais modifiée par le module Code.
 Une **conversation** (frontend, persistée) est distincte d'une **session moteur** (processus CLI vivant) :
 `ChatSession.engineSessionId` vaut `null` tant qu'aucun processus ne tourne. Le premier message
 démarre le processus avec l'agent, le modèle et le dossier de la conversation ; la fin du processus

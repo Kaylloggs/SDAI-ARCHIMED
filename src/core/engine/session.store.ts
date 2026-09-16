@@ -17,12 +17,16 @@ export type TimelineItem =
 
 export type SessionStatus = "idle" | "starting" | "running" | "awaiting" | "ended" | "error";
 
+/** Module qui a créé la conversation : chaque module n'affiche que les siennes. */
+export type SessionOrigin = "chat" | "code";
+
 /**
  * Une conversation persistée. Son identité (`id`) survit à l'arrêt du processus CLI :
  * `engineSessionId` pointe vers la session backend vivante, ou `null` si elle est terminée.
  */
 export type ChatSession = {
   id: string;
+  origin: SessionOrigin;
   title: string;
   adapter: string;
   model: string | null;
@@ -47,6 +51,10 @@ type Store = {
     model: string | null;
     cwd: string | null;
     autoMode: AutoMode;
+    origin?: SessionOrigin;
+    title?: string;
+    /** `false` : ne change pas la conversation active du module Chat. */
+    activate?: boolean;
   }) => string;
   removeSession: (id: string) => void;
   clearAll: () => void;
@@ -70,12 +78,13 @@ export const useSessionStore = create<Store>()(
       sessions: [],
       activeId: null,
 
-      createSession: ({ adapter, model, cwd, autoMode }) => {
+      createSession: ({ adapter, model, cwd, autoMode, origin = "chat", title, activate = true }) => {
         const id = crypto.randomUUID();
         const now = Date.now();
         const session: ChatSession = {
           id,
-          title: "Nouvelle conversation",
+          origin,
+          title: title ?? "Nouvelle conversation",
           adapter,
           model,
           cwd,
@@ -91,7 +100,7 @@ export const useSessionStore = create<Store>()(
         };
         set((state) => ({
           sessions: [session, ...state.sessions].slice(0, MAX_SESSIONS),
-          activeId: id,
+          activeId: activate ? id : state.activeId,
         }));
         return id;
       },
@@ -99,9 +108,10 @@ export const useSessionStore = create<Store>()(
       removeSession: (id) =>
         set((state) => {
           const sessions = state.sessions.filter((s) => s.id !== id);
+          const nextChat = sessions.find((s) => s.origin === "chat");
           return {
             sessions,
-            activeId: state.activeId === id ? (sessions[0]?.id ?? null) : state.activeId,
+            activeId: state.activeId === id ? (nextChat?.id ?? null) : state.activeId,
           };
         }),
 
@@ -131,9 +141,7 @@ export const useSessionStore = create<Store>()(
               status: "running",
               updatedAt: Date.now(),
               title:
-                session.timeline.length === 0 || session.title === "Nouvelle conversation"
-                  ? titleFrom(text)
-                  : session.title,
+                session.title === "Nouvelle conversation" ? titleFrom(text) : session.title,
               timeline: [...session.timeline, item],
             };
           }),
@@ -151,14 +159,32 @@ export const useSessionStore = create<Store>()(
     }),
     {
       name: "archimed.sessions",
+      version: 1,
+      // v0 → v1 : ajout de `origin`. Les conversations vides créées automatiquement
+      // par le module Code à l'ouverture d'un dossier sont supprimées.
+      migrate: (persisted, version) => {
+        const state = persisted as { sessions?: Array<Partial<ChatSession>>; activeId?: string | null };
+        if (version < 1 && Array.isArray(state.sessions)) {
+          state.sessions = state.sessions
+            .filter((s) => !(s.title?.startsWith("Projet ") && (s.timeline?.length ?? 0) === 0))
+            .map((s) => ({
+              ...s,
+              origin: s.origin ?? (s.title?.startsWith("Projet ") ? "code" : "chat"),
+            }));
+          if (!state.sessions.some((s) => s.id === state.activeId && s.origin === "chat")) {
+            state.activeId = state.sessions.find((s) => s.origin === "chat")?.id ?? null;
+          }
+        }
+        return state as unknown as Store;
+      },
       // La sortie brute et l'état transitoire ne sont pas persistés.
       partialize: (state) => ({
         activeId: state.activeId,
         sessions: state.sessions.map((session) => ({
           ...session,
           raw: "",
-          engineSessionId: null,
-          pendingPromptId: null,
+          engineSessionId: null as string | null,
+          pendingPromptId: null as string | null,
           status: session.status === "ended" ? "ended" : ("idle" as SessionStatus),
           timeline: session.timeline.filter(
             (item) => !(item.kind === "prompt" && !item.resolvedBy),

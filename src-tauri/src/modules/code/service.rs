@@ -91,6 +91,33 @@ impl CodeService {
         })
     }
 
+    /// Enregistre un fichier texte existant (édition manuelle dans le module Code).
+    /// Écriture atomique : fichier temporaire puis renommage, pour ne jamais laisser
+    /// un fichier à moitié écrit si l'application est interrompue.
+    pub fn write_file(path: &Path, content: &str) -> AppResult<FileContent> {
+        if !path.is_file() {
+            return Err(AppError::not_found(format!(
+                "fichier introuvable : {}",
+                path.display()
+            )));
+        }
+        let parent = path
+            .parent()
+            .ok_or_else(|| AppError::invalid("chemin sans dossier parent"))?;
+        let file_name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let temp = parent.join(format!(".{file_name}.archimed-tmp"));
+
+        std::fs::write(&temp, content.as_bytes())?;
+        if let Err(error) = std::fs::rename(&temp, path) {
+            let _ = std::fs::remove_file(&temp);
+            return Err(error.into());
+        }
+        Self::read_file(path)
+    }
+
     /// Détecte si un dossier est un projet de code et de quel type.
     pub fn project_info(path: &Path) -> AppResult<ProjectInfo> {
         if !path.is_dir() {
@@ -115,6 +142,8 @@ impl CodeService {
             (".git", "git"),
             ("tsconfig.json", "typescript"),
             ("src-tauri", "tauri"),
+            ("roadmap.md", "roadmap"),
+            ("ROADMAP.md", "roadmap"),
         ];
 
         let mut markers = Vec::new();
@@ -272,6 +301,11 @@ mod tests {
         let content = CodeService::read_file(&dir.join("a.txt")).unwrap();
         assert_eq!(content.content, "bonjour");
         assert!(!content.binary);
+
+        let saved = CodeService::write_file(&dir.join("a.txt"), "au revoir").unwrap();
+        assert_eq!(saved.content, "au revoir");
+        assert!(!dir.join(".a.txt.archimed-tmp").exists());
+        assert!(CodeService::write_file(&dir.join("absent.txt"), "x").is_err());
 
         let info = CodeService::project_info(&dir).unwrap();
         assert!(!info.is_project);

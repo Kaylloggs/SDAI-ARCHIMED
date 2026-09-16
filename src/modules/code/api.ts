@@ -28,6 +28,8 @@ export type ProjectInfo = {
 export const codeApi = {
   listDir: (path: string) => invokeModule<FileEntry[]>("code", "list_dir", { path }),
   readFile: (path: string) => invokeModule<FileContent>("code", "read_file", { path }),
+  writeFile: (path: string, content: string) =>
+    invokeModule<FileContent>("code", "write_file", { path, content }),
   projectInfo: (path: string) => invokeModule<ProjectInfo>("code", "project_info", { path }),
   searchFiles: (root: string, query: string, limit = 50) =>
     invokeModule<FileEntry[]>("code", "search_files", { root, query, limit }),

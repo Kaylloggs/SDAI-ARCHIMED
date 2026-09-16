@@ -18,6 +18,22 @@ pub async fn read_file(path: String) -> AppResult<FileContent> {
 }
 
 #[tauri::command]
+pub async fn write_file(path: String, content: String) -> AppResult<FileContent> {
+    tokio::task::spawn_blocking(move || {
+        let result = CodeService::write_file(&to_path(&path), &content);
+        crate::core::audit::record(
+            "code.write_file",
+            &path,
+            if result.is_ok() { "ok" } else { "error" },
+            "user",
+        );
+        result
+    })
+    .await
+    .map_err(|e| crate::core::AppError::internal(e.to_string()))?
+}
+
+#[tauri::command]
 pub async fn project_info(path: String) -> AppResult<ProjectInfo> {
     tokio::task::spawn_blocking(move || CodeService::project_info(&to_path(&path)))
         .await

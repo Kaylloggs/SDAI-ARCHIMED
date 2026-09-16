@@ -12,6 +12,7 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
         .invoke_handler(tauri::generate_handler![
             commands::list_dir,
             commands::read_file,
+            commands::write_file,
             commands::project_info,
             commands::search_files,
         ])

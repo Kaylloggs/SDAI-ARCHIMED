@@ -234,6 +234,17 @@ async fn resolve(
     };
     let allowed = answer.option_id.as_deref() != Some("deny");
 
+    crate::core::audit::record(
+        "engine.permission",
+        &format!("{} {}", prompt.tool.as_deref().unwrap_or("?"), prompt.title),
+        if allowed { "allow" } else { "deny" },
+        match by {
+            ResolvedBy::User => "user",
+            ResolvedBy::Auto => "auto",
+            ResolvedBy::Policy => "policy",
+        },
+    );
+
     match adapter.encode_answer(&prompt, &answer, allowed) {
         AnswerAction::Stdin(payload) => {
             if let Err(error) = write_line(stdin, &payload).await {

@@ -34,6 +34,11 @@ export default function ChatModule() {
   const codeProject = useService<CodeProjectService>("code.project");
 
   const installed = useMemo(() => adapters.filter((a) => a.installed), [adapters]);
+  // Les conversations ouvertes depuis le module Code restent dans le module Code.
+  const chatSessions = useMemo(
+    () => chat.sessions.filter((s) => s.origin === "chat"),
+    [chat.sessions],
+  );
   const session = chat.session;
   const adapter = adapters.find((a) => a.id === session?.adapter);
 
@@ -117,7 +122,7 @@ export default function ChatModule() {
   return (
     <div className="flex h-full">
       <SessionList
-        sessions={chat.sessions}
+        sessions={chatSessions}
         activeId={chat.activeId}
         onSelect={chat.setActive}
         onCreate={createSession}

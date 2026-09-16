@@ -10,7 +10,8 @@
       #root {
         height: 100%;
         margin: 0;
-        background: oklch(0.155 0.006 265);
+        /* Anti-flash avant le chargement du CSS ; suit le thème ensuite. */
+        background: var(--color-bg, oklch(0.155 0.006 265));
       }
     </style>
   </head>

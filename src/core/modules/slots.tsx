@@ -10,6 +10,7 @@ export const SLOT_NAMES = [
   "chat.message.actions",
   "chat.header.right",
   "launchpad.widgets",
+  "code.editor.footer",
   "statusbar.items",
 ] as const;
 
