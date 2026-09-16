@@ -75,7 +75,7 @@ impl CliAdapter for CodexAdapter {
         "Codex CLI introuvable. Installez-la, ou indiquez son chemin dans Réglages > Moteur."
     }
 
-    fn spawn_args(&self, model: Option<&str>) -> Vec<String> {
+    fn spawn_args(&self, model: Option<&str>, _resume: Option<&str>) -> Vec<String> {
         let mut args: Vec<String> = ["exec", "--json", "--skip-git-repo-check"]
             .iter()
             .map(|s| s.to_string())

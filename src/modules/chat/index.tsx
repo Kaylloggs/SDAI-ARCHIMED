@@ -223,7 +223,7 @@ export default function ChatModule() {
                 model: adapters.find((a) => a.id === id)?.defaultModel ?? null,
               })
             }
-            onModelChange={(model) => chat.patch(session.id, { model })}
+            onModelChange={(model) => void chat.setModel(session, model)}
             onCwdChange={(cwd) => chat.patch(session.id, { cwd })}
             onAutoModeChange={handleAutoMode}
             onSend={(text, attachments, targets) => void handleSend(text, attachments, targets)}

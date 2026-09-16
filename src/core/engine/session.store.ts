@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { conversationStorage } from "./conversation-storage";
 import type {
   AutoMode,
   EngineEvent,
@@ -35,6 +36,8 @@ export type ChatSession = {
   createdAt: number;
   updatedAt: number;
   engineSessionId: string | null;
+  /** Conversation côté CLI : repris au redémarrage du processus (`--resume`…). */
+  cliSessionId: string | null;
   status: SessionStatus;
   timeline: TimelineItem[];
   raw: string;
@@ -92,6 +95,7 @@ export const useSessionStore = create<Store>()(
           createdAt: now,
           updatedAt: now,
           engineSessionId: null,
+          cliSessionId: null,
           status: "idle",
           timeline: [],
           raw: "",
@@ -159,6 +163,7 @@ export const useSessionStore = create<Store>()(
     }),
     {
       name: "archimed.sessions",
+      storage: createJSONStorage(() => conversationStorage),
       version: 1,
       // v0 → v1 : ajout de `origin`. Les conversations vides créées automatiquement
       // par le module Code à l'ouverture d'un dossier sont supprimées.
@@ -200,6 +205,9 @@ function reduce(session: ChatSession, event: EngineEvent): ChatSession {
   const touched = { updatedAt: Date.now() };
 
   switch (event.type) {
+    case "cliSession":
+      return { ...session, cliSessionId: event.cliSessionId };
+
     case "sessionStarted":
       return { ...session, ...touched, status: "running", model: event.model || session.model };
 

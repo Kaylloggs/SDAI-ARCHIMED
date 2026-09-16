@@ -129,6 +129,10 @@ pub enum EngineEvent {
         model: String,
         transport: TransportKind,
     },
+    /// Identifiant de conversation propre à la CLI, pour reprendre le contexte
+    /// au prochain démarrage du processus (`--resume`, `--conversation`).
+    #[serde(rename_all = "camelCase")]
+    CliSession { cli_session_id: String },
     #[serde(rename_all = "camelCase")]
     MessageDelta { message_id: String, text: String },
     #[serde(rename_all = "camelCase")]

@@ -98,7 +98,7 @@ impl CliAdapter for ClaudeAdapter {
         "Claude Code introuvable. Installez-le puis relancez ARCHIMED."
     }
 
-    fn spawn_args(&self, model: Option<&str>) -> Vec<String> {
+    fn spawn_args(&self, model: Option<&str>, resume: Option<&str>) -> Vec<String> {
         let mut args: Vec<String> = [
             "-p",
             "--input-format",
@@ -119,6 +119,10 @@ impl CliAdapter for ClaudeAdapter {
             args.push("--model".to_string());
             args.push(model.to_string());
         }
+        if let Some(resume) = resume {
+            args.push("--resume".to_string());
+            args.push(resume.to_string());
+        }
         args
     }
 
@@ -136,6 +140,7 @@ impl CliAdapter for ClaudeAdapter {
         };
 
         match value.get("type").and_then(Value::as_str) {
+            Some("system") => decode_system(&value),
             Some("assistant") => decode_assistant(&value),
             Some("user") => decode_tool_results(&value),
             Some("control_request") => self.decode_control_request(&value, ctx),
@@ -284,6 +289,22 @@ fn detail_for(tool: &str, input: &Value) -> PromptDetail {
             value: input.clone(),
         },
     }
+}
+
+/// `system/init` porte le `session_id` réutilisable avec `--resume`.
+fn decode_system(value: &Value) -> Vec<EngineEvent> {
+    if value.get("subtype").and_then(Value::as_str) != Some("init") {
+        return Vec::new();
+    }
+    value
+        .get("session_id")
+        .and_then(Value::as_str)
+        .map(|id| {
+            vec![EngineEvent::CliSession {
+                cli_session_id: id.to_string(),
+            }]
+        })
+        .unwrap_or_default()
 }
 
 fn decode_assistant(value: &Value) -> Vec<EngineEvent> {
@@ -442,6 +463,21 @@ mod tests {
         };
         assert!(payload.contains("\"request_id\":\"req-2\""));
         assert!(payload.contains("\"behavior\":\"allow\""));
+    }
+
+    #[test]
+    fn exposes_cli_session_id_and_resumes() {
+        let mut adapter = ClaudeAdapter::default();
+        let events = adapter.decode_line(
+            r#"{"type":"system","subtype":"init","session_id":"52dd-abc"}"#,
+            &ctx(),
+        );
+        assert!(matches!(&events[0], EngineEvent::CliSession { cli_session_id } if cli_session_id == "52dd-abc"));
+
+        let args = adapter.spawn_args(Some("haiku"), Some("52dd-abc"));
+        let resume = args.iter().position(|a| a == "--resume").unwrap();
+        assert_eq!(args[resume + 1], "52dd-abc");
+        assert!(!adapter.spawn_args(None, None).contains(&"--resume".to_string()));
     }
 
     #[test]

@@ -19,6 +19,8 @@ export const engineApi = {
     model: string | null;
     cwd: string | null;
     autoMode: AutoMode;
+    /** Identifiant de conversation de la CLI à reprendre (contexte conservé). */
+    resume: string | null;
     onEvent: Channel<EngineEvent>;
   }) => invokeCore<SessionId>("engine_start_session", params),
 

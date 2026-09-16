@@ -44,6 +44,8 @@ export default function CodeModule() {
 
   /** Conversation choisie dans ce projet ; `null` = brouillon (créée au premier envoi). */
   const [sessionId, setSessionId] = useState<string | null>(null);
+  /** `true` quand l'utilisateur a demandé explicitement une nouvelle conversation. */
+  const [draftChosen, setDraftChosen] = useState(false);
   const [draft, setDraft] = useState<{ adapter: string; model: string | null; autoMode: AutoMode }>({
     adapter: "",
     model: null,
@@ -86,7 +88,7 @@ export default function CodeModule() {
       .catch(() => setRoot(null));
   }, [handoff, clearParams]);
 
-  // Ouvrir un dossier ne crée aucune conversation : on reprend la plus récente s'il y en a une.
+  // Ouvrir un dossier ne crée aucune conversation.
   useEffect(() => {
     if (!root) return;
     localStorage.setItem(STORAGE_KEY, root);
@@ -94,16 +96,21 @@ export default function CodeModule() {
     setDrafts({});
     setActivePath(null);
     setTargets([]);
-    const latest = useSessionStore
-      .getState()
-      .sessions.filter((s) => s.origin === "code" && s.cwd === root)
-      .sort((a, b) => b.updatedAt - a.updatedAt)[0];
-    setSessionId(latest?.id ?? null);
+    setSessionId(null);
+    setDraftChosen(false);
     codeApi
       .projectInfo(root)
       .then(setProject)
       .catch(() => setProject(null));
   }, [root]);
+
+  // Reprend la conversation la plus récente du projet, y compris quand l'historique
+  // finit de se charger depuis le disque après l'ouverture du module.
+  useEffect(() => {
+    if (sessionId || draftChosen) return;
+    const latest = [...projectSessions].sort((a, b) => b.updatedAt - a.updatedAt)[0];
+    if (latest) setSessionId(latest.id);
+  }, [projectSessions, sessionId, draftChosen]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -192,6 +199,7 @@ export default function CodeModule() {
           activate: false,
         });
         setSessionId(id);
+        setDraftChosen(false);
         target = useSessionStore.getState().sessions.find((s) => s.id === id) ?? null;
       }
       if (target) await chat.send(target, text, attachments, targeted);
@@ -364,7 +372,10 @@ export default function CodeModule() {
               <Select
                 label="Conversation du projet"
                 value={session?.id ?? "__draft"}
-                onChange={(value) => setSessionId(value === "__draft" ? null : value)}
+                onChange={(value) => {
+                  setDraftChosen(value === "__draft");
+                  setSessionId(value === "__draft" ? null : value);
+                }}
                 className="min-w-0 max-w-56"
                 options={[
                   ...projectSessions.map((s) => ({ value: s.id, label: s.title })),
@@ -382,7 +393,10 @@ export default function CodeModule() {
                 className="ml-auto"
                 aria-label="Nouvelle conversation"
                 title="Nouvelle conversation"
-                onClick={() => setSessionId(null)}
+                onClick={() => {
+                  setDraftChosen(true);
+                  setSessionId(null);
+                }}
               >
                 <Plus size={13} strokeWidth={1.75} />
               </Button>
@@ -426,7 +440,7 @@ export default function CodeModule() {
                 else setDraft((d) => ({ ...d, adapter: id, model }));
               }}
               onModelChange={(model) => {
-                if (session) chat.patch(session.id, { model });
+                if (session) void chat.setModel(session, model);
                 else setDraft((d) => ({ ...d, model }));
               }}
               onAutoModeChange={handleAutoMode}

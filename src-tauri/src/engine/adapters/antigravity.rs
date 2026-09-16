@@ -82,7 +82,7 @@ impl CliAdapter for AntigravityAdapter {
         "Antigravity CLI (agy) introuvable dans le PATH."
     }
 
-    fn spawn_args(&self, model: Option<&str>) -> Vec<String> {
+    fn spawn_args(&self, model: Option<&str>, resume: Option<&str>) -> Vec<String> {
         let mut args: Vec<String> = [
             "-p",
             "--input-format",
@@ -98,6 +98,10 @@ impl CliAdapter for AntigravityAdapter {
             args.push("--model".to_string());
             args.push(model.to_string());
         }
+        if let Some(resume) = resume {
+            args.push("--conversation".to_string());
+            args.push(resume.to_string());
+        }
         args
     }
 
@@ -111,6 +115,15 @@ impl CliAdapter for AntigravityAdapter {
         };
 
         match value.get("event").and_then(Value::as_str) {
+            Some("init") => value
+                .get("conversation_id")
+                .and_then(Value::as_str)
+                .map(|id| {
+                    vec![EngineEvent::CliSession {
+                        cli_session_id: id.to_string(),
+                    }]
+                })
+                .unwrap_or_default(),
             Some("step_update") => decode_step(value.get("step_update").unwrap_or(&Value::Null)),
             Some("result") => decode_result(value.get("result").unwrap_or(&Value::Null)),
             _ => Vec::new(),
@@ -247,6 +260,15 @@ mod tests {
             session_id: "s1",
             auto_mode: AutoMode::Off,
         }
+    }
+
+    #[test]
+    fn resumes_conversation_by_id() {
+        let mut adapter = AntigravityAdapter;
+        let events = adapter.decode_line(r#"{"event":"init","conversation_id":"2f0b"}"#, &ctx());
+        assert!(matches!(&events[0], EngineEvent::CliSession { cli_session_id } if cli_session_id == "2f0b"));
+        let args = adapter.spawn_args(None, Some("2f0b"));
+        assert!(args.windows(2).any(|w| w[0] == "--conversation" && w[1] == "2f0b"));
     }
 
     #[test]

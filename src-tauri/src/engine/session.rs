@@ -34,22 +34,37 @@ pub struct SessionHandle {
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
+/// Paramètres de démarrage d'une session.
+pub struct SpawnRequest {
+    pub id: SessionId,
+    pub adapter: Box<dyn CliAdapter>,
+    pub model: Option<String>,
+    pub cwd: Option<String>,
+    pub auto_mode: AutoMode,
+    /// Identifiant de conversation de la CLI à reprendre.
+    pub resume: Option<String>,
+}
+
 /// Démarre le processus CLI et la boucle de session.
 pub fn spawn(
-    id: SessionId,
-    mut adapter: Box<dyn CliAdapter>,
-    model: Option<String>,
-    cwd: Option<String>,
-    auto_mode: AutoMode,
+    request: SpawnRequest,
     channel: Channel<EngineEvent>,
     binary_overrides: &HashMap<String, String>,
 ) -> AppResult<SessionHandle> {
+    let SpawnRequest {
+        id,
+        mut adapter,
+        model,
+        cwd,
+        auto_mode,
+        resume,
+    } = request;
     let binary = adapters::resolve_binary(adapter.as_ref(), binary_overrides)
         .ok_or_else(|| AppError::cli_missing(adapter.missing_hint()))?;
 
     let mut command = Command::new(&binary);
     command
-        .args(adapter.spawn_args(model.as_deref()))
+        .args(adapter.spawn_args(model.as_deref(), resume.as_deref()))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

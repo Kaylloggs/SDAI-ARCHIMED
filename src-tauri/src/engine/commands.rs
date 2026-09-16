@@ -41,6 +41,8 @@ pub async fn engine_set_binary_override(
     config.set_binary_override(&adapter, path).await
 }
 
+// Paramètres plats : c'est le contrat IPC lu par le frontend (`engine.api.ts`).
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn engine_start_session(
     manager: State<'_, SessionManager>,
@@ -49,12 +51,24 @@ pub async fn engine_start_session(
     model: Option<String>,
     cwd: Option<String>,
     auto_mode: AutoMode,
+    resume: Option<String>,
     on_event: Channel<EngineEvent>,
 ) -> AppResult<SessionId> {
     let adapter = find_adapter(&adapter)?;
     let overrides = config.snapshot().await.binary_overrides;
     let id = uuid::Uuid::new_v4().to_string();
-    let handle = session::spawn(id.clone(), adapter, model, cwd, auto_mode, on_event, &overrides)?;
+    let handle = session::spawn(
+        session::SpawnRequest {
+            id: id.clone(),
+            adapter,
+            model,
+            cwd,
+            auto_mode,
+            resume,
+        },
+        on_event,
+        &overrides,
+    )?;
     manager.insert(handle).await;
     Ok(id)
 }
@@ -102,6 +116,48 @@ pub async fn engine_stop_session(
     let result = manager.send(&session_id, SessionCommand::Stop).await;
     manager.remove(&session_id).await;
     result
+}
+
+fn conversations_file<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> AppResult<std::path::PathBuf> {
+    let paths = crate::core::paths::Paths::resolve(app)?;
+    std::fs::create_dir_all(paths.sessions())?;
+    Ok(paths.sessions().join("conversations.json"))
+}
+
+/// Conversations persistées (état zustand sérialisé, opaque pour le backend).
+/// `None` si rien n'a encore été enregistré sur disque.
+#[tauri::command]
+pub async fn engine_load_conversations<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> AppResult<Option<String>> {
+    let file = conversations_file(&app)?;
+    tokio::task::spawn_blocking(move || match std::fs::read_to_string(&file) {
+        Ok(raw) => Ok(Some(raw)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error.into()),
+    })
+    .await
+    .map_err(|e| AppError::internal(e.to_string()))?
+}
+
+/// Écriture atomique (fichier temporaire puis renommage) : un arrêt brutal
+/// ne corrompt jamais l'historique.
+#[tauri::command]
+pub async fn engine_save_conversations<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: String,
+) -> AppResult<()> {
+    serde_json::from_str::<serde_json::Value>(&state)
+        .map_err(|e| AppError::invalid(format!("état de conversations invalide : {e}")))?;
+    let file = conversations_file(&app)?;
+    tokio::task::spawn_blocking(move || {
+        let temp = file.with_extension("json.tmp");
+        std::fs::write(&temp, state)?;
+        std::fs::rename(&temp, &file)?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| AppError::internal(e.to_string()))?
 }
 
 #[tauri::command]

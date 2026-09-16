@@ -51,6 +51,7 @@ export function useChat() {
       model: chat.model,
       cwd: chat.cwd,
       autoMode: chat.autoMode,
+      resume: chat.cliSessionId ?? null,
       onEvent: channel,
     });
 
@@ -83,6 +84,17 @@ export function useChat() {
     if (chat.engineSessionId) await engineApi.setAutoMode(chat.engineSessionId, mode);
   }, []);
 
+  /**
+   * Change le modèle. Si un processus tourne, il est arrêté : le prochain message
+   * relance la CLI avec le nouveau modèle en reprenant la conversation.
+   */
+  const setModel = useCallback(async (chat: ChatSession, model: string) => {
+    if (chat.engineSessionId) {
+      await engineApi.stopSession(chat.engineSessionId).catch(() => undefined);
+    }
+    useSessionStore.getState().patch(chat.id, { model, engineSessionId: null, status: "idle" });
+  }, []);
+
   const remove = useCallback(async (chat: ChatSession) => {
     if (chat.engineSessionId) {
       await engineApi.stopSession(chat.engineSessionId).catch(() => undefined);
@@ -100,6 +112,7 @@ export function useChat() {
     send,
     answer,
     setAutoMode,
+    setModel,
     remove,
   };
 }

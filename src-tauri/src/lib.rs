@@ -43,6 +43,8 @@ pub fn run() {
             engine_commands::engine_set_auto_mode,
             engine_commands::engine_stop_session,
             engine_commands::engine_default_cwd,
+            engine_commands::engine_load_conversations,
+            engine_commands::engine_save_conversations,
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de SDAI ARCHIMED");

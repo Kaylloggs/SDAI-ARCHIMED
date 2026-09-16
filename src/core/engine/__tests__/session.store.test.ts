@@ -15,6 +15,7 @@ const BASE: ChatSession = {
   createdAt: 1,
   updatedAt: 1,
   engineSessionId: ENGINE_ID,
+  cliSessionId: null,
   status: "running",
   timeline: [],
   raw: "",
@@ -136,6 +137,11 @@ describe("session.store", () => {
     expect(resolved.status).toBe("running");
     expect(resolved.pendingPromptId).toBeNull();
     expect(resolved.timeline[0]).toMatchObject({ kind: "prompt", resolvedBy: "auto" });
+  });
+
+  it("mémorise l'identifiant de conversation de la CLI pour la reprise", () => {
+    const session = apply({ type: "cliSession", cliSessionId: "52dd-abc" });
+    expect(session.cliSessionId).toBe("52dd-abc");
   });
 
   it("libère la session backend à la fin du processus", () => {

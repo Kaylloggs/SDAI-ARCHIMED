@@ -58,8 +58,9 @@ pub trait CliAdapter: Send + Sync {
     fn default_model(&self) -> Option<String>;
     fn missing_hint(&self) -> &'static str;
 
-    /// Arguments de lancement d'une session.
-    fn spawn_args(&self, model: Option<&str>) -> Vec<String>;
+    /// Arguments de lancement d'une session. `resume` : identifiant de conversation
+    /// de la CLI à reprendre (émis précédemment via `EngineEvent::CliSession`).
+    fn spawn_args(&self, model: Option<&str>, resume: Option<&str>) -> Vec<String>;
 
     /// Encode un message utilisateur (NDJSON pour les transports structurés).
     fn encode_user_message(&self, text: &str) -> String;

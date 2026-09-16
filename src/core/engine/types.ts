@@ -66,6 +66,7 @@ export type ResolvedBy = "user" | "auto" | "policy";
 
 export type EngineEvent =
   | { type: "sessionStarted"; sessionId: SessionId; adapter: AdapterId; model: string; transport: TransportKind }
+  | { type: "cliSession"; cliSessionId: string }
   | { type: "messageDelta"; messageId: string; text: string }
   | { type: "messageCompleted"; messageId: string }
   | { type: "thinking"; text: string }
