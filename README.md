@@ -1,7 +1,7 @@
 # SDAI-ARCHIMED
 An evolutive, modular desktop app uniting Claude Code, Antigravity, and Codex with their full agentic capabilities   │ in a single interface. Features a VS Code-like editor, a modern chat, and skill management. Built with a plug-and-   │ play architecture where you can enable, disable, or create new modules on the fly. Powered by Tauri 2 &amp; Rust.
 
-## 🌟 What is SDAI ARCHIMED?
+## 🌟 What is ARCHIMED?
 
   Think of it as the **Claude Code desktop app — but supercharged to run Claude, Antigravity, and Codex
   simultaneously under one unified roof**.
