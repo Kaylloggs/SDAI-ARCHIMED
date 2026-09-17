@@ -23,6 +23,20 @@ pub enum AnswerAction {
     Keys(Vec<u8>),
     /// Rien à envoyer (réponse purement locale).
     None,
+    /// La CLI ne peut pas recevoir la réponse (refus déjà appliqué, ex. agy headless) :
+    /// accorder la règle, relancer le processus sur la même conversation puis envoyer `retry`.
+    Relaunch {
+        grant: PermissionGrant,
+        retry: String,
+    },
+}
+
+/// Règle d'autorisation à écrire dans la configuration de la CLI.
+#[derive(Debug, Clone)]
+pub struct PermissionGrant {
+    pub rule: String,
+    /// `false` : retirée à la fin du tour de relance (autorisation ponctuelle).
+    pub persistent: bool,
 }
 
 /// Contexte donné au décodeur pour les décisions locales (policy, ids).
@@ -59,6 +73,19 @@ pub trait CliAdapter: Send + Sync {
     /// (CLI « one-shot » comme `codex exec`).
     fn closes_stdin_after_message(&self) -> bool {
         false
+    }
+
+    /// Écrit une règle d'autorisation dans la configuration de la CLI.
+    fn grant_permission(&self, rule: &str) -> crate::core::AppResult<()> {
+        Err(crate::core::AppError::invalid(format!(
+            "{} ne gère pas les règles d'autorisation ({rule})",
+            self.name()
+        )))
+    }
+
+    /// Retire une règle écrite par `grant_permission`.
+    fn revoke_permission(&self, _rule: &str) -> crate::core::AppResult<()> {
+        Ok(())
     }
 
     fn models(&self, binary: Option<&std::path::Path>) -> Vec<ModelInfo>;
@@ -125,7 +152,7 @@ pub fn describe(adapter: &dyn CliAdapter, overrides: &HashMap<String, String>) -
 pub fn build_all() -> Vec<Box<dyn CliAdapter>> {
     let mut adapters: Vec<Box<dyn CliAdapter>> = vec![
         Box::new(claude::ClaudeAdapter::default()),
-        Box::new(antigravity::AntigravityAdapter),
+        Box::new(antigravity::AntigravityAdapter::default()),
         Box::new(codex::CodexAdapter),
     ];
     let reserved: Vec<&str> = adapters.iter().map(|a| a.id()).collect();

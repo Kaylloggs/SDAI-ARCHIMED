@@ -88,8 +88,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Consommation mesurée** par CLI et par jour : réponses, tokens, coût estimé, temps de travail (période 24 h / 7 j / 30 j).
 - Antigravity et les CLI TOML ne communiquent pas de quota : seule leur consommation est affichée, et c'est indiqué.
 
+### Corrigé — Permissions Antigravity
+- **Plus de refus silencieux** : quand `agy` refuse une action (commande, lecture, écriture), une carte **Autoriser / Toujours autoriser / Refuser** s'affiche, dans tous les Modes Auto (le Mode Auto intelligent ou complet répond seul selon la policy ; les actions critiques restent demandées).
+- Autoriser écrit la règle exacte (`command(…)`, `read_file(…)`) dans les réglages d'agy, relance la CLI sur la même conversation et lui demande de reprendre l'action. « Autoriser » retire la règle à la fin du tour ; « Toujours autoriser » la conserve. Chaque règle est journalisée dans l'audit.
+- Vérifié sur agy 1.2.3 : une règle ajoutée pendant qu'agy tourne est ignorée, d'où la relance.
+- La conversation reste « en attente » si la CLI termine son tour avant la réponse de l'utilisateur.
+
 ### Connu / à faire (Phase 3)
-- Validation interactive des permissions Antigravity : `agy` refuse toujours en headless ; son interface interactive (`agy -i`) n'a pas encore été observée pour écrire ses règles d'écran.
 - Génération des types TS depuis Rust (`ts-rs`) : seuls les codes d'erreur sont générés, les types du moteur sont encore recopiés à la main.
 - Envoi natif des images aux CLI qui le supportent (aujourd'hui : chemins transmis à l'agent).
 - Validation des flags Codex sur une machine où la CLI est installée ; reprise de contexte Codex (`codex exec resume`).

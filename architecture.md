@@ -275,7 +275,7 @@ pub trait CliAdapter: Send + Sync {
 | CLI | Binaire | Transport principal | Permissions | Modèles | Switch de modèle |
 |---|---|---|---|---|---|
 | Claude Code | `claude` | Structured : `-p --input-format stream-json --output-format stream-json --verbose` | `--permission-prompt-tool stdio` → `control_request`/`control_response` (§7.2) | `--model` (opus/sonnet/haiku) | relance avec `--resume <session_id> --model <nouveau>` |
-| Antigravity | `agy` | Structured : `--input-format stream-json --output-format stream-json -p=` (**`-p` attend une valeur : `-p=` en dernier**) ; entrée `{"event":"user","message":{…}}` | refus automatique en headless, remonté en carte d'erreur (pas d'outil de prompt exposé) | `agy models`, `--model` | relance avec `--conversation <id> --model <nouveau>` |
+| Antigravity | `agy` | Structured : `--input-format stream-json --output-format stream-json -p=` (**`-p` attend une valeur : `-p=` en dernier**) ; entrée `{"event":"user","message":{…}}` | refus a posteriori en headless (`permission check failed for <kind> "<cible>"`) → carte Autoriser / Toujours / Refuser ; autoriser écrit `<kind>(<cible>)` dans `~/.gemini/antigravity-cli/settings.json` (`permissions.allow`), relance `--conversation <id>` et demande de reprendre (règle ponctuelle retirée en fin de tour) | `agy models`, `--model` | relance avec `--conversation <id> --model <nouveau>` |
 | Codex (expérimental) | `codex` | Structured one-shot : `codex exec --json -` | aucune (à valider) | `--model` | nouveau processus à chaque message |
 | Déclaratif (`adapters/*.toml`) | via TOML | **PTY** (ConPTY) | questions lues à l'écran (§7.4) | TOML | `resume_args` |
 
@@ -341,7 +341,11 @@ ou `{"behavior":"deny","message":"Refusé par l'utilisateur"}`. `updatedInput` p
 modifier l'entrée (ex : corriger une commande) avant d'autoriser.
 
 > Aucun sidecar MCP n'est nécessaire : le protocole passe par le flux stdio déjà ouvert.
-> Antigravity n'expose pas d'équivalent ; voir §6.2 et la limite connue de son adaptateur.
+> Antigravity n'expose pas d'équivalent : il refuse puis continue. L'adaptateur transforme le refus
+> en carte ; la réponse devient `AnswerAction::Relaunch { grant, retry }` : la session écrit la règle
+> (`CliAdapter::grant_permission`, journal d'audit), relance le processus sur la même conversation
+> (agy ne relit ses règles qu'au démarrage) et envoie `retry`. Le Mode Auto s'applique comme pour
+> Claude (critique = toujours demandé).
 
 ### 7.3 N2 — Décodage du flux structuré
 Une ligne = un objet JSON. Le décodeur de l'adaptateur mappe :

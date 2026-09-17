@@ -258,7 +258,8 @@ function reduce(session: ChatSession, event: EngineEvent): ChatSession {
       return {
         ...session,
         ...touched,
-        status: "idle",
+        // Une CLI peut finir son tour avec un refus encore à trancher (Antigravity).
+        status: session.pendingPromptId ? "awaiting" : "idle",
         activity: null,
         turnStartedAt: null,
         usage: {
@@ -361,11 +362,14 @@ function reduce(session: ChatSession, event: EngineEvent): ChatSession {
         ],
       };
 
-    case "promptResolved":
+    case "promptResolved": {
+      // Tour déjà terminé : un refus ne relance rien, une autorisation relance la CLI.
+      const idle = !session.turnStartedAt && event.optionId === "deny";
       return {
         ...session,
         ...touched,
-        status: "running",
+        status: idle ? "idle" : "running",
+        turnStartedAt: idle ? null : (session.turnStartedAt ?? Date.now()),
         pendingPromptId:
           session.pendingPromptId === event.promptId ? null : session.pendingPromptId,
         timeline: timeline.map((item) =>
@@ -374,11 +378,13 @@ function reduce(session: ChatSession, event: EngineEvent): ChatSession {
             : item,
         ),
       };
+    }
 
     case "promptInvalidated":
       return {
         ...session,
         ...touched,
+        status: session.status === "awaiting" ? "running" : session.status,
         pendingPromptId: null,
         timeline: timeline.filter(
           (item) => !(item.kind === "prompt" && item.id === event.promptId && !item.resolvedBy),

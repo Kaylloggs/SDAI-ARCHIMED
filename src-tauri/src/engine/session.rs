@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::process::Stdio;
 
 use tauri::ipc::Channel;
@@ -8,7 +9,7 @@ use tokio::sync::mpsc;
 
 use crate::core::{AppError, AppResult};
 
-use super::adapters::{self, AnswerAction, CliAdapter, DecodeCtx};
+use super::adapters::{self, AnswerAction, CliAdapter, DecodeCtx, PermissionGrant};
 use super::event::{
     AutoMode, EngineEvent, InteractivePrompt, PromptAnswer, ResolvedBy, SessionId,
 };
@@ -85,61 +86,16 @@ pub fn spawn(
         });
     }
 
-    let mut command = crate::core::process::async_command(&binary);
-    command
-        .args(adapter.spawn_args(super::event::LaunchOptions { model: model.as_deref(), resume: resume.as_deref(), auto_mode }))
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true);
-
-    if let Some(cwd) = cwd.as_ref() {
-        command.current_dir(cwd);
-    }
-
-
-    let mut child: Child = command
-        .spawn()
-        .map_err(|e| AppError::internal(format!("lancement de {}: {e}", binary.display())))?;
-
-    let stdin = child
-        .stdin
-        .take()
-        .ok_or_else(|| AppError::internal("stdin indisponible"))?;
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| AppError::internal("stdout indisponible"))?;
-    let stderr = child.stderr.take();
+    let launch = Launch {
+        session_id: id.clone(),
+        binary,
+        model: model.clone(),
+        cwd,
+        channel: channel.clone(),
+    };
+    let process = launch.start(adapter.as_ref(), resume.as_deref(), auto_mode)?;
 
     let (tx, mut rx) = mpsc::unbounded_channel::<SessionCommand>();
-    let (line_tx, mut line_rx) = mpsc::unbounded_channel::<String>();
-
-    // Lecture stdout → canal interne.
-    tokio::spawn(async move {
-        let mut lines = BufReader::new(stdout).lines();
-        while let Ok(Some(line)) = lines.next_line().await {
-            if line_tx.send(line).is_err() {
-                break;
-            }
-        }
-    });
-
-    // stderr : journalisé et visible dans la console brute (erreurs de la CLI).
-    if let Some(stderr) = stderr {
-        let session_id = id.clone();
-        let raw_channel = channel.clone();
-        tokio::spawn(async move {
-            let mut lines = BufReader::new(stderr).lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                tracing::debug!(session_id = %session_id, "stderr: {line}");
-                let _ = raw_channel.send(EngineEvent::RawOutput {
-                    chunk: format!("[stderr] {line}
-"),
-                });
-            }
-        });
-    }
 
     let handle = SessionHandle {
         id: id.clone(),
@@ -153,9 +109,12 @@ pub fn spawn(
     let transport = adapter.transport();
 
     tokio::spawn(async move {
-        let mut stdin = stdin;
+        let mut process = process;
         let mut auto_mode = auto_mode;
         let mut prompts: HashMap<String, InteractivePrompt> = HashMap::new();
+        let mut cli_session = resume;
+        // Règles accordées pour un seul tour : retirées à la fin du tour de relance.
+        let mut temporary_rules: Vec<String> = Vec::new();
 
         let _ = channel.send(EngineEvent::SessionStarted {
             session_id: session_id.clone(),
@@ -165,23 +124,33 @@ pub fn spawn(
         });
 
         loop {
+            let mut relaunch: Option<(PermissionGrant, String)> = None;
+
             tokio::select! {
-                Some(line) = line_rx.recv() => {
+                Some(line) = process.lines.recv() => {
                     // Console brute : le flux tel que la CLI l'émet (une ligne JSON par événement).
-                    let _ = channel.send(EngineEvent::RawOutput { chunk: format!("{line}
-") });
+                    let _ = channel.send(EngineEvent::RawOutput { chunk: format!("{line}\n") });
                     let ctx = DecodeCtx { session_id: &session_id, auto_mode };
                     for event in adapter.decode_line(&line, &ctx) {
                         record_usage(&adapter_id, &model_label, &event);
+                        match &event {
+                            EngineEvent::CliSession { cli_session_id } => {
+                                cli_session = Some(cli_session_id.clone());
+                            }
+                            EngineEvent::TurnCompleted { .. } => {
+                                revoke_rules(adapter.as_ref(), &mut temporary_rules);
+                            }
+                            _ => {}
+                        }
                         if let EngineEvent::Prompt { prompt } = &event {
                             let auto = try_auto_resolve(prompt, auto_mode);
                             prompts.insert(prompt.prompt_id.clone(), prompt.clone());
                             let _ = channel.send(event.clone());
 
                             if let Some(allowed) = auto {
-                                resolve(
+                                let action = resolve(
                                     &mut adapter,
-                                    &mut stdin,
+                                    &mut process.stdin,
                                     &channel,
                                     &mut prompts,
                                     &prompt.prompt_id,
@@ -193,6 +162,9 @@ pub fn spawn(
                                     if allowed { ResolvedBy::Auto } else { ResolvedBy::Policy },
                                 )
                                 .await;
+                                if relaunch.is_none() {
+                                    relaunch = action;
+                                }
                             }
                             continue;
                         }
@@ -204,7 +176,7 @@ pub fn spawn(
                     match command {
                         SessionCommand::Send(text) => {
                             let payload = adapter.encode_user_message(&text);
-                            if let Err(error) = write_line(&mut stdin, &payload).await {
+                            if let Err(error) = write_line(&mut process.stdin, &payload).await {
                                 let _ = channel.send(EngineEvent::Error {
                                     code: "IO".into(),
                                     message: error.message,
@@ -212,13 +184,13 @@ pub fn spawn(
                                 });
                             } else if adapter.closes_stdin_after_message() {
                                 // CLI one-shot (codex exec) : elle ne traite le prompt qu'à EOF.
-                                let _ = stdin.shutdown().await;
+                                let _ = process.stdin.shutdown().await;
                             }
                         }
                         SessionCommand::Answer { prompt_id, answer } => {
-                            resolve(
+                            relaunch = resolve(
                                 &mut adapter,
-                                &mut stdin,
+                                &mut process.stdin,
                                 &channel,
                                 &mut prompts,
                                 &prompt_id,
@@ -234,14 +206,154 @@ pub fn spawn(
 
                 else => break,
             }
+
+            let Some((grant, retry)) = relaunch else {
+                continue;
+            };
+            if let Err(error) = adapter.grant_permission(&grant.rule) {
+                let _ = channel.send(EngineEvent::Error {
+                    code: "PERMISSION_DENIED".into(),
+                    message: error.message,
+                    recoverable: true,
+                });
+                continue;
+            }
+            crate::core::audit::record(
+                "engine.permission.rule",
+                &grant.rule,
+                if grant.persistent { "granted" } else { "granted-once" },
+                &adapter_id,
+            );
+            if !grant.persistent {
+                temporary_rules.push(grant.rule.clone());
+            }
+
+            // La CLI ne relit ses règles qu'au démarrage : relance sur la même conversation.
+            // Les autres refus en attente seront redemandés par la nouvelle tentative.
+            for prompt_id in prompts.keys() {
+                let _ = channel.send(EngineEvent::PromptInvalidated { prompt_id: prompt_id.clone() });
+            }
+            prompts.clear();
+            let _ = process.child.kill().await;
+            match launch.start(adapter.as_ref(), cli_session.as_deref(), auto_mode) {
+                Ok(next) => {
+                    process = next;
+                    let payload = adapter.encode_user_message(&retry);
+                    if let Err(error) = write_line(&mut process.stdin, &payload).await {
+                        let _ = channel.send(EngineEvent::Error {
+                            code: "IO".into(),
+                            message: error.message,
+                            recoverable: false,
+                        });
+                    }
+                }
+                Err(error) => {
+                    let _ = channel.send(EngineEvent::Error {
+                        code: "PROCESS_CRASHED".into(),
+                        message: error.message,
+                        recoverable: false,
+                    });
+                    break;
+                }
+            }
         }
 
-        let _ = child.kill().await;
-        let exit_code = child.wait().await.ok().and_then(|status| status.code());
+        revoke_rules(adapter.as_ref(), &mut temporary_rules);
+        let _ = process.child.kill().await;
+        let exit_code = process.child.wait().await.ok().and_then(|status| status.code());
         let _ = channel.send(EngineEvent::SessionEnded { exit_code });
     });
 
     Ok(handle)
+}
+
+/// Processus CLI en cours et son flux de lignes.
+struct Process {
+    child: Child,
+    stdin: ChildStdin,
+    lines: mpsc::UnboundedReceiver<String>,
+}
+
+/// Tout ce qu'il faut pour (re)lancer la CLI d'une session.
+struct Launch {
+    session_id: SessionId,
+    binary: PathBuf,
+    model: Option<String>,
+    cwd: Option<String>,
+    channel: Channel<EngineEvent>,
+}
+
+impl Launch {
+    fn start(
+        &self,
+        adapter: &dyn CliAdapter,
+        resume: Option<&str>,
+        auto_mode: AutoMode,
+    ) -> AppResult<Process> {
+        let mut command = crate::core::process::async_command(&self.binary);
+        command
+            .args(adapter.spawn_args(super::event::LaunchOptions {
+                model: self.model.as_deref(),
+                resume,
+                auto_mode,
+            }))
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true);
+        if let Some(cwd) = self.cwd.as_ref() {
+            command.current_dir(cwd);
+        }
+
+        let mut child: Child = command.spawn().map_err(|e| {
+            AppError::internal(format!("lancement de {}: {e}", self.binary.display()))
+        })?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| AppError::internal("stdin indisponible"))?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| AppError::internal("stdout indisponible"))?;
+
+        // Lecture stdout → canal interne.
+        let (line_tx, lines) = mpsc::unbounded_channel::<String>();
+        tokio::spawn(async move {
+            let mut reader = BufReader::new(stdout).lines();
+            while let Ok(Some(line)) = reader.next_line().await {
+                if line_tx.send(line).is_err() {
+                    break;
+                }
+            }
+        });
+
+        // stderr : journalisé et visible dans la console brute (erreurs de la CLI).
+        if let Some(stderr) = child.stderr.take() {
+            let session_id = self.session_id.clone();
+            let raw_channel = self.channel.clone();
+            tokio::spawn(async move {
+                let mut reader = BufReader::new(stderr).lines();
+                while let Ok(Some(line)) = reader.next_line().await {
+                    tracing::debug!(session_id = %session_id, "stderr: {line}");
+                    let _ = raw_channel.send(EngineEvent::RawOutput {
+                        chunk: format!("[stderr] {line}\n"),
+                    });
+                }
+            });
+        }
+
+        Ok(Process { child, stdin, lines })
+    }
+}
+
+fn revoke_rules(adapter: &dyn CliAdapter, rules: &mut Vec<String>) {
+    for rule in rules.drain(..) {
+        match adapter.revoke_permission(&rule) {
+            Ok(()) => crate::core::audit::record("engine.permission.rule", &rule, "revoked", adapter.id()),
+            Err(error) => tracing::warn!("règle {rule} non retirée : {}", error.message),
+        }
+    }
 }
 
 /// Alimente le registre de consommation (module Crédits) sans bloquer la session.
@@ -302,10 +414,8 @@ async fn resolve(
     prompt_id: &str,
     answer: PromptAnswer,
     by: ResolvedBy,
-) {
-    let Some(prompt) = prompts.remove(prompt_id) else {
-        return;
-    };
+) -> Option<(PermissionGrant, String)> {
+    let prompt = prompts.remove(prompt_id)?;
     let allowed = answer.option_id.as_deref() != Some("deny");
 
     crate::core::audit::record(
@@ -319,6 +429,7 @@ async fn resolve(
         },
     );
 
+    let mut relaunch = None;
     match adapter.encode_answer(&prompt, &answer, allowed) {
         AnswerAction::Stdin(payload) => {
             if let Err(error) = write_line(stdin, &payload).await {
@@ -334,6 +445,7 @@ async fn resolve(
             let _ = stdin.flush().await;
         }
         AnswerAction::None => {}
+        AnswerAction::Relaunch { grant, retry } => relaunch = Some((grant, retry)),
     }
 
     let _ = channel.send(EngineEvent::PromptResolved {
@@ -341,6 +453,7 @@ async fn resolve(
         by,
         option_id: answer.option_id,
     });
+    relaunch
 }
 
 async fn write_line(stdin: &mut ChildStdin, payload: &str) -> AppResult<()> {

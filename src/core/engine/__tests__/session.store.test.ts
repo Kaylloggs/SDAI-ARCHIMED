@@ -141,6 +141,23 @@ describe("session.store", () => {
     expect(resolved.timeline[0]).toMatchObject({ kind: "prompt", resolvedBy: "auto" });
   });
 
+  it("garde la carte en attente quand la CLI termine son tour avant la réponse", () => {
+    const done = apply(
+      { type: "prompt", prompt },
+      {
+        type: "turnCompleted",
+        durationMs: 10,
+        inputTokens: 1,
+        outputTokens: 1,
+        thinkingTokens: 0,
+        cacheTokens: 0,
+        costUsd: null,
+        ok: true,
+      },
+    );
+    expect(done.status).toBe("awaiting");
+  });
+
   it("mémorise l'identifiant de conversation de la CLI pour la reprise", () => {
     const session = apply({ type: "cliSession", cliSessionId: "52dd-abc" });
     expect(session.cliSessionId).toBe("52dd-abc");
