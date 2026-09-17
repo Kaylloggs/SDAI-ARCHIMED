@@ -39,6 +39,11 @@ An evolutive, modular desktop app uniting Claude Code, Antigravity, and Codex wi
   - Import, create, and organize specialized skills in a visual catalog.
   - Automatically synchronizes active skills across your installed CLIs.
 
+### 📆 Multi-Task Manager / Calendar (`planner` module)
+  - Make your own task planner for your projects.
+  - Synchronize it with your google calendar.
+  - Import from your projects the `ROADMAP.md` to automatically import the tasks in the planner.
+
   ---
 
 ## 🧩 100% Modular "Lego" Architecture
