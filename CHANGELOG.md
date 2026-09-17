@@ -4,6 +4,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.2.2] - 2026-09-17
+
 ### Ajouté
 - **Modèles Claude par niveau d'effort** : chaque modèle n'apparaît plus qu'en trois variantes — effort élevé, moyen ou faible (`--effort`). Défaut : Sonnet · effort moyen.
 - **Réglages › Économie de tokens** étendus : effort de réflexion par défaut (Claude et Antigravity), désactivation des skills des CLI (`--disable-slash-commands`), contexte optimisé pour le cache (`--exclude-dynamic-system-prompt-sections`), compactage anticipé à 100 k (`--autocompact`), et relance automatique des réponses coupées désactivable.
