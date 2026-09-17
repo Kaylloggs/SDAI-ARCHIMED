@@ -12,6 +12,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Bouton micro dans la barre de saisie** (Chat et Code) : la voix est transcrite en direct dans le champ par la reconnaissance vocale de Windows. Tout est local, **aucun token consommé**. Le texte provisoire s'affiche pendant qu'on parle, chaque phrase confirmée s'ajoute au message.
 
 ### Modifié
+- **Accueil** : la page défile et les tuiles gardent leur taille quand les modules s'accumulent (avant, la grille s'écrasait sur la hauteur de la fenêtre).
 - **Menu latéral** : défilement visible (barre fine, dégradés haut et bas) quand les modules dépassent la hauteur.
 
 ## [0.2.1] - 2026-09-17
