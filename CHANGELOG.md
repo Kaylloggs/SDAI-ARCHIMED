@@ -15,7 +15,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Bouton micro dans la barre de saisie** (Chat et Code) : la voix est transcrite en direct dans le champ par la reconnaissance vocale de Windows. Tout est local, **aucun token consommé**. Le texte provisoire s'affiche pendant qu'on parle, chaque phrase confirmée s'ajoute au message.
 
 ### Modifié
-- **Accueil** : grande tuile et colonne « Récemment » à taille généreuse (44 % de la hauteur), puis les modules par rangées de **trois grandes tuiles** ; au-delà, la page défile.
+- **Changement d'agent possible en cours de conversation** : le sélecteur n'est plus grisé une fois la conversation démarrée. Le processus est arrêté, la reprise CLI abandonnée (chaque CLI a ses propres conversations) et une ligne signale que le nouvel agent ne connaît pas les messages précédents.
+- **Accueil : grande tuile et colonne « Récemment » à taille généreuse (44 % de la hauteur), puis les modules par rangées de **trois grandes tuiles** ; au-delà, la page défile.
 - **Menu latéral** : défilement visible (barre fine, dégradés haut et bas) quand les modules dépassent la hauteur.
 
 ## [0.2.1] - 2026-09-17

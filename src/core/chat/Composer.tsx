@@ -37,7 +37,7 @@ type Props = {
   model: string | null;
   autoMode: AutoMode;
   busy: boolean;
-  /** L'agent ne peut plus changer une fois la conversation démarrée. */
+  /** Une conversation est déjà engagée : changer d'agent repart d'un contexte vide. */
   locked: boolean;
   /** Dossier de travail : masqué si `onCwdChange` est absent. */
   cwd?: string | null;
@@ -269,8 +269,11 @@ export function Composer({
           <Select
             label="Agent"
             value={adapterId}
-            disabled={locked}
-            title={locked ? "L'agent est fixé une fois la conversation démarrée" : "Agent"}
+            title={
+              locked
+                ? "Changer d'agent : le nouvel agent ne connaîtra pas les messages précédents"
+                : "Agent"
+            }
             icon={<Bot size={13} strokeWidth={1.75} className="shrink-0 text-text-subtle" />}
             onChange={onAdapterChange}
             options={adapters.map((a) => ({

@@ -166,6 +166,38 @@ export function useChat() {
     if (chat.engineSessionId) await engineApi.setAutoMode(chat.engineSessionId, mode);
   }, []);
 
+/**
+   * Change d'agent (Claude ↔ Antigravity ↔ Codex) au milieu d'une conversation.
+   * Le processus en cours est arrêté et l'identifiant de reprise abandonné : chaque CLI a ses
+   * propres conversations. L'historique affiché reste, mais le nouvel agent ne l'a pas vu.
+   */
+  const setAdapter = useCallback(async (chat: ChatSession, adapter: string, model: string | null, adapterName?: string) => {
+    if (chat.adapter === adapter) return;
+    if (chat.engineSessionId) {
+      await engineApi.stopSession(chat.engineSessionId).catch(() => undefined);
+    }
+    const started = chat.timeline.some((item) => item.kind === "user");
+    useSessionStore.getState().patch(chat.id, {
+      adapter,
+      model,
+      engineSessionId: null,
+      cliSessionId: null,
+      status: "idle",
+      activity: null,
+      turnStartedAt: null,
+      timeline: started
+        ? [
+            ...chat.timeline,
+            {
+              kind: "system",
+              id: crypto.randomUUID(),
+              text: `Agent changé pour ${adapterName ?? adapter} — il ne connaît pas les messages précédents.`,
+            },
+          ]
+        : chat.timeline,
+    });
+  }, []);
+
   /**
    * Change le modèle. Si un processus tourne, il est arrêté : le prochain message
    * relance la CLI avec le nouveau modèle en reprenant la conversation.
@@ -207,6 +239,7 @@ export function useChat() {
     answer,
     setAutoMode,
     setModel,
+    setAdapter,
     setCwd,
     continueTurn,
     stop,

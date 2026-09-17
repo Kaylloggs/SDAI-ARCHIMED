@@ -248,12 +248,10 @@ export default function ChatModule() {
             autoMode={session.autoMode}
             busy={busy || installed.length === 0}
             locked={started}
-            onAdapterChange={(id) =>
-              chat.patch(session.id, {
-                adapter: id,
-                model: adapters.find((a) => a.id === id)?.defaultModel ?? null,
-              })
-            }
+            onAdapterChange={(id) => {
+              const next = adapters.find((a) => a.id === id);
+              void chat.setAdapter(session, id, next?.defaultModel ?? null, next?.name);
+            }}
             onModelChange={(model) => void chat.setModel(session, model)}
             onCwdChange={(cwd) => void chat.setCwd(session, cwd)}
             onAutoModeChange={handleAutoMode}

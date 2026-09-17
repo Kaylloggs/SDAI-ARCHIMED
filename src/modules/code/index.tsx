@@ -562,8 +562,9 @@ export default function CodeModule() {
               onTargetsChange={setTargets}
               compact
               onAdapterChange={(id) => {
-                const model = adapters.find((a) => a.id === id)?.defaultModel ?? null;
-                if (session) chat.patch(session.id, { adapter: id, model });
+                const next = adapters.find((a) => a.id === id);
+                const model = next?.defaultModel ?? null;
+                if (session) void chat.setAdapter(session, id, model, next?.name);
                 else setDraft((d) => ({ ...d, adapter: id, model }));
               }}
               onModelChange={(model) => {
