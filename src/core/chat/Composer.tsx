@@ -78,6 +78,19 @@ export function Composer({
 
   const osDragging = useOsFileDrop(addAttachments);
 
+  /** Contributions du slot `chat.composer.actions` (ex. skill choisi). */
+  const insertText = useCallback((snippet: string) => {
+    setText((current) => (current.startsWith(snippet) ? current : `${snippet}${current}`));
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+      el.style.height = "auto";
+      el.style.height = `${Math.min(el.scrollHeight, compact ? 160 : 240)}px`;
+    });
+  }, [compact]);
+
   const submit = () => {
     const value = text.trim();
     if (!value || busy) return;
@@ -247,7 +260,7 @@ export function Composer({
             <Paperclip size={14} strokeWidth={1.75} />
           </button>
 
-          <Slot name="chat.composer.actions" />
+          <Slot name="chat.composer.actions" props={{ cwd, adapter: adapterId, insertText }} />
 
           {!compact && (
             <button

@@ -14,5 +14,9 @@ export default defineModule({
   page: lazy(() => import("./index")),
   launchpad: { size: "md" },
   backend: { plugin: "skills" },
+  slots: {
+    // Choisir un skill depuis la barre de chat (Chat et Code).
+    "chat.composer.actions": lazy(() => import("./slots/ComposerSkills")),
+  },
   commands: [{ id: "skills.open", title: "Gérer les skills", run: "navigate" }],
 });

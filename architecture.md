@@ -229,7 +229,7 @@ fn main() {
 
 | Type | Nom | Fourni par | Usage |
 |---|---|---|---|
-| Slot | `chat.composer.actions` | chat | boutons à côté de l'envoi (micro, image, pièce jointe) |
+| Slot | `chat.composer.actions` | chat | boutons de la barre de saisie ; props `{ cwd, adapter, insertText }` (ex. sélecteur de skills) |
 | Slot | `chat.message.actions` | core (ConversationView) | actions sous un message terminé de l'assistant. Props : `{ text, cwd }`. Ex : Planner |
 | Slot | `chat.header.right` | chat | indicateurs de session |
 | Slot | `launchpad.widgets` | home | widgets sur l'accueil |

@@ -289,10 +289,10 @@ fn resolve_path(candidate: &str, bases: &[std::path::PathBuf]) -> Option<Resolve
     })
 }
 
-/// `\?\C:\…` (forme canonique Windows) → `C:\…`.
+/// `\\?\C:\…` (forme canonique Windows) → `C:\…`.
 fn strip_verbatim(path: &std::path::Path) -> std::path::PathBuf {
     let text = path.display().to_string();
-    match text.strip_prefix(r"\?\") {
+    match text.strip_prefix(r"\\?\") {
         Some(rest) if !rest.starts_with("UNC") => std::path::PathBuf::from(rest),
         _ => path.to_path_buf(),
     }
@@ -355,7 +355,7 @@ mod path_tests {
         let bases = path_bases(&[cited.display().to_string()], Some(&root.display().to_string()));
         let bat = resolve_path("popup.bat", &bases).unwrap();
         assert!(bat.path.ends_with("popup.bat") && !bat.is_dir);
-        assert!(!bat.path.starts_with(r"\?\"));
+        assert!(!bat.path.starts_with(r"\\?\"));
         assert!(resolve_path("main.rs", &bases).is_some());
         assert!(resolve_path(&cited.display().to_string(), &bases).unwrap().is_dir);
         assert!(resolve_path("absent.txt", &bases).is_none());

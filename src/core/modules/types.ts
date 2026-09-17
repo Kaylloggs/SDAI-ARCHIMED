@@ -36,6 +36,10 @@ export type SlotContext = {
   cwd?: string | null;
   /** code.editor.footer : racine du projet ouvert. */
   root?: string;
+  /** chat.composer.actions : agent choisi dans le composer. */
+  adapter?: string;
+  /** chat.composer.actions : insère du texte en tête du message en cours de saisie. */
+  insertText?: (text: string) => void;
 };
 
 export type LazySlot = LazyExoticComponent<ComponentType<SlotContext>>;

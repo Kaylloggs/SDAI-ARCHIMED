@@ -6,7 +6,10 @@ import { useEnabledModules } from "./useModules";
  * Points d'extension UI officiels. Ajouter un slot ici ET dans architecture.md §5.3.
  * Props transmises (contrat, voir `SlotProps` ci-dessous) :
  *  - chat.message.actions → { text: string; cwd: string | null }
+ *  - chat.composer.actions → { cwd, adapter, insertText(text) }
  *  - code.editor.footer   → { root: string }
+ *  - app.background       → aucune ; composants invisibles montés en permanence
+ *                           (écoute du bus : journal de la mémoire, etc.)
  * Un module contribue via `slots: { "chat.composer.actions": lazy(...) }`.
  */
 export const SLOT_NAMES = [

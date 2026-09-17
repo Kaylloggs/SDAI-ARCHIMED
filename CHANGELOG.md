@@ -104,6 +104,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - Sécurité : un programme (`.exe`, `.bat`, `.ps1`…) n'est jamais lancé depuis un lien, seulement affiché dans l'Explorateur.
 - Nouvelle primitive `ContextMenu`, commandes `engine_resolve_paths`, `engine_open_path`, `engine_reveal_path`, service `code.open`.
 
+### Ajouté — Skills dans la barre de chat
+- Bouton **Utiliser un skill** dans le composer (Chat et Code) : liste de la bibliothèque avec recherche et clavier, skills activés pour l'agent en premier.
+- Claude reçoit la commande native `/nom` ; les autres CLI une consigne pointant le `SKILL.md` du skill.
+- Le slot `chat.composer.actions` reçoit désormais `{ cwd, adapter, insertText }`.
+
 ### Connu / à faire (Phase 3)
 - Génération des types TS depuis Rust (`ts-rs`) : seuls les codes d'erreur sont générés, les types du moteur sont encore recopiés à la main.
 - Envoi natif des images aux CLI qui le supportent (aujourd'hui : chemins transmis à l'agent).
