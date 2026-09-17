@@ -249,6 +249,10 @@ Un fichier glissé de l'arborescence vers le composer devient une **cible** (chi
 ### 7.4 Contrôles
 Boutons : hauteurs 28 (sm) / 32 (md) / 40 (lg). Variantes `primary` (accent), `secondary` (`--surface-2`), `ghost`, `danger`. Focus ring : 2 px `--accent` + offset 2 px `--bg`, toujours visible au clavier (`:focus-visible`).
 Icônes : `lucide-react`, trait 1.75, tailles 14 / 16 / 20 uniquement.
+**Poignée de redimensionnement** : primitive `ResizeHandle` + `usePanelSize` (filet de 1 px, accent au survol et pendant le glisser, flèches au clavier, double clic = taille par défaut).
+
+**Aperçu web** (`@/core/preview`) : en-tête de 40 px (pastille verte animée si serveur actif, sélecteur de page, recharger, ouvrir dans le navigateur, fermer), iframe sur fond blanc. Dans le Chat, une seule pastille discrète dans l'en-tête, visible uniquement s'il y a quelque chose à prévisualiser.
+
 **Menu contextuel** : primitive `ContextMenu` (portail, couche L3 glass, `↑` `↓` `Entrée` `Échap`, se replie dans la fenêtre près des bords). Jamais le menu natif de WebView2.
 
 **Liens de fichiers** (`core/chat/FileLink.tsx`) : dans une réponse d'IA, un chemin cité (code en ligne ou lien) qui existe sur le disque devient un lien accent souligné au survol. Clic : ouvrir dans Code (ou application par défaut) ; clic droit : ouvrir dans Code, application par défaut, afficher dans l'Explorateur, copier le chemin. Les programmes (`.exe`, `.bat`, `.ps1`…) ne s'ouvrent jamais d'un clic.

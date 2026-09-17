@@ -93,7 +93,7 @@ export function PromptCard({ prompt, resolvedBy, resolvedOptionId, onAnswer }: P
         <span className={cn("text-text-muted", prompt.risk === "critical" && "text-danger")}>
           <PromptIcon prompt={prompt} />
         </span>
-        <h3 className="min-w-0 flex-1 truncate text-title-3 font-semibold">{prompt.title}</h3>
+        <h3 className="min-w-0 flex-1 text-title-3 font-semibold">{prompt.title}</h3>
         <Badge tone={risk.tone}>{risk.label}</Badge>
         {prompt.source.type === "screen" && (
           <Badge tone="neutral">écran · {Math.round(prompt.source.confidence * 100)}%</Badge>
@@ -107,7 +107,7 @@ export function PromptCard({ prompt, resolvedBy, resolvedOptionId, onAnswer }: P
           )}
           {prompt.detail.type === "command" && (
             <div className="space-y-1">
-              <pre className="overflow-x-auto rounded-md bg-bg px-3 py-2 font-mono text-body-sm text-text">
+              <pre className="whitespace-pre-wrap rounded-md bg-bg px-3 py-2 font-mono text-body-sm text-text [overflow-wrap:anywhere]">
                 {prompt.detail.line}
               </pre>
               {prompt.detail.cwd && (

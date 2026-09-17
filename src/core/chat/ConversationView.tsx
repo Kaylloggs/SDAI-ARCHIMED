@@ -3,7 +3,7 @@ import Markdown, { type Components } from "react-markdown";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import remarkGfm from "remark-gfm";
 import { motion } from "motion/react";
-import { AlertTriangle, Paperclip, Play } from "lucide-react";
+import { AlertTriangle, Paperclip } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { PromptCard } from "@/core/cards/PromptCard";
 import type { ChatSession } from "@/core/engine/session.store";
@@ -68,11 +68,9 @@ type Props = {
   onAnswer: (promptId: string, answer: PromptAnswer) => void;
   /** Colonne étroite (panneau latéral du module Code). */
   compact?: boolean;
-  /** Relance l'agent quand un tour s'est terminé sans réponse rédigée. */
-  onContinue?: () => void;
 };
 
-export function ConversationView({ session, agentName, onAnswer, compact = false, onContinue }: Props) {
+export function ConversationView({ session, agentName, onAnswer, compact = false }: Props) {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -82,7 +80,8 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
   return (
     <div
       className={cn(
-        "mx-auto flex w-full flex-col gap-6 py-6",
+        // Chemins et URL sans espace : coupés n'importe où plutôt que de déborder de la colonne.
+        "mx-auto flex w-full min-w-0 flex-col gap-6 py-6 [overflow-wrap:anywhere]",
         compact ? "max-w-full px-3" : "max-w-[var(--spacing-column)] px-6",
       )}
     >
@@ -97,7 +96,7 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
                 animate="visible"
                 className="flex justify-end"
               >
-                <div className="selectable max-w-[80%] space-y-2 rounded-lg bg-surface-2 px-3.5 py-2.5">
+                <div className="selectable min-w-0 max-w-[80%] space-y-2 rounded-lg bg-surface-2 px-3.5 py-2.5">
                   <p className="whitespace-pre-wrap text-message">{item.text}</p>
                   {item.attachments && item.attachments.length > 0 && (
                     <ul className="flex flex-wrap gap-1.5 border-t border-border pt-2">
@@ -119,7 +118,7 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
 
           case "assistant":
             return (
-              <motion.div key={item.id} variants={enterUp} initial="hidden" animate="visible">
+              <motion.div key={item.id} variants={enterUp} initial="hidden" animate="visible" className="min-w-0">
                 <p className="pb-1.5 text-footnote text-text-subtle">{agentName}</p>
                 <div
                   className={cn(
@@ -155,29 +154,8 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
               </motion.div>
             );
 
-          case "turn": {
-            // Tour terminé sur une action (outil, refus…) sans réponse rédigée : l'agent s'est
-            // probablement arrêté en route. On propose de le relancer d'un clic.
-            const stalled =
-              onContinue &&
-              index === all.length - 1 &&
-              session.status === "idle" &&
-              all[index - 1]?.kind !== "assistant" &&
-              all[index - 1]?.kind !== "user";
-            if (!stalled) return <TurnFooter key={item.id} turn={item} />;
-            return (
-              <div key={item.id} className="space-y-2">
-                <TurnFooter turn={item} />
-                <button
-                  onClick={onContinue}
-                  className="flex h-7 items-center gap-1.5 rounded-sm border border-border bg-surface-1 px-2.5 text-footnote text-text-muted transition-colors hover:border-border-strong hover:text-text"
-                >
-                  <Play size={12} strokeWidth={1.75} />
-                  L'agent s'est arrêté sans conclure · Continuer
-                </button>
-              </div>
-            );
-          }
+          case "turn":
+            return <TurnFooter key={item.id} turn={item} />;
 
           case "prompt":
             return (

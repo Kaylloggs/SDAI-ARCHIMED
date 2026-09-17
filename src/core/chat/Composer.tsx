@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Paperclip,
   Sparkles,
+  Square,
   TerminalSquare,
   X,
 } from "lucide-react";
@@ -47,6 +48,9 @@ type Props = {
   onModelChange: (model: string) => void;
   onAutoModeChange: (mode: AutoMode) => void;
   onSend: (text: string, attachments: string[], targets: string[]) => void;
+  /** L'agent réfléchit ou répond : le bouton d'envoi devient « Arrêter ». */
+  running?: boolean;
+  onStop?: () => void;
 };
 
 export function Composer({
@@ -65,6 +69,8 @@ export function Composer({
   onModelChange,
   onAutoModeChange,
   onSend,
+  running = false,
+  onStop,
 }: Props) {
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<string[]>([]);
@@ -198,6 +204,11 @@ export function Composer({
             el.style.height = `${Math.min(el.scrollHeight, compact ? 160 : 240)}px`;
           }}
           onKeyDown={(event) => {
+            if (event.key === "Escape" && running && onStop) {
+              event.preventDefault();
+              onStop();
+              return;
+            }
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
               submit();
@@ -285,10 +296,24 @@ export function Composer({
               {compact ? AUTO_LABELS[autoMode].split(" ")[0] : AUTO_LABELS[autoMode]}
             </button>
 
-            <Button variant="primary" size="sm" disabled={!text.trim() || busy} onClick={submit}>
-              <ArrowUp size={14} strokeWidth={2} />
-              {!compact && <Kbd>⏎</Kbd>}
-            </Button>
+            {running && onStop ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onStop}
+                aria-label="Arrêter la réponse"
+                title="Arrêter la réponse (Échap)"
+                className="border-danger/40 text-danger hover:bg-danger-soft"
+              >
+                <Square size={11} strokeWidth={2.5} className="fill-current" />
+                {!compact && "Arrêter"}
+              </Button>
+            ) : (
+              <Button variant="primary" size="sm" disabled={!text.trim() || busy} onClick={submit}>
+                <ArrowUp size={14} strokeWidth={2} />
+                {!compact && <Kbd>⏎</Kbd>}
+              </Button>
+            )}
           </div>
         </div>
       </div>

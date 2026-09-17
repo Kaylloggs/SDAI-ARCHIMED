@@ -139,6 +139,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - Projet publié sous **licence MIT** sur GitHub (`Kaylloggs/SDAI-ARCHIMED`).
 - `README.md` public en anglais : fonctionnalités, modules, étapes d'installation (prérequis, CLI, clonage, lancement, compilation du `.exe`).
 
+### Ajouté — Aperçu, panneaux et contrôle des réponses
+- **Aperçu web** : serveurs de test lancés par l'agent (URL locales citées, `pnpm dev`, `python -m http.server`…, ports sondés toutes les 4 s) et pages HTML créées. Colonne d'aperçu dans le module Code (bouton globe, pastille verte si un serveur répond) ; pastille discrète dans l'en-tête du Chat.
+- **Module Code** : panneaux redimensionnables (arborescence, éditeur, aperçu, assistant) ; **arborescence, onglets et aperçu mis à jour automatiquement** quand des fichiers changent sur disque.
+- **Bouton Arrêter** (ou `Échap`) pendant que l'agent réfléchit ou répond ; le message suivant reprend la même conversation.
+- **Relance automatique** d'une réponse coupée (agent arrêté juste après une action, sans conclure), invisible, 3 fois de suite au plus.
+
+### Corrigé
+- **Antigravity s'arrêtait en pleine réponse** : `--print-timeout` d'agy (5 min par défaut) coupait le tour en annonçant un succès. Délai porté à 24 h.
+- Texte sans espace (chemins, URL) qui débordait des bulles et des cartes de la conversation.
+
 ### Connu / à faire (Phase 3)
 - Génération des types TS depuis Rust (`ts-rs`) : seuls les codes d'erreur sont générés, les types du moteur sont encore recopiés à la main.
 - Envoi natif des images aux CLI qui le supportent (aujourd'hui : chemins transmis à l'agent).

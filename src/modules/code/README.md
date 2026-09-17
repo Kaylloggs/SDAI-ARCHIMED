@@ -3,7 +3,10 @@
 Éditeur de projet façon VS Code : arborescence de fichiers, onglets, lecture du code avec coloration syntaxique (CodeMirror 6, ~35 langages), et panneau de conversation à droite qui pilote la même CLI que le module Chat.
 
 - **Backend** : plugin `code` (`src-tauri/src/modules/code/`).
-- **Commandes** : `list_dir`, `read_file`, `write_file` (atomique, auditée), `project_info`, `search_files`.
+- **Commandes** : `list_dir`, `read_file`, `write_file` (atomique, auditée), `project_info`, `search_files`, `watch_root`, `unwatch_root`.
+- **Événement émis** : `code:fs-changed` — l'arborescence, les onglets non modifiés et l'aperçu se mettent à jour seuls quand une IA crée ou modifie des fichiers (dépendances et builds ignorés).
+- **Panneaux redimensionnables** : arborescence, éditeur, aperçu et assistant (`ResizeHandle`, tailles mémorisées ; double clic = taille par défaut).
+- **Aperçu** (bouton globe) : serveur de test lancé par l'agent (pastille verte quand il répond) ou page HTML ouverte / créée, dans une colonne dédiée (`@/core/preview`).
 - **Services consommés** : moteur core (`useChat`, `useAdapters`), composants `@/core/chat`.
 - **Entrées** : dossier choisi par l'utilisateur, ou passé par un autre module via `useUiStore.openModule("code", { cwd, file? })` (`file` : ouvert dans un onglet une fois le dossier chargé).
 - **Services fournis** : `code.project` (détection de projet), `code.open` (ouvrir un fichier ou dossier cité dans une réponse d'IA).

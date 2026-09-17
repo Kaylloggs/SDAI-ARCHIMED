@@ -7,6 +7,7 @@ import { PreviewPane, usePreviewTargets } from "@/core/preview";
 import type { AutoMode, PromptAnswer } from "@/core/engine/types";
 import { useAdapters } from "@/core/engine/useAdapters";
 import { useChat } from "@/core/engine/useChat";
+import { useAutoContinue } from "@/core/engine/useAutoContinue";
 import { engineApi } from "@/core/engine/engine.api";
 import { Composer, ConversationView } from "@/core/chat";
 import { useService } from "@/core/modules";
@@ -43,6 +44,8 @@ export default function ChatModule() {
   );
   const session = chat.session;
   const adapter = adapters.find((a) => a.id === session?.adapter);
+  // Réponse coupée en route (agent arrêté après une action) : relancée automatiquement.
+  useAutoContinue(session, chat.continueTurn);
 
   // Aperçu : serveur de test lancé par l'agent ou page HTML créée. Rien ne s'affiche sinon.
   const previewTargets = usePreviewTargets(session?.timeline);
@@ -196,13 +199,12 @@ export default function ChatModule() {
           </div>
         )}
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
           {session && session.timeline.length > 0 ? (
             <ConversationView
               session={session}
               agentName={adapter?.name ?? session.adapter}
               onAnswer={handleAnswer}
-              onContinue={() => void handleSend("Continue", [], [])}
             />
           ) : (
             <EmptyState
@@ -255,6 +257,8 @@ export default function ChatModule() {
             onModelChange={(model) => void chat.setModel(session, model)}
             onCwdChange={(cwd) => void chat.setCwd(session, cwd)}
             onAutoModeChange={handleAutoMode}
+            running={Boolean(session && ["starting", "running", "awaiting"].includes(session.status))}
+            onStop={() => session && void chat.stop(session)}
             onSend={(text, attachments, targets) => void handleSend(text, attachments, targets)}
           />
         )}

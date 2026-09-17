@@ -70,6 +70,7 @@ SDAI ARCHIMED/
 │   │   ├── chat/                        # Composer · ConversationView · useOsFileDrop
 │   │   │                                # (UI de conversation partagée chat/code)
 │   │   ├── dnd/                         # glisser-déposer interne (pointeur) : useDragSource · DropZone · DragLayer
+│   │   ├── preview/                     # aperçu web : detect (serveurs de test, pages HTML) · usePreviewTargets · PreviewPane
 │   │   ├── modules/                     # define-module · manifest.schema · registry
 │   │   │                                # · useModules · services · slots · types · index
 │   │   ├── shell/                       # AppShell (cadre) · TitleBar · Sidebar (rail en verre)
@@ -133,7 +134,7 @@ SDAI ARCHIMED/
         ├── system/                      # (prévu) fs · shell · net
         └── modules/
             ├── mod.rs                   # registre : `pub mod x;` + `register!(builder, x);`
-            ├── code/                    # arborescence, lecture/écriture de fichiers, détection de projet
+            ├── code/                    # arborescence, lecture/écriture de fichiers, détection de projet, watcher (code:fs-changed)
             ├── usage/                   # résumé du registre, compte et limites Claude
             ├── memory/                  # notes.json (activables, par projet), bloc de contexte injecté
             ├── planner/                 # boards.json, roadmap.rs (parse/réécriture), ics.rs, watcher notify
@@ -247,6 +248,7 @@ fn main() {
 | Service | `system.fs` / `system.shell` | core | actions système passant par la policy |
 | Service | `notify.toast` | core | notifications UI |
 | Événement backend | `planner:roadmap-changed` | planner | un roadmap.md surveillé a changé sur disque |
+| Événement backend | `code:fs-changed` | code | fichiers du projet ouvert créés, modifiés ou supprimés (`{ root, dirs, files }`, regroupés sur 250 ms) |
 | Événement | `engine.turn.completed` | core (session.store) | fin d'un tour d'agent : demande, réponse, outils utilisés |
 | Événement | `skills.changed`, `settings.changed`, `modules.changed`, `engine.cli_detected` | core/modules | |
 

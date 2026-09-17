@@ -8,6 +8,7 @@ import { Composer, ConversationView } from "@/core/chat";
 import { Slot } from "@/core/modules";
 import { useAdapters } from "@/core/engine/useAdapters";
 import { useChat } from "@/core/engine/useChat";
+import { useAutoContinue } from "@/core/engine/useAutoContinue";
 import { useSessionStore } from "@/core/engine/session.store";
 import { engineApi } from "@/core/engine/engine.api";
 import { useUiStore } from "@/core/stores/ui.store";
@@ -75,6 +76,8 @@ export default function CodeModule() {
     [chat.sessions, root],
   );
   const session = projectSessions.find((s) => s.id === sessionId) ?? null;
+  // Réponse coupée en route (agent arrêté après une action) : relancée automatiquement.
+  useAutoContinue(session, chat.continueTurn);
   const adapterId = session?.adapter ?? draft.adapter;
   const adapter = adapters.find((a) => a.id === adapterId);
 
@@ -527,13 +530,12 @@ export default function CodeModule() {
             )}
           </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
             {session && session.timeline.length > 0 ? (
               <ConversationView
                 session={session}
                 agentName={adapter?.name ?? session.adapter}
                 onAnswer={handleAnswer}
-                onContinue={() => void handleSend("Continue", [], [])}
                 compact
               />
             ) : (
@@ -569,6 +571,8 @@ export default function CodeModule() {
                 else setDraft((d) => ({ ...d, model }));
               }}
               onAutoModeChange={handleAutoMode}
+              running={Boolean(session && ["starting", "running", "awaiting"].includes(session.status))}
+              onStop={() => session && void chat.stop(session)}
               onSend={(text, attachments, targeted) => void handleSend(text, attachments, targeted)}
             />
           )}

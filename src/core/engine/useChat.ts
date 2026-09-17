@@ -30,6 +30,21 @@ export function buildPrompt(
   return prompt;
 }
 
+/** Message envoyé quand un agent s'est arrêté en route (jamais affiché). */
+const CONTINUE_PROMPT =
+  "Continue where you stopped and complete the task. Do not repeat work that is already done.";
+
+/**
+ * Tour terminé juste après une action (outil) sans réponse rédigée : l'agent s'est arrêté
+ * en route. Un refus, une erreur ou une réponse de l'agent ne comptent pas.
+ */
+export function isStalledTurn(chat: ChatSession): boolean {
+  if (chat.status !== "idle") return false;
+  const last = chat.timeline.at(-1);
+  const before = chat.timeline.at(-2);
+  return last?.kind === "turn" && last.ok && before?.kind === "tool";
+}
+
 /** Cycle de vie des conversations, partagé par tous les modules qui parlent aux CLI. */
 /** Service optionnel fourni par un module (ex. Mémoire) : contexte ajouté au premier message. */
 export type PromptContextService = {
@@ -87,6 +102,45 @@ ${prompt}` : prompt);
     [ensureEngine, contextService],
   );
 
+  /**
+   * Relance silencieuse : l'agent s'est arrêté après une action sans conclure. Rien n'est
+   * ajouté à la conversation, l'activité reprend comme pour un message normal.
+   */
+  const continueTurn = useCallback(
+    async (chat: ChatSession) => {
+      const engineSessionId = await ensureEngine(chat);
+      useSessionStore.getState().patch(chat.id, {
+        status: "running",
+        activity: { phase: "thinking", label: null, since: Date.now() },
+        turnStartedAt: Date.now(),
+      });
+      await engineApi.sendMessage(engineSessionId, CONTINUE_PROMPT);
+    },
+    [ensureEngine],
+  );
+
+  /**
+   * Arrête l'agent en pleine réponse. Le processus est terminé ; le prochain message relance
+   * la CLI sur la même conversation (contexte conservé).
+   */
+  const stop = useCallback(async (chat: ChatSession) => {
+    const engineSessionId = chat.engineSessionId;
+    const store = useSessionStore.getState();
+    store.patch(chat.id, {
+      engineSessionId: null,
+      status: "idle",
+      activity: null,
+      turnStartedAt: null,
+      pendingPromptId: null,
+      timeline: [
+        // Les demandes restées sans réponse n'ont plus d'objet.
+        ...chat.timeline.filter((item) => !(item.kind === "prompt" && !item.resolvedBy)),
+        { kind: "system", id: crypto.randomUUID(), text: "Réponse interrompue" },
+      ],
+    });
+    if (engineSessionId) await engineApi.stopSession(engineSessionId).catch(() => undefined);
+  }, []);
+
   const answer = useCallback(
     async (chat: ChatSession, promptId: string, payload: PromptAnswer) => {
       if (!chat.engineSessionId) return;
@@ -142,6 +196,8 @@ ${prompt}` : prompt);
     setAutoMode,
     setModel,
     setCwd,
+    continueTurn,
+    stop,
     remove,
   };
 }
