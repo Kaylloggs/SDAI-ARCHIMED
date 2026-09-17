@@ -11,6 +11,8 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
         .invoke_handler(tauri::generate_handler![
             commands::list_notes,
             commands::add_note,
+            commands::add_notes,
+            commands::read_import,
             commands::update_note,
             commands::delete_note,
             commands::get_settings,

@@ -4,7 +4,8 @@ import { cn } from "@/core/lib/cn";
 import { Button } from "@/design-system/primitives";
 import { dueState, formatMonth, isoDate, monthGrid } from "../lib/calendar";
 import type { Board, Card } from "../types";
-import { CARD_DRAG_MIME } from "./CardItem";
+import { CARD_DRAG_TYPE } from "./CardItem";
+import { DropZone, useDragSource } from "@/core/dnd";
 
 type Props = {
   board: Board;
@@ -30,7 +31,6 @@ const TONE = {
 export function CalendarView({ board, selectedId, onSelect, onSetDue, onAdd }: Props) {
   const today = isoDate(new Date());
   const [cursor, setCursor] = useState(() => ({ year: new Date().getFullYear(), month: new Date().getMonth() }));
-  const [dropDate, setDropDate] = useState<string | null>(null);
   const [draftDate, setDraftDate] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -58,33 +58,9 @@ export function CalendarView({ board, selectedId, onSelect, onSetDue, onAdd }: P
     setDraftDate(null);
   };
 
-  const chip = (card: Card) => {
-    const state = !card.done && card.due ? dueState(card.due) : null;
-    return (
-      <li
-        key={card.id}
-        draggable={!card.roadmapKey}
-        onDragStart={(event) => {
-          event.dataTransfer.setData(CARD_DRAG_MIME, card.id);
-          event.dataTransfer.effectAllowed = "move";
-        }}
-      >
-        <button
-          onClick={() => onSelect(card.id)}
-          title={card.title}
-          className={cn(
-            "block w-full truncate rounded-xs border-l-2 bg-surface-1 px-1.5 py-0.5 text-left text-caption transition-colors hover:bg-surface-3",
-            state ? TONE[state] : "border-l-accent/50",
-            card.done && "text-text-subtle line-through",
-            card.id === selectedId && "ring-1 ring-accent/60",
-            !card.roadmapKey && "cursor-grab active:cursor-grabbing",
-          )}
-        >
-          {card.title}
-        </button>
-      </li>
-    );
-  };
+  const chip = (card: Card) => (
+    <CalendarChip key={card.id} card={card} selected={card.id === selectedId} onSelect={() => onSelect(card.id)} />
+  );
 
   return (
     <div className="flex min-h-0 flex-1 gap-3 p-4">
@@ -125,26 +101,18 @@ export function CalendarView({ board, selectedId, onSelect, onSetDue, onAdd }: P
             const open = expanded === date;
             const visible = open ? cards : cards.slice(0, MAX_PER_DAY);
             return (
-              <div
+              <DropZone
                 key={date}
-                onDragOver={(event) => {
-                  if (event.dataTransfer.types.includes(CARD_DRAG_MIME)) {
-                    event.preventDefault();
-                    setDropDate(date);
-                  }
-                }}
-                onDragLeave={() => setDropDate((d) => (d === date ? null : d))}
-                onDrop={(event) => {
-                  const cardId = event.dataTransfer.getData(CARD_DRAG_MIME);
-                  setDropDate(null);
-                  if (cardId) onSetDue(cardId, date);
-                }}
-                className={cn(
-                  "group/day flex min-h-0 flex-col gap-1 overflow-hidden p-1.5 transition-colors",
-                  inMonth ? "bg-surface-2/60" : "bg-bg-subtle",
-                  dropDate === date && "bg-accent-soft",
-                  open && "overflow-y-auto",
-                )}
+                accept={[CARD_DRAG_TYPE]}
+                onDrop={(item) => onSetDue(item.payload, date)}
+                className={({ isOver }) =>
+                  cn(
+                    "group/day flex min-h-0 flex-col gap-1 overflow-hidden p-1.5 transition-colors",
+                    inMonth ? "bg-surface-2/60" : "bg-bg-subtle",
+                    isOver && "bg-accent-soft",
+                    open && "overflow-y-auto",
+                  )
+                }
               >
                 <div className="flex items-center justify-between">
                   <span
@@ -196,29 +164,22 @@ export function CalendarView({ board, selectedId, onSelect, onSetDue, onAdd }: P
                     {open ? "Réduire" : `+${cards.length - MAX_PER_DAY} autre${cards.length - MAX_PER_DAY > 1 ? "s" : ""}`}
                   </button>
                 )}
-              </div>
+              </DropZone>
             );
           })}
         </div>
       </div>
 
-      <aside
-        onDragOver={(event) => {
-          if (event.dataTransfer.types.includes(CARD_DRAG_MIME)) {
-            event.preventDefault();
-            setDropDate("none");
-          }
-        }}
-        onDragLeave={() => setDropDate((d) => (d === "none" ? null : d))}
-        onDrop={(event) => {
-          const cardId = event.dataTransfer.getData(CARD_DRAG_MIME);
-          setDropDate(null);
-          if (cardId) onSetDue(cardId, null);
-        }}
-        className={cn(
-          "flex w-56 shrink-0 flex-col rounded-[16px] border bg-surface-2/50 transition-colors",
-          dropDate === "none" ? "border-accent/60 bg-accent-soft" : "border-border",
-        )}
+      <DropZone
+        as="aside"
+        accept={[CARD_DRAG_TYPE]}
+        onDrop={(item) => onSetDue(item.payload, null)}
+        className={({ isOver }) =>
+          cn(
+            "flex w-56 shrink-0 flex-col rounded-[16px] border bg-surface-2/50 transition-colors",
+            isOver ? "border-accent/60 bg-accent-soft" : "border-border",
+          )
+        }
       >
         <header className="flex items-center gap-2 px-3 pb-2 pt-3">
           <h3 className="text-body-sm font-semibold">Sans échéance</h3>
@@ -226,7 +187,29 @@ export function CalendarView({ board, selectedId, onSelect, onSetDue, onAdd }: P
         </header>
         <p className="px-3 pb-2 text-caption text-text-subtle">Glissez une carte sur un jour pour la planifier.</p>
         <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-2">{undated.map(chip)}</ul>
-      </aside>
+      </DropZone>
     </div>
+  );
+}
+
+function CalendarChip({ card, selected, onSelect }: { card: Card; selected: boolean; onSelect: () => void }) {
+  const state = !card.done && card.due ? dueState(card.due) : null;
+  const drag = useDragSource(card.roadmapKey ? null : { type: CARD_DRAG_TYPE, payload: card.id, label: card.title });
+  return (
+    <li onPointerDown={drag.onPointerDown}>
+      <button
+        onClick={onSelect}
+        title={card.title}
+        className={cn(
+          "block w-full truncate rounded-xs border-l-2 bg-surface-1 px-1.5 py-0.5 text-left text-caption transition-colors hover:bg-surface-3",
+          state ? TONE[state] : "border-l-accent/50",
+          card.done && "text-text-subtle line-through",
+          selected && "ring-1 ring-accent/60",
+          !card.roadmapKey && "cursor-grab active:cursor-grabbing",
+        )}
+      >
+        {card.title}
+      </button>
+    </li>
   );
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Brain, Check, Eye, FolderOpen, Globe, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Brain, Check, Eye, FileUp, FolderOpen, Globe, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Button, EmptyState, SectionHeader, Tooltip } from "@/design-system/primitives";
 import { memoryApi, type MemorySettings, type Note, type NotePatch } from "./api";
@@ -190,6 +190,73 @@ function NoteRow({ note, onPatch, onDelete }: { note: Note; onPatch: (patch: Not
   );
 }
 
+/** Aperçu d'un fichier importé : choix des informations et de leur portée avant l'ajout. */
+function ImportPanel({
+  fileName,
+  items,
+  onCancel,
+  onImport,
+}: {
+  fileName: string;
+  items: string[];
+  onCancel: () => void;
+  onImport: (texts: string[], project: string | null) => Promise<void>;
+}) {
+  const [selected, setSelected] = useState<boolean[]>(() => items.map(() => true));
+  const [project, setProject] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const count = selected.filter(Boolean).length;
+
+  return (
+    <section className="mb-4 space-y-3 rounded-md border border-accent/40 bg-surface-1 p-3">
+      <div className="flex items-center gap-2">
+        <FileUp size={14} strokeWidth={1.75} className="text-accent" />
+        <p className="min-w-0 flex-1 truncate text-body-sm font-medium">
+          {items.length} information{items.length > 1 ? "s" : ""} trouvée{items.length > 1 ? "s" : ""} dans {fileName}
+        </p>
+        <Button size="sm" variant="ghost" onClick={() => setSelected(items.map(() => count !== items.length))}>
+          {count === items.length ? "Tout décocher" : "Tout cocher"}
+        </Button>
+      </div>
+
+      <ul className="max-h-72 space-y-1 overflow-y-auto">
+        {items.map((item, index) => (
+          <li key={index}>
+            <label className="flex cursor-pointer items-start gap-2 rounded-sm px-1 py-1 hover:bg-surface-2">
+              <input
+                type="checkbox"
+                checked={selected[index] ?? false}
+                onChange={() => setSelected((current) => current.map((value, i) => (i === index ? !value : value)))}
+                className="mt-1 accent-[var(--color-accent)]"
+              />
+              <span className={cn("text-body-sm", selected[index] ? "text-text" : "text-text-subtle line-through")}>{item}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+
+      <div className="flex items-center gap-2">
+        <ScopePicker project={project} onChange={setProject} />
+        <Button size="sm" variant="ghost" className="ml-auto" onClick={onCancel}>
+          Annuler
+        </Button>
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={count === 0 || busy}
+          onClick={() => {
+            setBusy(true);
+            void onImport(items.filter((_, i) => selected[i]), project).finally(() => setBusy(false));
+          }}
+        >
+          {busy ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} strokeWidth={2} />}
+          Ajouter {count}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 export default function MemoryModule() {
   const [settings, setSettings] = useState<MemorySettings | null>(null);
   const [notes, setNotes] = useState<Note[] | null>(null);
@@ -199,6 +266,28 @@ export default function MemoryModule() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewProject, setPreviewProject] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null | undefined>(undefined);
+  const [importing, setImporting] = useState<{ fileName: string; items: string[] } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const pickImport = async () => {
+    setNotice(null);
+    const path = await open({
+      title: "Importer des informations",
+      multiple: false,
+      filters: [{ name: "Liste d'informations", extensions: ["txt", "md", "json"] }],
+    });
+    if (typeof path !== "string") return;
+    try {
+      const items = await memoryApi.readImport(path);
+      if (items.length === 0) {
+        setNotice("Aucune information trouvée dans ce fichier.");
+        return;
+      }
+      setImporting({ fileName: folderName(path), items });
+    } catch (e) {
+      setError(message(e));
+    }
+  };
 
   const reload = useCallback(async () => {
     try {
@@ -259,6 +348,7 @@ export default function MemoryModule() {
       />
 
       {error && <p className="pb-4 text-footnote text-danger">{error}</p>}
+      {notice && <p className="pb-4 text-footnote text-text-muted">{notice}</p>}
 
       {settings && (
         <div className="mb-6 flex items-center gap-3 rounded-md border border-border bg-surface-1 p-3">
@@ -304,6 +394,28 @@ export default function MemoryModule() {
         </section>
       )}
 
+      {importing && (
+        <ImportPanel
+          fileName={importing.fileName}
+          items={importing.items}
+          onCancel={() => setImporting(null)}
+          onImport={async (texts, project) => {
+            try {
+              const added = await memoryApi.addNotes(texts, project);
+              setImporting(null);
+              setNotice(
+                added === texts.length
+                  ? `${added} information${added > 1 ? "s" : ""} ajoutée${added > 1 ? "s" : ""}.`
+                  : `${added} ajoutée${added > 1 ? "s" : ""}, ${texts.length - added} déjà présente${texts.length - added > 1 ? "s" : ""}.`,
+              );
+              await reload();
+            } catch (e) {
+              setError(message(e));
+            }
+          }}
+        />
+      )}
+
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -327,7 +439,16 @@ export default function MemoryModule() {
         />
         <div className="flex items-center gap-2">
           <ScopePicker project={draftProject} onChange={setDraftProject} />
-          <Button type="submit" size="sm" variant="primary" className="ml-auto" disabled={!draft.trim()}>
+          <Tooltip
+            side="bottom"
+            label="Fichier .txt, .md ou .json : une information par ligne (ou par élément de liste)"
+          >
+            <Button type="button" size="sm" variant="ghost" className="ml-auto" onClick={() => void pickImport()}>
+              <FileUp size={13} strokeWidth={1.75} />
+              Importer un fichier
+            </Button>
+          </Tooltip>
+          <Button type="submit" size="sm" variant="primary" disabled={!draft.trim()}>
             <Plus size={13} strokeWidth={2} />
             Ajouter
           </Button>

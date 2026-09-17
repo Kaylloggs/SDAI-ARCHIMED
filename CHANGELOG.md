@@ -126,6 +126,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Menus trop transparents** (clic droit, palette `Ctrl+K`, listes) : couches flottantes quasi opaques.
 - **Barre de saisie** : outils, Mode Auto et envoi alignés sur une seule ligne.
 
+### Ajouté
+- **Mémoire : import d'un fichier** (.txt, .md, .json) pour ajouter plusieurs informations d'un coup, avec aperçu, cases à cocher et choix de la portée.
+- **Module Code : suppression d'une conversation** (corbeille dans l'en-tête du chat, confirmation par un second clic).
+- **Réglages** : mention « Logiciel réalisé par SearaDesign - version - ARCHIMED ».
+
+### Corrigé
+- **Tokens Antigravity très surestimés** : agy renvoie en fin de tour un usage **cumulé depuis le début de la conversation**, qui était additionné à chaque réponse. La consommation est maintenant la somme des appels au modèle du tour (vérifié sur agy 1.2.3), et la durée celle du tour. L'historique déjà enregistré dans Crédits garde les anciennes valeurs.
+- **Glisser-déposer interne inopérant** (fichier de l'arborescence vers le chat de Code, cartes du Planner) : sous Windows, WebView2 intercepte le drag & drop HTML5 quand le dépôt de fichiers de l'Explorateur est actif. Nouveau glisser-déposer au pointeur (`@/core/dnd`) ; le dépôt depuis l'Explorateur reste disponible.
+
 ### Connu / à faire (Phase 3)
 - Génération des types TS depuis Rust (`ts-rs`) : seuls les codes d'erreur sont générés, les types du moteur sont encore recopiés à la main.
 - Envoi natif des images aux CLI qui le supportent (aujourd'hui : chemins transmis à l'agent).

@@ -21,6 +21,11 @@ export type MemorySettings = { inject: boolean };
 export const memoryApi = {
   listNotes: () => invokeModule<Note[]>("memory", "list_notes"),
   addNote: (text: string, project: string | null) => invokeModule<Note>("memory", "add_note", { text, project }),
+  /** Informations lues dans un fichier .txt, .md ou .json (rien n'est enregistré). */
+  readImport: (path: string) => invokeModule<string[]>("memory", "read_import", { path }),
+  /** Ajout groupé ; retourne le nombre d'informations réellement ajoutées (doublons ignorés). */
+  addNotes: (texts: string[], project: string | null) =>
+    invokeModule<number>("memory", "add_notes", { texts, project }),
   updateNote: (id: string, patch: NotePatch) => invokeModule<Note>("memory", "update_note", { id, patch }),
   deleteNote: (id: string) => invokeModule<void>("memory", "delete_note", { id }),
   getSettings: () => invokeModule<MemorySettings>("memory", "get_settings"),

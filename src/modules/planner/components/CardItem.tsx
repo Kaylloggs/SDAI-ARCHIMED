@@ -3,7 +3,9 @@ import { cn } from "@/core/lib/cn";
 import { dueState, formatDue } from "../lib/calendar";
 import type { Card } from "../types";
 
-export const CARD_DRAG_MIME = "application/x-archimed-card";
+import { useDragSource } from "@/core/dnd";
+
+export const CARD_DRAG_TYPE = "planner-card";
 
 type Props = {
   card: Card;
@@ -22,15 +24,11 @@ const DUE_TONE = {
 export function CardItem({ card, selected, draggable, onSelect, onToggleDone }: Props) {
   const state = card.due && !card.done ? dueState(card.due) : null;
   const subtasksDone = card.subtasks?.filter((s) => s.done).length ?? 0;
+  const drag = useDragSource(draggable ? { type: CARD_DRAG_TYPE, payload: card.id, label: card.title } : null);
 
   return (
-    // <li> natif : motion détourne onDragStart pour ses propres gestes.
     <li
-      draggable={draggable}
-      onDragStart={(event) => {
-        event.dataTransfer.setData(CARD_DRAG_MIME, card.id);
-        event.dataTransfer.effectAllowed = "move";
-      }}
+      onPointerDown={drag.onPointerDown}
       className={cn(
         "group rounded-[12px] border bg-surface-1 p-2.5 transition-colors",
         selected ? "border-accent/60" : "border-border hover:border-border-strong",

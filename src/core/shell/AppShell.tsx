@@ -8,6 +8,7 @@ import { pageFade } from "@/design-system/motion";
 import { CommandPalette } from "./CommandPalette";
 import { ModuleErrorBoundary } from "./ModuleErrorBoundary";
 import { Sidebar } from "./Sidebar";
+import { DragLayer } from "@/core/dnd";
 import { TitleBar } from "./TitleBar";
 
 /**
@@ -66,6 +67,7 @@ export function AppShell() {
       </div>
 
       <CommandPalette />
+      <DragLayer />
       {/* Contributions sans interface, actives quel que soit le module affiché. */}
       <Slot name="app.background" />
     </div>

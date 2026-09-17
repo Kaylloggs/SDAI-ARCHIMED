@@ -3,7 +3,7 @@
 Mémoire des IA : les informations que **l'utilisateur** saisit (préférences, conventions, contexte d'un projet) et qu'il choisit de transmettre aux IA. Rien n'est enregistré automatiquement.
 
 - **Backend** : plugin `memory` (`src-tauri/src/modules/memory/`).
-- **Commandes** : `list_notes`, `add_note`, `update_note` (texte, activation, portée), `delete_note`, `get_settings`, `set_settings`, `build_context`, `preview_context`.
+- **Commandes** : `list_notes`, `add_note`, `add_notes` (ajout groupé, doublons ignorés), `read_import` (lecture d'un fichier sans enregistrer), `update_note` (texte, activation, portée), `delete_note`, `get_settings`, `set_settings`, `build_context`, `preview_context`.
 - **Stockage** : `%APPDATA%\com.sdai.archimed\modules\memory\` — `notes.json`, `settings.json`.
 
 ## Fonctionnement
@@ -11,6 +11,7 @@ Mémoire des IA : les informations que **l'utilisateur** saisit (préférences, 
 - Chaque information a un **interrupteur** : active (transmise) ou mise de côté (conservée, non transmise).
 - Un interrupteur général coupe toute transmission.
 - **Transmission** (service `memory.context`, consommé par `useChat`) : au premier message d'une conversation (Chat ou Code), les informations actives qui s'appliquent au dossier de travail sont ajoutées avant le message, dans un bloc « Mémoire ARCHIMED » (4 000 caractères max).
+- **Import** : un fichier `.txt` / `.md` (une information par ligne ou par puce ; titres ignorés ; une ligne indentée complète la puce précédente) ou `.json` (liste de textes ou d'objets `{ "text" }`), 1 Mo max. Aperçu avec cases à cocher et choix de la portée avant l'ajout.
 - **Aperçu** : le bloc exact reçu par une IA, pour un projet donné.
 
 ## Historique

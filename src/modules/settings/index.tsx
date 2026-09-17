@@ -1,4 +1,6 @@
-import { Suspense, createElement, type ReactNode } from "react";
+import { Suspense, createElement, useEffect, useState, type ReactNode } from "react";
+import { getVersion } from "@tauri-apps/api/app";
+import packageInfo from "../../../package.json";
 import { allModules, manifestIssues } from "@/core/modules/registry";
 import { isModuleEnabled, useModulesStore } from "@/core/stores/modules.store";
 import { useSessionStore } from "@/core/engine/session.store";
@@ -6,6 +8,8 @@ import { bus } from "@/core/bus/event-bus";
 import { Badge, Button, Card, SectionHeader } from "@/design-system/primitives";
 import { ThemeSection } from "./components/ThemeSection";
 import { EngineSection } from "./components/EngineSection";
+
+const FALLBACK_VERSION = packageInfo.version;
 
 function Section({
   title,
@@ -29,6 +33,14 @@ export default function SettingsModule() {
   const { overrides, setOverride } = useModulesStore();
   const sessions = useSessionStore((s) => s.sessions);
   const clearAll = useSessionStore((s) => s.clearAll);
+  const [version, setVersion] = useState(FALLBACK_VERSION);
+
+  // Version de l'exécutable (tauri.conf.json) ; celle du package hors Tauri.
+  useEffect(() => {
+    getVersion()
+      .then(setVersion)
+      .catch(() => undefined);
+  }, []);
 
   return (
     <div className="mx-auto max-w-[900px] px-8 py-8">
@@ -132,6 +144,10 @@ export default function SettingsModule() {
             <Suspense fallback={null}>{createElement(module.settings!)}</Suspense>
           </Section>
         ))}
+
+      <footer className="mt-12 border-t border-border pt-4 text-center text-footnote text-text-subtle">
+        Logiciel réalisé par SearaDesign - v{version} - ARCHIMED
+      </footer>
     </div>
   );
 }

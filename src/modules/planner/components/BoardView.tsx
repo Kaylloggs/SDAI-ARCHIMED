@@ -20,7 +20,8 @@ import {
   uid,
 } from "../lib/board";
 import type { Board, Card } from "../types";
-import { CARD_DRAG_MIME, CardItem } from "./CardItem";
+import { CARD_DRAG_TYPE, CardItem } from "./CardItem";
+import { DropZone } from "@/core/dnd";
 import { CardPanel } from "./CardPanel";
 import { CalendarView } from "./CalendarView";
 import { ColumnHeader } from "./ColumnHeader";
@@ -41,7 +42,6 @@ export function BoardView({ board }: { board: Board }) {
     usePlannerStore();
   const [view, setViewState] = useState<View>(initialView);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [dropColumn, setDropColumn] = useState<string | null>(null);
   const [draftByColumn, setDraftByColumn] = useState<Record<string, string>>(
     {},
   );
@@ -210,29 +210,18 @@ export function BoardView({ board }: { board: Board }) {
               );
               const fromRoadmap = Boolean(column.roadmapSection);
               return (
-                <section
+                <DropZone
+                  as="section"
                   key={column.id}
                   aria-label={column.title}
-                  onDragOver={(event) => {
-                    if (event.dataTransfer.types.includes(CARD_DRAG_MIME)) {
-                      event.preventDefault();
-                      setDropColumn(column.id);
-                    }
-                  }}
-                  onDragLeave={() =>
-                    setDropColumn((id) => (id === column.id ? null : id))
+                  accept={[CARD_DRAG_TYPE]}
+                  onDrop={(item) => moveCard(item.payload, column.id)}
+                  className={({ isOver }) =>
+                    cn(
+                      "flex w-72 shrink-0 flex-col rounded-[16px] border bg-surface-2/50 transition-colors",
+                      isOver ? "border-accent/60 bg-accent-soft" : "border-border",
+                    )
                   }
-                  onDrop={(event) => {
-                    const cardId = event.dataTransfer.getData(CARD_DRAG_MIME);
-                    setDropColumn(null);
-                    if (cardId) moveCard(cardId, column.id);
-                  }}
-                  className={cn(
-                    "flex w-72 shrink-0 flex-col rounded-[16px] border bg-surface-2/50 transition-colors",
-                    dropColumn === column.id
-                      ? "border-accent/60 bg-accent-soft"
-                      : "border-border",
-                  )}
                 >
                   <ColumnHeader
                     column={column}
@@ -284,7 +273,7 @@ export function BoardView({ board }: { board: Board }) {
                       />
                     </form>
                   )}
-                </section>
+                </DropZone>
               );
             })}
 

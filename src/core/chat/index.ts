@@ -1,3 +1,3 @@
 export { Composer, baseName } from "./Composer";
 export { ConversationView } from "./ConversationView";
-export { useOsFileDrop, FILE_DRAG_MIME } from "./useOsFileDrop";
+export { useOsFileDrop, FILE_DRAG_TYPE } from "./useOsFileDrop";

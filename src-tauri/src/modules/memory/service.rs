@@ -203,6 +203,42 @@ impl MemoryService {
         self.write_notes(&notes)
     }
 
+    /// Ajoute plusieurs informations d'un coup (import). Ignore les vides et celles déjà
+    /// présentes à l'identique dans la même portée. Retourne le nombre ajouté.
+    pub fn add_notes(&self, texts: &[String], project: Option<String>) -> AppResult<usize> {
+        let project = project.filter(|p| !p.trim().is_empty());
+        let _guard = self.guard();
+        let mut notes = self.read_notes();
+        let now = chrono::Utc::now().timestamp();
+        let mut added = 0;
+        for text in texts {
+            let Ok(text) = clean(text) else {
+                continue;
+            };
+            let duplicate = notes.iter().any(|n| {
+                n.text.eq_ignore_ascii_case(&text)
+                    && n.project.as_deref().map(normalize) == project.as_deref().map(normalize)
+            });
+            if duplicate {
+                continue;
+            }
+            notes.push(Note {
+                id: uuid::Uuid::new_v4().to_string(),
+                text,
+                project: project.clone(),
+                enabled: true,
+                // Décalage d'une seconde par note : l'ordre du fichier est conservé.
+                created_at: now + added as i64,
+                updated_at: now,
+            });
+            added += 1;
+        }
+        if added > 0 {
+            self.write_notes(&notes)?;
+        }
+        Ok(added)
+    }
+
     // ── Contexte injecté ────────────────────────────────────────────────────
     /// Bloc ajouté au premier message d'une conversation : notes actives, globales ou du projet.
     /// `None` s'il n'y a rien à transmettre.
@@ -240,6 +276,98 @@ impl MemoryService {
         block.push_str(footer);
         Some(block)
     }
+}
+
+/// Taille maximale d'un fichier importé.
+const IMPORT_MAX_BYTES: u64 = 1024 * 1024;
+
+/// Lit un fichier d'informations à importer et le découpe en entrées.
+pub fn read_import_file(path: &Path) -> AppResult<Vec<String>> {
+    let size = std::fs::metadata(path)?.len();
+    if size > IMPORT_MAX_BYTES {
+        return Err(AppError::invalid("fichier trop volumineux (1 Mo max)"));
+    }
+    let raw = std::fs::read_to_string(path)
+        .map_err(|_| AppError::invalid("fichier illisible : utilisez un fichier texte (UTF-8)"))?;
+    let is_json = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("json"));
+    let items = if is_json { parse_json_import(&raw)? } else { parse_text_import(&raw) };
+    Ok(items.into_iter().filter(|item| item.chars().count() <= NOTE_MAX).collect())
+}
+
+/// JSON : tableau de textes, ou d'objets `{ "text": … }`.
+fn parse_json_import(raw: &str) -> AppResult<Vec<String>> {
+    let value: serde_json::Value =
+        serde_json::from_str(raw).map_err(|e| AppError::invalid(format!("JSON invalide : {e}")))?;
+    let array = value
+        .as_array()
+        .ok_or_else(|| AppError::invalid("le JSON doit être une liste"))?;
+    Ok(array
+        .iter()
+        .filter_map(|item| match item {
+            serde_json::Value::String(text) => Some(text.trim().to_string()),
+            other => other.get("text").and_then(|t| t.as_str()).map(|t| t.trim().to_string()),
+        })
+        .filter(|text| !text.is_empty())
+        .collect())
+}
+
+/// Texte ou Markdown : une information par ligne (puces `-`, `*`, `•`, numéros ou texte simple).
+/// Titres et séparateurs ignorés ; une ligne indentée sous une puce la complète.
+fn parse_text_import(raw: &str) -> Vec<String> {
+    let mut items: Vec<String> = Vec::new();
+    let mut previous_was_item = false;
+    for line in raw.lines() {
+        let indented = line.starts_with("  ") || line.starts_with('\t');
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            previous_was_item = false;
+            continue;
+        }
+        if trimmed.starts_with('#') || trimmed.chars().all(|c| matches!(c, '-' | '*' | '_' | '=')) {
+            previous_was_item = false;
+            continue;
+        }
+        let content = strip_bullet(trimmed);
+        if content.is_empty() {
+            continue;
+        }
+        let is_bullet = content.len() != trimmed.len();
+        if indented && previous_was_item && !is_bullet {
+            if let Some(last) = items.last_mut() {
+                last.push(' ');
+                last.push_str(content);
+                continue;
+            }
+        }
+        items.push(content.to_string());
+        previous_was_item = true;
+    }
+    items
+}
+
+fn strip_bullet(line: &str) -> &str {
+    let without = line
+        .strip_prefix("- [ ] ")
+        .or_else(|| line.strip_prefix("- [x] "))
+        .or_else(|| line.strip_prefix("- "))
+        .or_else(|| line.strip_prefix("* "))
+        .or_else(|| line.strip_prefix("• "))
+        .or_else(|| line.strip_prefix("+ "));
+    if let Some(rest) = without {
+        return rest.trim();
+    }
+    // « 1. » ou « 1) »
+    let digits = line.chars().take_while(char::is_ascii_digit).count();
+    if digits > 0 {
+        let rest = &line[digits..];
+        if let Some(rest) = rest.strip_prefix(". ").or_else(|| rest.strip_prefix(") ")) {
+            return rest.trim();
+        }
+    }
+    line
 }
 
 #[cfg(test)]
@@ -297,6 +425,38 @@ mod tests {
             .update_note(&note.id, NotePatch { enabled: Some(false), ..Default::default() })
             .unwrap();
         assert!(memory.build_context(None).is_none());
+    }
+
+    #[test]
+    fn parses_text_and_markdown_lists() {
+        let raw = "# Moi\n\n- Je m'appelle Alix\n* Je code en TypeScript\n  et en Rust\n1. Réponses en français\n---\nJ'aime les interfaces sobres\n\n## Vide\n- \n";
+        assert_eq!(
+            parse_text_import(raw),
+            vec![
+                "Je m'appelle Alix",
+                "Je code en TypeScript et en Rust",
+                "Réponses en français",
+                "J'aime les interfaces sobres",
+            ]
+        );
+    }
+
+    #[test]
+    fn parses_json_lists() {
+        let items = parse_json_import(r#"["a", {"text": " b "}, 3, {"autre": 1}, ""]"#).unwrap();
+        assert_eq!(items, vec!["a", "b"]);
+        assert!(parse_json_import(r#"{"text": "a"}"#).is_err());
+    }
+
+    #[test]
+    fn bulk_add_skips_duplicates() {
+        let memory = service("bulk");
+        memory.add_note("Déjà là", None).unwrap();
+        let added = memory
+            .add_notes(&["déjà là".into(), "Nouveau".into(), " ".into(), "Nouveau".into()], None)
+            .unwrap();
+        assert_eq!(added, 1);
+        assert_eq!(memory.notes().len(), 2);
     }
 
     #[test]

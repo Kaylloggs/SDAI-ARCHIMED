@@ -8,7 +8,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/core/lib/cn";
-import { FILE_DRAG_MIME } from "@/core/chat";
+import { FILE_DRAG_TYPE } from "@/core/chat";
+import { useDragSource } from "@/core/dnd";
 import { Button } from "@/design-system/primitives";
 import { codeApi, type FileEntry } from "../api";
 
@@ -51,6 +52,7 @@ function FileNode({ entry, depth, activePath, onOpenFile }: NodeProps) {
   };
 
   const active = !entry.isDir && entry.path === activePath;
+  const drag = useDragSource(entry.isDir ? null : { type: FILE_DRAG_TYPE, payload: entry.path, label: entry.name });
 
   return (
     <li>
@@ -59,12 +61,7 @@ function FileNode({ entry, depth, activePath, onOpenFile }: NodeProps) {
         aria-expanded={entry.isDir ? open : undefined}
         aria-selected={active}
         tabIndex={0}
-        draggable={!entry.isDir}
-        onDragStart={(event) => {
-          event.dataTransfer.setData(FILE_DRAG_MIME, entry.path);
-          event.dataTransfer.setData("text/plain", entry.path);
-          event.dataTransfer.effectAllowed = "copy";
-        }}
+        onPointerDown={drag.onPointerDown}
         onClick={() => void toggle()}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {

@@ -69,6 +69,7 @@ SDAI ARCHIMED/
 │   ├── core/
 │   │   ├── chat/                        # Composer · ConversationView · useOsFileDrop
 │   │   │                                # (UI de conversation partagée chat/code)
+│   │   ├── dnd/                         # glisser-déposer interne (pointeur) : useDragSource · DropZone · DragLayer
 │   │   ├── modules/                     # define-module · manifest.schema · registry
 │   │   │                                # · useModules · services · slots · types · index
 │   │   ├── shell/                       # AppShell (cadre) · TitleBar · Sidebar (rail en verre)

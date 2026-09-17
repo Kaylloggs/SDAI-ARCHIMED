@@ -41,5 +41,5 @@ export function useOsFileDrop(onPaths: (paths: string[]) => void): boolean {
   return dragging;
 }
 
-/** Type MIME utilisé pour glisser un fichier depuis l'arbre du module Code. */
-export const FILE_DRAG_MIME = "application/x-archimed-file";
+/** Type de glisser (`@/core/dnd`) d'un fichier depuis l'arbre du module Code. */
+export const FILE_DRAG_TYPE = "file";

@@ -42,10 +42,44 @@ struct Denial {
     target: String,
 }
 
+/// Consommation du tour en cours, reconstituée depuis les étapes.
+///
+/// Le `usage` et le `duration_seconds` de l'événement `result` d'agy sont **cumulés depuis le
+/// début de la conversation** (vérifié sur agy 1.2.3 : 13 130 puis 26 527 tokens d'entrée pour
+/// deux tours de ~13 k). Les additionner tour après tour surestimait fortement la consommation.
+/// Chaque étape `agent_response` porte en revanche l'usage de son propre appel au modèle.
+#[derive(Default)]
+struct TurnUsage {
+    input: u64,
+    output: u64,
+    thinking: u64,
+    cache: u64,
+    counted_steps: std::collections::HashSet<u64>,
+    started: Option<std::time::Instant>,
+}
+
+impl TurnUsage {
+    fn add_step(&mut self, step: &Value) {
+        let Some(usage) = step.get("usage") else {
+            return;
+        };
+        let index = step.get("step_index").and_then(Value::as_u64).unwrap_or(u64::MAX);
+        if !self.counted_steps.insert(index) {
+            return;
+        }
+        let count = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0);
+        self.input += count("input_tokens");
+        self.output += count("output_tokens");
+        self.thinking += count("thinking_tokens");
+        self.cache += count("cache_read_tokens");
+    }
+}
+
 #[derive(Default)]
 pub struct AntigravityAdapter {
     /// prompt_id → règle à accorder.
     denials: HashMap<String, Denial>,
+    turn: TurnUsage,
 }
 
 impl CliAdapter for AntigravityAdapter {
@@ -154,12 +188,18 @@ impl CliAdapter for AntigravityAdapter {
                     }]
                 })
                 .unwrap_or_default(),
-            Some("step_update") => decode_step(
-                value.get("step_update").unwrap_or(&Value::Null),
-                ctx.session_id,
-                &mut self.denials,
-            ),
-            Some("result") => decode_result(value.get("result").unwrap_or(&Value::Null)),
+            Some("step_update") => {
+                let step = value.get("step_update").unwrap_or(&Value::Null);
+                if self.turn.started.is_none() {
+                    self.turn.started = Some(std::time::Instant::now());
+                }
+                self.turn.add_step(step);
+                decode_step(step, ctx.session_id, &mut self.denials)
+            }
+            Some("result") => {
+                let turn = std::mem::take(&mut self.turn);
+                decode_result(value.get("result").unwrap_or(&Value::Null), &turn)
+            }
             _ => Vec::new(),
         }
     }
@@ -434,20 +474,15 @@ fn remove_rule(settings: &mut Value, rule: &str) -> bool {
     allow.len() != before
 }
 
-fn decode_result(result: &Value) -> Vec<EngineEvent> {
-    let usage = result.get("usage").unwrap_or(&Value::Null);
-    let count = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0);
+fn decode_result(result: &Value, turn: &TurnUsage) -> Vec<EngineEvent> {
     let ok = result.get("status").and_then(Value::as_str) == Some("SUCCESS");
 
     let mut events = vec![EngineEvent::TurnCompleted {
-        duration_ms: result
-            .get("duration_seconds")
-            .and_then(Value::as_f64)
-            .map(|seconds| (seconds * 1000.0).round() as u64),
-        input_tokens: count("input_tokens"),
-        output_tokens: count("output_tokens"),
-        thinking_tokens: count("thinking_tokens"),
-        cache_tokens: count("cache_read_tokens"),
+        duration_ms: turn.started.map(|started| started.elapsed().as_millis() as u64),
+        input_tokens: turn.input,
+        output_tokens: turn.output,
+        thinking_tokens: turn.thinking,
+        cache_tokens: turn.cache,
         cost_usd: None,
         ok,
     }];
@@ -533,12 +568,12 @@ mod tests {
             .iter()
             .find_map(|e| match e {
                 EngineEvent::TurnCompleted { duration_ms, input_tokens, output_tokens, thinking_tokens, ok, .. } => {
-                    Some((*duration_ms, *input_tokens, *output_tokens, *thinking_tokens, *ok))
+                    Some((duration_ms.is_some(), *input_tokens, *output_tokens, *thinking_tokens, *ok))
                 }
                 _ => None,
             })
             .unwrap();
-        assert_eq!(turn, (Some(14080), 13055, 59, 58, true));
+        assert_eq!(turn, (true, 13055, 59, 58, true));
         // Une seule fin de tour : pas de double comptage de l'usage des étapes.
         assert_eq!(events.iter().filter(|e| matches!(e, EngineEvent::TurnCompleted { .. })).count(), 1);
     }
@@ -597,6 +632,28 @@ mod tests {
         let mut empty = json!({});
         assert!(add_rule(&mut empty, "read_file(C:/a)"));
         assert_eq!(empty["permissions"]["allow"][0], "read_file(C:/a)");
+    }
+
+    /// Deux tours réels (agy 1.2.3) : le `result` est cumulé, les étapes ne le sont pas.
+    #[test]
+    fn counts_each_turn_once_despite_cumulative_results() {
+        let mut adapter = AntigravityAdapter::default();
+        let session = r#"{"event":"step_update","step_update":{"step_index":0,"state":"DONE","step_type":"user_input"}}
+{"event":"step_update","step_update":{"step_index":1,"state":"DONE","step_type":"agent_response","usage":{"input_tokens":13130,"output_tokens":74,"thinking_tokens":0,"cache_read_tokens":0}}}
+{"event":"result","result":{"status":"SUCCESS","duration_seconds":1.55,"num_turns":1,"usage":{"input_tokens":13130,"output_tokens":74}}}
+{"event":"step_update","step_update":{"step_index":3,"state":"DONE","step_type":"user_input"}}
+{"event":"step_update","step_update":{"step_index":4,"state":"DONE","step_type":"agent_response","usage":{"input_tokens":13397,"output_tokens":74,"thinking_tokens":0,"cache_read_tokens":0}}}
+{"event":"step_update","step_update":{"step_index":4,"state":"DONE","step_type":"agent_response","usage":{"input_tokens":13397,"output_tokens":74,"thinking_tokens":0,"cache_read_tokens":0}}}
+{"event":"result","result":{"status":"SUCCESS","duration_seconds":3.75,"num_turns":2,"usage":{"input_tokens":26527,"output_tokens":148}}}"#;
+        let inputs: Vec<u64> = session
+            .lines()
+            .flat_map(|line| adapter.decode_line(line, &ctx()))
+            .filter_map(|e| match e {
+                EngineEvent::TurnCompleted { input_tokens, .. } => Some(input_tokens),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(inputs, vec![13130, 13397]);
     }
 
     #[test]

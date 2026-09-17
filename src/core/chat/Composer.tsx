@@ -15,7 +15,8 @@ import { Slot } from "@/core/modules";
 import type { AdapterInfo, AutoMode } from "@/core/engine/types";
 import { Button, Kbd, Select } from "@/design-system/primitives";
 import { useUiStore } from "@/core/stores/ui.store";
-import { FILE_DRAG_MIME, useOsFileDrop } from "./useOsFileDrop";
+import { FILE_DRAG_TYPE, useOsFileDrop } from "./useOsFileDrop";
+import { useDropTarget } from "@/core/dnd";
 
 const AUTO_LABELS: Record<AutoMode, string> = {
   off: "Validation manuelle",
@@ -67,7 +68,6 @@ export function Composer({
 }: Props) {
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<string[]>([]);
-  const [dropHover, setDropHover] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const toggleRawTerminal = useUiStore((s) => s.toggleRawTerminal);
   const adapter = adapters.find((a) => a.id === adapterId);
@@ -90,6 +90,12 @@ export function Composer({
       el.style.height = `${Math.min(el.scrollHeight, compact ? 160 : 240)}px`;
     });
   }, [compact]);
+
+  // Fichier glissé depuis l'arborescence du module Code → cible de modification.
+  const fileDrop = useDropTarget(onTargetsChange ? [FILE_DRAG_TYPE] : [], (item) => {
+    onTargetsChange?.([...new Set([...targets, item.payload])]);
+  });
+  const dropHover = fileDrop.isOver;
 
   const submit = () => {
     const value = text.trim();
@@ -132,21 +138,7 @@ export function Composer({
   return (
     <div className={cn("mx-auto w-full px-6 pb-4", compact ? "max-w-full px-3" : "max-w-[var(--spacing-column)]")}>
       <div
-        onDragOver={(event) => {
-          if (event.dataTransfer.types.includes(FILE_DRAG_MIME)) {
-            event.preventDefault();
-            setDropHover(true);
-          }
-        }}
-        onDragLeave={() => setDropHover(false)}
-        onDrop={(event) => {
-          const path = event.dataTransfer.getData(FILE_DRAG_MIME);
-          setDropHover(false);
-          if (path && onTargetsChange) {
-            event.preventDefault();
-            onTargetsChange([...new Set([...targets, path])]);
-          }
-        }}
+        {...fileDrop.props}
         className={cn(
           "glass rounded-xl px-3 pb-2 pt-3 transition-shadow",
           autoMode === "full" && "ring-1 ring-warning/60",

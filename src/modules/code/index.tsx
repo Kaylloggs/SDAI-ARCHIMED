@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Code2, FolderOpen, Loader2, PanelRight, Plus, Save, Search, X } from "lucide-react";
+import { Code2, FolderOpen, Loader2, PanelRight, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Badge, Button, EmptyState, Select } from "@/design-system/primitives";
 import { Composer, ConversationView } from "@/core/chat";
@@ -42,6 +42,14 @@ export default function CodeModule() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   /** Onglet modifié dont la fermeture attend un second clic (modifications perdues). */
   const [closeArmed, setCloseArmed] = useState<string | null>(null);
+  /** Suppression de la conversation affichée : confirmée par un second clic. */
+  const [deleteArmed, setDeleteArmed] = useState(false);
+
+  useEffect(() => {
+    if (!deleteArmed) return;
+    const timer = setTimeout(() => setDeleteArmed(false), 3000);
+    return () => clearTimeout(timer);
+  }, [deleteArmed]);
 
   /** Conversation choisie dans ce projet ; `null` = brouillon (créée au premier envoi). */
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -409,6 +417,28 @@ export default function CodeModule() {
                 }}
               >
                 <Plus size={13} strokeWidth={1.75} />
+              </Button>
+            )}
+            {session && (
+              <Button
+                size="sm"
+                variant={deleteArmed ? "danger" : "ghost"}
+                aria-label={deleteArmed ? "Confirmer la suppression" : "Supprimer la conversation"}
+                title={deleteArmed ? "Cliquer à nouveau pour supprimer" : "Supprimer la conversation"}
+                onClick={() => {
+                  if (!deleteArmed) {
+                    setDeleteArmed(true);
+                    return;
+                  }
+                  setDeleteArmed(false);
+                  void chat.remove(session);
+                  // La conversation la plus récente restante est reprise automatiquement.
+                  setSessionId(null);
+                  setDraftChosen(false);
+                }}
+              >
+                <Trash2 size={13} strokeWidth={1.75} />
+                {deleteArmed && "Supprimer ?"}
               </Button>
             )}
           </header>

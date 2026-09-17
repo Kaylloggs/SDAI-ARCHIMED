@@ -1,2 +1,2 @@
 id = "memory"
-commands = ["list_notes", "add_note", "update_note", "delete_note", "get_settings", "set_settings", "build_context", "preview_context"]
+commands = ["list_notes", "add_note", "add_notes", "read_import", "update_note", "delete_note", "get_settings", "set_settings", "build_context", "preview_context"]
