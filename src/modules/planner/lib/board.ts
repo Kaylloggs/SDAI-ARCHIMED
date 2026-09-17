@@ -125,3 +125,23 @@ export function progress(board: Board): { done: number; total: number } {
     total: board.cards.length,
   };
 }
+
+/** Supprime une colonne et ses cartes. Les colonnes issues d'un roadmap.md sont recréées à la synchronisation. */
+export function removeColumn(board: Board, columnId: string): Board {
+  return {
+    ...board,
+    columns: board.columns.filter((column) => column.id !== columnId),
+    cards: board.cards.filter((card) => card.columnId !== columnId),
+    updatedAt: Date.now(),
+  };
+}
+
+export function renameColumn(board: Board, columnId: string, title: string): Board {
+  const name = title.trim();
+  if (!name) return board;
+  return {
+    ...board,
+    columns: board.columns.map((column) => (column.id === columnId ? { ...column, title: name } : column)),
+    updatedAt: Date.now(),
+  };
+}

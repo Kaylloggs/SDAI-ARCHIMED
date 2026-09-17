@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { addCards, createBoard, syncBoardWithRoadmap, taskKey } from "../lib/board";
+import { addCards, createBoard, removeColumn, renameColumn, syncBoardWithRoadmap, taskKey } from "../lib/board";
 import { extractEvents, extractTasks, findDate } from "../lib/extract";
-import { dueState, googleCalendarUrl } from "../lib/calendar";
+import { dueState, googleCalendarUrl, monthGrid } from "../lib/calendar";
 import type { RoadmapDoc } from "../types";
 
 const NOW = new Date(2026, 8, 16); // 16 septembre 2026
@@ -110,5 +110,26 @@ describe("agenda", () => {
     expect(dueState("2026-09-16", NOW)).toBe("today");
     expect(dueState("2026-09-18", NOW)).toBe("soon");
     expect(dueState("2026-10-30", NOW)).toBeNull();
+  });
+});
+
+describe("colonnes et calendrier", () => {
+  it("supprime une colonne avec ses cartes et renomme", () => {
+    const board = createBoard({ name: "Perso" });
+    const [todo, doing] = board.columns;
+    const filled = addCards(addCards(board, [{ title: "A" }], todo!.id), [{ title: "B" }], doing!.id);
+    const removed = removeColumn(filled, todo!.id);
+    expect(removed.columns).toHaveLength(2);
+    expect(removed.cards.map((c) => c.title)).toEqual(["B"]);
+    expect(renameColumn(removed, doing!.id, "  Actif ").columns[0]?.title).toBe("Actif");
+    expect(renameColumn(removed, doing!.id, "  ").columns[0]?.title).toBe("En cours");
+  });
+
+  it("construit la grille du mois du lundi au dimanche", () => {
+    const grid = monthGrid(2026, 8); // septembre 2026 : commence un mardi
+    expect(grid.length % 7).toBe(0);
+    expect(grid[0]).toMatchObject({ date: "2026-08-31", inMonth: false });
+    expect(grid[1]).toMatchObject({ date: "2026-09-01", day: 1, inMonth: true });
+    expect(grid.filter((d) => d.inMonth)).toHaveLength(30);
   });
 });

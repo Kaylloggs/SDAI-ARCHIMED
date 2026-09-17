@@ -2,6 +2,10 @@
 
 Gestionnaire de tâches façon Trello : **plusieurs tableaux**, colonnes, cartes (échéance, étiquettes, notes, sous-tâches), glisser-déposer entre colonnes, progression.
 
+## Vues
+- **Tableau** : colonnes et cartes. Renommer une colonne (double clic ou crayon), la supprimer avec ses cartes (corbeille, confirmation en deux temps). Les colonnes issues d'un `roadmap.md` se gèrent dans le fichier.
+- **Calendrier** : mois du lundi au dimanche, échéances colorées (retard, aujourd'hui, bientôt). Glisser une carte sur un jour fixe son échéance, sur « Sans échéance » la retire ; « + » sur un jour crée une carte datée. Vue mémorisée par poste (`localStorage`, confort uniquement).
+
 - **Backend** : plugin `planner` (`src-tauri/src/modules/planner/`).
 - **Commandes** : `load_boards`, `save_boards`, `read_roadmap`, `set_roadmap_task`, `append_roadmap_tasks`, `find_roadmap`, `watch_roadmap`, `unwatch_roadmap`, `export_ics`.
 - **Stockage** : `%APPDATA%\com.sdai.archimed\modules\planner\boards.json` (écriture atomique, sauvegarde différée de 400 ms).

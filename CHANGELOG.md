@@ -94,6 +94,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - Vérifié sur agy 1.2.3 : une règle ajoutée pendant qu'agy tourne est ignorée, d'où la relance.
 - La conversation reste « en attente » si la CLI termine son tour avant la réponse de l'utilisateur.
 
+### Ajouté — Planner : colonnes et calendrier
+- Colonnes **renommables et supprimables** (avec leurs cartes, confirmation en deux temps).
+- **Vue Calendrier** mensuelle : échéances par jour, glisser-déposer pour planifier ou déplanifier, création de carte datée, bascule Tableau / Calendrier dans l'en-tête.
+
 ### Connu / à faire (Phase 3)
 - Génération des types TS depuis Rust (`ts-rs`) : seuls les codes d'erreur sont générés, les types du moteur sont encore recopiés à la main.
 - Envoi natif des images aux CLI qui le supportent (aujourd'hui : chemins transmis à l'agent).

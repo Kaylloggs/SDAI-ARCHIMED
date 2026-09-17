@@ -35,3 +35,32 @@ export function dueState(date: string, now: Date = new Date()): "late" | "today"
   if (days <= 3) return "soon";
   return null;
 }
+
+/** `AAAA-MM-JJ` en heure locale. */
+export function isoDate(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/**
+ * Grille d'un mois affichée du lundi au dimanche : 5 ou 6 semaines complètes,
+ * jours des mois voisins inclus (`inMonth: false`).
+ */
+export function monthGrid(year: number, month: number): Array<{ date: string; day: number; inMonth: boolean }> {
+  const first = new Date(year, month, 1);
+  const offset = (first.getDay() + 6) % 7; // lundi = 0
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const weeks = Math.ceil((offset + daysInMonth) / 7);
+  return Array.from({ length: weeks * 7 }, (_, index) => {
+    const date = new Date(year, month, index - offset + 1);
+    return { date: isoDate(date), day: date.getDate(), inMonth: date.getMonth() === month };
+  });
+}
+
+const monthFormatter = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" });
+
+export function formatMonth(year: number, month: number): string {
+  const label = monthFormatter.format(new Date(year, month, 1));
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
