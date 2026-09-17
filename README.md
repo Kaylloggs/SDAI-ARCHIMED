@@ -56,7 +56,7 @@ An evolutive, modular desktop app uniting Claude Code, Antigravity, and Codex wi
   turning off a module simply unmounts it from the UI.
   - **Add New Modules On Demand**: Scaffold and add new modules whenever you need with a single command (`pnpm
   new:module <id>`).
-  - **Roadmap**: Currently shipping with **3 core feature modules** (`chat`, `code`, `skills`), with more base
+  - **Roadmap**: Currently shipping with **4 core feature modules** (`chat`, `code`, `skills`, `planner`), with more base
   modules planned (e.g. system file manager, voice dictation, local image generation, agentic workflow automations).
 
   ---
