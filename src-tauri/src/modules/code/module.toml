@@ -1,2 +1,2 @@
 id = "code"
-commands = ["list_dir", "read_file", "write_file", "project_info", "search_files"]
+commands = ["list_dir", "read_file", "write_file", "project_info", "search_files", "watch_root", "unwatch_root"]

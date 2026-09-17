@@ -1,9 +1,10 @@
 use tauri::plugin::{Builder, TauriPlugin};
-use tauri::Runtime;
+use tauri::{Manager, Runtime};
 
 mod commands;
 mod service;
 mod types;
+mod watcher;
 
 pub const ID: &str = "code";
 
@@ -15,6 +16,12 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::write_file,
             commands::project_info,
             commands::search_files,
+            commands::watch_root,
+            commands::unwatch_root,
         ])
+        .setup(|app, _api| {
+            app.manage(watcher::ProjectWatcher::default());
+            Ok(())
+        })
         .build()
 }

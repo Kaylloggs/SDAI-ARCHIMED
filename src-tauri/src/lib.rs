@@ -51,6 +51,7 @@ pub fn run() {
             engine_commands::engine_resolve_paths,
             engine_commands::engine_open_path,
             engine_commands::engine_reveal_path,
+            engine_commands::engine_probe_ports,
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de SDAI ARCHIMED");

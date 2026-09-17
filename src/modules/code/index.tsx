@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Code2, FolderOpen, Loader2, PanelRight, Plus, Save, Search, Trash2, X } from "lucide-react";
+import { Code2, FolderOpen, Globe, Loader2, PanelRight, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { cn } from "@/core/lib/cn";
-import { Badge, Button, EmptyState, Select } from "@/design-system/primitives";
+import { Badge, Button, EmptyState, ResizeHandle, Select, Tooltip, usePanelSize } from "@/design-system/primitives";
+import { PreviewPane, isHtmlFile, usePreviewTargets } from "@/core/preview";
 import { Composer, ConversationView } from "@/core/chat";
 import { Slot } from "@/core/modules";
 import { useAdapters } from "@/core/engine/useAdapters";
@@ -11,7 +12,7 @@ import { useSessionStore } from "@/core/engine/session.store";
 import { engineApi } from "@/core/engine/engine.api";
 import { useUiStore } from "@/core/stores/ui.store";
 import type { AutoMode, PromptAnswer } from "@/core/engine/types";
-import { codeApi, type FileContent, type FileEntry, type ProjectInfo } from "./api";
+import { codeApi, samePath, type FileContent, type FileEntry, type ProjectInfo } from "./api";
 import { FileTree } from "./components/FileTree";
 import { CodeEditor } from "./components/CodeEditor";
 import { FilePalette } from "./components/FilePalette";
@@ -40,6 +41,11 @@ export default function CodeModule() {
   const [error, setError] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [treeWidth, setTreeWidth] = usePanelSize("code.tree", 240, 160, 480);
+  const [chatWidth, setChatWidth] = usePanelSize("code.chat", 380, 280, 760);
+  const [previewWidth, setPreviewWidth] = usePanelSize("code.preview", 520, 280, 1200);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [fsRevision, setFsRevision] = useState(0);
   /** Onglet modifié dont la fermeture attend un second clic (modifications perdues). */
   const [closeArmed, setCloseArmed] = useState<string | null>(null);
   /** Suppression de la conversation affichée : confirmée par un second clic. */
@@ -196,6 +202,38 @@ export default function CodeModule() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [completedTools]);
 
+  // Fichiers modifiés sur disque (par l'IA ou un autre programme) : onglets non modifiés relus.
+  const openFilesRef = useRef(openFiles);
+  openFilesRef.current = openFiles;
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    void codeApi
+      .onFsChanged((change) => {
+        // L'aperçu se recharge quand une ressource web du projet change.
+        if (change.files.some((path) => /\.(html?|css|m?js|ts|tsx|jsx|svg|png|jpe?g|webp|json)$/i.test(path))) {
+          setFsRevision((value) => value + 1);
+        }
+        const touched = openFilesRef.current.filter(
+          (file) => draftsRef.current[file.path] === undefined && change.files.some((path) => samePath(path, file.path)),
+        );
+        if (touched.length === 0) return;
+        void Promise.all(touched.map((file) => codeApi.readFile(file.path).catch(() => file))).then((fresh) => {
+          setOpenFiles((current) => current.map((file) => fresh.find((f) => samePath(f.path, file.path)) ?? file));
+        });
+      })
+      .then((stop) => {
+        if (cancelled) stop();
+        else unlisten = stop;
+      });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
+
   const pickRoot = async () => {
     const selected = await open({ directory: true, title: "Ouvrir un projet" });
     if (typeof selected === "string") setRoot(selected);
@@ -235,6 +273,10 @@ export default function CodeModule() {
     else setDraft((d) => ({ ...d, autoMode: mode }));
   };
 
+  const activeHtml = active && isHtmlFile(active.path) ? [active.path] : [];
+  const previewTargets = usePreviewTargets(session?.timeline, activeHtml);
+  const liveServer = previewTargets.some((target) => target.kind === "server");
+
   if (!root) {
     return (
       <EmptyState
@@ -255,12 +297,14 @@ export default function CodeModule() {
     <div className="flex h-full">
       <FileTree
         root={root}
+        width={treeWidth}
         activePath={activePath}
         onOpenFile={(entry) => void openFile(entry)}
         onChangeRoot={() => void pickRoot()}
       />
+      <ResizeHandle size={treeWidth} onResize={setTreeWidth} panel="before" label="Largeur de l'arborescence" defaultSize={240} />
 
-      <div className="flex min-w-[280px] flex-1 flex-col">
+      <div className="flex min-w-[240px] flex-1 flex-col">
         <header className="flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-2">
           {openFiles.length === 0 ? (
             <span className="px-2 text-footnote text-text-subtle">
@@ -339,6 +383,29 @@ export default function CodeModule() {
                 )}
               </>
             )}
+            <Tooltip
+              side="bottom"
+              label={
+                liveServer
+                  ? "Aperçu · serveur de test actif"
+                  : previewTargets.length > 0
+                    ? "Aperçu de la page"
+                    : "Aperçu (aucun serveur ni page HTML détecté)"
+              }
+            >
+              <button
+                onClick={() => setPreviewOpen((value) => !value)}
+                aria-label={previewOpen ? "Masquer l'aperçu" : "Afficher l'aperçu"}
+                aria-pressed={previewOpen}
+                className={cn(
+                  "relative flex size-7 items-center justify-center rounded-sm transition-colors",
+                  previewOpen ? "text-accent" : "text-text-subtle hover:text-text",
+                )}
+              >
+                <Globe size={14} strokeWidth={1.75} />
+                {liveServer && <span className="absolute right-1 top-1 size-1.5 rounded-full bg-success" />}
+              </button>
+            </Tooltip>
             <button
               onClick={() => setPaletteOpen(true)}
               aria-label="Aller au fichier (Ctrl+P)"
@@ -383,8 +450,25 @@ export default function CodeModule() {
         {error && <p className="px-4 pb-2 text-footnote text-danger">{error}</p>}
       </div>
 
+      {previewOpen && (
+        <>
+          <ResizeHandle size={previewWidth} onResize={setPreviewWidth} panel="after" label="Largeur de l'aperçu" defaultSize={520} />
+          <PreviewPane
+            targets={previewTargets}
+            preferredId={active && isHtmlFile(active.path) ? `file:${active.path}` : null}
+            onClose={() => setPreviewOpen(false)}
+            refreshKey={fsRevision}
+            className="shrink-0"
+            style={{ width: previewWidth }}
+          />
+        </>
+      )}
+
       {chatOpen && (
-        <section className="flex w-[clamp(300px,30%,440px)] shrink-0 flex-col border-l border-border">
+        <ResizeHandle size={chatWidth} onResize={setChatWidth} panel="after" label="Largeur de l'assistant" defaultSize={380} />
+      )}
+      {chatOpen && (
+        <section style={{ width: chatWidth }} className="flex min-w-0 shrink-0 flex-col">
           <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-3">
             {projectSessions.length > 0 ? (
               <Select

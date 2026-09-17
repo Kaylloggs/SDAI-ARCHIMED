@@ -48,3 +48,19 @@ pub async fn search_files(root: String, query: String, limit: Option<usize>) -> 
     .await
     .map_err(|e| crate::core::AppError::internal(e.to_string()))?
 }
+
+/// Surveille le projet ouvert : émet `code:fs-changed` quand des fichiers changent.
+#[tauri::command]
+pub async fn watch_root<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    watcher: tauri::State<'_, super::watcher::ProjectWatcher>,
+    root: String,
+) -> AppResult<()> {
+    watcher.watch(app, to_path(&root))
+}
+
+#[tauri::command]
+pub async fn unwatch_root(watcher: tauri::State<'_, super::watcher::ProjectWatcher>) -> AppResult<()> {
+    watcher.unwatch();
+    Ok(())
+}

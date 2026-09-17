@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { MessagesSquare, Loader2, FolderOpen } from "lucide-react";
+import { MessagesSquare, Loader2, FolderOpen, Globe } from "lucide-react";
 import { Slot } from "@/core/modules";
-import { Badge, Button, EmptyState } from "@/design-system/primitives";
+import { cn } from "@/core/lib/cn";
+import { Badge, Button, EmptyState, ResizeHandle, usePanelSize } from "@/design-system/primitives";
+import { PreviewPane, usePreviewTargets } from "@/core/preview";
 import type { AutoMode, PromptAnswer } from "@/core/engine/types";
 import { useAdapters } from "@/core/engine/useAdapters";
 import { useChat } from "@/core/engine/useChat";
@@ -41,6 +43,12 @@ export default function ChatModule() {
   );
   const session = chat.session;
   const adapter = adapters.find((a) => a.id === session?.adapter);
+
+  // Aperçu : serveur de test lancé par l'agent ou page HTML créée. Rien ne s'affiche sinon.
+  const previewTargets = usePreviewTargets(session?.timeline);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewWidth, setPreviewWidth] = usePanelSize("chat.preview", 560, 320, 1200);
+  const liveServer = previewTargets.find((target) => target.kind === "server");
 
   // Le dossier de travail ressemble-t-il à un projet de code ?
   useEffect(() => {
@@ -153,6 +161,26 @@ export default function ChatModule() {
             <span className="text-body-sm text-text-subtle">Aucune conversation ouverte</span>
           )}
           <div className="ml-auto flex items-center gap-2">
+            {previewTargets.length > 0 && (
+              <button
+                onClick={() => setPreviewOpen((value) => !value)}
+                aria-pressed={previewOpen}
+                title={previewOpen ? "Masquer l'aperçu" : "Prévisualiser"}
+                className={cn(
+                  "flex h-7 max-w-48 items-center gap-1.5 rounded-full border px-2.5 text-footnote transition-colors",
+                  previewOpen
+                    ? "border-accent/50 bg-accent-soft text-accent"
+                    : "border-border text-text-muted hover:border-border-strong hover:text-text",
+                )}
+              >
+                {liveServer ? (
+                  <span className="size-1.5 shrink-0 rounded-full bg-success" aria-hidden />
+                ) : (
+                  <Globe size={12} strokeWidth={1.75} className="shrink-0" />
+                )}
+                <span className="truncate">{liveServer ? liveServer.label : "Aperçu"}</span>
+              </button>
+            )}
             <Slot name="chat.header.right" />
           </div>
         </header>
@@ -231,6 +259,18 @@ export default function ChatModule() {
           />
         )}
       </div>
+
+      {previewOpen && previewTargets.length > 0 && (
+        <>
+          <ResizeHandle size={previewWidth} onResize={setPreviewWidth} panel="after" label="Largeur de l'aperçu" defaultSize={560} />
+          <PreviewPane
+            targets={previewTargets}
+            onClose={() => setPreviewOpen(false)}
+            className="shrink-0"
+            style={{ width: previewWidth }}
+          />
+        </>
+      )}
     </div>
   );
 }

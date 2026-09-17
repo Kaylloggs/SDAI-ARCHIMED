@@ -340,6 +340,50 @@ pub async fn engine_reveal_path<R: tauri::Runtime>(app: tauri::AppHandle<R>, pat
         .map_err(|e| AppError::internal(e.to_string()))
 }
 
+/// Ports locaux qui acceptent une connexion (serveurs de test lancés par un agent).
+/// Chaque port est sondé en IPv4 puis IPv6, 300 ms max, en parallèle.
+#[tauri::command]
+pub async fn engine_probe_ports(ports: Vec<u16>) -> AppResult<Vec<u16>> {
+    use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
+    use std::time::Duration;
+
+    async fn listening(port: u16) -> bool {
+        for address in [
+            SocketAddr::from((Ipv4Addr::LOCALHOST, port)),
+            SocketAddr::from((Ipv6Addr::LOCALHOST, port)),
+        ] {
+            let attempt = tokio::time::timeout(Duration::from_millis(300), tokio::net::TcpStream::connect(address));
+            if matches!(attempt.await, Ok(Ok(_))) {
+                return true;
+            }
+        }
+        false
+    }
+
+    let mut unique = ports;
+    unique.sort_unstable();
+    unique.dedup();
+    unique.truncate(64);
+    let checks = unique.into_iter().map(|port| async move { listening(port).await.then_some(port) });
+    Ok(futures_join_all(checks).await.into_iter().flatten().collect())
+}
+
+/// `join_all` minimal (évite une dépendance) : lance toutes les sondes puis attend chacune.
+async fn futures_join_all<F>(futures: impl IntoIterator<Item = F>) -> Vec<F::Output>
+where
+    F: std::future::Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    let handles: Vec<_> = futures.into_iter().map(tokio::spawn).collect();
+    let mut results = Vec::with_capacity(handles.len());
+    for handle in handles {
+        if let Ok(output) = handle.await {
+            results.push(output);
+        }
+    }
+    results
+}
+
 #[cfg(test)]
 mod path_tests {
     use super::*;
@@ -363,5 +407,17 @@ mod path_tests {
         assert!(is_executable("C:/x/popup.BAT") && !is_executable("C:/x/notes.md"));
 
         std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn probes_only_listening_ports() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let open = listener.local_addr().unwrap().port();
+        let closed = {
+            let temp = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            temp.local_addr().unwrap().port()
+        };
+        let live = engine_probe_ports(vec![open, closed, open]).await.unwrap();
+        assert_eq!(live, vec![open]);
     }
 }

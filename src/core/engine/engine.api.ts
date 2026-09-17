@@ -50,6 +50,9 @@ export const engineApi = {
   openPath: (path: string) => invokeCore<void>("engine_open_path", { path }),
 
   revealPath: (path: string) => invokeCore<void>("engine_reveal_path", { path }),
+
+  /** Ports locaux qui répondent (serveurs de test). */
+  probePorts: (ports: number[]) => invokeCore<number[]>("engine_probe_ports", { ports }),
 };
 
 export type ResolvedPath = { path: string; isDir: boolean };
