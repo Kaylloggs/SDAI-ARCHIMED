@@ -30,11 +30,14 @@ ARCHIMED does not replace the CLIs: it drives the ones installed on your machine
 - **Intelligent parsing**: permission requests, `[Y/n]` questions and menus become clickable cards.
 - **Auto mode**: a risk policy (`Low` → `Critical`) lets agents work without constant interruptions; critical actions are always confirmed.
 - Attach files, pick a skill, choose the working folder right from the input bar.
+- Stop the agent at any time; answers cut short are resumed automatically.
 
 ### 💻 VS Code-like workspace (`code` module)
 - File tree, tabs, syntax-highlighted editor powered by **CodeMirror 6** (~35 languages), `Ctrl+P` file palette, `Ctrl+S` save.
 - **Drag & drop**: drag files from the tree into the chat to target them for modification; drop files from Windows Explorer to attach them.
 - An AI assistant panel next to your code, with its own conversations per project.
+- **Live preview**: when the agent starts a dev server (`pnpm dev`, `python -m http.server`…) or writes an HTML page, preview it right in the app.
+- Resizable panels, and a file tree that updates by itself when the AI creates files.
 
 ### 🧠 Skills management (`skills` module)
 - Import and organize skills in a visual library.
