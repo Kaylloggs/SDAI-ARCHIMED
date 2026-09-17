@@ -5,6 +5,7 @@ import {
   Bot,
   FileCode2,
   FolderOpen,
+  Mic,
   Paperclip,
   Sparkles,
   Square,
@@ -14,9 +15,10 @@ import {
 import { cn } from "@/core/lib/cn";
 import { Slot } from "@/core/modules";
 import type { AdapterInfo, AutoMode } from "@/core/engine/types";
-import { Button, Kbd, Select } from "@/design-system/primitives";
+import { Button, Kbd, Select, Tooltip } from "@/design-system/primitives";
 import { useUiStore } from "@/core/stores/ui.store";
 import { FILE_DRAG_TYPE, useOsFileDrop } from "./useOsFileDrop";
+import { useDictation } from "./useDictation";
 import { useDropTarget } from "@/core/dnd";
 
 const AUTO_LABELS: Record<AutoMode, string> = {
@@ -73,6 +75,8 @@ export function Composer({
   onStop,
 }: Props) {
   const [text, setText] = useState("");
+  /** Texte déjà saisi ou dicté avant la phrase en cours (la dictée ne réécrit que la fin). */
+  const dictationBase = useRef("");
   const [attachments, setAttachments] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const toggleRawTerminal = useUiStore((s) => s.toggleRawTerminal);
@@ -83,6 +87,20 @@ export function Composer({
   }, []);
 
   const osDragging = useOsFileDrop(addAttachments);
+
+  // Dictée locale : le texte provisoire remplace la fin du message, la phrase confirmée s'y ajoute.
+  const dictation = useDictation(
+    useCallback((spoken: string, final: boolean) => {
+      setText(() => {
+        const base = dictationBase.current;
+        const separator = base && !base.endsWith(" ") ? " " : "";
+        const next = `${base}${separator}${spoken}`;
+        if (final) dictationBase.current = next;
+        return next;
+      });
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    }, []),
+  );
 
   /** Contributions du slot `chat.composer.actions` (ex. skill choisi). */
   const insertText = useCallback((snippet: string) => {
@@ -108,6 +126,7 @@ export function Composer({
     if (!value || busy) return;
     onSend(value, attachments, targets);
     setText("");
+    dictationBase.current = "";
     setAttachments([]);
     onTargetsChange?.([]);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
@@ -199,6 +218,7 @@ export function Composer({
           placeholder={`Écrire à ${adapter?.name ?? "l'agent"}…`}
           onChange={(event) => {
             setText(event.target.value);
+            dictationBase.current = event.target.value;
             const el = event.target;
             el.style.height = "auto";
             el.style.height = `${Math.min(el.scrollHeight, compact ? 160 : 240)}px`;
@@ -266,6 +286,42 @@ export function Composer({
           </button>
 
           <Slot name="chat.composer.actions" props={{ cwd, adapter: adapterId, insertText }} />
+
+          <Tooltip
+            side="bottom"
+            label={
+              dictation.error ? (
+                <span className="text-danger">{dictation.error}</span>
+              ) : dictation.recording ? (
+                "Arrêter la dictée"
+              ) : (
+                "Dicter le message (reconnaissance vocale de Windows, aucun token)"
+              )
+            }
+          >
+            <button
+              onClick={dictation.toggle}
+              aria-label={dictation.recording ? "Arrêter la dictée" : "Dicter le message"}
+              aria-pressed={dictation.recording}
+              className={cn(
+                "flex size-7 items-center justify-center rounded-sm transition-colors",
+                dictation.recording
+                  ? "bg-danger-soft text-danger"
+                  : dictation.error
+                    ? "text-danger hover:bg-surface-2"
+                    : "text-text-subtle hover:bg-surface-2 hover:text-text",
+              )}
+            >
+              {dictation.recording ? (
+                <span className="relative flex size-3.5 items-center justify-center">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-danger opacity-50" />
+                  <Mic size={14} strokeWidth={2} className="relative" />
+                </span>
+              ) : (
+                <Mic size={14} strokeWidth={1.75} />
+              )}
+            </button>
+          </Tooltip>
 
           {!compact && (
             <button

@@ -53,6 +53,13 @@ export const engineApi = {
 
   revealPath: (path: string) => invokeCore<void>("engine_reveal_path", { path }),
 
+  /**
+   * Dictée vocale locale (reconnaissance vocale de Windows) : aucun appel réseau à une IA,
+   * donc aucun token. Le texte arrive par les événements `dictation:partial` / `dictation:final`.
+   */
+  dictationStart: (language: string | null) => invokeCore<void>("engine_dictation_start", { language }),
+  dictationStop: () => invokeCore<void>("engine_dictation_stop"),
+
   /** Ports locaux qui répondent (serveurs de test). */
   probePorts: (ports: number[]) => invokeCore<number[]>("engine_probe_ports", { ports }),
 };

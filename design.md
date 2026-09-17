@@ -249,6 +249,8 @@ Un fichier glissé de l'arborescence vers le composer devient une **cible** (chi
 ### 7.4 Contrôles
 Boutons : hauteurs 28 (sm) / 32 (md) / 40 (lg). Variantes `primary` (accent), `secondary` (`--surface-2`), `ghost`, `danger`. Focus ring : 2 px `--accent` + offset 2 px `--bg`, toujours visible au clavier (`:focus-visible`).
 Icônes : `lucide-react`, trait 1.75, tailles 14 / 16 / 20 uniquement.
+**Barre de saisie — dictée** : bouton micro à côté des pièces jointes et des skills. À l'enregistrement, le bouton passe en rouge avec un halo pulsé ; le texte provisoire s'écrit en direct dans le champ et se fige à chaque fin de phrase.
+
 **Poignée de redimensionnement** : primitive `ResizeHandle` + `usePanelSize` (filet de 1 px, accent au survol et pendant le glisser, flèches au clavier, double clic = taille par défaut).
 
 **Aperçu web** (`@/core/preview`) : en-tête de 40 px (pastille verte animée si serveur actif, sélecteur de page, recharger, ouvrir dans le navigateur, fermer), iframe sur fond blanc. Dans le Chat, une seule pastille discrète dans l'en-tête, visible uniquement s'il y a quelque chose à prévisualiser.

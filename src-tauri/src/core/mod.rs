@@ -1,5 +1,6 @@
 pub mod audit;
 pub mod config;
+pub mod dictation;
 pub mod error;
 pub mod paths;
 pub mod process;

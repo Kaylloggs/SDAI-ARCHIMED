@@ -41,6 +41,14 @@ vt100 = "0.16.2"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_System_Threading"] }
+# Dictée vocale locale (Windows.Media.SpeechRecognition) : aucun appel réseau, aucun token.
+windows = { version = "0.62", features = [
+  "Foundation",
+  "Foundation_Collections",
+  "Globalization",
+  "Media_SpeechRecognition",
+] }
+windows-future = "0.3"
 
 [profile.release]
 codegen-units = 1

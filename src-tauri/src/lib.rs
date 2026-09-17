@@ -23,6 +23,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .manage(SessionManager::default())
+        .manage(core::dictation::DictationService::default())
         .setup(|app| {
             let paths = core::paths::Paths::resolve(app.handle())?;
             paths.ensure_all()?;
@@ -52,6 +53,8 @@ pub fn run() {
             engine_commands::engine_open_path,
             engine_commands::engine_reveal_path,
             engine_commands::engine_probe_ports,
+            engine_commands::engine_dictation_start,
+            engine_commands::engine_dictation_stop,
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de SDAI ARCHIMED");

@@ -423,3 +423,21 @@ mod path_tests {
         assert_eq!(live, vec![open]);
     }
 }
+
+/// Démarre la dictée vocale locale (reconnaissance vocale de Windows, aucun token consommé).
+#[tauri::command]
+pub async fn engine_dictation_start<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    dictation: State<'_, crate::core::dictation::DictationService>,
+    language: Option<String>,
+) -> AppResult<()> {
+    dictation.start(app, language)
+}
+
+#[tauri::command]
+pub async fn engine_dictation_stop(
+    dictation: State<'_, crate::core::dictation::DictationService>,
+) -> AppResult<()> {
+    dictation.stop();
+    Ok(())
+}

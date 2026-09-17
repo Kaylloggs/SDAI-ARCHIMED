@@ -8,6 +8,9 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Modèles Claude par niveau d'effort** : chaque modèle est proposé en effort élevé, moyen ou faible dans la barre de saisie (`--effort`), en plus de l'entrée par défaut.
 - **Réglages › Économie de tokens** étendus : effort de réflexion par défaut (Claude et Antigravity), désactivation des skills des CLI (`--disable-slash-commands`), contexte optimisé pour le cache (`--exclude-dynamic-system-prompt-sections`), compactage anticipé à 100 k (`--autocompact`), et relance automatique des réponses coupées désactivable.
 
+### Ajouté — Dictée
+- **Bouton micro dans la barre de saisie** (Chat et Code) : la voix est transcrite en direct dans le champ par la reconnaissance vocale de Windows. Tout est local, **aucun token consommé**. Le texte provisoire s'affiche pendant qu'on parle, chaque phrase confirmée s'ajoute au message.
+
 ### Modifié
 - **Menu latéral** : défilement visible (barre fine, dégradés haut et bas) quand les modules dépassent la hauteur.
 

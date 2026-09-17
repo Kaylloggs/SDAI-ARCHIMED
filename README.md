@@ -30,6 +30,7 @@ ARCHIMED does not replace the CLIs: it drives the ones installed on your machine
 - **Intelligent parsing**: permission requests, `[Y/n]` questions and menus become clickable cards.
 - **Auto mode**: a risk policy (`Low` → `Critical`) lets agents work without constant interruptions; critical actions are always confirmed.
 - Attach files, pick a skill, choose the working folder right from the input bar.
+- **Dictation**: a mic button transcribes speech live using Windows' own speech recognition — local, and no tokens at all.
 - Stop the agent at any time; answers cut short are resumed automatically.
 - **Token saver**: a built-in mode powered by the [Caveman](https://github.com/JuliusBrussee/caveman) skill (Settings) makes every answer terse while keeping code and technical terms exact.
 

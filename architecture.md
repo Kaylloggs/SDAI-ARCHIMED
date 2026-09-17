@@ -67,7 +67,7 @@ SDAI ARCHIMED/
 ├── src/                                 # ═════════ FRONTEND ═════════
 │   ├── main.tsx
 │   ├── core/
-│   │   ├── chat/                        # Composer · ConversationView · useOsFileDrop
+│   │   ├── chat/                        # Composer · ConversationView · useOsFileDrop · useDictation
 │   │   │                                # (UI de conversation partagée chat/code)
 │   │   ├── dnd/                         # glisser-déposer interne (pointeur) : useDragSource · DropZone · DragLayer
 │   │   ├── preview/                     # aperçu web : detect (serveurs de test, pages HTML) · usePreviewTargets · PreviewPane
@@ -122,6 +122,7 @@ SDAI ARCHIMED/
     └── src/
         ├── main.rs · lib.rs             # plugins, state, registre des modules, commandes
         ├── core/                        # error.rs (AppError) · paths.rs · config.rs (overrides)
+        │                                # · dictation.rs (reconnaissance vocale Windows, locale)
         │                                # · audit.rs (audit.jsonl) · usage.rs (registre de consommation) · mod.rs
         ├── engine/
         │   ├── mod.rs · commands.rs     # engine_* exposées au frontend
