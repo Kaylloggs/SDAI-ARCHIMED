@@ -105,9 +105,9 @@ ARCHIMED drives the CLIs installed on your machine. Install and **log in** to th
 
 | CLI | Install | Log in / check |
 |---|---|---|
-| **Claude Code** | [docs.claude.com — Claude Code](https://docs.claude.com/en/docs/claude-code) | run `claude` once and log in |
-| **Antigravity CLI** (`agy`) | follow Google Antigravity's install instructions | run `agy` once and log in, then `agy --help` |
-| **Codex** (experimental) | `npm install -g @openai/codex` | `codex --version` |
+| **Claude Code** | [Install Claude CLI](https://docs.claude.com/en/docs/claude-code) | run `claude` once and log in |
+| **Google Antigravity CLI** (`agy`) | [Install Antigravity CLI](https://antigravity.google/download#antigravity-cli) | run `agy` once and log in |
+| **Codex** (experimental) | `npm install -g @openai/codex` | run `codex` once and log in |
 
 CLIs are detected automatically. If one is installed outside your `PATH`, set its location in **Settings → Engine**.
 
