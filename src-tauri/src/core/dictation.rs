@@ -18,6 +18,8 @@ pub const PARTIAL: &str = "dictation:partial";
 pub const FINAL: &str = "dictation:final";
 /// Dictée arrêtée (fin normale ou erreur du moteur).
 pub const ENDED: &str = "dictation:ended";
+/// Le moteur écoute vraiment (micro ouvert).
+pub const STARTED: &str = "dictation:started";
 
 #[derive(Default)]
 pub struct DictationService {
@@ -84,7 +86,7 @@ pub mod platform {
         SpeechRecognizer, SpeechContinuousRecognitionResultGeneratedEventArgs,
     };
 
-    use super::{FINAL, PARTIAL};
+    use super::{FINAL, PARTIAL, STARTED};
 
     /// Le moteur envoie le texte reconnu par cette closure (l'application le relaie en événement).
     pub type Emit = dyn Fn(&str, String) + Send + Sync + 'static;
@@ -113,10 +115,12 @@ pub mod platform {
     ) -> Result<(), String> {
         init_apartment();
         let emit: std::sync::Arc<Emit> = std::sync::Arc::new(emit);
-        let session = match setup(language, &emit) {
-            Ok(session) => {
+        // `recognizer` doit rester vivant : c'est lui qui porte les gestionnaires d'événements.
+        // Le libérer après `StartAsync` coupait la session en silence (aucun texte reconnu).
+        let (recognizer, session) = match setup(language, &emit) {
+            Ok(engine) => {
                 let _ = ready.send(Ok(()));
-                session
+                engine
             }
             Err(error) => {
                 let message = failed(error);
@@ -130,13 +134,14 @@ pub mod platform {
         // `CancelAsync` rend la main tout de suite ; attendre `StopAsync` depuis ce fil bloque
         // quand le moteur est en train de traiter de la parole (vérifié le 2026-09-17).
         let _ = session.CancelAsync();
+        drop(recognizer);
         Ok(())
     }
 
     pub fn setup(
         language: Option<&str>,
         emit: &std::sync::Arc<Emit>,
-    ) -> WinResult<SpeechContinuousRecognitionSession> {
+    ) -> WinResult<(SpeechRecognizer, SpeechContinuousRecognitionSession)> {
         let recognizer = match language {
             Some(tag) => SpeechRecognizer::Create(&Language::CreateLanguage(&HSTRING::from(tag))?)?,
             None => SpeechRecognizer::new()?,
@@ -191,7 +196,8 @@ pub mod platform {
         ))?;
 
         session.StartAsync()?.join()?;
-        Ok(session)
+        emit(STARTED, String::new());
+        Ok((recognizer, session))
     }
 }
 

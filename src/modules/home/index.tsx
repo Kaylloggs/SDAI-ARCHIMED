@@ -135,10 +135,11 @@ export default function HomeModule() {
   };
 
   return (
-    // Page défilante : les tuiles gardent leur taille quand les modules s'accumulent.
+    // Page défilante : la grande tuile et la colonne « Récemment » gardent leur taille,
+    // les tuiles de modules suivent par rangées de trois.
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto flex max-w-[1180px] flex-col px-6 py-6">
-        <header className="flex items-end justify-between gap-4 pb-5">
+      <div className="mx-auto flex max-w-[1180px] flex-col gap-3 px-6 py-6">
+        <header className="flex items-end justify-between gap-4 pb-2">
           <div>
             <p className="text-footnote text-text-subtle">SDAI ARCHIMED</p>
             <h1 className="text-display font-semibold tracking-[-0.02em]">
@@ -150,13 +151,13 @@ export default function HomeModule() {
           </p>
         </header>
 
-        <div className="grid auto-rows-[minmax(150px,auto)] grid-cols-4 gap-3">
+        <div className="grid h-[clamp(300px,44vh,480px)] grid-cols-4 gap-3">
           {heroModule && (
             <Tile
               module={heroModule}
               index={0}
               hero
-              className="col-span-4 row-span-2 lg:col-span-3"
+              className="col-span-4 h-full lg:col-span-3"
               onOpen={() => navigate(heroModule.id)}
             />
           )}
@@ -164,7 +165,7 @@ export default function HomeModule() {
           <motion.section
             {...appear(1)}
             aria-label="Conversations récentes"
-            className="col-span-4 row-span-2 flex flex-col rounded-[20px] border border-border bg-surface-2/60 p-4 lg:col-span-1"
+            className="col-span-4 flex h-full min-h-0 flex-col rounded-[20px] border border-border bg-surface-2/60 p-4 lg:col-span-1"
           >
             <p className="flex items-center gap-1.5 pb-3 text-footnote font-medium text-text-muted">
               <Clock size={13} strokeWidth={1.75} />
@@ -182,7 +183,7 @@ export default function HomeModule() {
                 </p>
               </div>
             ) : (
-              <ul className="flex max-h-72 min-h-0 flex-col gap-1 overflow-y-auto">
+              <ul className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
                 {recent.map((session) => {
                   const Icon =
                     session.origin === "code" ? Code2 : MessagesSquare;
@@ -216,19 +217,22 @@ export default function HomeModule() {
               </ul>
             )}
           </motion.section>
+        </div>
 
+        {/* Trois tuiles de modules par rangée : au-delà, la page défile. */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {others.map((module, index) => (
             <Tile
               key={module.id}
               module={module}
               index={index + 2}
-              className="col-span-2 lg:col-span-1"
+              className="h-[clamp(190px,26vh,260px)]"
               onOpen={() => navigate(module.id)}
             />
           ))}
         </div>
 
-        <div className="grid grid-cols-4 gap-3 pt-3 empty:hidden">
+        <div className="grid grid-cols-1 gap-3 empty:hidden sm:grid-cols-2 lg:grid-cols-3">
           <Slot name="launchpad.widgets" />
         </div>
       </div>

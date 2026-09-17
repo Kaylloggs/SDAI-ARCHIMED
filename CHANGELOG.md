@@ -8,11 +8,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Modèles Claude par niveau d'effort** : chaque modèle est proposé en effort élevé, moyen ou faible dans la barre de saisie (`--effort`), en plus de l'entrée par défaut.
 - **Réglages › Économie de tokens** étendus : effort de réflexion par défaut (Claude et Antigravity), désactivation des skills des CLI (`--disable-slash-commands`), contexte optimisé pour le cache (`--exclude-dynamic-system-prompt-sections`), compactage anticipé à 100 k (`--autocompact`), et relance automatique des réponses coupées désactivable.
 
+### Corrigé — Dictée
+- La dictée ne transcrivait rien : le fil n'initialisait pas l'appartement COM/WinRT, et le `SpeechRecognizer` était libéré juste après le démarrage (la session mourait en silence). Arrêt par `CancelAsync` (`StopAsync` bloquait), délais de silence allongés, nouvel événement `dictation:started` pour n'afficher « écoute » qu'une fois le micro ouvert.
+
 ### Ajouté — Dictée
 - **Bouton micro dans la barre de saisie** (Chat et Code) : la voix est transcrite en direct dans le champ par la reconnaissance vocale de Windows. Tout est local, **aucun token consommé**. Le texte provisoire s'affiche pendant qu'on parle, chaque phrase confirmée s'ajoute au message.
 
 ### Modifié
-- **Accueil** : la page défile et les tuiles gardent leur taille quand les modules s'accumulent (avant, la grille s'écrasait sur la hauteur de la fenêtre).
+- **Accueil** : grande tuile et colonne « Récemment » à taille généreuse (44 % de la hauteur), puis les modules par rangées de **trois grandes tuiles** ; au-delà, la page défile.
 - **Menu latéral** : défilement visible (barre fine, dégradés haut et bas) quand les modules dépassent la hauteur.
 
 ## [0.2.1] - 2026-09-17

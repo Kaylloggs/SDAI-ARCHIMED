@@ -21,8 +21,16 @@ export function useDictation(onText: (text: string, final: boolean) => void) {
     let cancelled = false;
     const subscribe = async () => {
       const listeners = await Promise.all([
-        listen<string>("dictation:partial", (event) => handler.current(event.payload, false)),
-        listen<string>("dictation:final", (event) => handler.current(event.payload, true)),
+        listen<string>("dictation:started", () => {
+          setRecording(true);
+          setError(null);
+        }),
+        listen<string>("dictation:partial", (event) =>
+          handler.current(event.payload, false),
+        ),
+        listen<string>("dictation:final", (event) =>
+          handler.current(event.payload, true),
+        ),
         listen<string>("dictation:ended", (event) => {
           setRecording(false);
           setError(event.payload || null);
@@ -41,8 +49,8 @@ export function useDictation(onText: (text: string, final: boolean) => void) {
   const start = useCallback(async () => {
     setError(null);
     try {
+      // L'état passe à « écoute » sur l'événement `dictation:started` du moteur.
       await engineApi.dictationStart(null);
-      setRecording(true);
     } catch (e) {
       setError((e as { message?: string }).message ?? "Dictée indisponible");
       setRecording(false);
@@ -59,7 +67,10 @@ export function useDictation(onText: (text: string, final: boolean) => void) {
   }, [recording, start, stop]);
 
   // Arrêt du moteur quand la barre de saisie disparaît (changement de module, fermeture).
-  useEffect(() => () => void engineApi.dictationStop().catch(() => undefined), []);
+  useEffect(
+    () => () => void engineApi.dictationStop().catch(() => undefined),
+    [],
+  );
 
   return { recording, error, toggle };
 }
