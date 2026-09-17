@@ -105,6 +105,12 @@ impl CliAdapter for AntigravityAdapter {
             args.push("--conversation".to_string());
             args.push(resume.to_string());
         }
+        // Sans `--add-dir`, agy ne considère pas le dossier de lancement comme son espace de
+        // travail et crée les fichiers ailleurs (dossier scratch). Vérifié le 2026-09-17.
+        if let Some(cwd) = options.cwd {
+            args.push("--add-dir".to_string());
+            args.push(cwd.to_string());
+        }
         if options.auto_mode != AutoMode::Off {
             args.push("--mode".to_string());
             args.push("accept-edits".to_string());
@@ -486,7 +492,9 @@ mod tests {
             model: Some("gemini-3.8-flash-low"),
             resume: Some("abc"),
             auto_mode: AutoMode::Smart,
+            cwd: Some("F:/projet"),
         });
+        assert!(args.windows(2).any(|w| w[0] == "--add-dir" && w[1] == "F:/projet"));
         assert_eq!(args.last().map(String::as_str), Some("-p="));
         assert!(args.windows(2).any(|w| w[0] == "--conversation" && w[1] == "abc"));
         assert!(args.windows(2).any(|w| w[0] == "--mode" && w[1] == "accept-edits"));

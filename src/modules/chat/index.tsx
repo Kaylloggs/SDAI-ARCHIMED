@@ -224,7 +224,7 @@ export default function ChatModule() {
               })
             }
             onModelChange={(model) => void chat.setModel(session, model)}
-            onCwdChange={(cwd) => chat.patch(session.id, { cwd })}
+            onCwdChange={(cwd) => void chat.setCwd(session, cwd)}
             onAutoModeChange={handleAutoMode}
             onSend={(text, attachments, targets) => void handleSend(text, attachments, targets)}
           />

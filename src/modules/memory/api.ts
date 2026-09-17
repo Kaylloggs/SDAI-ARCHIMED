@@ -4,40 +4,25 @@ import { invokeModule } from "@/core/ipc";
 export type Note = {
   id: string;
   text: string;
-  /** Dossier de projet, ou `null` pour une note globale. */
+  /** Dossier de projet, ou `null` pour une information valable partout. */
   project: string | null;
-  /** `user` | `ai` | `message` */
-  source: string;
+  /** Transmise aux IA. */
+  enabled: boolean;
   /** Secondes Unix. */
   createdAt: number;
+  updatedAt: number;
 };
 
-export type JournalEntry = {
-  /** Secondes Unix. */
-  at: number;
-  conversationId: string;
-  origin: string;
-  adapter: string;
-  project: string | null;
-  title: string;
-  request: string;
-  outcome: string;
-  files: string[];
-  commands: string[];
-};
+/** `project: null` rend la note globale ; un champ absent n'est pas modifié. */
+export type NotePatch = { text?: string; enabled?: boolean; project?: string | null };
 
-export type MemorySettings = { inject: boolean; capture: boolean };
+export type MemorySettings = { inject: boolean };
 
 export const memoryApi = {
   listNotes: () => invokeModule<Note[]>("memory", "list_notes"),
-  addNote: (text: string, project: string | null, source: "user" | "ai" | "message") =>
-    invokeModule<Note>("memory", "add_note", { text, project, source }),
-  updateNote: (id: string, text: string) => invokeModule<void>("memory", "update_note", { id, text }),
+  addNote: (text: string, project: string | null) => invokeModule<Note>("memory", "add_note", { text, project }),
+  updateNote: (id: string, patch: NotePatch) => invokeModule<Note>("memory", "update_note", { id, patch }),
   deleteNote: (id: string) => invokeModule<void>("memory", "delete_note", { id }),
-  journal: (project: string | null, limit = 100) =>
-    invokeModule<JournalEntry[]>("memory", "journal", { project, limit }),
-  recordTurn: (entry: JournalEntry) => invokeModule<void>("memory", "record_turn", { entry }),
-  clearJournal: () => invokeModule<void>("memory", "clear_journal"),
   getSettings: () => invokeModule<MemorySettings>("memory", "get_settings"),
   setSettings: (settings: MemorySettings) => invokeModule<void>("memory", "set_settings", { settings }),
   buildContext: (cwd: string | null) => invokeModule<string | null>("memory", "build_context", { cwd }),

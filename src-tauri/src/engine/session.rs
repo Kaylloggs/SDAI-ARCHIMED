@@ -72,7 +72,7 @@ pub fn spawn(
             super::pty_session::PtySpawn {
                 session_id: id.clone(),
                 binary: &binary,
-                args: adapter.spawn_args(super::event::LaunchOptions { model: model.as_deref(), resume: resume.as_deref(), auto_mode }),
+                args: adapter.spawn_args(super::event::LaunchOptions { model: model.as_deref(), resume: resume.as_deref(), auto_mode, cwd: cwd.as_deref() }),
                 cwd,
                 auto_mode,
                 extra_rules: adapter.prompt_rules(),
@@ -296,6 +296,7 @@ impl Launch {
                 model: self.model.as_deref(),
                 resume,
                 auto_mode,
+                cwd: self.cwd.as_deref(),
             }))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

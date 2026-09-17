@@ -55,7 +55,7 @@ Résultat dans `release/<version>/` : `SDAI-Archimed.exe` (portable) + installeu
 | `chat` | Intelligence | Conversations multi-CLI : sessions multiples, dossier de travail, pièces jointes, cartes de validation, Mode Auto | moteur core |
 | `code` | Intelligence | Éditeur de projet façon VS Code : arborescence, onglets, coloration syntaxique, chat latéral, drag & drop de fichiers à modifier | plugin `code` |
 | `usage` | Intelligence | Crédits : limites d'abonnement restantes (Claude : 5 h et 7 jours), consommation par CLI et par jour | plugin `usage` |
-| `memory` | Intelligence | Mémoire intégrée : journal automatique des réponses, notes par projet, rappel aux IA au début de chaque conversation | plugin `memory` |
+| `memory` | Intelligence | Mémoire des IA : informations saisies par l'utilisateur (globales ou par projet), chacune activable, transmises au début de chaque conversation | plugin `memory` |
 | `planner` | Organisation | Tableaux de tâches type Trello, roadmap.md synchronisée dans les deux sens, échéances vers Google Agenda (lien ou .ics), suggestions depuis Chat et Code | plugin `planner` |
 | `skills` | Intelligence | Bibliothèque de skills, activation, synchronisation vers les CLI | plugin `skills` |
 | `settings` | Réglages | Thèmes, détection des CLI, modules, données | — |

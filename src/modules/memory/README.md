@@ -1,19 +1,20 @@
 # Module `memory`
 
-Mémoire intégrée : ARCHIMED retient le travail fait avec les IA et le leur rappelle. Tout reste local.
+Mémoire des IA : les informations que **l'utilisateur** saisit (préférences, conventions, contexte d'un projet) et qu'il choisit de transmettre aux IA. Rien n'est enregistré automatiquement.
 
 - **Backend** : plugin `memory` (`src-tauri/src/modules/memory/`).
-- **Commandes** : `list_notes`, `add_note`, `update_note`, `delete_note`, `journal`, `record_turn`, `clear_journal`, `get_settings`, `set_settings`, `build_context`, `preview_context`.
-- **Stockage** : `%APPDATA%\com.sdai.archimed\modules\memory\` — `notes.json`, `journal.jsonl` (une ligne par réponse), `settings.json`.
+- **Commandes** : `list_notes`, `add_note`, `update_note` (texte, activation, portée), `delete_note`, `get_settings`, `set_settings`, `build_context`, `preview_context`.
+- **Stockage** : `%APPDATA%\com.sdai.archimed\modules\memory\` — `notes.json`, `settings.json`.
 
 ## Fonctionnement
-1. **Journal** (slot `app.background`, `slots/MemoryRecorder.tsx`) : à chaque événement `engine.turn.completed`, la demande, un résumé de la réponse, les fichiers modifiés et les commandes réussies sont ajoutés au journal (Chat et Code).
-2. **Notes** : durables, globales ou rattachées à un dossier de projet (elles valent aussi pour ses sous-dossiers). Sources : ajout manuel, bouton « Mémoriser » sous une réponse (slot `chat.message.actions`), ou lignes `📌 Mémoire : …` écrites par l'IA.
-3. **Rappel** (service `memory.context`, consommé par `useChat`) : au **premier message** d'une conversation, un bloc « Mémoire ARCHIMED » (notes du projet, notes globales, 5 derniers travaux, 3 000 caractères max) est ajouté avant le message. Il invite l'IA à signaler ce qui mérite d'être retenu par une ligne `📌 Mémoire :`.
+- Chaque information a une **portée** : partout, ou un dossier de projet (elle vaut aussi pour ses sous-dossiers).
+- Chaque information a un **interrupteur** : active (transmise) ou mise de côté (conservée, non transmise).
+- Un interrupteur général coupe toute transmission.
+- **Transmission** (service `memory.context`, consommé par `useChat`) : au premier message d'une conversation (Chat ou Code), les informations actives qui s'appliquent au dossier de travail sont ajoutées avant le message, dans un bloc « Mémoire ARCHIMED » (4 000 caractères max).
+- **Aperçu** : le bloc exact reçu par une IA, pour un projet donné.
 
-## Réglages
-- **Rappeler la mémoire aux IA** (`inject`) et **Tenir le journal** (`capture`), activés par défaut.
-- Onglet « Ce que l'IA reçoit » : aperçu exact du bloc pour un projet.
+## Historique
+La v0.1 tenait un journal automatique des réponses : retiré à la demande de l'utilisateur. Le fichier `journal.jsonl` est supprimé au démarrage.
 
 ## Sans dépendance entre modules
-Le core ne connaît que le nom du service `memory.context` et l'événement de bus. Module désactivé : aucune injection, aucun journal.
+Le core ne connaît que le nom du service `memory.context`. Module désactivé : aucune transmission.

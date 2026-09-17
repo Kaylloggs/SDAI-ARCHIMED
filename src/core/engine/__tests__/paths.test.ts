@@ -28,6 +28,12 @@ describe("chemins cités par une IA", () => {
     expect(pathCandidates(text)).toEqual(["popup.bat", "C:\\tmp\\scratch", "F:/Coding/SDAI ARCHIMED/README.md"]);
   });
 
+  it("reprend les liens file:/// réellement produits par agy", () => {
+    const text = "Created [hello.txt](file:///C:/Users/alixs/Temp/cwdtest/hello.txt) with the content `hi`. Voir [doc](https://example.com/a.md).";
+    expect(pathCandidates(text)).toEqual(["C:/Users/alixs/Temp/cwdtest/hello.txt"]);
+    expect(decodeLinkTarget("file:///F:/p/src/main.rs#L12")).toBe("F:/p/src/main.rs");
+  });
+
   it("nettoie les décorations", () => {
     expect(cleanPathText('"src/a.ts:12",')).toBe("src/a.ts");
     expect(decodeLinkTarget("file:///C:/x%20y")).toBe("C:/x y");

@@ -227,6 +227,8 @@ pub struct LaunchOptions<'a> {
     /// Identifiant de conversation de la CLI à reprendre.
     pub resume: Option<&'a str>,
     pub auto_mode: AutoMode,
+    /// Dossier de travail choisi (le processus y est aussi lancé).
+    pub cwd: Option<&'a str>,
 }
 
 #[cfg(test)]
@@ -236,6 +238,7 @@ impl<'a> LaunchOptions<'a> {
             model,
             resume,
             auto_mode: AutoMode::Off,
+            cwd: None,
         }
     }
 }

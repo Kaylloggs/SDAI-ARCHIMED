@@ -111,6 +111,18 @@ ${prompt}` : prompt);
     useSessionStore.getState().patch(chat.id, { model, engineSessionId: null, status: "idle" });
   }, []);
 
+  /**
+   * Change le dossier de travail. Le processus en cours tourne dans l'ancien dossier :
+   * il est arrêté, le prochain message relance la CLI dans le nouveau en gardant le contexte.
+   */
+  const setCwd = useCallback(async (chat: ChatSession, cwd: string) => {
+    if (chat.cwd === cwd) return;
+    if (chat.engineSessionId) {
+      await engineApi.stopSession(chat.engineSessionId).catch(() => undefined);
+    }
+    useSessionStore.getState().patch(chat.id, { cwd, engineSessionId: null, status: "idle" });
+  }, []);
+
   const remove = useCallback(async (chat: ChatSession) => {
     if (chat.engineSessionId) {
       await engineApi.stopSession(chat.engineSessionId).catch(() => undefined);
@@ -129,6 +141,7 @@ ${prompt}` : prompt);
     answer,
     setAutoMode,
     setModel,
+    setCwd,
     remove,
   };
 }

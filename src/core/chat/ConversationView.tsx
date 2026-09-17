@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ComponentProps, type ReactNode } from "react";
 import Markdown, { type Components } from "react-markdown";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import remarkGfm from "remark-gfm";
 import { motion } from "motion/react";
 import { AlertTriangle, Paperclip } from "lucide-react";
@@ -29,15 +30,35 @@ function InlineCode({ children, className }: ComponentProps<"code">) {
   return <FileLink target={target}>{code}</FileLink>;
 }
 
-function MarkdownLink({ href, children }: ComponentProps<"a">) {
-  const target = useResolvedPath(href && !/^https?:/i.test(href) ? decodeLinkTarget(href) : "");
+const WEB_LINK = /^(?:https?|mailto):/i;
+
+/**
+ * Liens des réponses. Jamais de navigation dans la WebView : les liens web s'ouvrent dans
+ * le navigateur, les liens de fichiers (`file:///…`, chemins relatifs) passent par `FileLink`.
+ */
+function MarkdownLink({ href = "", children }: ComponentProps<"a">) {
+  const web = WEB_LINK.test(href);
+  const target = useResolvedPath(web ? "" : decodeLinkTarget(href));
   if (target) return <FileLink target={target}>{children}</FileLink>;
-  return (
-    <a href={href} target="_blank" rel="noreferrer">
-      {children}
-    </a>
-  );
+  if (web) {
+    return (
+      <a
+        href={href}
+        onClick={(event) => {
+          event.preventDefault();
+          void openUrl(href).catch(() => undefined);
+        }}
+      >
+        {children}
+      </a>
+    );
+  }
+  // Fichier introuvable (déplacé, supprimé, ou encore en cours de résolution) : texte simple.
+  return <span className="text-accent">{children}</span>;
 }
+
+/** react-markdown vide par défaut les URL `file:` ; on les garde (aucune n'est suivie telle quelle). */
+const keepUrl = (url: string) => (/^\s*(?:javascript|data|vbscript):/i.test(url) ? "" : url);
 
 const MARKDOWN_COMPONENTS: Components = { code: InlineCode, a: MarkdownLink };
 
@@ -109,7 +130,7 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
                   )}
                 >
                   <ResolvedPathsProvider text={item.text} cwd={session.cwd} enabled={item.done}>
-                    <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+                    <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS} urlTransform={keepUrl}>
                       {item.text}
                     </Markdown>
                   </ResolvedPathsProvider>

@@ -82,7 +82,7 @@ Espace **OKLCH**. Thème **sombre par défaut** ; le thème clair existe mais es
 | `--text` | `oklch(0.96 0.003 265)` | texte principal |
 | `--text-muted` | `oklch(0.74 0.010 265)` | texte secondaire |
 | `--text-subtle` | `oklch(0.58 0.010 265)` | métadonnées, placeholders |
-| `--glass-bg` | `oklch(0.22 0.008 265 / 0.62)` | couches L3 |
+| `--glass-bg` | `oklch(0.22 0.008 265 / 0.94)` | couches L3 — quasi opaques : un menu doit rester lisible sur n'importe quel contenu |
 | `--scrim` | `oklch(0.08 0 0 / 0.55)` | voile de modale |
 
 ### 3.1.bis Presets de thème

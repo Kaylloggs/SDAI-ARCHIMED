@@ -214,7 +214,9 @@ export function Composer({
           className="selectable max-h-60 w-full resize-none bg-transparent px-1 text-message text-text outline-none placeholder:text-text-subtle"
         />
 
-        <div className="flex flex-wrap items-center gap-2 pt-2">
+        {/* Une seule ligne : outils à gauche (rétrécissables), Mode Auto et envoi à droite. */}
+        <div className={cn("flex items-center gap-2 pt-2", compact && "flex-wrap")}>
+          <div className={cn("flex min-w-0 flex-1 items-center gap-2", compact && "flex-wrap")}>
           <Select
             label="Agent"
             value={adapterId}
@@ -235,7 +237,7 @@ export function Composer({
               label="Modèle"
               value={model ?? adapter.defaultModel ?? ""}
               onChange={onModelChange}
-              className="max-w-48"
+              className="min-w-0 max-w-48"
               options={adapter.models.map((m) => ({ value: m.id, label: m.label }))}
             />
           )}
@@ -244,7 +246,7 @@ export function Composer({
             <button
               onClick={() => void pickFolder()}
               title={cwd ?? "Choisir le dossier de travail"}
-              className="flex h-7 max-w-52 items-center gap-1.5 rounded-sm border border-border bg-surface-1 px-2 text-footnote text-text-muted hover:text-text"
+              className="flex h-7 min-w-0 max-w-52 items-center gap-1.5 rounded-sm border border-border bg-surface-1 px-2 text-footnote text-text-muted hover:text-text"
             >
               <FolderOpen size={13} strokeWidth={1.75} className="shrink-0" />
               <span className="truncate">{cwd ? baseName(cwd) : "dossier par défaut"}</span>
@@ -272,8 +274,9 @@ export function Composer({
               <TerminalSquare size={14} strokeWidth={1.75} />
             </button>
           )}
+          </div>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
             <button
               onClick={() =>
                 onAutoModeChange(autoMode === "off" ? "smart" : autoMode === "smart" ? "full" : "off")

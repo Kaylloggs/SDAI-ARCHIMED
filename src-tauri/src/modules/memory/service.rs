@@ -1,7 +1,6 @@
-//! Mémoire d'ARCHIMED : notes durables + journal automatique des réponses.
+//! Mémoire d'ARCHIMED : informations saisies par l'utilisateur, transmises aux IA s'il le souhaite.
 //! Tout est local : `%APPDATA%\com.sdai.archimed\modules\memory\`.
 
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -11,51 +10,62 @@ use crate::core::paths::Paths;
 use crate::core::{AppError, AppResult};
 
 /// Plafond du bloc injecté dans une nouvelle conversation (caractères).
-const CONTEXT_BUDGET: usize = 3000;
-const JOURNAL_IN_CONTEXT: usize = 5;
+const CONTEXT_BUDGET: usize = 4000;
+const NOTE_MAX: usize = 2000;
+
+fn yes() -> bool {
+    true
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Note {
     pub id: String,
     pub text: String,
-    /// Dossier de projet, ou `None` pour une note globale.
+    /// Dossier de projet, ou `None` pour une information valable partout.
     pub project: Option<String>,
-    /// `user` | `ai` | `message`
-    pub source: String,
+    /// Transmise aux IA (désactivable sans supprimer la note).
+    #[serde(default = "yes")]
+    pub enabled: bool,
     pub created_at: i64,
+    #[serde(default)]
+    pub updated_at: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Modification partielle d'une note.
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct JournalEntry {
-    pub at: i64,
-    pub conversation_id: String,
-    pub origin: String,
-    pub adapter: String,
-    pub project: Option<String>,
-    pub title: String,
-    pub request: String,
-    pub outcome: String,
-    pub files: Vec<String>,
-    pub commands: Vec<String>,
+pub struct NotePatch {
+    pub text: Option<String>,
+    pub enabled: Option<bool>,
+    /// `Some(None)` : note globale ; `None` : portée inchangée.
+    #[serde(default, deserialize_with = "serde_with_option::deserialize")]
+    pub project: Option<Option<String>>,
+}
+
+/// Distingue un champ absent (`None`) d'un champ `null` (`Some(None)`).
+mod serde_with_option {
+    use serde::{Deserialize, Deserializer};
+
+    pub fn deserialize<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+    where
+        D: Deserializer<'de>,
+        T: Deserialize<'de>,
+    {
+        Option::<T>::deserialize(deserializer).map(Some)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MemorySettings {
-    /// Ajouter la mémoire au premier message des nouvelles conversations.
+    /// Transmettre les notes actives au premier message des nouvelles conversations.
     pub inject: bool,
-    /// Tenir le journal automatiquement.
-    pub capture: bool,
 }
 
 impl Default for MemorySettings {
     fn default() -> Self {
-        Self {
-            inject: true,
-            capture: true,
-        }
+        Self { inject: true }
     }
 }
 
@@ -76,19 +86,23 @@ fn applies_to(note_project: &str, cwd: &str) -> bool {
     cwd == note || cwd.starts_with(&format!("{note}/"))
 }
 
-fn truncate(text: &str, max: usize) -> String {
-    let clean = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    if clean.chars().count() <= max {
-        clean
-    } else {
-        format!("{}…", clean.chars().take(max.saturating_sub(1)).collect::<String>())
+fn clean(text: &str) -> AppResult<String> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Err(AppError::invalid("note vide"));
     }
+    if text.chars().count() > NOTE_MAX {
+        return Err(AppError::invalid(format!("note trop longue ({NOTE_MAX} caractères max)")));
+    }
+    Ok(text.to_string())
 }
 
 impl MemoryService {
     pub fn new(paths: &Paths) -> AppResult<Self> {
         let dir = paths.module_dir("memory");
         std::fs::create_dir_all(&dir)?;
+        // Le journal automatique a été retiré : ses extraits de conversations ne sont plus conservés.
+        let _ = std::fs::remove_file(dir.join("journal.jsonl"));
         Ok(Self::at(dir))
     }
 
@@ -135,48 +149,51 @@ impl MemoryService {
         Self::write_atomic(&self.dir.join("notes.json"), &serde_json::to_vec_pretty(notes)?)
     }
 
+    /// Plus récentes d'abord.
     pub fn notes(&self) -> Vec<Note> {
         let mut notes = self.read_notes();
         notes.sort_by_key(|note| std::cmp::Reverse(note.created_at));
         notes
     }
 
-    pub fn add_note(&self, text: &str, project: Option<String>, source: &str) -> AppResult<Note> {
-        let text = text.trim();
-        if text.is_empty() {
-            return Err(AppError::invalid("note vide"));
-        }
-        let _guard = self.guard();
-        let mut notes = self.read_notes();
-        // Pas de doublon exact dans la même portée (l'IA peut répéter une note).
-        let project = project.filter(|p| !p.trim().is_empty());
-        if let Some(existing) = notes.iter().find(|n| {
-            n.text.eq_ignore_ascii_case(text)
-                && n.project.as_deref().map(normalize) == project.as_deref().map(normalize)
-        }) {
-            return Ok(existing.clone());
-        }
+    pub fn add_note(&self, text: &str, project: Option<String>) -> AppResult<Note> {
+        let text = clean(text)?;
+        let now = chrono::Utc::now().timestamp();
         let note = Note {
             id: uuid::Uuid::new_v4().to_string(),
-            text: truncate(text, 600),
-            project,
-            source: source.to_string(),
-            created_at: chrono::Utc::now().timestamp(),
+            text,
+            project: project.filter(|p| !p.trim().is_empty()),
+            enabled: true,
+            created_at: now,
+            updated_at: now,
         };
+        let _guard = self.guard();
+        let mut notes = self.read_notes();
         notes.push(note.clone());
         self.write_notes(&notes)?;
         Ok(note)
     }
 
-    pub fn update_note(&self, id: &str, text: &str) -> AppResult<()> {
+    pub fn update_note(&self, id: &str, patch: NotePatch) -> AppResult<Note> {
         let _guard = self.guard();
         let mut notes = self.read_notes();
         let note = notes
             .iter_mut()
             .find(|n| n.id == id)
             .ok_or_else(|| AppError::not_found("note introuvable"))?;
-        note.text = truncate(text, 600);
-        self.write_notes(&notes)
+        if let Some(text) = patch.text {
+            note.text = clean(&text)?;
+        }
+        if let Some(enabled) = patch.enabled {
+            note.enabled = enabled;
+        }
+        if let Some(project) = patch.project {
+            note.project = project.filter(|p| !p.trim().is_empty());
+        }
+        note.updated_at = chrono::Utc::now().timestamp();
+        let updated = note.clone();
+        self.write_notes(&notes)?;
+        Ok(updated)
     }
 
     pub fn delete_note(&self, id: &str) -> AppResult<()> {
@@ -186,122 +203,40 @@ impl MemoryService {
         self.write_notes(&notes)
     }
 
-    // ── Journal ─────────────────────────────────────────────────────────────
-    pub fn record(&self, mut entry: JournalEntry) -> AppResult<()> {
-        entry.request = truncate(&entry.request, 300);
-        entry.outcome = truncate(&entry.outcome, 400);
-        entry.files.truncate(20);
-        entry.commands.truncate(10);
-        let _guard = self.guard();
-        let line = serde_json::to_string(&entry)?;
-        let mut file = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(self.dir.join("journal.jsonl"))?;
-        writeln!(file, "{line}")?;
-        Ok(())
-    }
-
-    /// Entrées les plus récentes d'abord ; `project` filtre sur un dossier.
-    pub fn journal(&self, project: Option<&str>, limit: usize) -> Vec<JournalEntry> {
-        let Ok(raw) = std::fs::read_to_string(self.dir.join("journal.jsonl")) else {
-            return Vec::new();
-        };
-        let mut entries: Vec<JournalEntry> = raw
-            .lines()
-            .filter_map(|line| serde_json::from_str(line).ok())
-            .filter(|entry: &JournalEntry| match (project, entry.project.as_deref()) {
-                (Some(wanted), Some(actual)) => applies_to(wanted, actual) || applies_to(actual, wanted),
-                (Some(_), None) => false,
-                (None, _) => true,
-            })
-            .collect();
-        entries.reverse();
-        entries.truncate(limit);
-        entries
-    }
-
-    pub fn clear_journal(&self) -> AppResult<()> {
-        let _guard = self.guard();
-        let path = self.dir.join("journal.jsonl");
-        if path.exists() {
-            std::fs::remove_file(path)?;
-        }
-        Ok(())
-    }
-
     // ── Contexte injecté ────────────────────────────────────────────────────
-    /// Bloc ajouté au premier message d'une conversation. `None` si rien d'utile.
+    /// Bloc ajouté au premier message d'une conversation : notes actives, globales ou du projet.
+    /// `None` s'il n'y a rien à transmettre.
     pub fn build_context(&self, cwd: Option<&str>) -> Option<String> {
-        let notes: Vec<Note> = self
+        let mut notes: Vec<Note> = self
             .notes()
             .into_iter()
+            .filter(|note| note.enabled)
             .filter(|note| match (&note.project, cwd) {
                 (None, _) => true,
                 (Some(project), Some(cwd)) => applies_to(project, cwd),
                 (Some(_), None) => false,
             })
             .collect();
-        let journal = cwd.map(|cwd| self.journal(Some(cwd), JOURNAL_IN_CONTEXT)).unwrap_or_default();
-
-        if notes.is_empty() && journal.is_empty() {
+        if notes.is_empty() {
             return None;
         }
+        // Les plus anciennes d'abord : l'ordre dans lequel l'utilisateur les a écrites.
+        notes.reverse();
 
-        let mut block = String::from(
-            "[Mémoire ARCHIMED — informations des sessions précédentes. Utilise-les si elles sont pertinentes, sans les répéter.]\n",
-        );
-        let footer = "Pour retenir une information utile aux prochaines sessions, écris une ligne commençant par « 📌 Mémoire : ».\n[Fin de la mémoire]";
-
-        let push = |line: String, block: &mut String| -> bool {
+        let header = "[Mémoire ARCHIMED — informations fournies par l'utilisateur. Tiens-en compte si elles sont pertinentes, sans les répéter.]\n";
+        let footer = "[Fin de la mémoire]";
+        let mut block = String::from(header);
+        for note in &notes {
+            let scope = if note.project.is_some() { "ce projet" } else { "général" };
+            let line = format!("- ({scope}) {}\n", note.text.replace('\n', "\n  "));
             if block.chars().count() + line.chars().count() + footer.chars().count() > CONTEXT_BUDGET {
-                return false;
+                break;
             }
             block.push_str(&line);
-            true
-        };
-
-        if !notes.is_empty() {
-            push("Notes :\n".to_string(), &mut block);
-            for note in &notes {
-                let scope = if note.project.is_some() { "projet" } else { "général" };
-                if !push(format!("- ({scope}) {}\n", note.text), &mut block) {
-                    break;
-                }
-            }
         }
-
-        if !journal.is_empty() {
-            push("Travail récent sur ce projet :\n".to_string(), &mut block);
-            for entry in &journal {
-                let when = chrono::DateTime::from_timestamp(entry.at, 0)
-                    .map(|utc| utc.with_timezone(&chrono::Local).format("%d/%m %H:%M").to_string())
-                    .unwrap_or_default();
-                let mut facts = Vec::new();
-                if !entry.files.is_empty() {
-                    let names: Vec<String> = entry
-                        .files
-                        .iter()
-                        .take(4)
-                        .map(|f| f.rsplit(['/', '\\']).next().unwrap_or(f).to_string())
-                        .collect();
-                    facts.push(format!("fichiers : {}", names.join(", ")));
-                }
-                if !entry.commands.is_empty() {
-                    facts.push(format!("{} commande(s)", entry.commands.len()));
-                }
-                let facts = if facts.is_empty() { String::new() } else { format!(" [{}]", facts.join(" ; ")) };
-                let line = format!(
-                    "- {when} « {} »{facts} → {}\n",
-                    truncate(&entry.request, 120),
-                    truncate(&entry.outcome, 160)
-                );
-                if !push(line, &mut block) {
-                    break;
-                }
-            }
+        if block == header {
+            return None;
         }
-
         block.push_str(footer);
         Some(block)
     }
@@ -312,65 +247,68 @@ mod tests {
     use super::*;
 
     fn service(name: &str) -> MemoryService {
-        let dir = std::env::temp_dir().join(format!("archimed-memory-{name}"));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = std::env::temp_dir().join(format!("archimed-memory-{name}-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         MemoryService::at(dir)
     }
 
-    fn entry(project: &str, request: &str) -> JournalEntry {
-        JournalEntry {
-            at: 1_789_600_000,
-            conversation_id: "c1".into(),
-            origin: "code".into(),
-            adapter: "claude".into(),
-            project: Some(project.into()),
-            title: "t".into(),
-            request: request.into(),
-            outcome: "Tests verts.".into(),
-            files: vec!["F:/Proj/src/a.ts".into()],
-            commands: vec!["pnpm test".into()],
-        }
-    }
-
     #[test]
-    fn notes_are_deduplicated_and_scoped() {
-        let memory = service("notes");
-        memory.add_note("Utiliser pnpm, jamais npm", Some("F:\\Proj".into()), "ai").unwrap();
-        memory.add_note("utiliser pnpm, jamais npm", Some("f:/proj/".into()), "ai").unwrap();
-        memory.add_note("Répondre en français", None, "user").unwrap();
-        assert_eq!(memory.notes().len(), 2);
-        assert!(memory.add_note("   ", None, "user").is_err());
+    fn context_contains_enabled_notes_in_scope() {
+        let memory = service("scope");
+        let pnpm = memory.add_note("Utiliser pnpm, jamais npm", Some("F:\\Proj".into())).unwrap();
+        memory.add_note("Répondre en français", None).unwrap();
+        let hidden = memory.add_note("Secret", None).unwrap();
+        memory
+            .update_note(&hidden.id, NotePatch { enabled: Some(false), ..Default::default() })
+            .unwrap();
+        assert!(memory.add_note("   ", None).is_err());
 
-        let context = memory.build_context(Some("F:/Proj/src")).unwrap();
-        assert!(context.contains("(projet) Utiliser pnpm"));
+        let context = memory.build_context(Some("F:/proj/src")).unwrap();
+        assert!(context.contains("(ce projet) Utiliser pnpm"));
         assert!(context.contains("(général) Répondre en français"));
+        assert!(!context.contains("Secret"));
+        assert!(context.ends_with("[Fin de la mémoire]"));
 
         let elsewhere = memory.build_context(Some("D:/Autre")).unwrap();
         assert!(!elsewhere.contains("pnpm"));
+
+        memory
+            .update_note(&pnpm.id, NotePatch { project: Some(None), ..Default::default() })
+            .unwrap();
+        assert!(memory.build_context(Some("D:/Autre")).unwrap().contains("pnpm"));
     }
 
     #[test]
-    fn context_includes_recent_project_work_within_budget() {
-        let memory = service("journal");
-        for i in 0..40 {
-            memory.record(entry("F:/Proj", &format!("Tâche {i} {}", "détail ".repeat(60)))).unwrap();
+    fn context_respects_budget() {
+        let memory = service("budget");
+        for i in 0..20 {
+            memory.add_note(&format!("Note {i} {}", "détail ".repeat(60)), None).unwrap();
         }
-        memory.record(entry("D:/Autre", "Ne pas inclure")).unwrap();
-
-        let context = memory.build_context(Some("F:\\Proj")).unwrap();
-        assert!(context.contains("Travail récent sur ce projet"));
-        assert!(context.contains("fichiers : a.ts"));
-        assert!(!context.contains("Ne pas inclure"));
+        let context = memory.build_context(None).unwrap();
         assert!(context.chars().count() <= CONTEXT_BUDGET);
-        assert!(context.ends_with("[Fin de la mémoire]"));
-
-        assert_eq!(memory.journal(Some("F:/Proj"), 3).len(), 3);
-        assert!(memory.journal(Some("F:/Proj"), 1)[0].request.starts_with("Tâche 39"));
     }
 
     #[test]
-    fn nothing_to_inject_on_empty_memory() {
-        assert!(service("empty").build_context(Some("F:/Proj")).is_none());
+    fn nothing_to_inject_without_active_notes() {
+        let memory = service("empty");
+        assert!(memory.build_context(Some("F:/Proj")).is_none());
+        let note = memory.add_note("x", None).unwrap();
+        memory
+            .update_note(&note.id, NotePatch { enabled: Some(false), ..Default::default() })
+            .unwrap();
+        assert!(memory.build_context(None).is_none());
+    }
+
+    #[test]
+    fn reads_notes_from_previous_format() {
+        let memory = service("legacy");
+        std::fs::write(
+            memory.dir.join("notes.json"),
+            r#"[{"id":"1","text":"ancienne","project":null,"source":"ai","createdAt":5}]"#,
+        )
+        .unwrap();
+        let notes = memory.notes();
+        assert_eq!(notes.len(), 1);
+        assert!(notes[0].enabled);
     }
 }

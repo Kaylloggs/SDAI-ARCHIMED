@@ -102,7 +102,7 @@ SDAI ARCHIMED/
 │       │   ├── lib/                     # board (synchro roadmap) · extract · calendar
 │       │   └── slots/                   # MessageActions (chat) · RoadmapFooter (code)
 │       ├── usage/                       # Crédits : module.config · index · api · lib/format · README
-│       ├── memory/                      # Mémoire : index · api · lib/journal · services/context · slots (MemoryRecorder, RememberAction) · README
+│       ├── memory/                      # Mémoire : index · api · services/context · README
 │       ├── skills/                      # module.config · index · api · README
 │       ├── settings/                    # index + components/ (ThemeSection · EngineSection)
 │       ├── files/                       # (prévu) explorateur et actions système
@@ -134,7 +134,7 @@ SDAI ARCHIMED/
             ├── mod.rs                   # registre : `pub mod x;` + `register!(builder, x);`
             ├── code/                    # arborescence, lecture/écriture de fichiers, détection de projet
             ├── usage/                   # résumé du registre, compte et limites Claude
-            ├── memory/                  # notes.json, journal.jsonl, bloc de contexte injecté
+            ├── memory/                  # notes.json (activables, par projet), bloc de contexte injecté
             ├── planner/                 # boards.json, roadmap.rs (parse/réécriture), ics.rs, watcher notify
             └── skills/                  # module.toml · mod.rs · commands.rs
                                          # · service.rs · types.rs
@@ -237,11 +237,11 @@ fn main() {
 | Slot | `launchpad.widgets` | home | widgets sur l'accueil |
 | Slot | `code.editor.footer` | code | bandeau sous l'éditeur. Props : `{ root }`. Ex : roadmap du projet (Planner) |
 | Slot | `statusbar.items` | shell | indicateurs globaux |
-| Slot | `app.background` | shell (AppShell) | composants invisibles montés en permanence (ex. journal de la Mémoire) |
+| Slot | `app.background` | shell (AppShell) | composants invisibles montés en permanence (écoute du bus) |
 | Slot | `settings.sections` | settings | (auto : `manifest.settings`) |
 | Service | `code.project` | code | savoir si un dossier est un projet (consommé par le chat) |
 | Service | `code.open` | code | ouvrir un fichier ou dossier cité par l'IA dans l'éditeur (consommé par `core/chat/FileLink`) |
-| Service | `memory.context` | memory | bloc de mémoire ajouté au premier message (consommé par `useChat`) |
+| Service | `memory.context` | memory | informations actives de l'utilisateur ajoutées au premier message (consommé par `useChat`) |
 | Service | `engine.session` | core | démarrer/envoyer/écouter une session |
 | Service | `system.fs` / `system.shell` | core | actions système passant par la policy |
 | Service | `notify.toast` | core | notifications UI |

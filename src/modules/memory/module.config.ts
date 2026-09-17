@@ -5,8 +5,8 @@ import { defineModule } from "@/core/modules";
 export default defineModule({
   id: "memory",
   name: "Mémoire",
-  description: "Ce qu'ARCHIMED retient de vos projets et le rappelle aux IA.",
-  version: "0.1.0",
+  description: "Les informations que vous donnez aux IA au début de chaque conversation.",
+  version: "0.2.0",
   icon: Brain,
   category: "ai",
   order: 25,
@@ -15,12 +15,8 @@ export default defineModule({
   launchpad: { size: "sm" },
   backend: { plugin: "memory" },
   provides: {
-    // Consommé par useChat : contexte ajouté au premier message d'une conversation.
+    // Consommé par useChat : notes actives ajoutées au premier message d'une conversation.
     "memory.context": () => import("./services/context"),
   },
-  slots: {
-    "app.background": lazy(() => import("./slots/MemoryRecorder")),
-    "chat.message.actions": lazy(() => import("./slots/RememberAction")),
-  },
-  commands: [{ id: "memory.open", title: "Voir la mémoire", run: "navigate" }],
+  commands: [{ id: "memory.open", title: "Gérer la mémoire des IA", run: "navigate" }],
 });

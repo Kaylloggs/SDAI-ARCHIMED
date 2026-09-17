@@ -116,6 +116,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - Réglages : rappel et journal désactivables ; tout est stocké localement.
 - Nouveaux points d'extension : slot `app.background`, service `memory.context`.
 
+### Modifié — Mémoire (v0.2)
+- La mémoire contient uniquement **ce que vous saisissez** dans le module : informations globales ou par projet, chacune **activable** (transmise aux IA ou mise de côté), modifiables et supprimables. Interrupteur général et aperçu du bloc transmis.
+- **Journal automatique retiré** (ainsi que « Mémoriser » sous les réponses et les lignes `📌 Mémoire :`) ; `journal.jsonl` est supprimé au démarrage.
+
+### Corrigé
+- **Dossier de travail ignoré par Antigravity** : les fichiers étaient créés ailleurs. agy n'utilise le dossier que s'il lui est passé par `--add-dir` (vérifié sur agy 1.2.3). Changer de dossier en cours de conversation relance aussi la CLI dans le nouveau dossier, contexte conservé.
+- **Liens de fichiers menant à `http://tauri.localhost`** : react-markdown effaçait les URL `file:///…` produites par les IA. Elles sont conservées et ouvertes par le lien de fichier ; les liens web s'ouvrent dans le navigateur, jamais dans la fenêtre.
+- **Menus trop transparents** (clic droit, palette `Ctrl+K`, listes) : couches flottantes quasi opaques.
+- **Barre de saisie** : outils, Mode Auto et envoi alignés sur une seule ligne.
+
 ### Connu / à faire (Phase 3)
 - Génération des types TS depuis Rust (`ts-rs`) : seuls les codes d'erreur sont générés, les types du moteur sont encore recopiés à la main.
 - Envoi natif des images aux CLI qui le supportent (aujourd'hui : chemins transmis à l'agent).

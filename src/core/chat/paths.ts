@@ -34,16 +34,18 @@ export function pathCandidates(markdown: string): string[] {
   for (const match of markdown.matchAll(/(?<!`)`([^`\n]+)`(?!`)/g)) {
     if (match[1] && looksLikePath(match[1])) found.add(cleanPathText(match[1]));
   }
-  for (const match of markdown.matchAll(/\]\(([^)\s]+)\)/g)) {
-    const target = match[1] ? decodeLinkTarget(match[1]) : "";
+  for (const match of markdown.matchAll(/\]\(<([^>]+)>\)|\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
+    const href = match[1] ?? match[2];
+    if (!href || /^(?:https?|mailto):/i.test(href)) continue;
+    const target = decodeLinkTarget(href);
     if (target && looksLikePath(target)) found.add(cleanPathText(target));
   }
   return [...found];
 }
 
-/** `file:///C:/x%20y` → `C:/x y`. */
+/** `file:///C:/x%20y#L3` → `C:/x y`. */
 export function decodeLinkTarget(href: string): string {
-  let target = href.replace(/^file:\/\/\/?/i, "");
+  let target = href.trim().replace(/#.*$/, "").replace(/^file:\/\/\/?/i, "");
   try {
     target = decodeURIComponent(target);
   } catch {

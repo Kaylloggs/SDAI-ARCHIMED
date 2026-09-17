@@ -104,6 +104,7 @@ pub async fn refresh_claude_limits(binary: &Path) -> AppResult<AdapterLimits> {
         model: Some("haiku"),
         resume: None,
         auto_mode: AutoMode::Off,
+        cwd: None,
     });
 
     let mut child = crate::core::process::async_command(binary)
