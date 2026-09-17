@@ -86,7 +86,7 @@ pub fn summarize(dir: &Path, days: u32, now: i64) -> UsageSummary {
 
 /// `claude auth status --json` : abonnement et compte (sans jeton).
 pub async fn claude_account(binary: &Path) -> AppResult<serde_json::Value> {
-    let output = tokio::process::Command::new(binary)
+    let output = crate::core::process::async_command(binary)
         .args(["auth", "status", "--json"])
         .stdin(Stdio::null())
         .output()
@@ -106,7 +106,7 @@ pub async fn refresh_claude_limits(binary: &Path) -> AppResult<AdapterLimits> {
         auto_mode: AutoMode::Off,
     });
 
-    let mut child = tokio::process::Command::new(binary)
+    let mut child = crate::core::process::async_command(binary)
         .args(&args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

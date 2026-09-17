@@ -24,7 +24,7 @@ export function EngineSection() {
     setError(null);
     try {
       await engineApi.setBinaryOverride(adapterId, selected);
-      await refresh();
+      await refresh(true);
     } catch (e) {
       setError((e as { message?: string }).message ?? "Chemin invalide");
     } finally {
@@ -36,7 +36,7 @@ export function EngineSection() {
     setBusy(adapterId);
     try {
       await engineApi.setBinaryOverride(adapterId, null);
-      await refresh();
+      await refresh(true);
     } finally {
       setBusy(null);
     }
@@ -66,7 +66,7 @@ export function EngineSection() {
             <FolderPlus size={13} strokeWidth={1.75} />
             Ajouter une CLI…
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => void refresh()}>
+          <Button size="sm" variant="ghost" onClick={() => void refresh(true)}>
             <RefreshCw size={13} strokeWidth={1.75} />
             Rafraîchir
           </Button>

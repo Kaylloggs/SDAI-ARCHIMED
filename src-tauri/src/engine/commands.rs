@@ -16,18 +16,48 @@ fn find_adapter(id: &str) -> AppResult<Box<dyn CliAdapter>> {
         .ok_or_else(|| AppError::not_found(format!("adaptateur {id} inconnu")))
 }
 
+/// Résultat de la dernière détection des CLI : chaque sondage lance plusieurs processus
+/// (`--version`, `agy models` qui interroge le réseau…). On ne le refait pas à chaque écran.
+static ADAPTER_CACHE: std::sync::Mutex<Option<(std::time::Instant, Vec<AdapterInfo>)>> =
+    std::sync::Mutex::new(None);
+const ADAPTER_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(600);
+
+fn invalidate_adapter_cache() {
+    if let Ok(mut cache) = ADAPTER_CACHE.lock() {
+        *cache = None;
+    }
+}
+
 #[tauri::command]
-pub async fn engine_list_adapters(config: State<'_, ConfigStore>) -> AppResult<Vec<AdapterInfo>> {
+pub async fn engine_list_adapters(
+    config: State<'_, ConfigStore>,
+    force: Option<bool>,
+) -> AppResult<Vec<AdapterInfo>> {
+    if !force.unwrap_or(false) {
+        if let Ok(cache) = ADAPTER_CACHE.lock() {
+            if let Some((at, adapters)) = cache.as_ref() {
+                if at.elapsed() < ADAPTER_CACHE_TTL {
+                    return Ok(adapters.clone());
+                }
+            }
+        }
+    }
+
     let overrides = config.snapshot().await.binary_overrides;
     // Sondage du système (which, --version, models) : hors du thread async.
-    tokio::task::spawn_blocking(move || {
+    let adapters: Vec<AdapterInfo> = tokio::task::spawn_blocking(move || {
         adapters::build_all()
             .iter()
             .map(|adapter| adapters::describe(adapter.as_ref(), &overrides))
             .collect()
     })
     .await
-    .map_err(|e| AppError::internal(e.to_string()))
+    .map_err(|e| AppError::internal(e.to_string()))?;
+
+    if let Ok(mut cache) = ADAPTER_CACHE.lock() {
+        *cache = Some((std::time::Instant::now(), adapters.clone()));
+    }
+    Ok(adapters)
 }
 
 /// Force le chemin d'une CLI installée hors PATH (`null` efface le réglage).
@@ -38,6 +68,7 @@ pub async fn engine_set_binary_override(
     path: Option<String>,
 ) -> AppResult<()> {
     find_adapter(&adapter)?;
+    invalidate_adapter_cache();
     config.set_binary_override(&adapter, path).await
 }
 

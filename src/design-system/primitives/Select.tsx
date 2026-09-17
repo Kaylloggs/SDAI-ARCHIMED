@@ -47,6 +47,8 @@ export function Select({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  /** Le défilement automatique ne suit que la navigation au clavier. */
+  const keyboardNav = useRef(false);
   const listId = useId();
 
   const selected = options.find((option) => option.value === value);
@@ -58,7 +60,7 @@ export function Select({
   }, [open, options, value]);
 
   useEffect(() => {
-    if (open) {
+    if (open && keyboardNav.current) {
       itemRefs.current[highlight]?.scrollIntoView({ block: "nearest" });
     }
   }, [open, highlight]);
@@ -71,14 +73,20 @@ export function Select({
         setOpen(false);
       }
     };
-    const onScrollOrResize = () => setOpen(false);
+    const onResize = () => setOpen(false);
+    // Fermer quand la page défile, mais pas quand c'est la liste elle-même qui défile
+    // (survol d'une option → scrollIntoView ; longue liste de modèles Antigravity).
+    const onScroll = (event: Event) => {
+      if (listRef.current && event.target instanceof Node && listRef.current.contains(event.target)) return;
+      setOpen(false);
+    };
     window.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("resize", onScrollOrResize);
-    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onScroll, true);
     return () => {
       window.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("resize", onScrollOrResize);
-      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScroll, true);
     };
   }, [open]);
 
@@ -101,6 +109,7 @@ export function Select({
   };
 
   const onKeyDown = (event: React.KeyboardEvent) => {
+    keyboardNav.current = true;
     if (!open && (event.key === "Enter" || event.key === " " || event.key === "ArrowDown")) {
       event.preventDefault();
       setOpen(true);
@@ -201,7 +210,10 @@ export function Select({
                     role="option"
                     aria-selected={isSelected}
                     disabled={option.disabled}
-                    onMouseEnter={() => setHighlight(index)}
+                    onMouseEnter={() => {
+                      keyboardNav.current = false;
+                      setHighlight(index);
+                    }}
                     onClick={() => commit(index)}
                     className={cn(
                       "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-footnote transition-colors",

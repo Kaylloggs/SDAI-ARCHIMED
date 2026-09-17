@@ -3,7 +3,7 @@ use std::process::Stdio;
 
 use tauri::ipc::Channel;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, ChildStdin, Command};
+use tokio::process::{Child, ChildStdin};
 use tokio::sync::mpsc;
 
 use crate::core::{AppError, AppResult};
@@ -31,8 +31,6 @@ pub struct SessionHandle {
     pub tx: mpsc::UnboundedSender<SessionCommand>,
 }
 
-#[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 /// Paramètres de démarrage d'une session.
 pub struct SpawnRequest {
@@ -87,7 +85,7 @@ pub fn spawn(
         });
     }
 
-    let mut command = Command::new(&binary);
+    let mut command = crate::core::process::async_command(&binary);
     command
         .args(adapter.spawn_args(super::event::LaunchOptions { model: model.as_deref(), resume: resume.as_deref(), auto_mode }))
         .stdin(Stdio::piped())
@@ -99,8 +97,6 @@ pub fn spawn(
         command.current_dir(cwd);
     }
 
-    #[cfg(windows)]
-    command.creation_flags(CREATE_NO_WINDOW);
 
     let mut child: Child = command
         .spawn()
@@ -129,13 +125,18 @@ pub fn spawn(
         }
     });
 
-    // stderr : journalisé seulement.
+    // stderr : journalisé et visible dans la console brute (erreurs de la CLI).
     if let Some(stderr) = stderr {
         let session_id = id.clone();
+        let raw_channel = channel.clone();
         tokio::spawn(async move {
             let mut lines = BufReader::new(stderr).lines();
             while let Ok(Some(line)) = lines.next_line().await {
                 tracing::debug!(session_id = %session_id, "stderr: {line}");
+                let _ = raw_channel.send(EngineEvent::RawOutput {
+                    chunk: format!("[stderr] {line}
+"),
+                });
             }
         });
     }
@@ -166,6 +167,9 @@ pub fn spawn(
         loop {
             tokio::select! {
                 Some(line) = line_rx.recv() => {
+                    // Console brute : le flux tel que la CLI l'émet (une ligne JSON par événement).
+                    let _ = channel.send(EngineEvent::RawOutput { chunk: format!("{line}
+") });
                     let ctx = DecodeCtx { session_id: &session_id, auto_mode };
                     for event in adapter.decode_line(&line, &ctx) {
                         record_usage(&adapter_id, &model_label, &event);

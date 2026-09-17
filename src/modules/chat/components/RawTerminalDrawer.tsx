@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { X } from "lucide-react";
 import { useUiStore } from "@/core/stores/ui.store";
@@ -6,6 +7,12 @@ import { spring } from "@/design-system/motion";
 /** Vue debug : sortie brute de la CLI. Cachée par défaut (design.md §7.2). */
 export function RawTerminalDrawer({ raw }: { raw: string }) {
   const { rawTerminalOpen, toggleRawTerminal } = useUiStore();
+  const scroller = useRef<HTMLPreElement>(null);
+
+  // Suit la sortie : toujours afficher les dernières lignes reçues.
+  useEffect(() => {
+    if (scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight;
+  }, [raw, rawTerminalOpen]);
 
   return (
     <AnimatePresence>
@@ -27,8 +34,8 @@ export function RawTerminalDrawer({ raw }: { raw: string }) {
               <X size={14} strokeWidth={1.75} />
             </button>
           </div>
-          <pre className="selectable h-[188px] overflow-auto px-3 py-2 font-mono text-caption leading-4 text-text-muted">
-            {raw || "(aucune sortie brute — l'adaptateur utilise un flux structuré)"}
+          <pre ref={scroller} className="selectable h-[188px] overflow-auto px-3 py-2 font-mono text-caption leading-4 text-text-muted">
+            {raw || "(aucune sortie pour l'instant — envoyez un message à l'agent)"}
           </pre>
         </motion.aside>
       )}

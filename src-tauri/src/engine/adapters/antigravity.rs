@@ -51,7 +51,7 @@ impl CliAdapter for AntigravityAdapter {
     }
 
     fn version(&self, binary: &Path) -> Option<String> {
-        let output = std::process::Command::new(binary)
+        let output = crate::core::process::command(binary)
             .arg("--version")
             .output()
             .ok()?;
@@ -62,7 +62,7 @@ impl CliAdapter for AntigravityAdapter {
         let Some(binary) = binary else {
             return Vec::new();
         };
-        let Ok(output) = std::process::Command::new(binary).arg("models").output() else {
+        let Ok(output) = crate::core::process::command(binary).arg("models").output() else {
             return Vec::new();
         };
         parse_models(&String::from_utf8_lossy(&output.stdout))

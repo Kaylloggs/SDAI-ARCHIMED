@@ -184,7 +184,6 @@ pub enum EngineEvent {
     #[allow(dead_code)] // émis par le détecteur PTY (Phase 2)
     PromptInvalidated { prompt_id: String },
     #[serde(rename_all = "camelCase")]
-    #[allow(dead_code)] // alimenté par le transport PTY (Phase 2)
     RawOutput { chunk: String },
     #[serde(rename_all = "camelCase")]
     Usage {

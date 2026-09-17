@@ -170,7 +170,7 @@ fn parse_frontmatter(content: &str) -> (Option<String>, Option<String>) {
 #[cfg(windows)]
 fn create_link(source: &Path, link: &Path) -> AppResult<()> {
     // Jonction NTFS : pas de droits administrateur nécessaires.
-    let status = std::process::Command::new("cmd")
+    let status = crate::core::process::command("cmd")
         .args(["/C", "mklink", "/J"])
         .arg(link)
         .arg(source)

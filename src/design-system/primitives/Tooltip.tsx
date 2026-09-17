@@ -19,15 +19,21 @@ export function Tooltip({ label, side = "right", disabled = false, children }: P
   const anchor = useRef<HTMLSpanElement>(null);
 
   const show = () => {
-    if (!disabled) setRect(anchor.current?.getBoundingClientRect() ?? null);
+    if (disabled) return;
+    // L'ancre est en `display: contents` (aucune boîte) : on mesure l'élément enveloppé.
+    const target = anchor.current?.firstElementChild ?? anchor.current;
+    const box = target?.getBoundingClientRect();
+    setRect(box && (box.width > 0 || box.height > 0) ? box : null);
   };
   const hide = () => setRect(null);
 
-  const style =
+  // Positionnement sur un conteneur fixe ; l'animation (x/y) vit sur l'enfant :
+  // motion fusionne translateY et y, les mettre sur le même élément annule le centrage.
+  const position =
     rect && side === "right"
-      ? { left: rect.right + 10, top: rect.top + rect.height / 2, translateY: "-50%" }
+      ? { left: rect.right + 10, top: rect.top + rect.height / 2, transform: "translateY(-50%)" }
       : rect
-        ? { left: rect.left + rect.width / 2, top: rect.bottom + 8, translateX: "-50%" }
+        ? { left: rect.left + rect.width / 2, top: rect.bottom + 8, transform: "translateX(-50%)" }
         : undefined;
 
   return (
@@ -42,18 +48,19 @@ export function Tooltip({ label, side = "right", disabled = false, children }: P
       {children}
       {createPortal(
         <AnimatePresence>
-          {rect && style && (
-            <motion.span
-              role="tooltip"
-              initial={{ opacity: 0, x: side === "right" ? -4 : 0, y: side === "bottom" ? -4 : 0 }}
-              animate={{ opacity: 1, x: 0, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: duration.fast, ease: ease.emphasized }}
-              style={{ position: "fixed", ...style }}
-              className="glass pointer-events-none z-50 whitespace-nowrap rounded-sm px-2 py-1 text-footnote text-text"
-            >
-              {label}
-            </motion.span>
+          {rect && position && (
+            <span style={{ position: "fixed", zIndex: 50, pointerEvents: "none", ...position }}>
+              <motion.span
+                role="tooltip"
+                initial={{ opacity: 0, x: side === "right" ? -4 : 0, y: side === "bottom" ? -4 : 0 }}
+                animate={{ opacity: 1, x: 0, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: duration.fast, ease: ease.emphasized }}
+                className="glass block whitespace-nowrap rounded-sm px-2 py-1 text-footnote text-text"
+              >
+                {label}
+              </motion.span>
+            </span>
           )}
         </AnimatePresence>,
         document.body,

@@ -8,10 +8,10 @@ export function useAdapters() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback((force = false) => {
     setLoading(true);
     return engineApi
-      .listAdapters()
+      .listAdapters(force)
       .then((list) => {
         setAdapters(list);
         setError(null);
@@ -21,7 +21,7 @@ export function useAdapters() {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    void refresh(false);
   }, [refresh]);
 
   return { adapters, error, loading, refresh };

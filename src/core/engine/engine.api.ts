@@ -8,7 +8,8 @@ import type {
 } from "./types";
 
 export const engineApi = {
-  listAdapters: () => invokeCore<AdapterInfo[]>("engine_list_adapters"),
+  /** Détection mise en cache 10 min côté Rust ; `force` relance le sondage. */
+  listAdapters: (force = false) => invokeCore<AdapterInfo[]>("engine_list_adapters", { force }),
 
   /** Force le chemin d'une CLI hors PATH (`null` = détection automatique). */
   setBinaryOverride: (adapter: string, path: string | null) =>

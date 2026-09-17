@@ -69,7 +69,7 @@ impl CliAdapter for ClaudeAdapter {
     }
 
     fn version(&self, binary: &Path) -> Option<String> {
-        let output = std::process::Command::new(binary)
+        let output = crate::core::process::command(binary)
             .arg("--version")
             .output()
             .ok()?;
