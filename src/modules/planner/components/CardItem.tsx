@@ -3,7 +3,9 @@ import { cn } from "@/core/lib/cn";
 import { dueState, formatDue } from "../lib/calendar";
 import type { Card } from "../types";
 
-import { useDragSource } from "@/core/dnd";
+import { motion } from "motion/react";
+import { useDragSource, useIsDragging } from "@/core/dnd";
+import { spring } from "@/design-system/motion";
 
 export const CARD_DRAG_TYPE = "planner-card";
 
@@ -24,11 +26,24 @@ const DUE_TONE = {
 export function CardItem({ card, selected, draggable, onSelect, onToggleDone }: Props) {
   const state = card.due && !card.done ? dueState(card.due) : null;
   const subtasksDone = card.subtasks?.filter((s) => s.done).length ?? 0;
-  const drag = useDragSource(draggable ? { type: CARD_DRAG_TYPE, payload: card.id, label: card.title } : null);
+  // L'aperçu qui suit la souris est la carte elle-même (titre + échéance).
+  const preview = (
+    <div className="rounded-[12px] border border-accent/60 bg-surface-1 p-2.5 text-body-sm text-text">
+      {card.title}
+    </div>
+  );
+  const drag = useDragSource(
+    draggable ? { type: CARD_DRAG_TYPE, payload: card.id, label: card.title, preview } : null,
+  );
+  const dragging = useIsDragging(CARD_DRAG_TYPE, card.id);
 
   return (
-    <li
+    // `layout` : quand la carte change de colonne, elle glisse à sa nouvelle place.
+    <motion.li
+      layout
+      transition={spring.gentle}
       onPointerDown={drag.onPointerDown}
+      animate={{ opacity: dragging ? 0.35 : 1, scale: dragging ? 0.98 : 1 }}
       className={cn(
         "group rounded-[12px] border bg-surface-1 p-2.5 transition-colors",
         selected ? "border-accent/60" : "border-border hover:border-border-strong",
@@ -80,6 +95,6 @@ export function CardItem({ card, selected, draggable, onSelect, onToggleDone }: 
           )}
         </button>
       </div>
-    </li>
+    </motion.li>
   );
 }

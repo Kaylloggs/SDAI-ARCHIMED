@@ -14,6 +14,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 ### Ajouté — Dictée
 - **Bouton micro dans la barre de saisie** (Chat et Code) : la voix est transcrite en direct dans le champ par la reconnaissance vocale de Windows. Tout est local, **aucun token consommé**. Le texte provisoire s'affiche pendant qu'on parle, chaque phrase confirmée s'ajoute au message.
 
+### Ajouté — Planner
+- **Notes en Markdown** : les notes d'une carte s'écrivent comme un fichier `.md` (`**gras**`, titres, listes, cases à cocher, `code`, liens, tableaux) et s'affichent mises en forme hors édition.
+- **Glisser-déposer animé** : la carte elle-même suit la souris, s'incline dans le sens du geste, grossit au-dessus d'une colonne acceptée, s'estompe à sa place d'origine, puis se glisse à sa nouvelle position.
+
 ### Modifié
 - **Changement d'agent possible en cours de conversation** : le sélecteur n'est plus grisé une fois la conversation démarrée. Le processus est arrêté, la reprise CLI abandonnée (chaque CLI a ses propres conversations) et une ligne signale que le nouvel agent ne connaît pas les messages précédents.
 - **Accueil : grande tuile et colonne « Récemment » à taille généreuse (44 % de la hauteur), puis les modules par rangées de **trois grandes tuiles** ; au-delà, la page défile.

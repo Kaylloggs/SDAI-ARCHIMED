@@ -4,6 +4,7 @@ import { CalendarPlus, Check, FileText, Trash2, X } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Badge, Button } from "@/design-system/primitives";
 import { googleCalendarUrl } from "../lib/calendar";
+import { MarkdownNotes } from "./MarkdownNotes";
 import type { Board, Card } from "../types";
 
 type Props = {
@@ -154,16 +155,7 @@ export function CardPanel({ board, card, onChange, onToggleDone, onDelete, onClo
           </section>
         )}
 
-        <section className="space-y-1.5">
-          <p className="text-caption font-medium text-text-subtle">Notes</p>
-          <textarea
-            defaultValue={card.notes}
-            rows={6}
-            placeholder="Détails, liens, décisions…"
-            onBlur={(event) => onChange({ ...card, notes: event.target.value })}
-            className="selectable w-full resize-y rounded-md border border-border bg-surface-1 px-2.5 py-2 text-body-sm outline-none placeholder:text-text-subtle focus:border-border-strong"
-          />
-        </section>
+        <MarkdownNotes value={card.notes} onChange={(notes) => onChange({ ...card, notes })} />
       </div>
 
       {!fromRoadmap && (
