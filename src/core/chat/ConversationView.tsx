@@ -3,7 +3,7 @@ import Markdown, { type Components } from "react-markdown";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import remarkGfm from "remark-gfm";
 import { motion } from "motion/react";
-import { AlertTriangle, Paperclip } from "lucide-react";
+import { AlertTriangle, Paperclip, Play } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { PromptCard } from "@/core/cards/PromptCard";
 import type { ChatSession } from "@/core/engine/session.store";
@@ -68,9 +68,11 @@ type Props = {
   onAnswer: (promptId: string, answer: PromptAnswer) => void;
   /** Colonne étroite (panneau latéral du module Code). */
   compact?: boolean;
+  /** Relance l'agent quand un tour s'est terminé sans réponse rédigée. */
+  onContinue?: () => void;
 };
 
-export function ConversationView({ session, agentName, onAnswer, compact = false }: Props) {
+export function ConversationView({ session, agentName, onAnswer, compact = false, onContinue }: Props) {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -153,8 +155,29 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
               </motion.div>
             );
 
-          case "turn":
-            return <TurnFooter key={item.id} turn={item} />;
+          case "turn": {
+            // Tour terminé sur une action (outil, refus…) sans réponse rédigée : l'agent s'est
+            // probablement arrêté en route. On propose de le relancer d'un clic.
+            const stalled =
+              onContinue &&
+              index === all.length - 1 &&
+              session.status === "idle" &&
+              all[index - 1]?.kind !== "assistant" &&
+              all[index - 1]?.kind !== "user";
+            if (!stalled) return <TurnFooter key={item.id} turn={item} />;
+            return (
+              <div key={item.id} className="space-y-2">
+                <TurnFooter turn={item} />
+                <button
+                  onClick={onContinue}
+                  className="flex h-7 items-center gap-1.5 rounded-sm border border-border bg-surface-1 px-2.5 text-footnote text-text-muted transition-colors hover:border-border-strong hover:text-text"
+                >
+                  <Play size={12} strokeWidth={1.75} />
+                  L'agent s'est arrêté sans conclure · Continuer
+                </button>
+              </div>
+            );
+          }
 
           case "prompt":
             return (

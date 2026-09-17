@@ -449,6 +449,7 @@ export default function CodeModule() {
                 session={session}
                 agentName={adapter?.name ?? session.adapter}
                 onAnswer={handleAnswer}
+                onContinue={() => void handleSend("Continue", [], [])}
                 compact
               />
             ) : (

@@ -149,8 +149,11 @@ impl CliAdapter for AntigravityAdapter {
             args.push("--mode".to_string());
             args.push("accept-edits".to_string());
         }
+        // `--print-timeout` vaut 5 min par défaut : au-delà, agy coupe le tour, renvoie la réponse
+        // partielle avec le statut SUCCESS et poursuit en arrière-plan (vérifié sur agy 1.2.3).
+        // Les longues tâches semblaient « s'arrêter en pleine réponse ».
         args.extend(
-            ["--input-format", "stream-json", "--output-format", "stream-json", "-p="]
+            ["--print-timeout", "24h", "--input-format", "stream-json", "--output-format", "stream-json", "-p="]
                 .iter()
                 .map(|s| s.to_string()),
         );
@@ -223,7 +226,7 @@ impl CliAdapter for AntigravityAdapter {
                 persistent: answer.option_id.as_deref() == Some("always"),
             },
             retry: format!(
-                "The user has now granted permission for: {}\nRetry the action that was denied and continue the task.",
+                "The user has now granted permission for: {}\nRetry the action that was denied, then continue and fully complete the user's original request.",
                 denial.target
             ),
         }
@@ -531,6 +534,7 @@ mod tests {
         });
         assert!(args.windows(2).any(|w| w[0] == "--add-dir" && w[1] == "F:/projet"));
         assert_eq!(args.last().map(String::as_str), Some("-p="));
+        assert!(args.windows(2).any(|w| w[0] == "--print-timeout" && w[1] == "24h"));
         assert!(args.windows(2).any(|w| w[0] == "--conversation" && w[1] == "abc"));
         assert!(args.windows(2).any(|w| w[0] == "--mode" && w[1] == "accept-edits"));
         assert!(!AntigravityAdapter::default()

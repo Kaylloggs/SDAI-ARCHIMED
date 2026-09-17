@@ -174,6 +174,7 @@ export default function ChatModule() {
               session={session}
               agentName={adapter?.name ?? session.adapter}
               onAnswer={handleAnswer}
+              onContinue={() => void handleSend("Continue", [], [])}
             />
           ) : (
             <EmptyState
