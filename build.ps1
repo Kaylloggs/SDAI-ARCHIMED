@@ -187,7 +187,9 @@ if (Test-Path $bridgeBin) {
 
 $bundleDir = Join-Path $targetDir 'bundle'
 if (Test-Path $bundleDir) {
-    Get-ChildItem -Path $bundleDir -Recurse -File -Include '*-setup.exe', '*.msi' | ForEach-Object {
+    # Seuls les installeurs de cette version (le dossier bundle garde ceux des builds precedents).
+    Get-ChildItem -Path $bundleDir -Recurse -File -Include '*-setup.exe', '*.msi' |
+        Where-Object { $_.Name -like "*_$($Version)_*" } | ForEach-Object {
         Copy-Item $_.FullName $outDir -Force
         Write-Ok "$($_.Name) (installeur)"
     }
@@ -223,9 +225,16 @@ if ($Publish) {
     $notesFile = Join-Path $outDir 'RELEASE_NOTES.md'
     Set-Content -Path $notesFile -Value "$install`n`n---`n`n$notes" -Encoding utf8
 
-    $assets = Get-ChildItem -Path $outDir -File | Where-Object { $_.Extension -in '.exe', '.msi' } | ForEach-Object { $_.FullName }
-    & $gh release view $tag *> $null
-    if ($LASTEXITCODE -eq 0) {
+    $assets = Get-ChildItem -Path $outDir -File |
+        Where-Object { $_.Name -eq 'SDAI-Archimed.exe' -or $_.Name -like "*_$($Version)_*" } |
+        ForEach-Object { $_.FullName }
+    # PowerShell 5.1 : une sortie d'erreur native devient fatale sous 'Stop' ; la release absente est un cas normal.
+    $previousPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    & $gh release view $tag 2>&1 | Out-Null
+    $releaseExists = $LASTEXITCODE -eq 0
+    $ErrorActionPreference = $previousPreference
+    if ($releaseExists) {
         Invoke-Native 'gh release upload' { & $gh release upload $tag @assets --clobber }
     } else {
         Invoke-Native 'gh release create' { & $gh release create $tag @assets --title "SDAI ARCHIMED $tag" --notes-file $notesFile }
