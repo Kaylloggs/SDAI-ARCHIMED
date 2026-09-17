@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import {
   AnimatePresence,
   motion,
+  useMotionValue,
   useReducedMotion,
   useSpring,
   useTransform,
@@ -167,47 +168,28 @@ export function useDropTarget(accept: string[], onDrop: (item: DragItem) => void
  * légèrement au-dessus d'une cible valide.
  */
 export function DragLayer() {
-  const first = useRef(true);
   const item = useDndStore((state) => state.item);
   const grab = useDndStore((state) => state.grab);
   const over = useDndStore((state) => state.overId !== null);
   const x = useDndStore((state) => state.x);
   const y = useDndStore((state) => state.y);
 
-  // Ressort souple : l'aperçu suit le doigt avec une traîne courte, sans rebond.
-  const follow = { stiffness: 460, damping: 42, mass: 0.7 };
-  const springX = useSpring(0, follow);
-  const springY = useSpring(0, follow);
+  // La position colle au pointeur, sans ressort : la carte reste tenue exactement à l'endroit
+  // où elle a été attrapée. La souplesse passe par l'inclinaison, pas par un décalage.
+  const moveX = useMotionValue(0);
+  const moveY = useMotionValue(0);
   // Inclinaison tirée de la vitesse horizontale : la carte penche dans le sens du geste.
-  const velocity = useVelocity(springX);
-  const tilt = useTransform(velocity, [-2200, 0, 2200], [-5, 0, 5], { clamp: true });
-  const smoothTilt = useSpring(tilt, { stiffness: 220, damping: 26 });
+  const velocity = useVelocity(moveX);
+  const tilt = useTransform(velocity, [-2600, 0, 2600], [-6, 0, 6], { clamp: true });
+  const smoothTilt = useSpring(tilt, { stiffness: 200, damping: 24, mass: 0.6 });
 
   const reduced = useReducedMotion();
 
   useEffect(() => {
     if (!item || !grab) return;
-    const nextX = x - grab.offsetX;
-    const nextY = y - grab.offsetY;
-    // Premier point : pas de traîne, l'aperçu apparaît pile sous le pointeur.
-    if (first.current) {
-      first.current = false;
-      springX.jump(nextX);
-      springY.jump(nextY);
-      return;
-    }
-    if (reduced) {
-      springX.jump(nextX);
-      springY.jump(nextY);
-      return;
-    }
-    springX.set(nextX);
-    springY.set(nextY);
-  }, [item, grab, x, y, springX, springY, reduced]);
-
-  useEffect(() => {
-    if (!item) first.current = true;
-  }, [item]);
+    moveX.set(x - grab.offsetX);
+    moveY.set(y - grab.offsetY);
+  }, [item, grab, x, y, moveX, moveY]);
 
   return createPortal(
     <AnimatePresence>
@@ -221,15 +203,18 @@ export function DragLayer() {
             position: "fixed",
             left: 0,
             top: 0,
-            x: springX,
-            y: springY,
+            x: moveX,
+            y: moveY,
             rotate: reduced ? 0 : smoothTilt,
             width: grab.width,
+            // Pivot au point saisi : l'inclinaison et l'agrandissement ne décollent pas
+            // la carte du curseur.
+            transformOrigin: `${grab.offsetX}px ${grab.offsetY}px`,
             zIndex: 80,
             pointerEvents: "none",
             willChange: "transform",
           }}
-          className="origin-center drop-shadow-[0_22px_38px_rgba(0,0,0,0.5)]"
+          className="drop-shadow-[0_22px_38px_rgba(0,0,0,0.5)]"
         >
           {item.preview ?? (
             <div className="glass max-w-64 truncate rounded-sm px-2 py-1 text-footnote text-text">{item.label}</div>

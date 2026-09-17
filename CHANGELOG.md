@@ -16,7 +16,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ### Ajouté — Planner
 - **Titres et notes en Markdown** : le titre d'une carte accepte `**gras**`, `*italique*`, `` `code` ``, `~~barré~~` et les liens (rendu sur une ligne) ; les notes s'écrivent comme un fichier `.md` complet. Édition brute d'un côté, aperçu mis en forme de l'autre ; exports .ics et Google Agenda sans balisage.
-- **Glisser-déposer animé** : la carte **quitte sa colonne** et suit la souris (ressort souple, inclinaison selon la vitesse, agrandissement au-dessus d'une colonne acceptée) ; la colonne survolée ouvre un emplacement d'accueil, et la carte s'y glisse au relâchement. Suivi direct si « animations réduites » est activé.
+- **Glisser-déposer animé** : la carte reste tenue exactement au point où la souris l'a saisie (aucun décalage, pivot au curseur) ; elle **quitte sa colonne** et suit la souris (ressort souple, inclinaison selon la vitesse, agrandissement au-dessus d'une colonne acceptée) ; la colonne survolée ouvre un emplacement d'accueil, et la carte s'y glisse au relâchement. Suivi direct si « animations réduites » est activé.
 
 ### Modifié
 - **Changement d'agent possible en cours de conversation** : le sélecteur n'est plus grisé une fois la conversation démarrée. Le processus est arrêté, la reprise CLI abandonnée (chaque CLI a ses propres conversations) et une ligne signale que le nouvel agent ne connaît pas les messages précédents.
