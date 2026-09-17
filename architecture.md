@@ -77,7 +77,8 @@ SDAI ARCHIMED/
 │   │   │                                # · CommandPalette · ModuleErrorBoundary
 │   │   ├── ipc/                         # invoke.ts (invokeCore/invokeModule) · index
 │   │   │   └── bindings/                # GÉNÉRÉ par ts-rs — ne pas éditer
-│   │   ├── engine/                      # types · engine.api · useAdapters · useChat
+│   │   ├── engine/                      # types · engine.api · useAdapters · useChat · tokenSaver (mode caveman)
+│   │   │                                # · prompts/ (caveman.md embarqué) · useAutoContinue
 │   │   │                                # · session.store (conversations persistées) · __tests__
 │   │   ├── cards/                       # PromptCard · DiffView · ToolCallCard
 │   │   ├── bus/event-bus.ts

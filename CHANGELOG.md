@@ -4,6 +4,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté
+- **Économie de tokens (Réglages)** : mode caveman intégré au logiciel (skill embarqué), activable, 3 niveaux (léger, standard, maximal). Appliqué à chaque prompt dans Chat et Code, toutes CLI : règles complètes au premier message d'une conversation, rappel d'une ligne ensuite.
+
+### Modifié
+- **Tokens sous chaque réponse** : distinction entre tokens **générés** et **contexte** relu (instructions, outils, skills, historique) avec sa part en cache. L'ancien total unique laissait croire qu'un simple « coucou » coûtait 28 k tokens.
+
 ## [0.2.0] - 2026-09-17
 
 ### Ajouté — Phase 1 (fondations exécutables)

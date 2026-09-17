@@ -115,15 +115,16 @@ export function LiveActivity({ session }: { session: ChatSession }) {
 
 /** Bilan sous la réponse : durée, tokens, coût. */
 export function TurnFooter({ turn }: { turn: TurnItem }) {
-  const input = turn.inputTokens + turn.cacheTokens;
-  const total = input + turn.outputTokens;
+  // Deux grandeurs distinctes : ce que l'agent a écrit, et le contexte relu pour l'écrire
+  // (instructions, outils, skills, historique — surtout servi depuis le cache, bien moins cher).
+  const context = turn.inputTokens + turn.cacheTokens;
+  const cachedShare = context > 0 ? Math.round((turn.cacheTokens / context) * 100) : 0;
+  const fr = (value: number) => value.toLocaleString("fr-FR");
   const detail = [
-    `Entrée : ${input.toLocaleString("fr-FR")} (dont cache ${turn.cacheTokens.toLocaleString("fr-FR")})`,
-    `Sortie : ${turn.outputTokens.toLocaleString("fr-FR")}`,
-    turn.thinkingTokens ? `Réflexion : ${turn.thinkingTokens.toLocaleString("fr-FR")}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+    `Générés : ${fr(turn.outputTokens)}${turn.thinkingTokens ? ` (dont réflexion ${fr(turn.thinkingTokens)})` : ""}`,
+    `Contexte lu : ${fr(context)} (dont cache ${fr(turn.cacheTokens)})`,
+    "Le contexte (instructions, outils, skills, historique) est renvoyé à chaque message ; la partie en cache coûte environ 10 fois moins.",
+  ].join("\n");
 
   return (
     <div className="-mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-text-subtle">
@@ -135,7 +136,13 @@ export function TurnFooter({ turn }: { turn: TurnItem }) {
       )}
       <span className="inline-flex items-center gap-1 tabular-nums" title={detail}>
         <Cpu size={11} strokeWidth={1.75} />
-        {formatTokens(total)} tokens
+        {formatTokens(turn.outputTokens)} tokens générés
+        {context > 0 && (
+          <span className="text-text-subtle/80">
+            · contexte {formatTokens(context)}
+            {cachedShare > 0 && ` (${cachedShare} % en cache)`}
+          </span>
+        )}
       </span>
       {turn.costUsd !== null && (
         <span className="inline-flex items-center gap-1 tabular-nums" title="Coût estimé par la CLI (équivalent API)">

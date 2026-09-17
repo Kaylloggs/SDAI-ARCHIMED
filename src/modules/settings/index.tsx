@@ -8,6 +8,7 @@ import { bus } from "@/core/bus/event-bus";
 import { Badge, Button, Card, SectionHeader } from "@/design-system/primitives";
 import { ThemeSection } from "./components/ThemeSection";
 import { EngineSection } from "./components/EngineSection";
+import { TokenSaverSection } from "./components/TokenSaverSection";
 
 const FALLBACK_VERSION = packageInfo.version;
 
@@ -58,6 +59,13 @@ export default function SettingsModule() {
         description="Claude Code, Antigravity et Codex sont détectés automatiquement. Indiquez un chemin si une CLI est installée hors PATH."
       >
         <EngineSection />
+      </Section>
+
+      <Section
+        title="Économie de tokens"
+        description="Réponses plus courtes pour ménager vos limites d'abonnement."
+      >
+        <TokenSaverSection />
       </Section>
 
       <Section

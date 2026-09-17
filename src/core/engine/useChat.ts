@@ -4,6 +4,7 @@ import { bus } from "@/core/bus/event-bus";
 import { useService } from "@/core/modules/services";
 import { engineApi } from "./engine.api";
 import { useSessionStore, type ChatSession } from "./session.store";
+import { applyTokenSaver, useTokenSaverStore } from "./tokenSaver";
 import type { AutoMode, EngineEvent, PromptAnswer } from "./types";
 
 /**
@@ -28,6 +29,18 @@ export function buildPrompt(
       .join("\n")}`;
   }
   return prompt;
+}
+
+/**
+ * Économie de tokens (Réglages) : consigne caveman ajoutée à chaque prompt de la conversation,
+ * règles complètes la première fois pour un niveau donné, rappel d'une ligne ensuite.
+ */
+function withTokenSaver(conversationId: string, prompt: string): string {
+  const { enabled, level, primed, markPrimed } = useTokenSaverStore.getState();
+  if (!enabled) return prompt;
+  const alreadyPrimed = primed.includes(`${conversationId}:${level}`);
+  markPrimed(conversationId);
+  return applyTokenSaver(prompt, level, alreadyPrimed);
 }
 
 /** Message envoyé quand un agent s'est arrêté en route (jamais affiché). */
@@ -94,10 +107,8 @@ export function useChat() {
           ? await contextService.buildContext(chat.cwd).catch(() => null)
           : null;
       useSessionStore.getState().appendUser(chat.id, text, [...targets, ...attachments]);
-      const prompt = buildPrompt(text, attachments, targets);
-      await engineApi.sendMessage(engineSessionId, context ? `${context}
-
-${prompt}` : prompt);
+      const prompt = withTokenSaver(chat.id, buildPrompt(text, attachments, targets));
+      await engineApi.sendMessage(engineSessionId, context ? `${context}\n\n${prompt}` : prompt);
     },
     [ensureEngine, contextService],
   );
@@ -114,7 +125,7 @@ ${prompt}` : prompt);
         activity: { phase: "thinking", label: null, since: Date.now() },
         turnStartedAt: Date.now(),
       });
-      await engineApi.sendMessage(engineSessionId, CONTINUE_PROMPT);
+      await engineApi.sendMessage(engineSessionId, withTokenSaver(chat.id, CONTINUE_PROMPT));
     },
     [ensureEngine],
   );
