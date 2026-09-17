@@ -176,6 +176,27 @@ export function Composer({
           </p>
         )}
 
+        {(dictation.recording || dictation.error) && (
+          <p
+            className={cn(
+              "flex items-center gap-1.5 pb-2 text-footnote",
+              dictation.error ? "text-danger" : "text-text-muted",
+            )}
+          >
+            {dictation.error ? (
+              dictation.error
+            ) : (
+              <>
+                <span className="relative flex size-2">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-danger opacity-60" />
+                  <span className="relative inline-flex size-2 rounded-full bg-danger" />
+                </span>
+                Dictée en cours — parlez, le texte s'écrit tout seul. Échap pour arrêter.
+              </>
+            )}
+          </p>
+        )}
+
         {chips.length > 0 && (
           <ul className="flex flex-wrap gap-1.5 pb-2">
             {chips.map(({ path, kind }) => (
@@ -224,6 +245,11 @@ export function Composer({
             el.style.height = `${Math.min(el.scrollHeight, compact ? 160 : 240)}px`;
           }}
           onKeyDown={(event) => {
+            if (event.key === "Escape" && dictation.recording) {
+              event.preventDefault();
+              dictation.toggle();
+              return;
+            }
             if (event.key === "Escape" && running && onStop) {
               event.preventDefault();
               onStop();

@@ -44,7 +44,11 @@ impl DictationService {
         // Fil dédié : les objets WinRT y sont créés, utilisés et détruits, sans traverser
         // les frontières de threads de tokio.
         std::thread::spawn(move || {
-            let outcome = platform::run(&app, language.as_deref(), &ready_tx, rx);
+            let emit_app = app.clone();
+            let emit = move |event: &str, text: String| {
+                let _ = emit_app.emit(event, text);
+            };
+            let outcome = platform::run(language.as_deref(), &ready_tx, rx, emit);
             let _ = app.emit(ENDED, outcome.err().unwrap_or_default());
         });
 
@@ -68,10 +72,9 @@ impl DictationService {
 }
 
 #[cfg(windows)]
-mod platform {
+pub mod platform {
     use std::sync::mpsc::{Receiver, Sender};
 
-    use tauri::{AppHandle, Emitter, Runtime};
     use windows::core::{Ref, Result as WinResult, HSTRING};
     use windows::Foundation::TypedEventHandler;
     use windows::Globalization::Language;
@@ -83,6 +86,17 @@ mod platform {
 
     use super::{FINAL, PARTIAL};
 
+    /// Le moteur envoie le texte reconnu par cette closure (l'application le relaie en événement).
+    pub type Emit = dyn Fn(&str, String) + Send + Sync + 'static;
+
+    /// WinRT exige un appartement COM initialisé sur le fil qui active les objets. Sans cet
+    /// appel, `SpeechRecognizer::new()` échoue (`CO_E_NOTINITIALIZED`) et rien n'était transcrit.
+    fn init_apartment() {
+        use windows::Win32::System::WinRT::{RoInitialize, RO_INIT_MULTITHREADED};
+        // `RPC_E_CHANGED_MODE` : le fil a déjà un appartement, ce qui convient aussi.
+        let _ = unsafe { RoInitialize(RO_INIT_MULTITHREADED) };
+    }
+
     fn failed(error: windows::core::Error) -> String {
         format!(
             "dictée Windows indisponible ({}). Vérifiez Paramètres › Confidentialité › Reconnaissance vocale, le micro et le module de langue.",
@@ -91,13 +105,15 @@ mod platform {
     }
 
     /// Crée le moteur, branche les événements, démarre, puis attend l'ordre d'arrêt.
-    pub fn run<R: Runtime>(
-        app: &AppHandle<R>,
+    pub fn run(
         language: Option<&str>,
         ready: &Sender<Result<(), String>>,
         stop: Receiver<()>,
+        emit: impl Fn(&str, String) + Send + Sync + 'static,
     ) -> Result<(), String> {
-        let session = match setup(app, language) {
+        init_apartment();
+        let emit: std::sync::Arc<Emit> = std::sync::Arc::new(emit);
+        let session = match setup(language, &emit) {
             Ok(session) => {
                 let _ = ready.send(Ok(()));
                 session
@@ -111,13 +127,15 @@ mod platform {
 
         // Bloque jusqu'à `stop()` (ou jusqu'à la fermeture de l'application).
         let _ = stop.recv();
-        let _ = session.StopAsync().map(|op| op.join());
+        // `CancelAsync` rend la main tout de suite ; attendre `StopAsync` depuis ce fil bloque
+        // quand le moteur est en train de traiter de la parole (vérifié le 2026-09-17).
+        let _ = session.CancelAsync();
         Ok(())
     }
 
-    fn setup<R: Runtime>(
-        app: &AppHandle<R>,
+    pub fn setup(
         language: Option<&str>,
+        emit: &std::sync::Arc<Emit>,
     ) -> WinResult<SpeechContinuousRecognitionSession> {
         let recognizer = match language {
             Some(tag) => SpeechRecognizer::Create(&Language::CreateLanguage(&HSTRING::from(tag))?)?,
@@ -133,38 +151,39 @@ mod platform {
         }
 
         // Texte provisoire, pendant que la personne parle.
-        let partial_app = app.clone();
+        let partial_emit = emit.clone();
         recognizer.HypothesisGenerated(&TypedEventHandler::new(
             move |_, args: Ref<'_, SpeechRecognitionHypothesisGeneratedEventArgs>| {
                 if let Some(args) = args.as_ref() {
-                    let text = args.Hypothesis()?.Text()?.to_string();
-                    let _ = partial_app.emit(PARTIAL, text);
+                    partial_emit(PARTIAL, args.Hypothesis()?.Text()?.to_string());
                 }
                 Ok(())
             },
         ))?;
 
-        // Micro de mauvaise qualité, trop de bruit… : simple information.
-        let quality_app = app.clone();
+        // Micro de mauvaise qualité, trop de bruit… : simple information dans les journaux.
         recognizer.RecognitionQualityDegrading(&TypedEventHandler::new(
             move |_, args: Ref<'_, SpeechRecognitionQualityDegradingEventArgs>| {
                 if let Some(args) = args.as_ref() {
                     tracing::debug!("dictée : qualité dégradée ({:?})", args.Problem()?);
-                    let _ = &quality_app;
                 }
                 Ok(())
             },
         ))?;
 
+        // Dictée longue : sans cela, Windows arrête la session après quelques secondes de silence.
+        let timeouts = recognizer.Timeouts()?;
+        let _ = timeouts.SetInitialSilenceTimeout(windows::Foundation::TimeSpan { Duration: 10 * 60 * 10_000_000 });
+        let _ = timeouts.SetEndSilenceTimeout(windows::Foundation::TimeSpan { Duration: 20_000_000 });
+
         let session = recognizer.ContinuousRecognitionSession()?;
-        let final_app = app.clone();
+        let final_emit = emit.clone();
         session.ResultGenerated(&TypedEventHandler::new(
             move |_, args: Ref<'_, SpeechContinuousRecognitionResultGeneratedEventArgs>| {
                 if let Some(args) = args.as_ref() {
-                    let result = args.Result()?;
-                    let text = result.Text()?.to_string();
+                    let text = args.Result()?.Text()?.to_string();
                     if !text.trim().is_empty() {
-                        let _ = final_app.emit(FINAL, text);
+                        final_emit(FINAL, text);
                     }
                 }
                 Ok(())
@@ -177,19 +196,47 @@ mod platform {
 }
 
 #[cfg(not(windows))]
-mod platform {
+pub mod platform {
     use std::sync::mpsc::{Receiver, Sender};
 
-    use tauri::{AppHandle, Runtime};
-
-    pub fn run<R: Runtime>(
-        _app: &AppHandle<R>,
+    pub fn run(
         _language: Option<&str>,
         ready: &Sender<Result<(), String>>,
         _stop: Receiver<()>,
+        _emit: impl Fn(&str, String) + Send + Sync + 'static,
     ) -> Result<(), String> {
         let message = "la dictée n'est disponible que sous Windows".to_string();
         let _ = ready.send(Err(message.clone()));
         Err(message)
+    }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use std::sync::{Arc, Mutex};
+
+    /// Démarre réellement le moteur de dictée de Windows (micro requis, langue installée).
+    /// Ignoré par défaut : `cargo test -- --ignored dictation_engine_starts`.
+    #[test]
+    #[ignore]
+    fn dictation_engine_starts() {
+        let heard: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let sink = heard.clone();
+        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+        let (stop_tx, stop_rx) = std::sync::mpsc::channel();
+
+        let thread = std::thread::spawn(move || {
+            super::platform::run(Some("fr-FR"), &ready_tx, stop_rx, move |event, text| {
+                sink.lock().unwrap().push(format!("{event} {text}"));
+            })
+        });
+
+        let started = ready_rx.recv().expect("le fil de dictée doit répondre");
+        assert!(started.is_ok(), "démarrage impossible : {started:?}");
+
+        std::thread::sleep(std::time::Duration::from_secs(14));
+        let _ = stop_tx.send(());
+        thread.join().unwrap().expect("arrêt propre");
+        println!("événements reçus : {:?}", heard.lock().unwrap());
     }
 }
