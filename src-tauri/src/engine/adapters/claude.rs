@@ -77,7 +77,7 @@ impl CliAdapter for ClaudeAdapter {
     }
 
     /// Un modèle par niveau d'effort (`--effort`) : plus l'effort est bas, moins la réflexion
-    /// consomme de tokens. L'entrée sans niveau laisse Claude Code décider.
+    /// consomme de tokens.
     fn models(&self, _binary: Option<&Path>) -> Vec<ModelInfo> {
         const MODELS: &[(&str, &str)] = &[
             ("opus", "Opus (le plus capable)"),
@@ -92,21 +92,16 @@ impl CliAdapter for ClaudeAdapter {
         MODELS
             .iter()
             .flat_map(|(id, label)| {
-                let base = ModelInfo {
-                    id: (*id).to_string(),
-                    label: (*label).to_string(),
-                };
-                let levels = EFFORTS.iter().map(move |(effort, suffix)| ModelInfo {
+                EFFORTS.iter().map(move |(effort, suffix)| ModelInfo {
                     id: format!("{id}:{effort}"),
                     label: format!("{} · {suffix}", label.split(" (").next().unwrap_or(label)),
-                });
-                std::iter::once(base).chain(levels)
+                })
             })
             .collect()
     }
 
     fn default_model(&self) -> Option<String> {
-        Some("sonnet".to_string())
+        Some("sonnet:medium".to_string())
     }
 
     fn missing_hint(&self) -> &'static str {
@@ -528,8 +523,11 @@ mod tests {
     fn model_list_exposes_each_effort_level() {
         let models = ClaudeAdapter::default().models(None);
         let ids: Vec<&str> = models.iter().map(|m| m.id.as_str()).collect();
-        assert!(ids.contains(&"sonnet") && ids.contains(&"sonnet:high") && ids.contains(&"sonnet:low"));
-        assert_eq!(models.iter().filter(|m| m.id.starts_with("opus")).count(), 4);
+        // Uniquement les variantes par effort : pas d'entrée « modèle seul ».
+        assert!(ids.contains(&"sonnet:high") && ids.contains(&"sonnet:medium") && ids.contains(&"sonnet:low"));
+        assert!(!ids.contains(&"sonnet"));
+        assert_eq!(models.iter().filter(|m| m.id.starts_with("opus")).count(), 3);
+        assert_eq!(ClaudeAdapter::default().default_model().as_deref(), Some("sonnet:medium"));
     }
 
     #[test]

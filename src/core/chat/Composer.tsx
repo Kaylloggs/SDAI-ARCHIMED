@@ -287,7 +287,13 @@ export function Composer({
           {adapter && adapter.models.length > 0 && (
             <Select
               label="Modèle"
-              value={model ?? adapter.defaultModel ?? ""}
+              // Modèle enregistré avant un changement de liste (ex. « sonnet » sans niveau
+              // d'effort) : on retombe sur le modèle par défaut de l'agent.
+              value={
+                model && adapter.models.some((m) => m.id === model)
+                  ? model
+                  : (adapter.defaultModel ?? "")
+              }
               onChange={onModelChange}
               className="min-w-0 max-w-48"
               options={adapter.models.map((m) => ({ value: m.id, label: m.label }))}
