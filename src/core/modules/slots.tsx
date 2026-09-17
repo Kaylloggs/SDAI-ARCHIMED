@@ -19,6 +19,7 @@ export const SLOT_NAMES = [
   "launchpad.widgets",
   "code.editor.footer",
   "statusbar.items",
+  "app.background",
 ] as const;
 
 export type SlotName = (typeof SLOT_NAMES)[number];

@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { Channel } from "@/core/ipc";
 import { bus } from "@/core/bus/event-bus";
+import { useService } from "@/core/modules/services";
 import { engineApi } from "./engine.api";
 import { useSessionStore, type ChatSession } from "./session.store";
 import type { AutoMode, EngineEvent, PromptAnswer } from "./types";
@@ -30,8 +31,14 @@ export function buildPrompt(
 }
 
 /** Cycle de vie des conversations, partagé par tous les modules qui parlent aux CLI. */
+/** Service optionnel fourni par un module (ex. Mémoire) : contexte ajouté au premier message. */
+export type PromptContextService = {
+  buildContext: (cwd: string | null) => Promise<string | null>;
+};
+
 export function useChat() {
   const store = useSessionStore();
+  const contextService = useService<PromptContextService>("memory.context");
   const session =
     store.sessions.find((s) => s.id === store.activeId && s.origin === "chat") ?? null;
 
@@ -65,10 +72,19 @@ export function useChat() {
   const send = useCallback(
     async (chat: ChatSession, text: string, attachments: string[] = [], targets: string[] = []) => {
       const engineSessionId = await ensureEngine(chat);
+      // Premier message d'une conversation : la CLI ne sait encore rien du travail passé.
+      const firstMessage = !chat.timeline.some((item) => item.kind === "user");
+      const context =
+        firstMessage && contextService
+          ? await contextService.buildContext(chat.cwd).catch(() => null)
+          : null;
       useSessionStore.getState().appendUser(chat.id, text, [...targets, ...attachments]);
-      await engineApi.sendMessage(engineSessionId, buildPrompt(text, attachments, targets));
+      const prompt = buildPrompt(text, attachments, targets);
+      await engineApi.sendMessage(engineSessionId, context ? `${context}
+
+${prompt}` : prompt);
     },
-    [ensureEngine],
+    [ensureEngine, contextService],
   );
 
   const answer = useCallback(

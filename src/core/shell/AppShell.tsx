@@ -1,6 +1,7 @@
 import { Suspense, createElement, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { Slot } from "@/core/modules";
 import { useEnabledModules } from "@/core/modules/useModules";
 import { useUiStore } from "@/core/stores/ui.store";
 import { pageFade } from "@/design-system/motion";
@@ -65,6 +66,8 @@ export function AppShell() {
       </div>
 
       <CommandPalette />
+      {/* Contributions sans interface, actives quel que soit le module affiché. */}
+      <Slot name="app.background" />
     </div>
   );
 }

@@ -109,6 +109,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - Claude reçoit la commande native `/nom` ; les autres CLI une consigne pointant le `SKILL.md` du skill.
 - Le slot `chat.composer.actions` reçoit désormais `{ cwd, adapter, insertText }`.
 
+### Ajouté — Module Mémoire
+- **Journal automatique** : chaque réponse d'IA (Chat et Code) est résumée — demande, résultat, fichiers modifiés, commandes lancées.
+- **Notes** globales ou par projet : ajout manuel, bouton « Mémoriser » sous une réponse, ou lignes `📌 Mémoire :` écrites par l'IA.
+- **Rappel** : au premier message d'une conversation, les notes et derniers travaux du projet sont transmis à la CLI (3 000 caractères max). Aperçu exact dans le module.
+- Réglages : rappel et journal désactivables ; tout est stocké localement.
+- Nouveaux points d'extension : slot `app.background`, service `memory.context`.
+
 ### Connu / à faire (Phase 3)
 - Génération des types TS depuis Rust (`ts-rs`) : seuls les codes d'erreur sont générés, les types du moteur sont encore recopiés à la main.
 - Envoi natif des images aux CLI qui le supportent (aujourd'hui : chemins transmis à l'agent).

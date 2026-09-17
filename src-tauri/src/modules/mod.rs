@@ -3,6 +3,7 @@
 //! `build.rs` vérifie la cohérence avec les dossiers `module.toml` et échoue sinon.
 
 pub mod code;
+pub mod memory;
 pub mod planner;
 pub mod skills;
 pub mod usage;
@@ -17,6 +18,7 @@ pub fn register_all<R: tauri::Runtime>(
     mut builder: tauri::Builder<R>,
 ) -> tauri::Builder<R> {
     register!(builder, code);
+    register!(builder, memory);
     register!(builder, planner);
     register!(builder, skills);
     register!(builder, usage);
