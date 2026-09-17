@@ -4,6 +4,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté
+- **Modèles Claude par niveau d'effort** : chaque modèle est proposé en effort élevé, moyen ou faible dans la barre de saisie (`--effort`), en plus de l'entrée par défaut.
+- **Réglages › Économie de tokens** étendus : effort de réflexion par défaut (Claude et Antigravity), désactivation des skills des CLI (`--disable-slash-commands`), contexte optimisé pour le cache (`--exclude-dynamic-system-prompt-sections`), compactage anticipé à 100 k (`--autocompact`), et relance automatique des réponses coupées désactivable.
+
+### Modifié
+- **Menu latéral** : défilement visible (barre fine, dégradés haut et bas) quand les modules dépassent la hauteur.
+
 ## [0.2.1] - 2026-09-17
 
 ### Ajouté

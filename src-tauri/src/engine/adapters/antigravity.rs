@@ -132,8 +132,16 @@ impl CliAdapter for AntigravityAdapter {
     fn spawn_args(&self, options: LaunchOptions<'_>) -> Vec<String> {
         let mut args = Vec::new();
         if let Some(model) = options.model {
+            let (id, effort) = crate::engine::event::split_model(model);
             args.push("--model".to_string());
-            args.push(model.to_string());
+            args.push(id.to_string());
+            if let Some(effort) = effort.or(options.tuning.effort.as_deref()) {
+                args.push("--effort".to_string());
+                args.push(effort.to_string());
+            }
+        }
+        if options.tuning.disable_skills {
+            args.push("--disable-slash-commands".to_string());
         }
         if let Some(resume) = options.resume {
             args.push("--conversation".to_string());
@@ -531,6 +539,7 @@ mod tests {
             resume: Some("abc"),
             auto_mode: AutoMode::Smart,
             cwd: Some("F:/projet"),
+            tuning: &crate::engine::event::DEFAULT_TUNING,
         });
         assert!(args.windows(2).any(|w| w[0] == "--add-dir" && w[1] == "F:/projet"));
         assert_eq!(args.last().map(String::as_str), Some("-p="));

@@ -63,7 +63,7 @@ export default function SettingsModule() {
 
       <Section
         title="Économie de tokens"
-        description="Réponses plus courtes pour ménager vos limites d'abonnement."
+        description="Tout ce qui réduit la consommation : réponses plus courtes, moins de réflexion, contexte allégé."
       >
         <TokenSaverSection />
       </Section>

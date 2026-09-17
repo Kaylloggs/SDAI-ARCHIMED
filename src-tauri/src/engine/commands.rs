@@ -83,6 +83,7 @@ pub async fn engine_start_session(
     cwd: Option<String>,
     auto_mode: AutoMode,
     resume: Option<String>,
+    tuning: Option<crate::engine::event::EngineTuning>,
     on_event: Channel<EngineEvent>,
 ) -> AppResult<SessionId> {
     let adapter = find_adapter(&adapter)?;
@@ -96,6 +97,7 @@ pub async fn engine_start_session(
             cwd,
             auto_mode,
             resume,
+            tuning: tuning.unwrap_or_default(),
         },
         on_event,
         &overrides,

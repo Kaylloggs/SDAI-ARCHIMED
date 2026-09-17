@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { isStalledTurn } from "./useChat";
+import { useTokenSaverStore } from "./tokenSaver";
 import type { ChatSession } from "./session.store";
 
 /** Relances automatiques successives au plus, avant de laisser la main à l'utilisateur. */
@@ -17,6 +18,7 @@ export function useAutoContinue(session: ChatSession | null, continueTurn: (sess
   const lastTurnId = session?.timeline.at(-1)?.kind === "turn" ? session.timeline.at(-1)!.id : null;
 
   useEffect(() => {
+    if (!useTokenSaverStore.getState().autoContinue) return;
     if (!session || !lastTurnId || handledTurns.current.has(lastTurnId)) return;
     if (!isStalledTurn(session)) return;
     handledTurns.current.add(lastTurnId);

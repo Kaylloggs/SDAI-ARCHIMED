@@ -42,6 +42,8 @@ pub struct SpawnRequest {
     pub auto_mode: AutoMode,
     /// Identifiant de conversation de la CLI à reprendre.
     pub resume: Option<String>,
+    /// Réglages d'économie de tokens (Réglages).
+    pub tuning: super::event::EngineTuning,
 }
 
 /// Démarre le processus CLI et la boucle de session.
@@ -57,6 +59,7 @@ pub fn spawn(
         cwd,
         auto_mode,
         resume,
+        tuning,
     } = request;
     let binary = adapters::resolve_binary(adapter.as_ref(), binary_overrides)
         .ok_or_else(|| AppError::cli_missing(adapter.missing_hint()))?;
@@ -72,7 +75,7 @@ pub fn spawn(
             super::pty_session::PtySpawn {
                 session_id: id.clone(),
                 binary: &binary,
-                args: adapter.spawn_args(super::event::LaunchOptions { model: model.as_deref(), resume: resume.as_deref(), auto_mode, cwd: cwd.as_deref() }),
+                args: adapter.spawn_args(super::event::LaunchOptions { model: model.as_deref(), resume: resume.as_deref(), auto_mode, cwd: cwd.as_deref(), tuning: &tuning }),
                 cwd,
                 auto_mode,
                 extra_rules: adapter.prompt_rules(),
@@ -91,6 +94,7 @@ pub fn spawn(
         binary,
         model: model.clone(),
         cwd,
+        tuning,
         channel: channel.clone(),
     };
     let process = launch.start(adapter.as_ref(), resume.as_deref(), auto_mode)?;
@@ -280,6 +284,7 @@ struct Launch {
     binary: PathBuf,
     model: Option<String>,
     cwd: Option<String>,
+    tuning: super::event::EngineTuning,
     channel: Channel<EngineEvent>,
 }
 
@@ -297,6 +302,7 @@ impl Launch {
                 resume,
                 auto_mode,
                 cwd: self.cwd.as_deref(),
+                tuning: &self.tuning,
             }))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

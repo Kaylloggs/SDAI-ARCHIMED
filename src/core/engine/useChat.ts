@@ -4,7 +4,7 @@ import { bus } from "@/core/bus/event-bus";
 import { useService } from "@/core/modules/services";
 import { engineApi } from "./engine.api";
 import { useSessionStore, type ChatSession } from "./session.store";
-import { applyTokenSaver, useTokenSaverStore } from "./tokenSaver";
+import { applyTokenSaver, engineTuning, useTokenSaverStore } from "./tokenSaver";
 import type { AutoMode, EngineEvent, PromptAnswer } from "./types";
 
 /**
@@ -87,6 +87,7 @@ export function useChat() {
       cwd: chat.cwd,
       autoMode: chat.autoMode,
       resume: chat.cliSessionId ?? null,
+      tuning: engineTuning(),
       onEvent: channel,
     });
 

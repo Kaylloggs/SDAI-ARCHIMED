@@ -141,6 +141,23 @@
   }
 }
 
+/* Zone défilante discrète (rail de navigation) : barre fine, dégradés aux extrémités
+   pour montrer qu'il reste des éléments au-dessus ou en dessous. */
+.scroll-soft {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--color-text) 22%, transparent) transparent;
+  mask-image: linear-gradient(to bottom, transparent 0, black 12px, black calc(100% - 12px), transparent 100%);
+}
+.scroll-soft::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-soft::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  background: color-mix(in oklab, var(--color-text) 22%, transparent);
+  background-clip: content-box;
+}
+
 /* Glisser-déposer interne en cours (core/dnd) : pas de sélection de texte parasite. */
 body.dnd-active,
 body.dnd-active * {

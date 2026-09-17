@@ -88,7 +88,7 @@ export function Sidebar() {
         )}
       </button>
 
-      <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-y-auto overflow-x-hidden px-3 [scrollbar-width:none]">
+      <div className="scroll-soft flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-x-hidden px-3">
         {main.map(([category, items], index) => (
           <Fragment key={category}>
             {index > 0 && <span aria-hidden className="my-1.5 h-px w-6 shrink-0 bg-border-strong" />}

@@ -76,18 +76,33 @@ impl CliAdapter for ClaudeAdapter {
         Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
     }
 
+    /// Un modèle par niveau d'effort (`--effort`) : plus l'effort est bas, moins la réflexion
+    /// consomme de tokens. L'entrée sans niveau laisse Claude Code décider.
     fn models(&self, _binary: Option<&Path>) -> Vec<ModelInfo> {
-        [
+        const MODELS: &[(&str, &str)] = &[
             ("opus", "Opus (le plus capable)"),
             ("sonnet", "Sonnet (équilibré)"),
             ("haiku", "Haiku (rapide)"),
-        ]
-        .iter()
-        .map(|(id, label)| ModelInfo {
-            id: (*id).to_string(),
-            label: (*label).to_string(),
-        })
-        .collect()
+        ];
+        const EFFORTS: &[(&str, &str)] = &[
+            ("high", "effort élevé"),
+            ("medium", "effort moyen"),
+            ("low", "effort faible"),
+        ];
+        MODELS
+            .iter()
+            .flat_map(|(id, label)| {
+                let base = ModelInfo {
+                    id: (*id).to_string(),
+                    label: (*label).to_string(),
+                };
+                let levels = EFFORTS.iter().map(move |(effort, suffix)| ModelInfo {
+                    id: format!("{id}:{effort}"),
+                    label: format!("{} · {suffix}", label.split(" (").next().unwrap_or(label)),
+                });
+                std::iter::once(base).chain(levels)
+            })
+            .collect()
     }
 
     fn default_model(&self) -> Option<String> {
@@ -99,7 +114,7 @@ impl CliAdapter for ClaudeAdapter {
     }
 
     fn spawn_args(&self, options: LaunchOptions<'_>) -> Vec<String> {
-        let LaunchOptions { model, resume, .. } = options;
+        let LaunchOptions { model, resume, tuning, .. } = options;
         let mut args: Vec<String> = [
             "-p",
             "--input-format",
@@ -116,9 +131,31 @@ impl CliAdapter for ClaudeAdapter {
         .map(|s| s.to_string())
         .collect();
 
+        let (model, model_effort) = match model {
+            Some(model) => {
+                let (id, effort) = crate::engine::event::split_model(model);
+                (Some(id), effort)
+            }
+            None => (None, None),
+        };
         if let Some(model) = model {
             args.push("--model".to_string());
             args.push(model.to_string());
+        }
+        // Effort du modèle choisi, sinon celui des réglages d'économie de tokens.
+        if let Some(effort) = model_effort.or(tuning.effort.as_deref()) {
+            args.push("--effort".to_string());
+            args.push(effort.to_string());
+        }
+        if tuning.disable_skills {
+            args.push("--disable-slash-commands".to_string());
+        }
+        if tuning.cache_friendly {
+            args.push("--exclude-dynamic-system-prompt-sections".to_string());
+        }
+        if let Some(window) = tuning.compact_at.as_deref() {
+            args.push("--autocompact".to_string());
+            args.push(window.to_string());
         }
         if let Some(resume) = resume {
             args.push("--resume".to_string());
@@ -485,6 +522,46 @@ mod tests {
             session_id: "s1",
             auto_mode: AutoMode::Off,
         }
+    }
+
+    #[test]
+    fn model_list_exposes_each_effort_level() {
+        let models = ClaudeAdapter::default().models(None);
+        let ids: Vec<&str> = models.iter().map(|m| m.id.as_str()).collect();
+        assert!(ids.contains(&"sonnet") && ids.contains(&"sonnet:high") && ids.contains(&"sonnet:low"));
+        assert_eq!(models.iter().filter(|m| m.id.starts_with("opus")).count(), 4);
+    }
+
+    #[test]
+    fn effort_and_token_saving_flags_reach_the_cli() {
+        let tuning = crate::engine::event::EngineTuning {
+            effort: Some("low".into()),
+            disable_skills: true,
+            cache_friendly: true,
+            compact_at: Some("100k".into()),
+        };
+        let args = ClaudeAdapter::default().spawn_args(LaunchOptions {
+            model: Some("opus:high"),
+            resume: None,
+            auto_mode: AutoMode::Off,
+            cwd: None,
+            tuning: &tuning,
+        });
+        // Le niveau choisi dans la liste des modèles prime sur le réglage global.
+        assert!(args.windows(2).any(|w| w[0] == "--model" && w[1] == "opus"));
+        assert!(args.windows(2).any(|w| w[0] == "--effort" && w[1] == "high"));
+        assert!(args.contains(&"--disable-slash-commands".to_string()));
+        assert!(args.contains(&"--exclude-dynamic-system-prompt-sections".to_string()));
+        assert!(args.windows(2).any(|w| w[0] == "--autocompact" && w[1] == "100k"));
+
+        let global = ClaudeAdapter::default().spawn_args(LaunchOptions {
+            model: Some("sonnet"),
+            resume: None,
+            auto_mode: AutoMode::Off,
+            cwd: None,
+            tuning: &tuning,
+        });
+        assert!(global.windows(2).any(|w| w[0] == "--effort" && w[1] == "low"));
     }
 
     #[test]

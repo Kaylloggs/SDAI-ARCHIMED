@@ -244,6 +244,7 @@ fn main() {
 | Slot | `settings.sections` | settings | (auto : `manifest.settings`) |
 | Service | `code.project` | code | savoir si un dossier est un projet (consommé par le chat) |
 | Service | `code.open` | code | ouvrir un fichier ou dossier cité par l'IA dans l'éditeur (consommé par `core/chat/FileLink`) |
+| Réglage | `EngineTuning` | core (Réglages › Économie de tokens) | effort, skills, cache, compactage transmis à `engine_start_session` puis aux `spawn_args` des adaptateurs |
 | Service | `memory.context` | memory | informations actives de l'utilisateur ajoutées au premier message (consommé par `useChat`) |
 | Service | `engine.session` | core | démarrer/envoyer/écouter une session |
 | Service | `system.fs` / `system.shell` | core | actions système passant par la policy |

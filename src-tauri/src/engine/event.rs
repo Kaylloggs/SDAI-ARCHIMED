@@ -220,6 +220,29 @@ pub struct RateWindow {
     pub resets_at: Option<i64>,
 }
 
+/// Réglages « Économie de tokens » (Réglages → Économie de tokens), appliqués au lancement
+/// de la CLI quand elle les prend en charge.
+#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct EngineTuning {
+    /// `low` | `medium` | `high` | `xhigh` | `max` — effort de réflexion par défaut.
+    pub effort: Option<String>,
+    /// Ne pas charger les skills des CLI (leur description est envoyée à chaque message).
+    pub disable_skills: bool,
+    /// Sort les sections variables du prompt système : meilleur taux de cache.
+    pub cache_friendly: bool,
+    /// Taille de fenêtre avant compactage automatique (ex. `100k`).
+    pub compact_at: Option<String>,
+}
+
+/// Réglages par défaut (aucune économie), utiles pour les appels internes et les tests.
+pub static DEFAULT_TUNING: EngineTuning = EngineTuning {
+    effort: None,
+    disable_skills: false,
+    cache_friendly: false,
+    compact_at: None,
+};
+
 /// Options de lancement d'une CLI (voir `CliAdapter::spawn_args`).
 #[derive(Debug, Clone, Copy)]
 pub struct LaunchOptions<'a> {
@@ -229,6 +252,15 @@ pub struct LaunchOptions<'a> {
     pub auto_mode: AutoMode,
     /// Dossier de travail choisi (le processus y est aussi lancé).
     pub cwd: Option<&'a str>,
+    pub tuning: &'a EngineTuning,
+}
+
+/// Modèle choisi : `sonnet` ou `sonnet:high` (modèle + effort).
+pub fn split_model(model: &str) -> (&str, Option<&str>) {
+    match model.split_once(':') {
+        Some((id, effort)) if !effort.is_empty() => (id, Some(effort)),
+        _ => (model, None),
+    }
 }
 
 #[cfg(test)]
@@ -239,6 +271,7 @@ impl<'a> LaunchOptions<'a> {
             resume,
             auto_mode: AutoMode::Off,
             cwd: None,
+            tuning: &DEFAULT_TUNING,
         }
     }
 }

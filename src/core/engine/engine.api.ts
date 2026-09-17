@@ -22,6 +22,8 @@ export const engineApi = {
     autoMode: AutoMode;
     /** Identifiant de conversation de la CLI à reprendre (contexte conservé). */
     resume: string | null;
+    /** Réglages « Économie de tokens » (Réglages) appliqués au lancement. */
+    tuning?: EngineTuning;
     onEvent: Channel<EngineEvent>;
   }) => invokeCore<SessionId>("engine_start_session", params),
 
@@ -56,3 +58,11 @@ export const engineApi = {
 };
 
 export type ResolvedPath = { path: string; isDir: boolean };
+
+/** Miroir de `EngineTuning` (src-tauri/src/engine/event.rs). */
+export type EngineTuning = {
+  effort: string | null;
+  disableSkills: boolean;
+  cacheFriendly: boolean;
+  compactAt: string | null;
+};
