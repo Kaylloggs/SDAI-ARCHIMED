@@ -31,7 +31,7 @@ ARCHIMED does not replace the CLIs: it drives the ones installed on your machine
 - **Auto mode**: a risk policy (`Low` → `Critical`) lets agents work without constant interruptions; critical actions are always confirmed.
 - Attach files, pick a skill, choose the working folder right from the input bar.
 - Stop the agent at any time; answers cut short are resumed automatically.
-- **Token saver**: a built-in caveman mode (Settings) makes every answer terse while keeping code and technical terms exact.
+- **Token saver**: a built-in mode powered by the [Caveman](https://github.com/JuliusBrussee/caveman) skill (Settings) makes every answer terse while keeping code and technical terms exact.
 
 ### 💻 VS Code-like workspace (`code` module)
 - File tree, tabs, syntax-highlighted editor powered by **CodeMirror 6** (~35 languages), `Ctrl+P` file palette, `Ctrl+S` save.
@@ -184,5 +184,7 @@ Issues and pull requests are welcome. Read [`guidelines.md`](guidelines.md) firs
 ## 📄 License
 
 [MIT](LICENSE) © 2026 SearaDesign. Free to use, modify and share, as long as the copyright notice is kept.
+
+The token saver bundles the Caveman skill by Julius Brussee (MIT, see `src/core/engine/prompts/caveman.LICENSE`); ARCHIMED is not affiliated with Caveman.
 
 Claude, Antigravity and Codex are trademarks of their respective owners. ARCHIMED is an independent project, not affiliated with Anthropic, Google or OpenAI.

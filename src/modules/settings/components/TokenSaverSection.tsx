@@ -58,6 +58,7 @@ export function TokenSaverSection() {
 
       <p className="text-caption text-text-subtle">
         Les règles complètes du skill sont envoyées au premier message d'une conversation, puis un rappel d'une ligne.
+        Propulsé par le skill Caveman de Julius Brussee (licence MIT).
       </p>
     </div>
   );
