@@ -98,6 +98,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - Colonnes **renommables et supprimables** (avec leurs cartes, confirmation en deux temps).
 - **Vue Calendrier** mensuelle : échéances par jour, glisser-déposer pour planifier ou déplanifier, création de carte datée, bascule Tableau / Calendrier dans l'en-tête.
 
+### Ajouté — Liens de fichiers dans les réponses
+- Les chemins cités par l'IA (code en ligne, liens `file://`) deviennent **cliquables** s'ils existent : chemins absolus, relatifs au dossier de travail, ou simples noms de fichiers résolus dans un dossier cité par le même message.
+- **Clic** : ouvre le fichier dans le module Code (dossier du projet si le fichier en fait partie). **Clic droit** : menu aux couleurs du thème — ouvrir dans Code, avec l'application par défaut, afficher dans l'Explorateur, copier le chemin.
+- Sécurité : un programme (`.exe`, `.bat`, `.ps1`…) n'est jamais lancé depuis un lien, seulement affiché dans l'Explorateur.
+- Nouvelle primitive `ContextMenu`, commandes `engine_resolve_paths`, `engine_open_path`, `engine_reveal_path`, service `code.open`.
+
 ### Connu / à faire (Phase 3)
 - Génération des types TS depuis Rust (`ts-rs`) : seuls les codes d'erreur sont générés, les types du moteur sont encore recopiés à la main.
 - Envoi natif des images aux CLI qui le supportent (aujourd'hui : chemins transmis à l'agent).

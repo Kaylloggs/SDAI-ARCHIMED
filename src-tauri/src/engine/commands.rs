@@ -208,3 +208,160 @@ pub async fn engine_default_cwd() -> AppResult<String> {
         .ok_or_else(|| AppError::internal("dossier utilisateur introuvable"))?;
     Ok(dir.display().to_string())
 }
+
+/// Chemin cité par une IA, résolu sur le disque.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedPath {
+    pub path: String,
+    pub is_dir: bool,
+}
+
+/// Résout les chemins cités dans une réponse : absolus tels quels, relatifs d'abord
+/// dans les dossiers cités par le même message (`hints`), puis dans le dossier de travail.
+/// `None` si rien n'existe : le texte reste affiché sans lien.
+#[tauri::command]
+pub async fn engine_resolve_paths(
+    candidates: Vec<String>,
+    cwd: Option<String>,
+    hints: Vec<String>,
+) -> AppResult<Vec<Option<ResolvedPath>>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let bases = path_bases(&hints, cwd.as_deref());
+        candidates
+            .iter()
+            .map(|candidate| resolve_path(candidate, &bases))
+            .collect()
+    })
+    .await
+    .map_err(|e| AppError::internal(e.to_string()))
+}
+
+fn path_bases(hints: &[String], cwd: Option<&str>) -> Vec<std::path::PathBuf> {
+    let mut bases: Vec<std::path::PathBuf> = Vec::new();
+    for hint in hints {
+        let path = expand_home(hint);
+        let dir = if path.is_dir() {
+            Some(path)
+        } else if path.is_file() {
+            path.parent().map(std::path::Path::to_path_buf)
+        } else {
+            None
+        };
+        if let Some(dir) = dir.filter(|d| d.is_absolute() && !bases.contains(d)) {
+            bases.push(dir);
+        }
+    }
+    if let Some(cwd) = cwd.map(std::path::PathBuf::from) {
+        if !bases.contains(&cwd) {
+            bases.push(cwd);
+        }
+    }
+    bases
+}
+
+fn expand_home(text: &str) -> std::path::PathBuf {
+    match text.strip_prefix("~/").or_else(|| text.strip_prefix("~\\")) {
+        Some(rest) => crate::core::paths::dirs_home()
+            .map(|home| home.join(rest))
+            .unwrap_or_else(|| std::path::PathBuf::from(text)),
+        None => std::path::PathBuf::from(text),
+    }
+}
+
+fn resolve_path(candidate: &str, bases: &[std::path::PathBuf]) -> Option<ResolvedPath> {
+    let trimmed = candidate.trim().trim_matches(|c| c == '"' || c == '\'');
+    if trimmed.is_empty() || trimmed.contains("://") || trimmed.len() > 1024 {
+        return None;
+    }
+    let path = expand_home(trimmed);
+    let found = if path.is_absolute() {
+        path.exists().then_some(path)
+    } else {
+        bases.iter().map(|base| base.join(&path)).find(|p| p.exists())
+    }?;
+    let found = std::fs::canonicalize(&found)
+        .map(|p| strip_verbatim(&p))
+        .unwrap_or(found);
+    Some(ResolvedPath {
+        is_dir: found.is_dir(),
+        path: found.display().to_string(),
+    })
+}
+
+/// `\?\C:\…` (forme canonique Windows) → `C:\…`.
+fn strip_verbatim(path: &std::path::Path) -> std::path::PathBuf {
+    let text = path.display().to_string();
+    match text.strip_prefix(r"\?\") {
+        Some(rest) if !rest.starts_with("UNC") => std::path::PathBuf::from(rest),
+        _ => path.to_path_buf(),
+    }
+}
+
+/// Ouvre un fichier ou dossier avec l'application par défaut du système.
+#[tauri::command]
+pub async fn engine_open_path<R: tauri::Runtime>(app: tauri::AppHandle<R>, path: String) -> AppResult<()> {
+    use tauri_plugin_opener::OpenerExt;
+    if !std::path::Path::new(&path).exists() {
+        return Err(AppError::not_found(format!("{path} introuvable")));
+    }
+    // Un lien cité par une IA ne doit jamais lancer un programme d'un clic.
+    if is_executable(&path) {
+        return Err(AppError::invalid(format!(
+            "{path} est un programme : ouverture directe refusée, utilisez « Afficher dans l'Explorateur »"
+        )));
+    }
+    app.opener()
+        .open_path(path, None::<&str>)
+        .map_err(|e| AppError::internal(e.to_string()))
+}
+
+const EXECUTABLE_EXTENSIONS: &[&str] = &[
+    "exe", "com", "bat", "cmd", "ps1", "psm1", "vbs", "vbe", "js", "jse", "wsf", "wsh", "msi", "msp",
+    "scr", "pif", "lnk", "url", "hta", "cpl", "jar", "reg", "appref-ms", "application", "gadget",
+];
+
+fn is_executable(path: &str) -> bool {
+    std::path::Path::new(path)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| EXECUTABLE_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()))
+}
+
+/// Affiche un fichier sélectionné dans l'Explorateur.
+#[tauri::command]
+pub async fn engine_reveal_path<R: tauri::Runtime>(app: tauri::AppHandle<R>, path: String) -> AppResult<()> {
+    use tauri_plugin_opener::OpenerExt;
+    if !std::path::Path::new(&path).exists() {
+        return Err(AppError::not_found(format!("{path} introuvable")));
+    }
+    app.opener()
+        .reveal_item_in_dir(path)
+        .map_err(|e| AppError::internal(e.to_string()))
+}
+
+#[cfg(test)]
+mod path_tests {
+    use super::*;
+
+    #[test]
+    fn resolves_relative_names_against_cited_folders_then_cwd() {
+        let root = std::env::temp_dir().join(format!("archimed-paths-{}", uuid::Uuid::new_v4()));
+        let cited = root.join("scratch");
+        std::fs::create_dir_all(&cited).unwrap();
+        std::fs::write(cited.join("popup.bat"), "@echo off").unwrap();
+        std::fs::write(root.join("main.rs"), "fn main() {}").unwrap();
+
+        let bases = path_bases(&[cited.display().to_string()], Some(&root.display().to_string()));
+        let bat = resolve_path("popup.bat", &bases).unwrap();
+        assert!(bat.path.ends_with("popup.bat") && !bat.is_dir);
+        assert!(!bat.path.starts_with(r"\?\"));
+        assert!(resolve_path("main.rs", &bases).is_some());
+        assert!(resolve_path(&cited.display().to_string(), &bases).unwrap().is_dir);
+        assert!(resolve_path("absent.txt", &bases).is_none());
+        assert!(resolve_path("https://example.com/a.txt", &bases).is_none());
+        assert!(is_executable("C:/x/popup.BAT") && !is_executable("C:/x/notes.md"));
+
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+}

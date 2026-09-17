@@ -5,7 +5,8 @@
 - **Backend** : plugin `code` (`src-tauri/src/modules/code/`).
 - **Commandes** : `list_dir`, `read_file`, `write_file` (atomique, auditée), `project_info`, `search_files`.
 - **Services consommés** : moteur core (`useChat`, `useAdapters`), composants `@/core/chat`.
-- **Entrées** : dossier choisi par l'utilisateur, ou passé par un autre module via `useUiStore.openModule("code", { cwd })`.
+- **Entrées** : dossier choisi par l'utilisateur, ou passé par un autre module via `useUiStore.openModule("code", { cwd, file? })` (`file` : ouvert dans un onglet une fois le dossier chargé).
+- **Services fournis** : `code.project` (détection de projet), `code.open` (ouvrir un fichier ou dossier cité dans une réponse d'IA).
 - **Drag & drop** :
   - depuis l'arborescence vers le composer → le fichier devient une **cible** de modification (`FILE_DRAG_MIME`) ;
   - depuis l'explorateur Windows vers la fenêtre → les fichiers deviennent des **pièces jointes** (`useOsFileDrop`).

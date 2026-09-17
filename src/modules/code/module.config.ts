@@ -17,6 +17,8 @@ export default defineModule({
   provides: {
     // Permet au module Chat de détecter un projet sans dépendre de ce module.
     "code.project": () => import("./services/project"),
+    // Ouvre un fichier cité dans une réponse d'IA (liens de la conversation).
+    "code.open": () => import("./services/open"),
   },
   commands: [{ id: "code.open", title: "Ouvrir un projet dans Code", run: "navigate" }],
 });

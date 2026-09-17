@@ -29,6 +29,7 @@ export default function CodeModule() {
   const clearParams = useUiStore((s) => s.clearModuleParams);
 
   const [root, setRoot] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<string | null>(null);
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [openFiles, setOpenFiles] = useState<FileContent[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -74,6 +75,8 @@ export default function CodeModule() {
     const fromHandoff = typeof handoff?.["cwd"] === "string" ? (handoff["cwd"] as string) : null;
     if (fromHandoff) {
       setRoot(fromHandoff);
+      // Fichier à ouvrir (lien d'une réponse d'IA) : ouvert une fois le dossier chargé.
+      if (typeof handoff?.["file"] === "string") setPendingFile(handoff["file"] as string);
       clearParams("code");
       return;
     }
@@ -123,7 +126,7 @@ export default function CodeModule() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const openFile = useCallback(async (entry: FileEntry) => {
+  const openFile = useCallback(async (entry: Pick<FileEntry, "path">) => {
     setLoadingFile(true);
     setError(null);
     try {
@@ -138,6 +141,13 @@ export default function CodeModule() {
       setLoadingFile(false);
     }
   }, []);
+
+  // Déclaré après la réinitialisation liée au dossier : s'exécute après elle dans le même rendu.
+  useEffect(() => {
+    if (!pendingFile || !root) return;
+    setPendingFile(null);
+    void openFile({ path: pendingFile });
+  }, [pendingFile, root, openFile]);
 
   const active = openFiles.find((file) => file.path === activePath) ?? null;
   const activeDraft = active ? drafts[active.path] : undefined;

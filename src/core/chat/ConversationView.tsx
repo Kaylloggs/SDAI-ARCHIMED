@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import Markdown from "react-markdown";
+import { useEffect, useRef, type ComponentProps, type ReactNode } from "react";
+import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion } from "motion/react";
 import { AlertTriangle, Paperclip } from "lucide-react";
@@ -10,6 +10,36 @@ import type { PromptAnswer } from "@/core/engine/types";
 import { enterUp } from "@/design-system/motion";
 import { Slot } from "@/core/modules";
 import { ActivityGroup, LiveActivity, TurnFooter, groupTimeline } from "./ActivityViews";
+import { FileLink, ResolvedPathsProvider, useResolvedPath } from "./FileLink";
+import { decodeLinkTarget } from "./paths";
+
+function textOf(children: ReactNode): string {
+  if (typeof children === "string") return children;
+  if (Array.isArray(children)) return children.map(textOf).join("");
+  return "";
+}
+
+/** Code en ligne : devient un lien quand il désigne un fichier existant. */
+function InlineCode({ children, className }: ComponentProps<"code">) {
+  const text = textOf(children);
+  const target = useResolvedPath(text);
+  const code = <code className={className}>{children}</code>;
+  // Les blocs (```) ont une classe de langage ou plusieurs lignes : jamais de lien.
+  if (!target || className || text.includes("\n")) return code;
+  return <FileLink target={target}>{code}</FileLink>;
+}
+
+function MarkdownLink({ href, children }: ComponentProps<"a">) {
+  const target = useResolvedPath(href && !/^https?:/i.test(href) ? decodeLinkTarget(href) : "");
+  if (target) return <FileLink target={target}>{children}</FileLink>;
+  return (
+    <a href={href} target="_blank" rel="noreferrer">
+      {children}
+    </a>
+  );
+}
+
+const MARKDOWN_COMPONENTS: Components = { code: InlineCode, a: MarkdownLink };
 
 type Props = {
   session: ChatSession;
@@ -78,7 +108,11 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
                     "[&_a]:text-accent [&_a]:underline",
                   )}
                 >
-                  <Markdown remarkPlugins={[remarkGfm]}>{item.text}</Markdown>
+                  <ResolvedPathsProvider text={item.text} cwd={session.cwd} enabled={item.done}>
+                    <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+                      {item.text}
+                    </Markdown>
+                  </ResolvedPathsProvider>
                   {!item.done && (
                     <span className="ml-0.5 inline-block h-4 w-[2px] animate-pulse bg-accent align-middle" />
                   )}

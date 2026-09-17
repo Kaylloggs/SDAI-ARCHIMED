@@ -41,4 +41,15 @@ export const engineApi = {
 
   /** Ouvre le dossier des adaptateurs TOML (ajouter une CLI sans code). */
   openAdaptersDir: () => invokeCore<void>("engine_open_adapters_dir"),
+
+  /** Chemins cités par une IA → chemins existants (`null` si introuvable). */
+  resolvePaths: (candidates: string[], cwd: string | null, hints: string[]) =>
+    invokeCore<Array<ResolvedPath | null>>("engine_resolve_paths", { candidates, cwd, hints }),
+
+  /** Application par défaut (programmes refusés côté Rust). */
+  openPath: (path: string) => invokeCore<void>("engine_open_path", { path }),
+
+  revealPath: (path: string) => invokeCore<void>("engine_reveal_path", { path }),
 };
+
+export type ResolvedPath = { path: string; isDir: boolean };

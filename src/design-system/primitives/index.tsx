@@ -4,6 +4,7 @@ import { cn } from "@/core/lib/cn";
 export { Button } from "./Button";
 export { Select, type SelectOption } from "./Select";
 export { Tooltip } from "./Tooltip";
+export { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 
 /** Carte de contenu (couche L2). */
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {

@@ -86,7 +86,7 @@ SDAI ARCHIMED/
 │   │   ├── themes.ts                    # presets de thème (Archimède, Papier, Tokyo Néon…)
 │   │   ├── globals.css · motion.ts
 │   │   ├── brand/ArchimedLogo.tsx       # marque (spirale d'Archimède)
-│   │   └── primitives/                  # Button · Select (menus aux tokens) · Tooltip · Card
+│   │   └── primitives/                  # Button · Select (menus aux tokens) · Tooltip · ContextMenu · Card
 │   │                                    # · GlassPanel · Badge · Kbd · SectionHeader · EmptyState
 │   └── modules/
 │       ├── _template/                   # copié par new-module (ignoré par le registre)
@@ -95,7 +95,8 @@ SDAI ARCHIMED/
 │       │   └── components/              # SessionList · ProjectBanner · RawTerminalDrawer
 │       ├── code/                        # module.config · index · api · README
 │       │   ├── components/              # FileTree · CodeEditor (CodeMirror 6)
-│       │   └── services/project.ts      # service `code.project` exposé au chat
+│       │   ├── services/project.ts      # service `code.project` exposé au chat
+│       │   └── services/open.ts         # service `code.open` (liens de fichiers des réponses)
 │       ├── planner/                     # module.config · index · api · store · types · README
 │       │   ├── components/              # BoardSidebar · BoardView · CardItem · CardPanel
 │       │   ├── lib/                     # board (synchro roadmap) · extract · calendar
@@ -236,6 +237,7 @@ fn main() {
 | Slot | `statusbar.items` | shell | indicateurs globaux |
 | Slot | `settings.sections` | settings | (auto : `manifest.settings`) |
 | Service | `code.project` | code | savoir si un dossier est un projet (consommé par le chat) |
+| Service | `code.open` | code | ouvrir un fichier ou dossier cité par l'IA dans l'éditeur (consommé par `core/chat/FileLink`) |
 | Service | `engine.session` | core | démarrer/envoyer/écouter une session |
 | Service | `system.fs` / `system.shell` | core | actions système passant par la policy |
 | Service | `notify.toast` | core | notifications UI |
