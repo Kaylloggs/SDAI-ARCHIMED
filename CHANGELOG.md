@@ -135,6 +135,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Tokens Antigravity très surestimés** : agy renvoie en fin de tour un usage **cumulé depuis le début de la conversation**, qui était additionné à chaque réponse. La consommation est maintenant la somme des appels au modèle du tour (vérifié sur agy 1.2.3), et la durée celle du tour. L'historique déjà enregistré dans Crédits garde les anciennes valeurs.
 - **Glisser-déposer interne inopérant** (fichier de l'arborescence vers le chat de Code, cartes du Planner) : sous Windows, WebView2 intercepte le drag & drop HTML5 quand le dépôt de fichiers de l'Explorateur est actif. Nouveau glisser-déposer au pointeur (`@/core/dnd`) ; le dépôt depuis l'Explorateur reste disponible.
 
+### Publication
+- Projet publié sous **licence MIT** sur GitHub (`Kaylloggs/SDAI-ARCHIMED`).
+- `README.md` public en anglais : fonctionnalités, modules, étapes d'installation (prérequis, CLI, clonage, lancement, compilation du `.exe`).
+
 ### Connu / à faire (Phase 3)
 - Génération des types TS depuis Rust (`ts-rs`) : seuls les codes d'erreur sont générés, les types du moteur sont encore recopiés à la main.
 - Envoi natif des images aux CLI qui le supportent (aujourd'hui : chemins transmis à l'agent).

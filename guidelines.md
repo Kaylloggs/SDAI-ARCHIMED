@@ -256,7 +256,7 @@ Noms de slots, services et événements : `domaine.sujet.action` en minuscules. 
 - [ ] Aucun token de design en dur, aucune chaîne UI en dur hors `i18n/`.
 - [ ] Types Rust exportés via `ts-rs` et bindings régénérés (`pnpm gen:bindings`).
 - [ ] Ligne ajoutée dans `CHANGELOG.md`.
-- [ ] **Module listé dans la documentation** : tableau « Modules livrés » du `README.md` ET arborescence d'`architecture.md` §2 (vérifié par `pnpm check`).
+- [ ] **Module listé dans la documentation** : tableau « Shipped modules » du `README.md` ET arborescence d'`architecture.md` §2 (vérifié par `pnpm check`).
 
 ---
 
@@ -414,7 +414,7 @@ Exigences minimales de tests :
 
 | Si tu… | …mets à jour |
 |---|---|
-| ajoutes/supprimes un module | son `README.md`, le tableau « Modules livrés » du `README.md` racine, l'arborescence d'`architecture.md` §2, `CHANGELOG.md` — **obligatoire, `pnpm check` échoue sinon** |
+| ajoutes/supprimes un module | son `README.md`, le tableau « Shipped modules » du `README.md` racine, l'arborescence d'`architecture.md` §2, `CHANGELOG.md` — **obligatoire, `pnpm check` échoue sinon** |
 | ajoutes un slot, service core, événement global | `src/core/modules/slots.ts` + `architecture.md` §5 |
 | modifies le contrat `EngineEvent` / `InteractivePrompt` | `architecture.md` §7 + bindings |
 | ajoutes une CLI | `architecture.md` §6 (tableau des adaptateurs) + `README.md` (prérequis) |

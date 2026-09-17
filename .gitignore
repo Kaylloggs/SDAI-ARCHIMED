@@ -27,3 +27,12 @@ dist-ssr
 release/
 src-tauri/target/
 src-tauri/binaries/
+
+# Artefacts de build TypeScript / Vite
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+
+# Outils locaux et captures d'écran
+.claude/
+Capture*.png

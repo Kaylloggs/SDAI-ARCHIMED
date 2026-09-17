@@ -59,7 +59,7 @@ const readme = readFileSync(join(root, "README.md"), "utf8");
 const architecture = readFileSync(join(root, "architecture.md"), "utf8");
 for (const id of frontModules) {
   if (!readme.includes("`" + id + "`")) {
-    errors.push(`README.md: module "${id}" absent du tableau « Modules livrés »`);
+    errors.push(`README.md: module "${id}" absent du tableau « Shipped modules »`);
   }
   if (!architecture.includes(`${id}/`)) {
     errors.push(`architecture.md: module "${id}" absent de l'arborescence (§2)`);
