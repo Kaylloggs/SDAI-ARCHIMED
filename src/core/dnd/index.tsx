@@ -1,6 +1,8 @@
 import {
+  createContext,
   createElement,
   useCallback,
+  useContext,
   useEffect,
   useId,
   useRef,
@@ -9,7 +11,14 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion, useSpring, useTransform } from "motion/react";
+import {
+  AnimatePresence,
+  motion,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+  useVelocity,
+} from "motion/react";
 import { create } from "zustand";
 
 /**
@@ -42,9 +51,17 @@ type DndState = {
 
 const useDndStore = create<DndState>(() => ({ item: null, grab: null, x: 0, y: 0, overId: null }));
 
-/** `true` pendant qu'un élément précis est déplacé (pour l'estomper à sa place d'origine). */
+/** `true` pendant qu'un élément précis est déplacé. */
 export function useIsDragging(type: string, payload: string): boolean {
   return useDndStore((state) => state.item?.type === type && state.item.payload === payload);
+}
+
+/**
+ * Élément de ce type en cours de déplacement (`null` sinon). Les listes s'en servent pour
+ * retirer l'élément de sa place d'origine : il n'existe plus que sous le pointeur.
+ */
+export function useDraggedPayload(type: string): string | null {
+  return useDndStore((state) => (state.item?.type === type ? state.item.payload : null));
 }
 
 type Target = { accept: string[]; onDrop: (item: DragItem) => void };
@@ -150,51 +167,69 @@ export function useDropTarget(accept: string[], onDrop: (item: DragItem) => void
  * légèrement au-dessus d'une cible valide.
  */
 export function DragLayer() {
+  const first = useRef(true);
   const item = useDndStore((state) => state.item);
   const grab = useDndStore((state) => state.grab);
   const over = useDndStore((state) => state.overId !== null);
   const x = useDndStore((state) => state.x);
   const y = useDndStore((state) => state.y);
 
-  const springX = useSpring(0, { stiffness: 900, damping: 45, mass: 0.35 });
-  const springY = useSpring(0, { stiffness: 900, damping: 45, mass: 0.35 });
-  const lastX = useRef(0);
-  // L'inclinaison suit la vitesse horizontale : la carte « penche » dans le sens du geste.
-  const tilt = useTransform(springX, (value) => `${Math.max(-6, Math.min(6, (value - lastX.current) * 0.4))}deg`);
+  // Ressort souple : l'aperçu suit le doigt avec une traîne courte, sans rebond.
+  const follow = { stiffness: 460, damping: 42, mass: 0.7 };
+  const springX = useSpring(0, follow);
+  const springY = useSpring(0, follow);
+  // Inclinaison tirée de la vitesse horizontale : la carte penche dans le sens du geste.
+  const velocity = useVelocity(springX);
+  const tilt = useTransform(velocity, [-2200, 0, 2200], [-5, 0, 5], { clamp: true });
+  const smoothTilt = useSpring(tilt, { stiffness: 220, damping: 26 });
+
+  const reduced = useReducedMotion();
 
   useEffect(() => {
     if (!item || !grab) return;
-    lastX.current = springX.get();
-    springX.set(x - grab.offsetX);
-    springY.set(y - grab.offsetY);
-  }, [item, grab, x, y, springX, springY]);
+    const nextX = x - grab.offsetX;
+    const nextY = y - grab.offsetY;
+    // Premier point : pas de traîne, l'aperçu apparaît pile sous le pointeur.
+    if (first.current) {
+      first.current = false;
+      springX.jump(nextX);
+      springY.jump(nextY);
+      return;
+    }
+    if (reduced) {
+      springX.jump(nextX);
+      springY.jump(nextY);
+      return;
+    }
+    springX.set(nextX);
+    springY.set(nextY);
+  }, [item, grab, x, y, springX, springY, reduced]);
 
   useEffect(() => {
-    if (item || !grab) return;
-    springX.jump(0);
-    springY.jump(0);
-  }, [item, grab, springX, springY]);
+    if (!item) first.current = true;
+  }, [item]);
 
   return createPortal(
     <AnimatePresence>
       {item && grab && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: over ? 1.04 : 1.01 }}
-          exit={{ opacity: 0, scale: 0.96 }}
-          transition={{ duration: 0.12, ease: [0.2, 0, 0, 1] }}
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: over ? 1.03 : 1 }}
+          exit={{ opacity: 0, scale: 0.98 }}
+          transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
           style={{
             position: "fixed",
             left: 0,
             top: 0,
             x: springX,
             y: springY,
-            rotate: tilt,
+            rotate: reduced ? 0 : smoothTilt,
             width: grab.width,
             zIndex: 80,
             pointerEvents: "none",
+            willChange: "transform",
           }}
-          className="origin-center drop-shadow-[0_18px_30px_rgba(0,0,0,0.45)]"
+          className="origin-center drop-shadow-[0_22px_38px_rgba(0,0,0,0.5)]"
         >
           {item.preview ?? (
             <div className="glass max-w-64 truncate rounded-sm px-2 py-1 text-footnote text-text">{item.label}</div>
@@ -214,12 +249,26 @@ type DropZoneProps = Omit<HTMLAttributes<HTMLElement>, "className" | "onDrop"> &
   children?: ReactNode;
 };
 
+const ZoneContext = createContext<string | null>(null);
+
+/**
+ * État de la zone de dépôt qui contient ce composant. Permet à un enfant (emplacement
+ * d'accueil, message…) de réagir au survol sans s'enregistrer lui-même comme cible :
+ * une cible imbriquée capterait le dépôt à la place de la zone.
+ */
+export function useDropZoneState(): { isOver: boolean; dragging: boolean } {
+  const id = useContext(ZoneContext);
+  const isOver = useDndStore((state) => id !== null && state.overId === id);
+  const dragging = useDndStore((state) => state.item !== null);
+  return { isOver, dragging };
+}
+
 /** Cible de dépôt prête à l'emploi (utile dans les listes, où un hook par élément est impossible). */
 export function DropZone({ as = "div", accept, onDrop, className, children, ...rest }: DropZoneProps) {
   const { props, isOver, dragging } = useDropTarget(accept, onDrop);
   return createElement(
     as,
     { ...rest, ...props, className: typeof className === "function" ? className({ isOver, dragging }) : className },
-    children,
+    createElement(ZoneContext.Provider, { value: props["data-drop-target"] }, children),
   );
 }

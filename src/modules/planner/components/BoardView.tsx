@@ -21,7 +21,10 @@ import {
 } from "../lib/board";
 import type { Board, Card } from "../types";
 import { CARD_DRAG_TYPE, CardItem } from "./CardItem";
-import { DropZone } from "@/core/dnd";
+import { plainText } from "./InlineMarkdown";
+import { AnimatePresence, motion } from "motion/react";
+import { DropZone, useDraggedPayload, useDropZoneState } from "@/core/dnd";
+import { spring } from "@/design-system/motion";
 import { CardPanel } from "./CardPanel";
 import { CalendarView } from "./CalendarView";
 import { ColumnHeader } from "./ColumnHeader";
@@ -37,10 +40,32 @@ function initialView(): View {
   }
 }
 
+/** Zone d'accueil animée, affichée dans la colonne survolée pendant un glisser. */
+function DropSlot({ columnId }: { columnId: string }) {
+  const { isOver } = useDropZoneState();
+  return (
+    <motion.li
+      layout
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: isOver ? 72 : 44 }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={spring.gentle}
+      aria-hidden
+      data-column={columnId}
+      className={cn(
+        "rounded-[12px] border border-dashed transition-colors",
+        isOver ? "border-accent/70 bg-accent-soft" : "border-border",
+      )}
+    />
+  );
+}
+
 export function BoardView({ board }: { board: Board }) {
   const { updateBoard, syncRoadmap, setCardDone, addTasks, error } =
     usePlannerStore();
   const [view, setViewState] = useState<View>(initialView);
+  /** Carte en cours de déplacement : retirée de sa colonne, elle n'existe que sous le pointeur. */
+  const draggedId = useDraggedPayload(CARD_DRAG_TYPE);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftByColumn, setDraftByColumn] = useState<Record<string, string>>(
     {},
@@ -97,7 +122,7 @@ export function BoardView({ board }: { board: Board }) {
       .filter((card) => card.due && !card.done)
       .map((card) => ({
         uid: card.id,
-        title: card.title,
+        title: plainText(card.title),
         date: card.due!,
         description: card.notes || null,
       }));
@@ -205,9 +230,11 @@ export function BoardView({ board }: { board: Board }) {
         ) : (
           <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-4">
             {board.columns.map((column) => {
-              const cards = board.cards.filter(
+              const columnCards = board.cards.filter(
                 (card) => card.columnId === column.id,
               );
+              const cards = columnCards.filter((card) => card.id !== draggedId);
+              const draggedFromHere = columnCards.length !== cards.length;
               const fromRoadmap = Boolean(column.roadmapSection);
               return (
                 <DropZone
@@ -225,7 +252,7 @@ export function BoardView({ board }: { board: Board }) {
                 >
                   <ColumnHeader
                     column={column}
-                    count={cards.length}
+                    count={columnCards.length}
                     onRename={(title) =>
                       updateBoard(board.id, (b) =>
                         renameColumn(b, column.id, title),
@@ -238,18 +265,25 @@ export function BoardView({ board }: { board: Board }) {
                   />
 
                   <ul className="min-h-12 flex-1 space-y-2 overflow-y-auto px-2 pb-2">
-                    {cards.map((card) => (
-                      <CardItem
-                        key={card.id}
-                        card={card}
-                        selected={card.id === selectedId}
-                        draggable={!card.roadmapKey}
-                        onSelect={() => setSelectedId(card.id)}
-                        onToggleDone={() =>
-                          void setCardDone(board.id, card, !card.done)
-                        }
-                      />
-                    ))}
+                    <AnimatePresence initial={false} mode="popLayout">
+                      {cards.map((card) => (
+                        <CardItem
+                          key={card.id}
+                          card={card}
+                          selected={card.id === selectedId}
+                          draggable={!card.roadmapKey}
+                          onSelect={() => setSelectedId(card.id)}
+                          onToggleDone={() =>
+                            void setCardDone(board.id, card, !card.done)
+                          }
+                        />
+                      ))}
+                      {/* Emplacement d'accueil : la colonne survolée s'ouvre pour montrer où
+                          la carte va tomber. */}
+                      {draggedId && !draggedFromHere && (
+                        <DropSlot key="slot" columnId={column.id} />
+                      )}
+                    </AnimatePresence>
                   </ul>
 
                   {!fromRoadmap && (

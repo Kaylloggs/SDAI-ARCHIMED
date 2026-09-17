@@ -5,6 +5,7 @@ import { Button } from "@/design-system/primitives";
 import { dueState, formatMonth, isoDate, monthGrid } from "../lib/calendar";
 import type { Board, Card } from "../types";
 import { CARD_DRAG_TYPE } from "./CardItem";
+import { InlineMarkdown, plainText } from "./InlineMarkdown";
 import { DropZone, useDragSource } from "@/core/dnd";
 
 type Props = {
@@ -194,12 +195,14 @@ export function CalendarView({ board, selectedId, onSelect, onSetDue, onAdd }: P
 
 function CalendarChip({ card, selected, onSelect }: { card: Card; selected: boolean; onSelect: () => void }) {
   const state = !card.done && card.due ? dueState(card.due) : null;
-  const drag = useDragSource(card.roadmapKey ? null : { type: CARD_DRAG_TYPE, payload: card.id, label: card.title });
+  const drag = useDragSource(
+    card.roadmapKey ? null : { type: CARD_DRAG_TYPE, payload: card.id, label: plainText(card.title) },
+  );
   return (
     <li onPointerDown={drag.onPointerDown}>
       <button
         onClick={onSelect}
-        title={card.title}
+        title={plainText(card.title)}
         className={cn(
           "block w-full truncate rounded-xs border-l-2 bg-surface-1 px-1.5 py-0.5 text-left text-caption transition-colors hover:bg-surface-3",
           state ? TONE[state] : "border-l-accent/50",
@@ -208,7 +211,7 @@ function CalendarChip({ card, selected, onSelect }: { card: Card; selected: bool
           !card.roadmapKey && "cursor-grab active:cursor-grabbing",
         )}
       >
-        {card.title}
+        <InlineMarkdown>{card.title}</InlineMarkdown>
       </button>
     </li>
   );

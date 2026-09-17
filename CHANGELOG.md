@@ -15,8 +15,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Bouton micro dans la barre de saisie** (Chat et Code) : la voix est transcrite en direct dans le champ par la reconnaissance vocale de Windows. Tout est local, **aucun token consommé**. Le texte provisoire s'affiche pendant qu'on parle, chaque phrase confirmée s'ajoute au message.
 
 ### Ajouté — Planner
-- **Notes en Markdown** : les notes d'une carte s'écrivent comme un fichier `.md` (`**gras**`, titres, listes, cases à cocher, `code`, liens, tableaux) et s'affichent mises en forme hors édition.
-- **Glisser-déposer animé** : la carte elle-même suit la souris, s'incline dans le sens du geste, grossit au-dessus d'une colonne acceptée, s'estompe à sa place d'origine, puis se glisse à sa nouvelle position.
+- **Titres et notes en Markdown** : le titre d'une carte accepte `**gras**`, `*italique*`, `` `code` ``, `~~barré~~` et les liens (rendu sur une ligne) ; les notes s'écrivent comme un fichier `.md` complet. Édition brute d'un côté, aperçu mis en forme de l'autre ; exports .ics et Google Agenda sans balisage.
+- **Glisser-déposer animé** : la carte **quitte sa colonne** et suit la souris (ressort souple, inclinaison selon la vitesse, agrandissement au-dessus d'une colonne acceptée) ; la colonne survolée ouvre un emplacement d'accueil, et la carte s'y glisse au relâchement. Suivi direct si « animations réduites » est activé.
 
 ### Modifié
 - **Changement d'agent possible en cours de conversation** : le sélecteur n'est plus grisé une fois la conversation démarrée. Le processus est arrêté, la reprise CLI abandonnée (chaque CLI a ses propres conversations) et une ligne signale que le nouvel agent ne connaît pas les messages précédents.

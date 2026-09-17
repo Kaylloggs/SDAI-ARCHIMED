@@ -3,8 +3,8 @@
 Gestionnaire de tâches façon Trello : **plusieurs tableaux**, colonnes, cartes (échéance, étiquettes, notes, sous-tâches), glisser-déposer entre colonnes, progression.
 
 ## Cartes
-- **Notes en Markdown** (`components/MarkdownNotes.tsx`) : édition brute, aperçu mis en forme (react-markdown + remark-gfm).
-- **Glisser-déposer** via `@/core/dnd` : aperçu de la carte sous le pointeur (ressort, inclinaison), position d'origine estompée, arrivée animée (`layout` de motion).
+- **Titre et notes en Markdown** : titre sur une ligne (`components/InlineMarkdown.tsx` — gras, italique, code, barré, liens), notes complètes (`components/MarkdownNotes.tsx`). Édition brute, aperçu mis en forme. Les exports (.ics, Google Agenda) reçoivent le texte sans balisage.
+- **Glisser-déposer** via `@/core/dnd` : la carte quitte sa colonne et suit le pointeur (ressort souple, inclinaison selon la vitesse), la colonne survolée ouvre un emplacement d'accueil, l'arrivée est animée (`layout`). « Animations réduites » : suivi direct, sans inclinaison.
 
 ## Vues
 - **Tableau** : colonnes et cartes. Renommer une colonne (double clic ou crayon), la supprimer avec ses cartes (corbeille, confirmation en deux temps). Les colonnes issues d'un `roadmap.md` se gèrent dans le fichier.

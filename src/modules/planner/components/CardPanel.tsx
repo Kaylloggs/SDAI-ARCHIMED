@@ -5,6 +5,7 @@ import { cn } from "@/core/lib/cn";
 import { Badge, Button } from "@/design-system/primitives";
 import { googleCalendarUrl } from "../lib/calendar";
 import { MarkdownNotes } from "./MarkdownNotes";
+import { InlineMarkdown, plainText } from "./InlineMarkdown";
 import type { Board, Card } from "../types";
 
 type Props = {
@@ -28,6 +29,15 @@ function shift(days: number): string {
 /** Panneau de détail d'une carte. Pas de `<input type="date">` : son calendrier est dessiné par le système. */
 export function CardPanel({ board, card, onChange, onToggleDone, onDelete, onClose }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [titleEditing, setTitleEditing] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(card.title);
+
+  const commitTitle = () => {
+    setTitleEditing(false);
+    const next = titleDraft.trim();
+    if (next && next !== card.title) onChange({ ...card, title: next });
+    else setTitleDraft(card.title);
+  };
   const [dueDraft, setDueDraft] = useState(card.due ?? "");
   const fromRoadmap = Boolean(card.roadmapKey);
   const validDue = /^\d{4}-\d{2}-\d{2}$/.test(dueDraft) && !Number.isNaN(Date.parse(dueDraft));
@@ -53,14 +63,39 @@ export function CardPanel({ board, card, onChange, onToggleDone, onDelete, onClo
       </header>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-        <textarea
-          value={card.title}
-          readOnly={fromRoadmap}
-          rows={2}
-          onChange={(event) => onChange({ ...card, title: event.target.value })}
-          title={fromRoadmap ? "Le titre vient du roadmap.md : modifiez-le dans le fichier." : undefined}
-          className="selectable w-full resize-none bg-transparent text-title-3 font-semibold outline-none"
-        />
+        {titleEditing && !fromRoadmap ? (
+          <textarea
+            autoFocus
+            value={titleDraft}
+            rows={2}
+            onChange={(event) => setTitleDraft(event.target.value)}
+            onBlur={commitTitle}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                commitTitle();
+              }
+              if (event.key === "Escape") {
+                setTitleDraft(card.title);
+                setTitleEditing(false);
+              }
+            }}
+            placeholder="Titre (Markdown accepté)"
+            className="selectable w-full resize-none rounded-md border border-border-strong bg-surface-1 px-2 py-1 font-mono text-body outline-none"
+          />
+        ) : (
+          <button
+            onClick={() => {
+              if (fromRoadmap) return;
+              setTitleDraft(card.title);
+              setTitleEditing(true);
+            }}
+            title={fromRoadmap ? "Le titre vient du roadmap.md : modifiez-le dans le fichier." : "Modifier le titre"}
+            className="selectable block w-full text-left text-title-3 font-semibold"
+          >
+            <InlineMarkdown>{card.title}</InlineMarkdown>
+          </button>
+        )}
 
         <Button variant={card.done ? "secondary" : "primary"} size="sm" onClick={onToggleDone}>
           <Check size={13} strokeWidth={2} />
@@ -106,7 +141,7 @@ export function CardPanel({ board, card, onChange, onToggleDone, onDelete, onClo
               onClick={() =>
                 void openUrl(
                   googleCalendarUrl({
-                    title: card.title,
+                    title: plainText(card.title),
                     date: card.due!,
                     details: `Tableau « ${board.name} »${card.notes ? `\n\n${card.notes}` : ""}`,
                   }),

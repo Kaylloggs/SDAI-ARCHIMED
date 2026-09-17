@@ -1,10 +1,11 @@
 import { Calendar, Check, ListChecks } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { dueState, formatDue } from "../lib/calendar";
+import { InlineMarkdown, plainText } from "./InlineMarkdown";
 import type { Card } from "../types";
 
 import { motion } from "motion/react";
-import { useDragSource, useIsDragging } from "@/core/dnd";
+import { useDragSource } from "@/core/dnd";
 import { spring } from "@/design-system/motion";
 
 export const CARD_DRAG_TYPE = "planner-card";
@@ -29,21 +30,23 @@ export function CardItem({ card, selected, draggable, onSelect, onToggleDone }: 
   // L'aperçu qui suit la souris est la carte elle-même (titre + échéance).
   const preview = (
     <div className="rounded-[12px] border border-accent/60 bg-surface-1 p-2.5 text-body-sm text-text">
-      {card.title}
+      <InlineMarkdown>{card.title}</InlineMarkdown>
     </div>
   );
   const drag = useDragSource(
-    draggable ? { type: CARD_DRAG_TYPE, payload: card.id, label: card.title, preview } : null,
+    draggable ? { type: CARD_DRAG_TYPE, payload: card.id, label: plainText(card.title), preview } : null,
   );
-  const dragging = useIsDragging(CARD_DRAG_TYPE, card.id);
 
   return (
-    // `layout` : quand la carte change de colonne, elle glisse à sa nouvelle place.
+    // `layout` : la carte glisse à sa nouvelle place ; pendant un glisser elle est retirée
+    // de la colonne (voir BoardView), la place se referme donc d'elle-même.
     <motion.li
       layout
       transition={spring.gentle}
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.12 } }}
       onPointerDown={drag.onPointerDown}
-      animate={{ opacity: dragging ? 0.35 : 1, scale: dragging ? 0.98 : 1 }}
       className={cn(
         "group rounded-[12px] border bg-surface-1 p-2.5 transition-colors",
         selected ? "border-accent/60" : "border-border hover:border-border-strong",
@@ -54,7 +57,7 @@ export function CardItem({ card, selected, draggable, onSelect, onToggleDone }: 
         <button
           role="checkbox"
           aria-checked={card.done}
-          aria-label={card.done ? `Rouvrir « ${card.title} »` : `Terminer « ${card.title} »`}
+          aria-label={card.done ? `Rouvrir « ${plainText(card.title)} »` : `Terminer « ${plainText(card.title)} »`}
           onClick={onToggleDone}
           className={cn(
             "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors",
@@ -65,7 +68,7 @@ export function CardItem({ card, selected, draggable, onSelect, onToggleDone }: 
         </button>
         <button onClick={onSelect} className="min-w-0 flex-1 text-left">
           <span className={cn("block text-body-sm", card.done && "text-text-subtle line-through")}>
-            {card.title}
+            <InlineMarkdown>{card.title}</InlineMarkdown>
           </span>
           {(card.due || card.labels.length > 0 || (card.subtasks?.length ?? 0) > 0) && (
             <span className="mt-1.5 flex flex-wrap items-center gap-1">
