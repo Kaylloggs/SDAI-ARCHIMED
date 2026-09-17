@@ -12,7 +12,8 @@
     "check": "tsc --noEmit && node scripts/check-modules.mjs",
     "test": "vitest",
     "gen:bindings": "cargo test --manifest-path src-tauri/Cargo.toml export_bindings",
-    "new:module": "node scripts/new-module.mjs"
+    "new:module": "node scripts/new-module.mjs",
+    "version:bump": "node scripts/bump-version.mjs"
   },
   "dependencies": {
     "@codemirror/language": "^6.12.4",

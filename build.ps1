@@ -8,6 +8,9 @@
   .\build.ps1 -Bundles none      # exe seul, plus rapide
   .\build.ps1 -DebugBuild -SkipChecks # build de debug rapide
   .\build.ps1 -Clean             # nettoie avant de compiler
+  .\build.ps1 -Bump minor        # 0.2.3 -> 0.3.0 (defaut en release : patch, 0.2.3 -> 0.2.4)
+  .\build.ps1 -Bump none         # recompile sans changer de version
+  .\build.ps1 -Publish           # + commit, tag vX.Y.Z, push et release GitHub (gh)
 
   Compatible Windows PowerShell 5.1 et PowerShell 7. Messages en ASCII volontairement.
 #>
@@ -18,7 +21,11 @@ param(
     [string]$Bundles = 'nsis',
     [switch]$SkipInstall,
     [switch]$SkipChecks,
-    [switch]$Clean
+    [switch]$Clean,
+    # Increment de version applique avant la compilation (defaut : patch en release, none en debug).
+    [ValidateSet('patch', 'minor', 'major', 'none')]
+    [string]$Bump,
+    [switch]$Publish
 )
 
 $ErrorActionPreference = 'Stop'
@@ -136,6 +143,17 @@ if (Test-Path (Join-Path $BridgeDir 'Cargo.toml')) {
     Write-Warn 'crate archimed-bridge absente : sidecar ignore.'
 }
 
+# ---------------------------------------------------------------- 5 bis. Version
+$BumpKind = if ($PSBoundParameters.ContainsKey('Bump')) { $Bump } elseif ($DebugBuild) { 'none' } else { 'patch' }
+if ($Publish -and $DebugBuild) { Fail '-Publish exige un build release (sans -DebugBuild).' }
+if ($BumpKind -ne 'none') {
+    Write-Step "Nouvelle version ($BumpKind)"
+    $bumpOutput = node (Join-Path $Root 'scripts\bump-version.mjs') $BumpKind
+    if ($LASTEXITCODE -ne 0) { Fail 'increment de version' }
+    $Version = ($bumpOutput | Select-Object -Last 1).Trim()
+    Write-Ok "v$Version (package.json, tauri.conf.json, Cargo.toml, CHANGELOG)"
+}
+
 # ---------------------------------------------------------------- 6. Build Tauri
 Write-Step "Build Tauri ($BuildProfile, bundles: $Bundles)"
 $tauriArgs = @('tauri', 'build')
@@ -173,6 +191,46 @@ if (Test-Path $bundleDir) {
         Copy-Item $_.FullName $outDir -Force
         Write-Ok "$($_.Name) (installeur)"
     }
+}
+
+# ---------------------------------------------------------------- 8. Publication GitHub
+if ($Publish) {
+    Write-Step "Publication de la release v$Version"
+    $gh = (Get-Command gh -ErrorAction SilentlyContinue).Source
+    if (-not $gh -and (Test-Path 'C:\Program Files\GitHub CLI\gh.exe')) { $gh = 'C:\Program Files\GitHub CLI\gh.exe' }
+    if (-not $gh) { Fail 'GitHub CLI (gh) introuvable : https://cli.github.com puis gh auth login' }
+    if (-not (Test-Command 'git')) { Fail 'git introuvable.' }
+
+    $tag = "v$Version"
+    Invoke-Native 'git add (version)' { git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock CHANGELOG.md }
+    git diff --cached --quiet
+    if ($LASTEXITCODE -ne 0) {
+        Invoke-Native 'git commit (version)' { git commit -q -m "chore(release): $tag" }
+        Write-Ok "commit chore(release): $tag"
+    }
+    git rev-parse -q --verify "refs/tags/$tag" | Out-Null
+    if ($LASTEXITCODE -ne 0) { Invoke-Native 'git tag' { git tag -a $tag -m "SDAI ARCHIMED $tag" } }
+    Invoke-Native 'git push' { git push origin HEAD:main }
+    Invoke-Native 'git push tag' { git push origin $tag }
+    Write-Ok "tag $tag pousse"
+
+    # Notes : section de cette version dans le CHANGELOG.
+    $changelog = Get-Content (Join-Path $Root 'CHANGELOG.md') -Raw
+    $escaped = [regex]::Escape($Version)
+    $match = [regex]::Match($changelog, "(?s)## \[$escaped\][^\n]*\n(.*?)(?=\n## \[|\z)")
+    $notes = if ($match.Success) { $match.Groups[1].Value.Trim() } else { "Version $Version" }
+    $install = "## Installation`n`n- **Installeur** : SDAI.Archimed_$($Version)_x64-setup.exe`n- **Portable** : SDAI-Archimed.exe (aucune installation)`n`nPrerequis : Windows 10/11 et au moins une CLI d'IA installee et connectee (Claude Code, Antigravity ou Codex). Voir le README."
+    $notesFile = Join-Path $outDir 'RELEASE_NOTES.md'
+    Set-Content -Path $notesFile -Value "$install`n`n---`n`n$notes" -Encoding utf8
+
+    $assets = Get-ChildItem -Path $outDir -File | Where-Object { $_.Extension -in '.exe', '.msi' } | ForEach-Object { $_.FullName }
+    & $gh release view $tag *> $null
+    if ($LASTEXITCODE -eq 0) {
+        Invoke-Native 'gh release upload' { & $gh release upload $tag @assets --clobber }
+    } else {
+        Invoke-Native 'gh release create' { & $gh release create $tag @assets --title "SDAI ARCHIMED $tag" --notes-file $notesFile }
+    }
+    Write-Ok "release $tag publiee"
 }
 
 $Stopwatch.Stop()

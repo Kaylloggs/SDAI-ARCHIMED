@@ -149,6 +149,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Antigravity s'arrêtait en pleine réponse** : `--print-timeout` d'agy (5 min par défaut) coupait le tour en annonçant un succès. Délai porté à 24 h.
 - Texte sans espace (chemins, URL) qui débordait des bulles et des cartes de la conversation.
 
+### Ajouté — Versions et releases
+- **Version incrémentée automatiquement à chaque build de release** (`build.ps1`, `patch` par défaut ; `-Bump minor|major|none`) : `package.json`, `tauri.conf.json`, `Cargo.toml`, `Cargo.lock`, et datation de la section du CHANGELOG. La version affichée dans Réglages suit.
+- `build.ps1 -Publish` : commit de version, tag `vX.Y.Z`, push et release GitHub avec les installeurs (GitHub CLI).
+- `pnpm version:bump` pour changer de version sans compiler.
+
 ### Connu / à faire (Phase 3)
 - Génération des types TS depuis Rust (`ts-rs`) : seuls les codes d'erreur sont générés, les types du moteur sont encore recopiés à la main.
 - Envoi natif des images aux CLI qui le supportent (aujourd'hui : chemins transmis à l'agent).

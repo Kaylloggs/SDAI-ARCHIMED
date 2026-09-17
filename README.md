@@ -137,8 +137,10 @@ Double-click **`build.bat`**, or run:
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-Options: `-Bundles nsis|msi|all|none` · `-DebugBuild` · `-SkipInstall` · `-SkipChecks` · `-Clean`.
+Options: `-Bundles nsis|msi|all|none` · `-DebugBuild` · `-SkipInstall` · `-SkipChecks` · `-Clean` · `-Bump patch|minor|major|none` · `-Publish`.
 Output goes to `release/<version>/`: a portable `SDAI-Archimed.exe` plus installers.
+
+**Versioning**: every release build bumps the version automatically (`patch` by default, e.g. 0.2.0 → 0.2.1; `-Bump minor` or `-Bump major` for bigger steps, `-Bump none` to rebuild). The version is updated in `package.json`, `tauri.conf.json`, `Cargo.toml` and `CHANGELOG.md`, and shown in **Settings**. `-Publish` also commits the version, tags `vX.Y.Z`, pushes and creates the GitHub release with the installers (requires the [GitHub CLI](https://cli.github.com)).
 
 ---
 
@@ -151,6 +153,7 @@ Output goes to `release/<version>/`: a portable `SDAI-Archimed.exe` plus install
 | `pnpm test` | frontend tests (Vitest) |
 | `cargo test --manifest-path src-tauri/Cargo.toml` | Rust tests |
 | `pnpm new:module <id>` | scaffold a new module |
+| `pnpm version:bump patch\|minor\|major` | bump the version without building |
 
 **Stack**: Tauri 2 · Rust (tokio, portable-pty, vt100) · React 19 · TypeScript · Vite · Tailwind CSS v4 · zustand · motion · CodeMirror 6.
 
