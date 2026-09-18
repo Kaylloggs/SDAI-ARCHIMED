@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   ArrowUp,
@@ -32,6 +32,8 @@ export function baseName(path: string): string {
 }
 
 type Props = {
+  /** Texte à déposer dans la zone de saisie (message préparé par un module). */
+  prefill?: string;
   adapters: AdapterInfo[];
   adapterId: string;
   model: string | null;
@@ -55,6 +57,24 @@ type Props = {
   onStop?: () => void;
 };
 
+/** Cinq barres qui montent avec la voix : la preuve visuelle que le micro capte. */
+function VoiceLevel({ level }: { level: number }) {
+  return (
+    <span className="flex h-3 shrink-0 items-end gap-px" aria-hidden>
+      {[0.06, 0.16, 0.3, 0.16, 0.06].map((threshold, index) => (
+        <span
+          key={index}
+          className="w-0.5 rounded-full bg-current transition-[height] duration-100"
+          style={{
+            height: `${Math.max(2, Math.min(12, (level / threshold) * 12))}px`,
+            opacity: level > threshold * 0.25 ? 1 : 0.35,
+          }}
+        />
+      ))}
+    </span>
+  );
+}
+
 export function Composer({
   adapters,
   adapterId,
@@ -73,13 +93,31 @@ export function Composer({
   onSend,
   running = false,
   onStop,
+  prefill,
 }: Props) {
   const [text, setText] = useState("");
   /** Texte déjà saisi ou dicté avant la phrase en cours (la dictée ne réécrit que la fin). */
   const dictationBase = useRef("");
+  /** Dernier texte reçu de l'extérieur : le même ne se réinjecte pas deux fois. */
+  const lastPrefill = useRef<string | null>(null);
   const [attachments, setAttachments] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const toggleRawTerminal = useUiStore((s) => s.toggleRawTerminal);
+
+  // Message préparé ailleurs (par exemple une candidature à faire relire) : il arrive dans
+  // la zone de saisie, prêt à être modifié, jamais envoyé sans l'accord de la personne.
+  useEffect(() => {
+    if (!prefill || prefill === lastPrefill.current) return;
+    lastPrefill.current = prefill;
+    setText(prefill);
+    dictationBase.current = prefill;
+    requestAnimationFrame(() => {
+      const field = textareaRef.current;
+      if (!field) return;
+      field.focus();
+      field.setSelectionRange(prefill.length, prefill.length);
+    });
+  }, [prefill]);
   const adapter = adapters.find((a) => a.id === adapterId);
 
   const addAttachments = useCallback((paths: string[]) => {
@@ -180,18 +218,26 @@ export function Composer({
           <p
             className={cn(
               "flex items-center gap-1.5 pb-2 text-footnote",
-              dictation.error ? "text-danger" : "text-text-muted",
+              dictation.error
+                ? "text-danger"
+                : dictation.warning
+                  ? "text-warning"
+                  : "text-text-muted",
             )}
           >
             {dictation.error ? (
               dictation.error
             ) : (
               <>
-                <span className="relative flex size-2">
+                <span className="relative flex size-2 shrink-0">
                   <span className="absolute inline-flex size-full animate-ping rounded-full bg-danger opacity-60" />
                   <span className="relative inline-flex size-2 rounded-full bg-danger" />
                 </span>
-                Dictée en cours — parlez, le texte s'écrit tout seul. Échap pour arrêter.
+                <VoiceLevel level={dictation.level} />
+                <span className="[overflow-wrap:anywhere]">
+                  {dictation.warning ??
+                    `Dictée en cours${dictation.device ? ` (${dictation.device})` : ""} — parlez, le texte s'écrit tout seul. Échap pour arrêter.`}
+                </span>
               </>
             )}
           </p>
@@ -330,7 +376,9 @@ export function Composer({
               ) : dictation.recording ? (
                 "Arrêter la dictée"
               ) : (
-                "Dicter le message (reconnaissance vocale de Windows, aucun token)"
+                `Dicter le message — reconnaissance vocale de Windows, aucun token${
+                  dictation.device ? ` · micro : ${dictation.device}` : ""
+                }`
               )
             }
           >
@@ -349,7 +397,14 @@ export function Composer({
             >
               {dictation.recording ? (
                 <span className="relative flex size-3.5 items-center justify-center">
-                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-danger opacity-50" />
+                  <span
+                    className="absolute inline-flex size-full rounded-full bg-danger transition-transform duration-100"
+                    style={{
+                      // Échelle pilotée par le niveau d'entrée : immobile = micro muet.
+                      transform: `scale(${1 + Math.min(dictation.level * 6, 1.1)})`,
+                      opacity: 0.25 + Math.min(dictation.level * 3, 0.45),
+                    }}
+                  />
                   <Mic size={14} strokeWidth={2} className="relative" />
                 </span>
               ) : (

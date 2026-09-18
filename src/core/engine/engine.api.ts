@@ -59,6 +59,8 @@ export const engineApi = {
    */
   dictationStart: (language: string | null) => invokeCore<void>("engine_dictation_start", { language }),
   dictationStop: () => invokeCore<void>("engine_dictation_stop"),
+  /** Nom du micro que Windows donne à la dictée, `null` s'il n'y en a aucun. */
+  dictationDevice: () => invokeCore<string | null>("engine_dictation_device"),
 
   /** Ports locaux qui répondent (serveurs de test). */
   probePorts: (ports: number[]) => invokeCore<number[]>("engine_probe_ports", { ports }),

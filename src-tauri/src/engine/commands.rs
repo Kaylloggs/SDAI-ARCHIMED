@@ -434,6 +434,12 @@ pub async fn engine_dictation_start<R: tauri::Runtime>(
     dictation.start(app, language)
 }
 
+/// Nom du micro que Windows donne à la dictée (`None` s'il n'y en a aucun).
+#[tauri::command]
+pub async fn engine_dictation_device() -> AppResult<Option<String>> {
+    Ok(crate::core::dictation::DictationService::microphone())
+}
+
 #[tauri::command]
 pub async fn engine_dictation_stop(
     dictation: State<'_, crate::core::dictation::DictationService>,
