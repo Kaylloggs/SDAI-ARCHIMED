@@ -1,26 +1,6 @@
-//! Registre des modules backend.
-//! Une ligne `register!` par module — ajoutée par `pnpm new:module`.
-//! `build.rs` vérifie la cohérence avec les dossiers `module.toml` et échoue sinon.
-
-pub mod code;
-pub mod memory;
-pub mod planner;
-pub mod skills;
-pub mod usage;
-
-macro_rules! register {
-    ($builder:expr, $module:ident) => {
-        $builder = $builder.plugin($module::plugin());
-    };
-}
-
-pub fn register_all<R: tauri::Runtime>(
-    mut builder: tauri::Builder<R>,
-) -> tauri::Builder<R> {
-    register!(builder, code);
-    register!(builder, memory);
-    register!(builder, planner);
-    register!(builder, skills);
-    register!(builder, usage);
-    builder
-}
+//! Registre des modules backend — **généré** par `build.rs` à partir des dossiers présents.
+//!
+//! Ajouter un module = créer `src/modules/<id>/` avec son `module.toml` et son `plugin()`.
+//! Le supprimer = supprimer le dossier. Aucun fichier partagé à modifier, donc aucun
+//! module privé ne laisse de trace dans les fichiers versionnés.
+include!(concat!(env!("OUT_DIR"), "/modules.rs"));

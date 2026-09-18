@@ -33,6 +33,14 @@ export default function ChatModule() {
   const [project, setProject] = useState<DetectedProject | null>(null);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const openModule = useUiStore((s) => s.openModule);
+  // Message préparé par un autre module (« relis cette candidature », « corrige ce fichier ») :
+  // il arrive dans la zone de saisie, la personne le relit et l'envoie elle-même.
+  const handoff = useUiStore((s) => s.moduleParams["chat"]);
+  const clearParams = useUiStore((s) => s.clearModuleParams);
+  const prefill = typeof handoff?.["prompt"] === "string" ? (handoff["prompt"] as string) : undefined;
+  useEffect(() => {
+    if (prefill) clearParams("chat");
+  }, [prefill, clearParams]);
   // Service optionnel : si le module Code est désactivé, aucune proposition n'apparaît.
   const codeProject = useService<CodeProjectService>("code.project");
 
@@ -241,6 +249,7 @@ export default function ChatModule() {
 
         {session && (
           <Composer
+            prefill={prefill}
             adapters={adapters}
             adapterId={session.adapter}
             model={session.model}

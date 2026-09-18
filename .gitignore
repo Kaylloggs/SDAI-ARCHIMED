@@ -36,3 +36,6 @@ vite.config.d.ts
 # Outils locaux et captures d'écran
 .claude/
 Capture*.png
+
+# Genere par src-tauri/build.rs a partir des dossiers de modules presents.
+src-tauri/capabilities/modules.generated.json

@@ -3,10 +3,21 @@
  * Vérifie les invariants de modularité (guidelines.md).
  * - chaque module frontend a module.config.ts + index.tsx + README.md
  * - aucun import croisé entre modules, ni du core vers un module
- * - chaque module backend (module.toml) est enregistré dans src/modules/mod.rs
+ * - chaque module backend (module.toml) expose bien un plugin
+ * - chaque module public est documenté (README.md + architecture.md)
+ *
+ * Les modules privés (dossier ignoré par git) échappent au contrôle de documentation :
+ * ils ne doivent laisser aucune trace dans les fichiers publiés.
  */
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
+
+/** Un dossier ignoré par git appartient à un module personnel, non publié. */
+function isPrivate(path) {
+  const result = spawnSync("git", ["check-ignore", "-q", path], { cwd: root });
+  return result.status === 0;
+}
 
 const root = process.cwd();
 const errors = [];
@@ -58,6 +69,7 @@ for (const file of walk(join(root, "src", "core")).concat(walk(join(root, "src",
 const readme = readFileSync(join(root, "README.md"), "utf8");
 const architecture = readFileSync(join(root, "architecture.md"), "utf8");
 for (const id of frontModules) {
+  if (isPrivate(join("src", "modules", id))) continue;
   if (!readme.includes("`" + id + "`")) {
     errors.push(`README.md: module "${id}" absent du tableau « Shipped modules »`);
   }
@@ -68,12 +80,14 @@ for (const id of frontModules) {
 
 const backendDir = join(root, "src-tauri", "src", "modules");
 if (existsSync(backendDir)) {
-  const registry = readFileSync(join(backendDir, "mod.rs"), "utf8");
   for (const name of readdirSync(backendDir)) {
     const manifest = join(backendDir, name, "module.toml");
     if (!existsSync(manifest)) continue;
-    if (!registry.includes(`pub mod ${name};`) || !registry.includes(`register!(builder, ${name});`)) {
-      errors.push(`src-tauri/src/modules/${name}: non enregistré dans mod.rs`);
+    // build.rs découvre les dossiers : il n'y a plus de registre à tenir à jour, mais
+    // le plugin doit exister, sinon la compilation échouera.
+    const plugin = join(backendDir, name, "mod.rs");
+    if (!existsSync(plugin) || !readFileSync(plugin, "utf8").includes("pub fn plugin")) {
+      errors.push(`src-tauri/src/modules/${name}: mod.rs doit exposer \`pub fn plugin()\``);
     }
     const frontId = name.replace(/_/g, "-");
     if (!frontModules.includes(frontId)) {

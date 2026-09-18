@@ -72,14 +72,9 @@ pub async fn ping() -> AppResult<String> {
 `,
   );
 
-  const registryPath = join(root, "src-tauri", "src", "modules", "mod.rs");
-  let registry = readFileSync(registryPath, "utf8");
-  registry = registry
-    .replace(/(pub mod [a-z_]+;\n)(?![\s\S]*pub mod )/, `$1pub mod ${snake};\n`)
-    .replace(/(\n\s*register!\(builder, [a-z_]+\);\n)(?!\s*register!)/, `$1    register!(builder, ${snake});\n`);
-  writeFileSync(registryPath, registry);
-
-  console.log(`✓ src-tauri/src/modules/${snake} (enregistré dans mod.rs)`);
+  // Aucun registre à modifier : build.rs découvre les dossiers `module.toml` et génère
+  // lui-même les déclarations et l'enregistrement des plugins.
+  console.log(`✓ src-tauri/src/modules/${snake} (découvert automatiquement par build.rs)`);
 }
 
 console.log(`\nProchaine étape : compléter ${`src/modules/${id}/index.tsx`} puis lancer pnpm check.`);

@@ -97,7 +97,7 @@ Oui → il va dans le module. Non, et au moins 2 modules en ont besoin → il va
 pnpm new:module image-gen --category creative --backend
 ```
 
-Le script `scripts/new-module.mjs` copie `src/modules/_template/`, renomme les identifiants, et si `--backend` est passé, crée `src-tauri/src/modules/image_gen/` et ajoute la ligne d'enregistrement dans `src-tauri/src/modules/mod.rs`.
+Le script `scripts/new-module.mjs` copie `src/modules/_template/`, renomme les identifiants, et si `--backend` est passé, crée `src-tauri/src/modules/image_gen/`. Aucun registre à tenir à jour : `build.rs` découvre les dossiers qui contiennent un `module.toml`.
 **Ne crée jamais un module à la main** sauf si le script est cassé (et répare-le alors).
 
 ### 4.2 Anatomie d'un module frontend
@@ -216,12 +216,15 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
 }
 ```
 
-Enregistrement : **une seule ligne** dans `src-tauri/src/modules/mod.rs` (écrite par le scaffolder) :
+Enregistrement : **rien à écrire**. `src-tauri/src/modules/mod.rs` inclut un registre généré par `build.rs` à partir des dossiers présents :
 ```rust
-register!(builder, image_gen);
+include!(concat!(env!("OUT_DIR"), "/modules.rs"));
 ```
+Créer le dossier suffit ; le supprimer suffit à retirer le module (règle d'or n°4).
 
-`build.rs` lit chaque `module.toml`, déclare le plugin inline à `tauri-build` (permissions `AllowAllCommands`), régénère `capabilities/modules.generated.json` et **fait échouer le build** si un dossier de module n'est pas enregistré dans `mod.rs` (ou l'inverse). Ne jamais éditer `modules.generated.json` à la main.
+`build.rs` lit chaque `module.toml`, déclare le plugin inline à `tauri-build` (permissions `AllowAllCommands`), génère le registre `OUT_DIR/modules.rs` et régénère `capabilities/modules.generated.json` (fichier non versionné, ne jamais l'éditer à la main).
+
+Conséquence utile : un module **personnel** (dossiers ignorés par `.git/info/exclude`) fonctionne sans laisser la moindre trace dans les fichiers publiés. `scripts/check-modules.mjs` n'exige de documentation que pour les modules suivis par git.
 
 Appel côté frontend, **uniquement dans `api.ts`** :
 ```ts

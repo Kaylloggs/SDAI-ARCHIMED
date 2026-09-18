@@ -4,6 +4,20 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Corrigé — Dictée
+- **La dictée restait muette sans jamais dire pourquoi.** Trois causes cumulées : la fin de session Windows n'était pas écoutée (`Completed`), donc l'écoute s'arrêtait au premier silence sans que l'interface le sache ; la contrainte de dictée n'était pas déclarée explicitement (`SpeechRecognitionTopicConstraint`) ; et le délai de silence initial demandé (10 minutes) dépassait ce que Windows accepte, l'appel échouait en silence et les réglages d'usine restaient. La session est maintenant relancée toute seule tant que la personne n'a pas cliqué sur « arrêter », et chaque cause d'arrêt (micro indisponible, langue absente, accès refusé) devient un message clair.
+
+### Ajouté — Dictée
+- **Vumètre dans la barre de saisie** : cinq barres montent avec la voix et l'anneau du bouton micro suit le niveau d'entrée. On voit immédiatement si le micro capte quelque chose.
+- **Alerte micro muet** : après quatre secondes sans le moindre signal, ARCHIMED nomme le périphérique écouté — « Le micro « … » ne capte aucun son » — et renvoie vers Paramètres › Son. Windows impose son micro par défaut à la dictée : un casque éteint ou une entrée virtuelle donnait une transcription vide, sans explication.
+- Le nom du micro écouté apparaît dans l'infobulle du bouton et pendant la dictée (commande `engine_dictation_device`).
+
+### Ajouté
+- **Message préparé par un module** : un module peut déposer un texte dans la barre de saisie du Chat (`openModule("chat", { prompt })`). Le message est relu et envoyé par la personne, jamais automatiquement.
+
+### Modifié
+- **Modules backend découverts automatiquement.** `src-tauri/src/modules/mod.rs` inclut désormais un registre généré par `build.rs` à partir des dossiers présents : plus de `register!` à écrire, et supprimer un dossier de module ne casse plus la compilation (règle d'or n°4). `capabilities/modules.generated.json`, entièrement généré, sort du suivi git.
+
 ## [0.2.2] - 2026-09-17
 
 ### Ajouté

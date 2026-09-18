@@ -122,7 +122,7 @@ SDAI ARCHIMED/
     └── src/
         ├── main.rs · lib.rs             # plugins, state, registre des modules, commandes
         ├── core/                        # error.rs (AppError) · paths.rs · config.rs (overrides)
-        │                                # · dictation.rs (reconnaissance vocale Windows, locale)
+        │                                # · dictation.rs (reconnaissance vocale Windows, locale + vumètre)
         │                                # · audit.rs (audit.jsonl) · usage.rs (registre de consommation) · mod.rs
         ├── engine/
         │   ├── mod.rs · commands.rs     # engine_* exposées au frontend
@@ -135,7 +135,7 @@ SDAI ARCHIMED/
         │   └── parser/                  # screen (vt100) · rules (TOML) · detector
         ├── system/                      # (prévu) fs · shell · net
         └── modules/
-            ├── mod.rs                   # registre : `pub mod x;` + `register!(builder, x);`
+            ├── mod.rs                   # registre généré par build.rs (include! OUT_DIR/modules.rs)
             ├── code/                    # arborescence, lecture/écriture de fichiers, détection de projet, watcher (code:fs-changed)
             ├── usage/                   # résumé du registre, compte et limites Claude
             ├── memory/                  # notes.json (activables, par projet), bloc de contexte injecté
