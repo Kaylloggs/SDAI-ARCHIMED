@@ -4,6 +4,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.2.6] - 2026-09-19
+
+Versions 0.2.5 et 0.2.6 : compilations locales, sans changement public.
+
 ### Ajouté
 - **Outils des modules donnés aux agents.** Un module peut déposer un serveur MCP dans
   `<données>/mcp/<module>.json` ; le moteur fusionne ces déclarations et passe
