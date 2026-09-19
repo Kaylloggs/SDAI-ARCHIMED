@@ -4,6 +4,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.2.4] - 2026-09-19
+
 ### Corrigé — Dictée
 - **La dictée restait muette sans jamais dire pourquoi.** Trois causes cumulées : la fin de session Windows n'était pas écoutée (`Completed`), donc l'écoute s'arrêtait au premier silence sans que l'interface le sache ; la contrainte de dictée n'était pas déclarée explicitement (`SpeechRecognitionTopicConstraint`) ; et le délai de silence initial demandé (10 minutes) dépassait ce que Windows accepte, l'appel échouait en silence et les réglages d'usine restaient. La session est maintenant relancée toute seule tant que la personne n'a pas cliqué sur « arrêter », et chaque cause d'arrêt (micro indisponible, langue absente, accès refusé) devient un message clair.
 
