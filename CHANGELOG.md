@@ -4,6 +4,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.2.7] - 2026-09-19
+
+### Ajouté
+- Accès au stockage protégé de Windows (DPAPI) pour les modules qui ont un secret à garder
+  sur la machine.
+
 ## [0.2.6] - 2026-09-19
 
 Versions 0.2.5 et 0.2.6 : compilations locales, sans changement public.

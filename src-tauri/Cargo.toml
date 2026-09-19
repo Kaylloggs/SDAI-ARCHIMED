@@ -1,6 +1,6 @@
 [package]
 name = "sdai-archimed"
-version = "0.2.6"
+version = "0.2.7"
 description = "SDAI ARCHIMED - assistant personnel modulaire"
 authors = ["SearaDesign"]
 license = "MIT"
@@ -51,6 +51,7 @@ windows = { version = "0.62", features = [
   "Media_SpeechRecognition",
   "Win32_Media_Audio",
   "Win32_Media_Audio_Endpoints",
+  "Win32_Security_Cryptography",
   "Win32_System_Com_StructuredStorage",
   "Win32_System_Variant",
   "Win32_System_Com",
