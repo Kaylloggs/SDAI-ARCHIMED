@@ -253,6 +253,8 @@ pub struct LaunchOptions<'a> {
     /// Dossier de travail choisi (le processus y est aussi lancé).
     pub cwd: Option<&'a str>,
     pub tuning: &'a EngineTuning,
+    /// Fichier de serveurs MCP fournis par les modules (`core::mcp`), quand il y en a.
+    pub mcp_config: Option<&'a str>,
 }
 
 /// Modèle choisi : `sonnet` ou `sonnet:high` (modèle + effort).
@@ -272,6 +274,7 @@ impl<'a> LaunchOptions<'a> {
             auto_mode: AutoMode::Off,
             cwd: None,
             tuning: &DEFAULT_TUNING,
+            mcp_config: None,
         }
     }
 }

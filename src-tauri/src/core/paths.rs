@@ -41,6 +41,11 @@ impl Paths {
         self.data.join("adapters")
     }
 
+    /// Serveurs MCP déclarés par les modules (voir `core::mcp`).
+    pub fn mcp(&self) -> PathBuf {
+        self.data.join("mcp")
+    }
+
     pub fn module_dir(&self, module_id: &str) -> PathBuf {
         self.data.join("modules").join(module_id)
     }

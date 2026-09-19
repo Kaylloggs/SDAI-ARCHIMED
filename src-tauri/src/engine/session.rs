@@ -75,7 +75,7 @@ pub fn spawn(
             super::pty_session::PtySpawn {
                 session_id: id.clone(),
                 binary: &binary,
-                args: adapter.spawn_args(super::event::LaunchOptions { model: model.as_deref(), resume: resume.as_deref(), auto_mode, cwd: cwd.as_deref(), tuning: &tuning }),
+                args: adapter.spawn_args(super::event::LaunchOptions { model: model.as_deref(), resume: resume.as_deref(), auto_mode, cwd: cwd.as_deref(), tuning: &tuning, mcp_config: crate::core::mcp::merged().as_deref() }),
                 cwd,
                 auto_mode,
                 extra_rules: adapter.prompt_rules(),
@@ -303,6 +303,8 @@ impl Launch {
                 auto_mode,
                 cwd: self.cwd.as_deref(),
                 tuning: &self.tuning,
+                // Outils fournis par les modules : ils suivent chaque relance de la CLI.
+                mcp_config: crate::core::mcp::merged().as_deref(),
             }))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

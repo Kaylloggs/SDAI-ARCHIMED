@@ -109,7 +109,7 @@ impl CliAdapter for ClaudeAdapter {
     }
 
     fn spawn_args(&self, options: LaunchOptions<'_>) -> Vec<String> {
-        let LaunchOptions { model, resume, tuning, .. } = options;
+        let LaunchOptions { model, resume, tuning, mcp_config, .. } = options;
         let mut args: Vec<String> = [
             "-p",
             "--input-format",
@@ -155,6 +155,11 @@ impl CliAdapter for ClaudeAdapter {
         if let Some(resume) = resume {
             args.push("--resume".to_string());
             args.push(resume.to_string());
+        }
+        // Outils exposés par les modules d'ARCHIMED (recherche d'offres, etc.).
+        if let Some(config) = mcp_config {
+            args.push("--mcp-config".to_string());
+            args.push(config.to_string());
         }
         args
     }
@@ -531,6 +536,20 @@ mod tests {
     }
 
     #[test]
+    fn mcp_servers_of_modules_are_passed_to_the_cli() {
+        let args = ClaudeAdapter::default().spawn_args(LaunchOptions {
+            model: None,
+            resume: None,
+            auto_mode: AutoMode::Off,
+            cwd: None,
+            tuning: &crate::engine::event::DEFAULT_TUNING,
+            mcp_config: Some("C:/donnees/mcp/_merged.generated.json"),
+        });
+        let position = args.iter().position(|arg| arg == "--mcp-config").expect("option absente");
+        assert_eq!(args[position + 1], "C:/donnees/mcp/_merged.generated.json");
+    }
+
+    #[test]
     fn effort_and_token_saving_flags_reach_the_cli() {
         let tuning = crate::engine::event::EngineTuning {
             effort: Some("low".into()),
@@ -544,6 +563,7 @@ mod tests {
             auto_mode: AutoMode::Off,
             cwd: None,
             tuning: &tuning,
+            mcp_config: None,
         });
         // Le niveau choisi dans la liste des modèles prime sur le réglage global.
         assert!(args.windows(2).any(|w| w[0] == "--model" && w[1] == "opus"));
@@ -558,6 +578,7 @@ mod tests {
             auto_mode: AutoMode::Off,
             cwd: None,
             tuning: &tuning,
+            mcp_config: None,
         });
         assert!(global.windows(2).any(|w| w[0] == "--effort" && w[1] == "low"));
     }

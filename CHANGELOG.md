@@ -4,6 +4,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté
+- **Outils des modules donnés aux agents.** Un module peut déposer un serveur MCP dans
+  `<données>/mcp/<module>.json` ; le moteur fusionne ces déclarations et passe
+  `--mcp-config` à chaque session Claude. Les outils d'un module branché sont disponibles
+  au message suivant, sans commande à taper dans un terminal.
+
 ## [0.2.4] - 2026-09-19
 
 ### Corrigé — Dictée

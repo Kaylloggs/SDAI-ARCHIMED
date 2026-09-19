@@ -123,6 +123,7 @@ SDAI ARCHIMED/
         ├── main.rs · lib.rs             # plugins, state, registre des modules, commandes
         ├── core/                        # error.rs (AppError) · paths.rs · config.rs (overrides)
         │                                # · dictation.rs (reconnaissance vocale Windows, locale + vumètre)
+        │                                # · mcp.rs (serveurs MCP déclarés par les modules)
         │                                # · audit.rs (audit.jsonl) · usage.rs (registre de consommation) · mod.rs
         ├── engine/
         │   ├── mod.rs · commands.rs     # engine_* exposées au frontend

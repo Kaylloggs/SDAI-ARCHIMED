@@ -540,6 +540,7 @@ mod tests {
             auto_mode: AutoMode::Smart,
             cwd: Some("F:/projet"),
             tuning: &crate::engine::event::DEFAULT_TUNING,
+            mcp_config: None,
         });
         assert!(args.windows(2).any(|w| w[0] == "--add-dir" && w[1] == "F:/projet"));
         assert_eq!(args.last().map(String::as_str), Some("-p="));

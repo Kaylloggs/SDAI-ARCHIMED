@@ -27,6 +27,7 @@ pub fn run() {
         .setup(|app| {
             let paths = core::paths::Paths::resolve(app.handle())?;
             paths.ensure_all()?;
+            core::mcp::init(&paths);
             core::audit::init(&paths.logs());
             core::usage::init(&paths.usage());
             engine::adapters::declarative::init_user_dir(&paths.adapters());
