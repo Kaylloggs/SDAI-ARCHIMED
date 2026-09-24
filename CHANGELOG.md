@@ -4,37 +4,80 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
-## [0.2.7] - 2026-09-19
+## [0.3.0] - 2026-09-24
 
-### Ajouté
-- Accès au stockage protégé de Windows (DPAPI) pour les modules qui ont un secret à garder
-  sur la machine.
+Première version publiée depuis la 0.2.2 : elle regroupe les compilations locales 0.2.4 à
+0.2.10, qui n'ont pas fait l'objet de release.
 
-## [0.2.6] - 2026-09-19
-
-Versions 0.2.5 et 0.2.6 : compilations locales, sans changement public.
+### Ajouté — Module JobAgent
+- **Recherche d'emploi multi-plateformes** : Indeed, LinkedIn, Glassdoor, ZipRecruiter,
+  Google Jobs, **HelloWork** et **Welcome to the Jungle**, à partir de
+  [JobSpy](https://github.com/speedyapply/JobSpy) (MIT, inclus). Plusieurs métiers, pays,
+  villes et types de contrat sont interrogés en parallèle ; les résultats sont dédoublonnés
+  entre plateformes et filtrés par niveau d'études, fraîcheur et télétravail.
+- **Revue rapide** : sections repliables (métier, fraîcheur, contrat, ville, entreprise,
+  plateforme), onglets exclusifs — une annonce en favori quitte « Toutes », une
+  candidature envoyée quitte les favoris —, sélection multiple (Ctrl / Maj + clic) et tri
+  au clavier (`F` favori, `Suppr` supprimer, `Ctrl+Z` annuler).
+- **Carte du monde** hors ligne : un point par ville, cadrage automatique sur les
+  résultats, couleurs du thème actif.
+- **Contact direct** (option) : pendant la recherche, une adresse de recrutement est
+  cherchée sur le site de chaque entreprise ; `robots.txt` respecté, quatre pages au plus.
+- **Candidatures** : lettres, e-mails et réponses de formulaire rédigés par Antigravity à
+  partir d'un CV français ou anglais, choisi selon le pays de l'annonce ; envoi SMTP par lot
+  après une confirmation unique qui liste chaque destinataire. Le message au contact direct
+  dit qu'il vient en plus de la candidature officielle.
+- **Outils pour les agents** : le module expose sa recherche en MCP (`search_jobs`,
+  `job_details`, `company_contacts`, `read_profile`…), branchée d'un interrupteur.
+- Moteur Python embarqué, installé dans son propre environnement au premier usage
+  (Python 3.10 ou plus récent requis).
 
 ### Ajouté
 - **Outils des modules donnés aux agents.** Un module peut déposer un serveur MCP dans
   `<données>/mcp/<module>.json` ; le moteur fusionne ces déclarations et passe
   `--mcp-config` à chaque session Claude. Les outils d'un module branché sont disponibles
   au message suivant, sans commande à taper dans un terminal.
-
-## [0.2.4] - 2026-09-19
-
-### Corrigé — Dictée
-- **La dictée restait muette sans jamais dire pourquoi.** Trois causes cumulées : la fin de session Windows n'était pas écoutée (`Completed`), donc l'écoute s'arrêtait au premier silence sans que l'interface le sache ; la contrainte de dictée n'était pas déclarée explicitement (`SpeechRecognitionTopicConstraint`) ; et le délai de silence initial demandé (10 minutes) dépassait ce que Windows accepte, l'appel échouait en silence et les réglages d'usine restaient. La session est maintenant relancée toute seule tant que la personne n'a pas cliqué sur « arrêter », et chaque cause d'arrêt (micro indisponible, langue absente, accès refusé) devient un message clair.
+- **Message préparé par un module** : un module peut déposer un texte dans la barre de
+  saisie du Chat (`openModule("chat", { prompt })`). Le message est relu et envoyé par la
+  personne, jamais automatiquement.
+- Accès au stockage protégé de Windows (DPAPI) pour les modules qui ont un secret à garder
+  sur la machine.
 
 ### Ajouté — Dictée
-- **Vumètre dans la barre de saisie** : cinq barres montent avec la voix et l'anneau du bouton micro suit le niveau d'entrée. On voit immédiatement si le micro capte quelque chose.
-- **Alerte micro muet** : après quatre secondes sans le moindre signal, ARCHIMED nomme le périphérique écouté — « Le micro « … » ne capte aucun son » — et renvoie vers Paramètres › Son. Windows impose son micro par défaut à la dictée : un casque éteint ou une entrée virtuelle donnait une transcription vide, sans explication.
-- Le nom du micro écouté apparaît dans l'infobulle du bouton et pendant la dictée (commande `engine_dictation_device`).
-
-### Ajouté
-- **Message préparé par un module** : un module peut déposer un texte dans la barre de saisie du Chat (`openModule("chat", { prompt })`). Le message est relu et envoyé par la personne, jamais automatiquement.
+- **Vumètre dans la barre de saisie** : cinq barres montent avec la voix et l'anneau du
+  bouton micro suit le niveau d'entrée. On voit immédiatement si le micro capte quelque chose.
+- **Alerte micro muet** : après quatre secondes sans le moindre signal, ARCHIMED nomme le
+  périphérique écouté — « Le micro « … » ne capte aucun son » — et renvoie vers
+  Paramètres › Son. Windows impose son micro par défaut à la dictée : un casque éteint ou une
+  entrée virtuelle donnait une transcription vide, sans explication.
+- Le nom du micro écouté apparaît dans l'infobulle du bouton et pendant la dictée (commande
+  `engine_dictation_device`).
 
 ### Modifié
-- **Modules backend découverts automatiquement.** `src-tauri/src/modules/mod.rs` inclut désormais un registre généré par `build.rs` à partir des dossiers présents : plus de `register!` à écrire, et supprimer un dossier de module ne casse plus la compilation (règle d'or n°4). `capabilities/modules.generated.json`, entièrement généré, sort du suivi git.
+- **Modules backend découverts automatiquement.** `src-tauri/src/modules/mod.rs` inclut
+  désormais un registre généré par `build.rs` à partir des dossiers présents : plus de
+  `register!` à écrire, et supprimer un dossier de module ne casse plus la compilation
+  (règle d'or n°4). `capabilities/modules.generated.json`, entièrement généré, sort du suivi
+  git.
+
+### Corrigé
+- **La dictée restait muette sans jamais dire pourquoi.** Trois causes cumulées : la fin de
+  session Windows n'était pas écoutée (`Completed`), donc l'écoute s'arrêtait au premier
+  silence sans que l'interface le sache ; la contrainte de dictée n'était pas déclarée
+  explicitement (`SpeechRecognitionTopicConstraint`) ; et le délai de silence initial
+  demandé (10 minutes) dépassait ce que Windows accepte, l'appel échouait en silence et les
+  réglages d'usine restaient. La session est maintenant relancée toute seule tant que la
+  personne n'a pas cliqué sur « arrêter », et chaque cause d'arrêt (micro indisponible,
+  langue absente, accès refusé) devient un message clair.
+- **Interfaces sans marges dans un module ignoré par git.** Tailwind ne parcourt pas les
+  fichiers que git ignore : un module gardé en local y perdait, sans le moindre
+  avertissement, les classes qu'il était seul à utiliser, et ses panneaux se retrouvaient
+  tassés contre les bords. Les dossiers de `src/modules` sont maintenant déclarés comme
+  sources au démarrage de Vite.
+- **`vite.config.ts` sans effet.** `tsc -b` compilait la configuration en
+  `vite.config.js` à côté de sa source, et Vite chargeait ce fichier figé plutôt que le
+  `.ts` : toute modification de configuration restait lettre morte. La compilation sort
+  désormais dans `node_modules/.tmp`.
 
 ## [0.2.2] - 2026-09-17
 
