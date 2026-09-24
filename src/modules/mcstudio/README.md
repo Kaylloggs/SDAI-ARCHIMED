@@ -176,8 +176,18 @@ Supprimer un point le met à la Corbeille. Stockage : `<projet>/.mcstudio/snapsh
 
 ## Textures : IA (OpenRouter ou Google Gemini) ou image importée
 
-Onglet **Textures** d'un projet : l'icône, les objets, les blocs (et leurs faces) et les éléments
-d'interface (présents, ou déclarés sans texture). « + » ajoute un objet ou un bloc (code, modèles,
+Onglet **Textures** d'un projet : l'icône, les objets, les blocs (et leurs faces), les éléments
+d'interface, puis **toutes les autres textures du mod**, classées par famille : superpositions
+(lunettes, casque, longue-vue…), entités, armures, particules, effets, tableaux, autres. Une
+texture y figure dès qu'elle est présente sous `textures/` (sous-dossiers compris) ou citée par
+le mod, même si le fichier n'existe pas encore (« Texture manquante », avec le fichier qui la
+cite) : code Java/Kotlin (`id("textures/misc/x.png")`, `Identifier.of(MOD_ID, "textures/…")`,
+`"<modid>:textures/…"`), modèles, particules (`particles/*.json`), équipements 1.21.2+
+(`equipment/*.json`), tableaux (`painting_variant/`) et tout JSON qui nomme un PNG du mod
+(`texture_refs.rs`). Une texture du jeu (`minecraft:`, `Identifier.ofVanilla(…)`) n'est jamais
+prise pour une texture du mod. Une texture libre garde la taille de son fichier (512 px de côté
+au plus), sinon celle de sa famille dans le jeu (superposition 256 × 256, entité 64 × 64, armure
+64 × 32, particule 8 × 8, effet 18 × 18), et le texte envoyé au modèle suit sa famille. « + » ajoute un objet ou un bloc (code, modèles,
 traductions, loot table, outil de minage) avec une texture provisoire, ou un élément d'interface
 (écran de conteneur avec ou sans inventaire du joueur, bouton, case, flèche de progression, toile
 libre) dessiné sans IA aux couleurs des écrans du jeu, dans `textures/gui/`.

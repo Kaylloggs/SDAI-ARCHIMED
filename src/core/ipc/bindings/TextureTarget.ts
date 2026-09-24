@@ -2,11 +2,12 @@
 import type { BlockFace } from "./BlockFace";
 
 /**
- * Ce qu'une texture habille : un objet, un bloc (ou une de ses faces), l'icône du mod ou un
- * élément d'interface (`textures/gui/`).
+ * Ce qu'une texture habille : un objet, un bloc (ou une de ses faces), l'icône du mod, un
+ * élément d'interface (`textures/gui/`) ou toute autre texture du mod (superposition,
+ * entité, armure, particule…).
  */
 export type TextureTarget = { "kind": "item", id: string, } | { "kind": "block", id: string, 
 /**
  * `None` : la texture unique du bloc (`cube_all`).
  */
-face: BlockFace | null, } | { "kind": "icon" } | { "kind": "gui", name: string, };
+face: BlockFace | null, } | { "kind": "icon" } | { "kind": "gui", name: string, } | { "kind": "asset", path: string, };

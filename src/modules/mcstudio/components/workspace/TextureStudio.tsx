@@ -17,12 +17,12 @@ import { errorText, mcstudioApi } from "../../api";
 import {
   blockOf,
   defaultOptions,
-  DESCRIPTION_PLACEHOLDER,
-  KIND_LABEL,
+  kindLabel,
   loadProvider,
   MAX_DESCRIPTION,
   outputAspect,
   pickModel,
+  placeholderFor,
   saveProvider,
   targetKey,
 } from "../../lib/textures";
@@ -210,7 +210,11 @@ export function TextureStudio({
   };
 
   const chosen = models?.models.find((m) => m.id === model) ?? null;
-  const guiSize = target.kind === "gui" ? { width: options.width ?? 176, height: options.height ?? 166 } : null;
+  // Taille annoncée au modèle : éléments d'interface et textures libres (superposition…).
+  const guiSize =
+    target.kind === "gui" || target.kind === "asset"
+      ? { width: options.width ?? 176, height: options.height ?? 166 }
+      : null;
   const referenceAllowed = chosen ? chosen.imageInput : true;
 
   /** Nouvelle image : la zone choisie sur la précédente ne vaut plus. */
@@ -356,10 +360,19 @@ export function TextureStudio({
         </Checker>
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-body font-semibold">{texture.label}</h2>
-          <p className="selectable truncate text-caption text-text-subtle" title={texture.relative}>
-            {texture.unused ? "Texture inutilisée" : KIND_LABEL[target.kind]}
+          <p
+            className="selectable truncate text-caption text-text-subtle"
+            title={texture.usedBy ? `${texture.relative}\nUtilisée par ${texture.usedBy}` : texture.relative}
+          >
+            {texture.unused ? "Texture inutilisée" : kindLabel(texture)}
             {texture.exists ? ` · ${texture.width}×${texture.height}` : " · pas encore de texture"}
-            <span className="font-mono"> · {texture.relative.split("/").slice(-2).join("/")}</span>
+            <span className="font-mono">
+              {" · "}
+              {texture.relative.includes("/textures/")
+                ? texture.relative.split("/textures/").at(-1)
+                : texture.relative.split("/").at(-1)}
+            </span>
+            {texture.usedBy && <> · utilisée par {texture.usedBy.split("/").at(-1)}</>}
           </p>
         </div>
 
@@ -499,7 +512,7 @@ export function TextureStudio({
           target={target}
           description={description}
           onDescription={setDescription}
-          placeholder={DESCRIPTION_PLACEHOLDER[target.kind]}
+          placeholder={placeholderFor(texture)}
           shared={block !== null}
           prompt={prompt}
           onPrompt={setPrompt}

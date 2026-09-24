@@ -65,6 +65,13 @@ Les premières textures générées étaient utilisables mais pas « prêtes pou
 10. **Textures non utilisées** : un PNG qu'aucun modèle ne référence et qui n'est pas un bloc (face
    laissée par un changement de répartition) est listé à part, et peut partir à la Corbeille
    (`delete_textures`, chemins limités à `textures/` et à l'icône du mod).
+11. **Toutes les textures du mod** : en plus de l'icône, des objets, des blocs et de `gui/`, la
+   liste reprend tout PNG de `textures/` et toute texture citée par le code ou les JSON du mod
+   (`texture_refs.rs`, lecture seule et bornée), sous une cible `Asset { path }` classée par
+   famille (`AssetKind` : superposition, entité, armure, particule, effet, tableau, interface,
+   autre). Une texture citée mais absente apparaît « manquante » pour être dessinée. Une
+   citation dans le code ne compte que si elle vise l'espace de noms du mod (les premiers
+   arguments d'`Identifier(…)`, `ofVanilla(…)` & co. sont ceux du jeu).
 
 ## Conséquences
 

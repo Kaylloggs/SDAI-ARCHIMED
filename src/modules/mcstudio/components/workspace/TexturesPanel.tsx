@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Box, LayoutPanelTop, Loader2, Plus, Sword, Trash2 } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Button, Select } from "@/design-system/primitives";
+import type { AssetKind } from "@/core/ipc/bindings/AssetKind";
 import type { BlockSound } from "@/core/ipc/bindings/BlockSound";
 import type { GuiPreset } from "@/core/ipc/bindings/GuiPreset";
 import type { ProjectSummary } from "@/core/ipc/bindings/ProjectSummary";
@@ -249,6 +250,7 @@ function TextureRow({
         type="button"
         aria-current={selected ? "true" : undefined}
         onClick={onSelect}
+        title={texture.usedBy ? `${texture.relative}\nUtilisée par ${texture.usedBy}` : texture.relative}
         className={cn(
           "flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors",
           selected ? "bg-accent-soft" : "hover:bg-surface-2",
@@ -268,6 +270,7 @@ function TextureRow({
           <span className="block truncate text-body-sm">{label}</span>
           <span className={cn("block truncate text-caption", texture.exists ? "text-text-subtle" : "text-warning")}>
             {texture.exists ? `${texture.width}×${texture.height}` : "Texture manquante"}
+            {texture.usedBy && <span className="text-text-subtle"> · {texture.usedBy.split("/").at(-1)}</span>}
           </span>
         </span>
       </button>
@@ -319,8 +322,9 @@ function rows(list: TextureInfo[]): TextureInfo[] {
 }
 
 /**
- * Onglet Textures : l'icône, les objets, les blocs (et leurs faces) et les éléments
- * d'interface du mod, et l'atelier de la texture choisie.
+ * Onglet Textures : l'icône, les objets, les blocs (et leurs faces), les éléments d'interface
+ * et toutes les autres textures du mod (superpositions, entités, armures…, présentes ou citées
+ * par son code), et l'atelier de la texture choisie.
  */
 export function TexturesPanel({ project }: { project: ProjectSummary }) {
   const [textures, setTextures] = useState<TextureInfo[] | null>(null);
@@ -344,17 +348,42 @@ export function TexturesPanel({ project }: { project: ProjectSummary }) {
   }, [load]);
 
   const current = textures?.find((t) => targetKey(t.target) === selected) ?? textures?.[0] ?? null;
-  const groups: { title: string; kind: TextureTarget["kind"]; add?: NewKind; Icon?: typeof Sword; empty?: string }[] = [
-    { title: "Icône", kind: "icon" },
-    { title: "Objets", kind: "item", add: "item", Icon: Sword, empty: "Aucun objet pour l'instant." },
-    { title: "Blocs", kind: "block", add: "block", Icon: Box, empty: "Aucun bloc pour l'instant." },
-    { title: "Interface", kind: "gui", add: "gui", Icon: LayoutPanelTop, empty: "Aucun écran ni bouton pour l'instant." },
+  const byKind = (kind: TextureTarget["kind"]) => (t: TextureInfo) => t.target.kind === kind;
+  const byAsset = (kind: AssetKind) => (t: TextureInfo) => t.assetKind === kind;
+  // Les groupes sans `empty` n'apparaissent que s'ils ont des textures (celles que le code, les
+  // modèles ou les fichiers JSON du mod citent, ou présentes dans `textures/`).
+  const groups: {
+    key: string;
+    title: string;
+    match: (t: TextureInfo) => boolean;
+    add?: NewKind;
+    Icon?: typeof Sword;
+    empty?: string;
+  }[] = [
+    { key: "icon", title: "Icône", match: byKind("icon") },
+    { key: "item", title: "Objets", match: byKind("item"), add: "item", Icon: Sword, empty: "Aucun objet pour l'instant." },
+    { key: "block", title: "Blocs", match: byKind("block"), add: "block", Icon: Box, empty: "Aucun bloc pour l'instant." },
+    {
+      key: "gui",
+      title: "Interface",
+      match: (t) => byKind("gui")(t) || byAsset("gui")(t),
+      add: "gui",
+      Icon: LayoutPanelTop,
+      empty: "Aucun écran ni bouton pour l'instant.",
+    },
+    { key: "overlay", title: "Superpositions", match: byAsset("overlay") },
+    { key: "entity", title: "Entités", match: byAsset("entity") },
+    { key: "armor", title: "Armures", match: byAsset("armor") },
+    { key: "particle", title: "Particules", match: byAsset("particle") },
+    { key: "effect", title: "Effets", match: byAsset("effect") },
+    { key: "painting", title: "Tableaux", match: byAsset("painting") },
+    { key: "other", title: "Autres textures", match: byAsset("other") },
   ];
   const addLabel: Record<NewKind, string> = { item: "Nouvel objet", block: "Nouveau bloc", gui: "Nouvel élément d'interface" };
 
   const applied = (info: TextureInfo) => {
     setTextures(
-      (list) => list?.map((t) => (targetKey(t.target) === targetKey(info.target) ? { ...info, unused: t.unused } : t)) ?? null,
+      (list) => list?.map((t) => (targetKey(t.target) === targetKey(info.target) ? { ...info, unused: t.unused, usedBy: t.usedBy } : t)) ?? null,
     );
     if (info.target.kind === "icon") useMcStudioStore.getState().bumpIcon(project.id);
   };
@@ -394,14 +423,15 @@ export function TexturesPanel({ project }: { project: ProjectSummary }) {
         )}
         {!textures && !error && <Loader2 size={16} className="animate-spin text-text-subtle" aria-label="Chargement" />}
         {textures &&
-          groups.map(({ title, kind, add, Icon, empty }) => {
-            const list = rows(textures.filter((t) => t.target.kind === kind && !t.unused));
+          groups.map(({ key, title, match, add, Icon, empty }) => {
+            const list = rows(textures.filter((t) => match(t) && !t.unused));
+            if (list.length === 0 && !empty && key !== "icon") return null;
             return (
-              <section key={kind} className="space-y-1.5">
+              <section key={key} className="space-y-1.5">
                 <div className="flex items-center justify-between px-2">
                   <h2 className="text-caption font-semibold uppercase tracking-[0.04em] text-text-subtle">
                     {title}
-                    {kind !== "icon" && <span className="font-normal"> · {list.length}</span>}
+                    {key !== "icon" && <span className="font-normal"> · {list.length}</span>}
                   </h2>
                   {add && Icon && (
                     <button
@@ -457,7 +487,7 @@ export function TexturesPanel({ project }: { project: ProjectSummary }) {
                           onSelect={() => setSelected(targetKey(texture.target))}
                           // Un bloc à plusieurs faces se supprime face par face, dans l'atelier.
                           onDelete={
-                            kind === "icon" || (texture.target.kind === "block" && texture.target.face)
+                            key === "icon" || (texture.target.kind === "block" && texture.target.face)
                               ? undefined
                               : () => void remove([texture.relative])
                           }

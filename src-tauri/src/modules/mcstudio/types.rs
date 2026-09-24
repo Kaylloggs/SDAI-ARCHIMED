@@ -629,8 +629,9 @@ pub enum BlockLayout {
     Custom,
 }
 
-/// Ce qu'une texture habille : un objet, un bloc (ou une de ses faces), l'icône du mod ou un
-/// élément d'interface (`textures/gui/`).
+/// Ce qu'une texture habille : un objet, un bloc (ou une de ses faces), l'icône du mod, un
+/// élément d'interface (`textures/gui/`) ou toute autre texture du mod (superposition,
+/// entité, armure, particule…).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../src/core/ipc/bindings/")]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -648,6 +649,29 @@ pub enum TextureTarget {
     Gui {
         name: String,
     },
+    /// Toute autre texture, par son chemin sous `textures/` sans `.png`
+    /// (`misc/googles_overlay`, `entity/ruby_golem`, `models/armor/ruby_layer_1`…).
+    Asset {
+        path: String,
+    },
+}
+
+/// Famille d'une texture libre, d'après son dossier et son nom : classement dans l'onglet
+/// Textures, texte envoyé au modèle, réglages de départ.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub enum AssetKind {
+    /// Superposition plein écran (casque, lunettes, citrouille, longue-vue…).
+    Overlay,
+    Entity,
+    Armor,
+    Particle,
+    /// Icône d'effet de statut (`mob_effect/`).
+    Effect,
+    Painting,
+    Gui,
+    Other,
 }
 
 /// Une texture du projet (existante ou attendue par un objet / bloc déclaré).
@@ -673,6 +697,10 @@ pub struct TextureInfo {
     /// PNG qu'aucun modèle, objet ni bloc n'utilise (face laissée par un changement de
     /// répartition, fichier en trop) : proposé à la suppression.
     pub unused: bool,
+    /// Textures libres : leur famille.
+    pub asset_kind: Option<AssetKind>,
+    /// Fichier du mod qui cite la texture (code, modèle, JSON), quand il est connu.
+    pub used_by: Option<String>,
 }
 
 /// Raccord d'une texture répétée côte à côte.

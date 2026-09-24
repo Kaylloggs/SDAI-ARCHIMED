@@ -4,6 +4,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Toutes les textures du mod dans l'onglet Textures
+- Les textures qui ne sont ni un objet, ni un bloc, ni l'icône apparaissent aussi, classées :
+  **Superpositions** (lunettes, casque, longue-vue…), **Entités**, **Armures**, **Particules**,
+  **Effets**, **Tableaux**, **Autres textures** ; les éléments d'interface rangés en
+  sous-dossiers rejoignent **Interface**.
+- Une texture citée par le code du mod (`id("textures/misc/googles_overlay.png")`…), un modèle,
+  une particule, un équipement ou un tableau est listée même si le fichier n'existe pas encore
+  (« Texture manquante »), avec le fichier qui l'utilise. Elle se génère et s'applique comme les
+  autres, à la taille de son fichier ou de sa famille dans le jeu, avec un texte adapté
+  (superposition au centre dégagé, feuille d'entité, armure…).
+- Une texture d'objet utilisée seulement par le code n'est plus classée « non utilisée ».
+
 ### Ajouté — Supprimer un module
 - **Réglages → Modules** : chaque module (sauf Accueil et Réglages) a un interrupteur pour
   l'activer ou le désactiver (tout est gardé) et une corbeille pour le **supprimer**. La

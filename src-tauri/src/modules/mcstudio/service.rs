@@ -342,7 +342,10 @@ impl McStudio {
                 let mut settings = request.prompt.clone();
                 settings.with_reference = reference.is_some();
                 settings.transparent = request.options.transparent;
-                if matches!(request.target, TextureTarget::Gui { .. }) {
+                if matches!(
+                    request.target,
+                    TextureTarget::Gui { .. } | TextureTarget::Asset { .. }
+                ) {
                     settings.width = Some(width);
                     settings.height = Some(height);
                 }

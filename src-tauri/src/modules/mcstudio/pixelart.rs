@@ -24,6 +24,8 @@ const WORK_SIDE: u32 = 1024;
 pub const SIZES: [u32; 3] = [16, 32, 64];
 /// Côté maximal d'un élément d'interface, et de la toile des écrans du jeu.
 pub const GUI_MAX: u32 = 256;
+/// Côté maximal d'une texture de taille libre (superposition, entité, interface…).
+pub const FREE_MAX: u32 = 512;
 
 /// Écart de couleur (distance euclidienne RVB au carré).
 fn distance(a: [u8; 4], b: [u8; 4]) -> u32 {
@@ -121,9 +123,14 @@ pub fn decode(bytes: &[u8]) -> AppResult<Raster> {
 pub fn validate(options: &PixelOptions) -> AppResult<()> {
     match (options.width, options.height) {
         (Some(w), Some(h)) => {
-            if !(1..=GUI_MAX).contains(&w) || !(1..=GUI_MAX).contains(&h) {
+            if !(1..=FREE_MAX).contains(&w) || !(1..=FREE_MAX).contains(&h) {
                 return Err(AppError::invalid(format!(
-                    "Taille d'un élément d'interface : de 1 à {GUI_MAX} pixels de côté."
+                    "Taille d'une texture : de 1 à {FREE_MAX} pixels de côté."
+                )));
+            }
+            if options.atlas && (w > GUI_MAX || h > GUI_MAX) {
+                return Err(AppError::invalid(format!(
+                    "Sur la toile {GUI_MAX} × {GUI_MAX}, l'élément tient dans {GUI_MAX} pixels de côté."
                 )));
             }
         }
@@ -1368,7 +1375,7 @@ mod tests {
         assert_eq!(out.at(10, 10)[3], 255);
 
         assert!(validate(&PixelOptions {
-            width: Some(300),
+            width: Some(600),
             height: Some(20),
             ..opts(16, 0, false)
         })

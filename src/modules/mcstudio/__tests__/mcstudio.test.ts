@@ -117,6 +117,24 @@ describe("textures", () => {
     expect(defaultOptions({ kind: "block", id: "lava", face: null }, { ...hd, height: 512 }).size).toBe(32);
     expect(defaultOptions({ kind: "item", id: "odd" }, { ...hd, width: 20, height: 20 }).size).toBe(16);
     expect(defaultOptions({ kind: "item", id: "new" }, { ...hd, exists: false }).size).toBe(16);
+    // Texture libre : la taille de son fichier, sinon celle de sa famille dans le jeu.
+    const overlay = { kind: "asset", path: "misc/googles_overlay" } as const;
+    expect(defaultOptions(overlay, { width: 0, height: 0, layout: null, exists: false, assetKind: "overlay" })).toMatchObject({
+      width: 256,
+      height: 256,
+      colors: 0,
+      transparent: true,
+    });
+    expect(defaultOptions(overlay, { width: 128, height: 64, layout: null, exists: true, assetKind: "overlay" })).toMatchObject({
+      width: 128,
+      height: 64,
+    });
+    expect(defaultOptions({ kind: "asset", path: "particle/spark" }, { ...hd, exists: false, assetKind: "particle" })).toMatchObject({
+      width: 8,
+      height: 8,
+      colors: 32,
+    });
+    expect(targetKey(overlay)).toBe("asset:misc/googles_overlay");
     expect(targetKey({ kind: "block", id: "ore", face: null })).toBe("block:ore:all");
     expect(targetKey({ kind: "block", id: "log", face: "end" })).toBe("block:log:end");
     expect(targetKey({ kind: "gui", name: "forge" })).toBe("gui:forge");

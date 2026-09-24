@@ -1,4 +1,5 @@
 import type { SelectOption } from "@/design-system/primitives";
+import type { AssetKind } from "@/core/ipc/bindings/AssetKind";
 import type { BlockFace } from "@/core/ipc/bindings/BlockFace";
 import type { BlockLayout } from "@/core/ipc/bindings/BlockLayout";
 import type { GuiPreset } from "@/core/ipc/bindings/GuiPreset";
@@ -42,14 +43,42 @@ function keptSize(info?: Pick<TextureInfo, "width" | "height" | "exists">): numb
   return [16, 32, 64].includes(width) && height > 0 && height % width === 0 ? width : 16;
 }
 
+/** Taille de départ d'une texture libre qui n'existe pas encore (celles du jeu). */
+const ASSET_SIZE: Record<AssetKind, [number, number]> = {
+  overlay: [256, 256],
+  entity: [64, 64],
+  armor: [64, 32],
+  particle: [8, 8],
+  effect: [18, 18],
+  painting: [32, 32],
+  gui: [176, 166],
+  other: [16, 16],
+};
+
+/** Familles dont les zones vides sont transparentes (le centre d'une superposition…). */
+const ASSET_TRANSPARENT: Record<AssetKind, boolean> = {
+  overlay: true,
+  entity: true,
+  armor: true,
+  particle: true,
+  effect: true,
+  painting: false,
+  gui: false,
+  other: false,
+};
+
+/** Côté maximal d'une texture de taille libre (même limite que le backend). */
+const FREE_MAX = 512;
+
 /**
  * Réglages de départ, sans rien à choisir : un objet est détouré, une face de bloc remplit sa
  * case et se raccorde, la taille est celle de la texture en place (16 px sinon), l'icône est
- * plus fine, un élément d'interface garde la taille de son fichier.
+ * plus fine, un élément d'interface ou une texture libre garde la taille de son fichier (celle
+ * de sa famille dans le jeu si elle n'existe pas encore).
  */
 export function defaultOptions(
   target: TextureTarget,
-  info?: Pick<TextureInfo, "width" | "height" | "layout" | "exists">,
+  info?: Pick<TextureInfo, "width" | "height" | "layout" | "exists"> & Partial<Pick<TextureInfo, "assetKind">>,
 ): PixelOptions {
   const size = keptSize(info);
   const colors = size === 16 ? 16 : 32;
@@ -74,6 +103,22 @@ export function defaultOptions(
         atlas: atlas || !known,
       };
     }
+    case "asset": {
+      const kind = info?.assetKind ?? "other";
+      const known = info?.exists && info.width > 0 && info.height > 0;
+      const [width, height] = known
+        ? [Math.min(info.width, FREE_MAX), Math.min(info.height, FREE_MAX)]
+        : ASSET_SIZE[kind];
+      return {
+        ...BASE,
+        size: 16,
+        // Grande image (superposition, écran) : couleurs gardées ; petite : palette de pixel art.
+        colors: width * height > 64 * 64 ? 0 : 32,
+        transparent: ASSET_TRANSPARENT[kind],
+        width,
+        height,
+      };
+    }
   }
 }
 
@@ -87,6 +132,8 @@ export function targetKey(target: TextureTarget): string {
       return `block:${target.id}:${target.face ?? "all"}`;
     case "item":
       return `item:${target.id}`;
+    case "asset":
+      return `asset:${target.path}`;
   }
 }
 
@@ -100,13 +147,48 @@ export const KIND_LABEL: Record<TextureTarget["kind"], string> = {
   item: "Objet",
   block: "Bloc",
   gui: "Interface",
+  asset: "Texture",
 };
+
+/** Nom d'une famille de textures libres, au singulier (en-tête de l'atelier). */
+export const ASSET_LABEL: Record<AssetKind, string> = {
+  overlay: "Superposition",
+  entity: "Entité",
+  armor: "Armure",
+  particle: "Particule",
+  effect: "Effet",
+  painting: "Tableau",
+  gui: "Interface",
+  other: "Texture",
+};
+
+export const ASSET_PLACEHOLDER: Record<AssetKind, string> = {
+  overlay: "Ex. : vue à travers des lunettes à rayons X, bords sombres, reflets bleus",
+  entity: "Ex. : golem de rubis, corps de pierre rouge veinée d'or",
+  armor: "Ex. : armure en rubis, plaques rouges bordées d'or",
+  particle: "Ex. : étincelle rouge vif",
+  effect: "Ex. : œil bleu lumineux",
+  painting: "Ex. : coucher de soleil sur des montagnes",
+  gui: "Ex. : fond d'une forge, cadre en pierre sombre",
+  other: "Ex. : ce que représente la texture",
+};
+
+/** Libellé de la famille d'une texture (objet, bloc… ou superposition, entité…). */
+export function kindLabel(texture: Pick<TextureInfo, "target" | "assetKind">): string {
+  return texture.assetKind ? ASSET_LABEL[texture.assetKind] : KIND_LABEL[texture.target.kind];
+}
+
+/** Exemple de description pour la texture. */
+export function placeholderFor(texture: Pick<TextureInfo, "target" | "assetKind">): string {
+  return texture.assetKind ? ASSET_PLACEHOLDER[texture.assetKind] : DESCRIPTION_PLACEHOLDER[texture.target.kind];
+}
 
 export const DESCRIPTION_PLACEHOLDER: Record<TextureTarget["kind"], string> = {
   item: "Ex. : une épée en rubis rouge, garde dorée, lame brillante",
   block: "Ex. : minerai de rubis, pierre grise avec des éclats rouges",
   icon: "Ex. : un dragon rouge enroulé autour d'une épée",
   gui: "Ex. : fond d'une forge, cadre en pierre sombre, emplacement central doré",
+  asset: "Ex. : ce que représente la texture",
 };
 
 export const FACE_LABEL: Record<BlockFace, string> = {

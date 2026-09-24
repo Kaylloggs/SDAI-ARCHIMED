@@ -25,6 +25,7 @@ mod secrets;
 mod service;
 mod snapshots;
 mod templates;
+mod texture_refs;
 mod textures;
 pub mod types;
 mod validator;

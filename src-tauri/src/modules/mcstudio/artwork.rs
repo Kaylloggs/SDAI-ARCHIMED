@@ -23,9 +23,10 @@ use super::files;
 use super::fsutil;
 use super::pixelart::{self, Raster};
 use super::snapshots;
+use super::texture_refs::{self, Citations};
 use super::textures;
 use super::types::{
-    BlockFace, BlockLayout, DraftSource, GuiPreset, GuiRequest, PixelData, PixelOptions,
+    AssetKind, BlockFace, BlockLayout, DraftSource, GuiPreset, GuiRequest, PixelData, PixelOptions,
     PromptSettings, SnapshotKind, TextureDraft, TextureInfo, TextureStyle, TextureTarget, Tiling,
 };
 
@@ -208,6 +209,14 @@ pub fn relative_path(mod_id: &str, target: &TextureTarget) -> AppResult<String> 
             content::validate_id(name)?;
             format!("{base}/textures/gui/{name}.png")
         }
+        TextureTarget::Asset { path } => {
+            if !texture_refs::valid_asset_path(path) {
+                return Err(AppError::invalid(format!(
+                    "Chemin de texture invalide : « {path} »."
+                )));
+            }
+            format!("{base}/textures/{path}.png")
+        }
     })
 }
 
@@ -316,21 +325,42 @@ pub fn info(root: &Path, mod_id: &str, target: &TextureTarget) -> AppResult<Text
     info_with(
         root,
         mod_id,
-        target,
+        &Entry {
+            target: target.clone(),
+            layout,
+            unused: false,
+            used_by: None,
+        },
         &lang_names(root, mod_id),
-        layout,
-        false,
     )
+}
+
+/// Une ligne de l'inventaire, avant lecture du PNG.
+struct Entry {
+    target: TextureTarget,
+    layout: Option<BlockLayout>,
+    unused: bool,
+    used_by: Option<String>,
+}
+
+impl Entry {
+    fn new(target: TextureTarget, layout: Option<BlockLayout>, unused: bool) -> Self {
+        Self {
+            target,
+            layout,
+            unused,
+            used_by: None,
+        }
+    }
 }
 
 fn info_with(
     root: &Path,
     mod_id: &str,
-    target: &TextureTarget,
+    entry: &Entry,
     names: &Map<String, Value>,
-    layout: Option<BlockLayout>,
-    unused: bool,
 ) -> AppResult<TextureInfo> {
+    let target = &entry.target;
     let relative = resolve_path(root, mod_id, target)?;
     let path = root.join(&relative);
     let (width, height) = image::image_dimensions(&path).unwrap_or((0, 0));
@@ -357,6 +387,7 @@ fn info_with(
         }
         TextureTarget::Icon => "Icône du mod".to_string(),
         TextureTarget::Gui { name } => name.clone(),
+        TextureTarget::Asset { path } => path.rsplit('/').next().unwrap_or(path).to_string(),
     };
     Ok(TextureInfo {
         target: target.clone(),
@@ -367,8 +398,13 @@ fn info_with(
         width,
         height,
         modified,
-        layout,
-        unused,
+        layout: entry.layout,
+        unused: entry.unused,
+        asset_kind: match target {
+            TextureTarget::Asset { path } => Some(texture_refs::asset_kind(path)),
+            _ => None,
+        },
+        used_by: entry.used_by.clone(),
     })
 }
 
@@ -419,8 +455,9 @@ fn block_targets(id: &str, layout: BlockLayout) -> Vec<TextureTarget> {
         .collect()
 }
 
-/// L'icône, les objets, les blocs (une entrée par face) et les éléments d'interface : textures
-/// présentes et textures attendues par un objet ou un bloc déclaré.
+/// L'icône, les objets, les blocs (une entrée par face), les éléments d'interface, puis toute
+/// autre texture du mod, présente sous `textures/` ou citée par le code et les JSON
+/// (superpositions, entités, armures, particules…) : textures présentes et attendues.
 pub fn list(root: &Path, mod_id: &str) -> Vec<TextureInfo> {
     let names = lang_names(root, mod_id);
     let assets = assets_dir(root, mod_id);
@@ -434,10 +471,13 @@ pub fn list(root: &Path, mod_id: &str) -> Vec<TextureInfo> {
             .map(str::to_string)
             .collect()
     };
-    // Textures utilisées par un modèle (d'un bloc, de ses variantes, d'un objet).
+    let prefix = format!("{}/textures/", assets_base(mod_id));
+    let texture_path = |folder: &str, stem: &str| format!("{prefix}{folder}/{stem}.png");
+    // Textures citées par le code et les JSON du mod : elles sont utilisées.
+    let cited: Citations = texture_refs::cited(root, mod_id);
+    // Textures utilisées par un modèle (d'un bloc, de ses variantes, d'un objet) ou citées.
     let mut claimed = referenced_textures(&assets, mod_id);
-    let texture_path =
-        |folder: &str, stem: &str| format!("{}/textures/{folder}/{stem}.png", assets_base(mod_id));
+    claimed.extend(cited.keys().map(|path| format!("{prefix}{path}.png")));
 
     // Objets : déclarés dans les traductions, ou dont un modèle utilise la texture.
     let mut items = declared("item");
@@ -452,11 +492,10 @@ pub fn list(root: &Path, mod_id: &str) -> Vec<TextureInfo> {
     let mut blocks = declared("block");
     blocks.extend(stems(&assets.join("blockstates"), "json"));
 
-    let mut entries: Vec<(TextureTarget, Option<BlockLayout>, bool)> =
-        vec![(TextureTarget::Icon, None, false)];
+    let mut entries = vec![Entry::new(TextureTarget::Icon, None, false)];
     for id in items {
         claimed.insert(texture_path("item", &id));
-        entries.push((TextureTarget::Item { id }, None, false));
+        entries.push(Entry::new(TextureTarget::Item { id }, None, false));
     }
     for id in &blocks {
         let model = read_block_model(root, mod_id, id);
@@ -464,18 +503,18 @@ pub fn list(root: &Path, mod_id: &str) -> Vec<TextureInfo> {
             if let Ok(path) = resolve_path(root, mod_id, &target) {
                 claimed.insert(path);
             }
-            entries.push((target, Some(model.layout), false));
+            entries.push(Entry::new(target, Some(model.layout), false));
         }
     }
     entries.extend(
         stems(&textures.join("gui"), "png")
             .into_iter()
-            .map(|name| (TextureTarget::Gui { name }, None, false)),
+            .map(|name| Entry::new(TextureTarget::Gui { name }, None, false)),
     );
-    // PNG qu'aucun objet, bloc ni modèle n'utilise : à part, proposés à la suppression.
+    // PNG qu'aucun objet, bloc, modèle ni code n'utilise : à part, proposés à la suppression.
     for stem in stems(&textures.join("item"), "png") {
         if !claimed.contains(&texture_path("item", &stem)) {
-            entries.push((TextureTarget::Item { id: stem }, None, true));
+            entries.push(Entry::new(TextureTarget::Item { id: stem }, None, true));
         }
     }
     for stem in stems(&textures.join("block"), "png") {
@@ -484,14 +523,48 @@ pub fn list(root: &Path, mod_id: &str) -> Vec<TextureInfo> {
                 id: stem,
                 face: None,
             };
-            entries.push((target, None, true));
+            entries.push(Entry::new(target, None, true));
         }
     }
+
+    // Toutes les autres : présentes dans `textures/` (sous-dossiers compris) ou citées.
+    let mut listed: BTreeSet<String> = entries
+        .iter()
+        .filter_map(|entry| resolve_path(root, mod_id, &entry.target).ok())
+        .collect();
+    let mut others: BTreeSet<String> = texture_refs::present(&textures).into_iter().collect();
+    others.extend(cited.keys().cloned());
+    for path in others {
+        if !listed.insert(format!("{prefix}{path}.png")) {
+            continue;
+        }
+        let target = match path.split_once('/') {
+            Some(("gui", name)) if content::validate_id(name).is_ok() => TextureTarget::Gui {
+                name: name.to_string(),
+            },
+            Some(("item", id)) if content::validate_id(id).is_ok() => {
+                TextureTarget::Item { id: id.to_string() }
+            }
+            Some(("block", id)) if content::validate_id(id).is_ok() => TextureTarget::Block {
+                id: id.to_string(),
+                face: None,
+            },
+            _ => TextureTarget::Asset { path },
+        };
+        entries.push(Entry::new(target, None, false));
+    }
+    // Qui cite les textures libres et les éléments d'interface.
+    for entry in &mut entries {
+        let path = match &entry.target {
+            TextureTarget::Asset { path } => path.clone(),
+            TextureTarget::Gui { name } => format!("gui/{name}"),
+            _ => continue,
+        };
+        entry.used_by = cited.get(&path).cloned();
+    }
     entries
-        .into_iter()
-        .filter_map(|(target, layout, unused)| {
-            info_with(root, mod_id, &target, &names, layout, unused).ok()
-        })
+        .iter()
+        .filter_map(|entry| info_with(root, mod_id, entry, &names).ok())
         .collect()
 }
 
@@ -573,10 +646,23 @@ fn style_line(style: TextureStyle) -> &'static str {
     }
 }
 
+fn gui_subject(what: &str, ratio: &str) -> String {
+    format!(
+        "Minecraft user interface (GUI) texture: {what}. Flat 2D interface graphic in the style \
+         of Minecraft inventory screens: light grey panels with bevelled edges (white highlight \
+         on the top-left, dark grey shadow on the bottom-right), crisp pixel art, no \
+         perspective, no text or letters.{ratio} It fills the image edge to edge."
+    )
+}
+
 /// Ce qui part au modèle : la description de la personne, cadrée pour la cible (objet,
 /// face de bloc, interface…), le style, la référence et les consignes ajoutées.
 pub fn prompt_for(target: &TextureTarget, description: &str, settings: &PromptSettings) -> String {
     let what = description.trim();
+    let ratio = match (settings.width, settings.height) {
+        (Some(w), Some(h)) => format!(" Aspect ratio {w}:{h}."),
+        _ => String::new(),
+    };
     let subject = match target {
         TextureTarget::Item { .. } => format!(
             "Minecraft item sprite of {what}. One single object, centered and entirely visible, \
@@ -621,19 +707,42 @@ pub fn prompt_for(target: &TextureTarget, description: &str, settings: &PromptSe
                 format!("{side} face of a Minecraft block of {what}, seen straight on. {SURFACE}")
             }
         },
-        TextureTarget::Gui { .. } => {
-            let ratio = match (settings.width, settings.height) {
-                (Some(w), Some(h)) => format!(" Aspect ratio {w}:{h}."),
-                _ => String::new(),
-            };
-            format!(
-                "Minecraft user interface (GUI) texture: {what}. Flat 2D interface graphic in \
-                 the style of Minecraft inventory screens: light grey panels with bevelled \
-                 edges (white highlight on the top-left, dark grey shadow on the bottom-right), \
-                 crisp pixel art, no perspective, no text or letters.{ratio} It fills the image \
-                 edge to edge."
-            )
-        }
+        TextureTarget::Gui { .. } => gui_subject(what, &ratio),
+        TextureTarget::Asset { path } => match texture_refs::asset_kind(path) {
+            AssetKind::Overlay => format!(
+                "Full-screen overlay texture for Minecraft, drawn over the player's view like \
+                 the carved pumpkin or spyglass overlay: {what}. The middle of the image stays \
+                 empty so the game remains visible; the effect frames the view around the \
+                 edges. Flat 2D, no perspective, no text.{ratio}"
+            ),
+            AssetKind::Entity => format!(
+                "Minecraft entity texture sheet for {what}: the flat unwrapped parts of the \
+                 entity model (UV skin layout, like vanilla mob textures) laid out on the sheet, \
+                 crisp pixel art, no perspective, no scene.{ratio}"
+            ),
+            AssetKind::Armor => format!(
+                "Minecraft armor layer texture for {what}, in the standard armor UV layout of the \
+                 vanilla iron armor texture: flat unwrapped pieces (helmet, chestplate, arms, \
+                 legs, boots), crisp pixel art, no perspective.{ratio}"
+            ),
+            AssetKind::Particle => format!(
+                "Minecraft particle sprite of {what}: one small centered shape, bold and readable \
+                 at 8×8 pixels, no text."
+            ),
+            AssetKind::Effect => format!(
+                "Minecraft status effect icon of {what}: one small centered symbol, readable at \
+                 18×18 pixels, like the vanilla effect icons, no text."
+            ),
+            AssetKind::Painting => format!(
+                "Minecraft painting artwork of {what}: pixel art filling the whole canvas edge \
+                 to edge, no frame, no text.{ratio}"
+            ),
+            AssetKind::Gui => gui_subject(what, &ratio),
+            AssetKind::Other => format!(
+                "Minecraft texture ({path}) of {what}: crisp pixel art in the style of the \
+                 game.{ratio}"
+            ),
+        },
     };
     let mut parts = vec![subject, style_line(settings.style).to_string()];
     let background = match target {
@@ -642,11 +751,21 @@ pub fn prompt_for(target: &TextureTarget, description: &str, settings: &PromptSe
                   the object, no shadow."
                 .to_string(),
         ),
-        TextureTarget::Block { .. } if settings.transparent => {
+        TextureTarget::Block { .. } | TextureTarget::Asset { .. }
+            if settings.transparent && fills_canvas(target) =>
+        {
             let key = key_color(what);
+            let areas = match target {
+                TextureTarget::Asset { path }
+                    if texture_refs::asset_kind(path) == AssetKind::Overlay =>
+                {
+                    "the clear middle of the view"
+                }
+                TextureTarget::Asset { .. } => "unused parts of the sheet, gaps, holes",
+                _ => "glass, gaps, holes",
+            };
             Some(format!(
-                "Areas that should be see-through (glass, gaps, holes) are filled with solid pure \
-                 {} ({}).",
+                "Areas that should be see-through ({areas}) are filled with solid pure {} ({}).",
                 key.0, key.1
             ))
         }
@@ -670,6 +789,19 @@ pub fn prompt_for(target: &TextureTarget, description: &str, settings: &PromptSe
         parts.push(format!("Additional instructions: {extra}"));
     }
     parts.join("\n")
+}
+
+/// Texture qui occupe toute l'image (bloc, superposition, feuille d'entité…) : ses zones
+/// transparentes sont des trous à remplir de la couleur d'incrustation, pas un fond.
+fn fills_canvas(target: &TextureTarget) -> bool {
+    match target {
+        TextureTarget::Block { .. } => true,
+        TextureTarget::Asset { path } => !matches!(
+            texture_refs::asset_kind(path),
+            AssetKind::Particle | AssetKind::Effect
+        ),
+        _ => false,
+    }
 }
 
 /// Texture du projet envoyée en référence au modèle : agrandie pixel par pixel (512 px
@@ -725,8 +857,11 @@ fn opaque(raster: &Raster) -> bool {
 fn options_for_existing(target: &TextureTarget, raster: &Raster) -> PixelOptions {
     let square = raster.width == raster.height
         && pixelart::SIZES.contains(&raster.width)
-        && !matches!(target, TextureTarget::Gui { .. });
-    let fits = |side: u32| side.clamp(1, pixelart::GUI_MAX);
+        && !matches!(
+            target,
+            TextureTarget::Gui { .. } | TextureTarget::Asset { .. }
+        );
+    let fits = |side: u32| side.clamp(1, pixelart::FREE_MAX);
     PixelOptions {
         size: if square { raster.width } else { 16 },
         colors: 0,
@@ -1041,6 +1176,7 @@ fn backup(root: &Path, current: &Path, target: &TextureTarget) -> AppResult<Path
         } => format!("block-{id}-{}", face_suffix(*face)),
         TextureTarget::Icon => "icon".to_string(),
         TextureTarget::Gui { name } => format!("gui-{name}"),
+        TextureTarget::Asset { path } => format!("asset-{}", path.replace('/', "-")),
     };
     let stamp = chrono::Utc::now().format("%Y%m%d-%H%M%S");
     let mut destination = dir.join(format!("{stamp}-{name}.png"));
@@ -1173,7 +1309,14 @@ pub fn set_block_layout(
     let names = lang_names(root, mod_id);
     targets
         .iter()
-        .map(|target| info_with(root, mod_id, target, &names, Some(layout), false))
+        .map(|target| {
+            info_with(
+                root,
+                mod_id,
+                &Entry::new(target.clone(), Some(layout), false),
+                &names,
+            )
+        })
         .collect()
 }
 
@@ -1521,6 +1664,105 @@ mod tests {
         assert_eq!(written["parent"], "minecraft:block/cube_column");
         assert!(written.get("elements").is_none());
         assert!(set_block_layout(&root, "dm", "ore", BlockLayout::Custom, true).is_err());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn every_texture_the_mod_needs_is_listed_and_sorted() {
+        let root = temp("assets");
+        let assets = assets_base("dm");
+        // Le code cite une superposition qui n'existe pas encore, et un objet utilisé à l'écran.
+        write(
+            &root,
+            "src/client/java/dm/Client.java",
+            br#"static final Identifier OVERLAY = DM.id("textures/misc/googles_overlay.png");
+                static final Identifier HUD = DM.id("textures/item/lens.png");
+                static final Identifier BLUR = Identifier.ofVanilla("textures/misc/pumpkinblur.png");"#,
+        );
+        write(
+            &root,
+            &format!("{assets}/textures/item/lens.png"),
+            &picture(),
+        );
+        write(
+            &root,
+            &format!("{assets}/textures/entity/golem.png"),
+            &picture(),
+        );
+        write(
+            &root,
+            &format!("{assets}/textures/gui/sprites/button.png"),
+            &picture(),
+        );
+        write(
+            &root,
+            &format!("{assets}/particles/spark.json"),
+            br#"{"textures":["dm:spark"]}"#,
+        );
+
+        let listed = list(&root, "dm");
+        let asset = |path: &str| {
+            listed
+                .iter()
+                .find(|t| t.target == TextureTarget::Asset { path: path.into() })
+                .unwrap_or_else(|| panic!("{path} absent"))
+        };
+        let overlay = asset("misc/googles_overlay");
+        assert!(!overlay.exists);
+        assert_eq!(overlay.asset_kind, Some(AssetKind::Overlay));
+        assert_eq!(overlay.label, "googles_overlay");
+        assert_eq!(
+            overlay.used_by.as_deref(),
+            Some("src/client/java/dm/Client.java")
+        );
+        assert_eq!(
+            overlay.relative,
+            format!("{assets}/textures/misc/googles_overlay.png")
+        );
+        assert_eq!(asset("entity/golem").asset_kind, Some(AssetKind::Entity));
+        assert!(asset("entity/golem").exists);
+        assert_eq!(asset("gui/sprites/button").asset_kind, Some(AssetKind::Gui));
+        assert_eq!(
+            asset("particle/spark").asset_kind,
+            Some(AssetKind::Particle)
+        );
+        assert!(listed.iter().all(|t| !t.relative.contains("pumpkinblur")));
+        // Cité par le code : un objet, pas une texture inutilisée.
+        let lens = listed
+            .iter()
+            .find(|t| t.target == TextureTarget::Item { id: "lens".into() })
+            .unwrap();
+        assert!(!lens.unused);
+        // Chaque texture n'apparaît qu'une fois.
+        let mut paths: Vec<&str> = listed.iter().map(|t| t.relative.as_str()).collect();
+        let count = paths.len();
+        paths.sort();
+        paths.dedup();
+        assert_eq!(paths.len(), count);
+
+        let prompt = prompt_for(
+            &overlay.target,
+            "lunettes à rayons X, verres bleus",
+            &PromptSettings {
+                transparent: true,
+                width: Some(256),
+                height: Some(256),
+                ..PromptSettings::default()
+            },
+        );
+        assert!(
+            prompt.starts_with("Full-screen overlay texture for Minecraft"),
+            "{prompt}"
+        );
+        assert!(prompt.contains("the clear middle of the view"), "{prompt}");
+        assert!(prompt.contains("Aspect ratio 256:256."), "{prompt}");
+        assert!(relative_path(
+            "dm",
+            &TextureTarget::Asset {
+                path: "../lang/x".into()
+            }
+        )
+        .is_err());
         let _ = std::fs::remove_dir_all(&root);
     }
 
