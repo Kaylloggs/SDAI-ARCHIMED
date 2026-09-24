@@ -42,7 +42,12 @@ function Fail([string]$Message) {
     exit 1
 }
 function Invoke-Native([string]$What, [scriptblock]$Command) {
-    & $Command
+    # PowerShell 5.1 : sous 'Stop', la moindre ligne ecrite sur stderr par un programme
+    # natif (pnpm, git push, gh) devient fatale des que la sortie est redirigee (journal,
+    # CI). Seul le code de sortie dit si la commande a echoue.
+    $previousPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { & $Command } finally { $ErrorActionPreference = $previousPreference }
     if ($LASTEXITCODE -ne 0) { Fail "$What (code $LASTEXITCODE)" }
 }
 function Test-Command([string]$Name) { return [bool](Get-Command $Name -ErrorAction SilentlyContinue) }
