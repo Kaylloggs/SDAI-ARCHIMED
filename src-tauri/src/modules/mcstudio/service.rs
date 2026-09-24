@@ -458,6 +458,20 @@ impl McStudio {
             .open_project_texture(project_id, &root, &meta.mod_id, target)
     }
 
+    /// Propositions déjà faites pour une texture (historique de l'atelier).
+    pub fn texture_history(
+        &self,
+        project_id: &str,
+        target: Option<&TextureTarget>,
+    ) -> AppResult<Vec<TextureDraft>> {
+        self.open_context(project_id)?;
+        Ok(self.drafts.history(project_id, target))
+    }
+
+    pub fn delete_draft(&self, draft_id: &str) -> AppResult<()> {
+        self.drafts.delete(draft_id)
+    }
+
     pub fn draft_pixels(&self, draft_id: &str) -> AppResult<PixelData> {
         self.drafts.pixels(draft_id)
     }

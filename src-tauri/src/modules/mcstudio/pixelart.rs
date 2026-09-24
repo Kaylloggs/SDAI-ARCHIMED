@@ -12,7 +12,7 @@ use std::io::Cursor;
 use crate::core::{AppError, AppResult};
 
 use super::textures::Image;
-use super::types::{PixelOptions, Tiling};
+use super::types::{CropRect, PixelOptions, Tiling};
 
 /// Côté maximal accepté à l'entrée (anti « bombe » de décompression).
 const MAX_SIDE: u32 = 4096;
@@ -204,7 +204,10 @@ pub fn convert_full(source: &Raster, options: &PixelOptions) -> AppResult<Conver
     validate(options)?;
     let (width, height) = output_size(options);
     let mut notes = Vec::new();
-    let mut work = shrink_to(source, WORK_SIDE);
+    let mut work = match options.crop {
+        Some(zone) => shrink_to(&crop(source, zone)?, WORK_SIDE),
+        None => shrink_to(source, WORK_SIDE),
+    };
     // Place gardée autour de l'objet pour son contour.
     let outline = options.outline && options.transparent && width > 4 && height > 4;
     let (inner_w, inner_h) = if outline {
@@ -259,6 +262,26 @@ pub fn convert_full(source: &Raster, options: &PixelOptions) -> AppResult<Conver
         seam,
         notes,
     })
+}
+
+/// Zone choisie de l'image (ramenée dans ses limites).
+fn crop(source: &Raster, zone: CropRect) -> AppResult<Raster> {
+    let x = zone.x.min(source.width.saturating_sub(1));
+    let y = zone.y.min(source.height.saturating_sub(1));
+    let width = zone.width.min(source.width - x);
+    let height = zone.height.min(source.height - y);
+    if width < 2 || height < 2 {
+        return Err(AppError::invalid(
+            "Zone trop petite : sélectionnez au moins 2 × 2 pixels de l'image.",
+        ));
+    }
+    let mut out = Raster::new(width, height);
+    for row in 0..height {
+        for column in 0..width {
+            out.put(column, row, source.at(x + column, y + row));
+        }
+    }
+    Ok(out)
 }
 
 /// Agrandit sans lisser (chaque pixel devient un carré) jusqu'à au moins `side`.
@@ -923,6 +946,7 @@ mod tests {
             width: None,
             height: None,
             atlas: false,
+            crop: None,
         }
     }
 
@@ -1157,6 +1181,49 @@ mod tests {
         assert_eq!(aspect_ratio(200, 20), "21:9");
         assert_eq!(aspect_ratio(176, 166), "1:1");
         assert_eq!(aspect_ratio(24, 17), "4:3");
+    }
+
+    #[test]
+    fn a_chosen_zone_becomes_the_texture() {
+        // Moitié gauche rouge, moitié droite bleue : la zone de droite donne du bleu.
+        let mut source = Raster::new(200, 100);
+        for y in 0..100 {
+            for x in 0..200 {
+                source.put(x, y, if x < 100 { RED } else { [20, 60, 220, 255] });
+            }
+        }
+        let right = PixelOptions {
+            crop: Some(CropRect {
+                x: 110,
+                y: 10,
+                width: 80,
+                height: 80,
+            }),
+            ..opts(16, 0, false)
+        };
+        let out = convert(&source, &right).unwrap();
+        assert!(out.px.iter().all(|p| p[2] > 200), "que du bleu");
+        // Zone qui déborde : ramenée dans l'image ; zone vide : refusée.
+        let over = PixelOptions {
+            crop: Some(CropRect {
+                x: 150,
+                y: 50,
+                width: 500,
+                height: 500,
+            }),
+            ..opts(16, 0, false)
+        };
+        assert!(convert(&source, &over).is_ok());
+        let tiny = PixelOptions {
+            crop: Some(CropRect {
+                x: 199,
+                y: 99,
+                width: 1,
+                height: 1,
+            }),
+            ..opts(16, 0, false)
+        };
+        assert!(convert(&source, &tiny).is_err());
     }
 
     #[test]

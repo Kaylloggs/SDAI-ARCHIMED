@@ -596,7 +596,7 @@ pub struct ImageModelList {
 }
 
 /// Face d'un bloc dont les faces n'ont pas toutes la même texture.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../src/core/ipc/bindings/")]
 #[serde(rename_all = "camelCase")]
 pub enum BlockFace {
@@ -631,7 +631,7 @@ pub enum BlockLayout {
 
 /// Ce qu'une texture habille : un objet, un bloc (ou une de ses faces), l'icône du mod ou un
 /// élément d'interface (`textures/gui/`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../src/core/ipc/bindings/")]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum TextureTarget {
@@ -711,6 +711,21 @@ pub struct PixelOptions {
     /// Élément posé en haut à gauche d'une toile 256 × 256 (convention des écrans du jeu).
     #[serde(default)]
     pub atlas: bool,
+    /// Zone de l'image reçue qui devient la texture (pixels de l'image d'origine) ; `None` :
+    /// toute l'image.
+    #[serde(default)]
+    pub crop: Option<CropRect>,
+}
+
+/// Rectangle choisi dans l'image reçue.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct CropRect {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
 }
 
 /// Origine d'un brouillon de texture.

@@ -219,12 +219,19 @@ libre) dessiné sans IA aux couleurs des écrans du jeu, dans `textures/gui/`.
    restauration (autres réglages du modèle gardés), les faces manquantes partent de la texture
    actuelle ; chaque face a son onglet et sa texture (`<bloc>_<face>.png`, ou celle que le modèle
    référence déjà). Un modèle écrit à la main n'est remplacé par un cube qu'après confirmation.
-6. **Retouche au pixel** : crayon, gomme, remplissage, pipette, miroir, grille, décalage d'une
+6. **Cadrage** : sur l'image reçue, glisser pour choisir la zone qui devient la texture (aux
+   proportions de la texture ; flèches pour la déplacer, Maj + flèches pour la redimensionner),
+   « Toute l'image » pour revenir. La zone (`PixelOptions.crop`, pixels de l'image d'origine) est
+   appliquée avant toute la conversion.
+   **Propositions** : chaque image générée, importée ou retouchée reste dans l'historique de sa
+   texture (`texture_history`, 20 par texture, 150 en tout), même fermée ; on la rouvre avec ses
+   réglages, ou on la retire (`delete_draft`).
+7. **Retouche au pixel** : crayon, gomme, remplissage, pipette, miroir, grille, décalage d'une
    demi-case (les bords opposés se retrouvent au milieu pour corriger un raccord), annuler /
    rétablir, zoom, palette de la texture, couleur hexadécimale ; au clavier : flèches + Espace,
    B/E/G/I/M, Ctrl+Z / Ctrl+Y. Les retouches s'enregistrent dans la proposition au fil de l'eau ;
    aperçus en direct : texture répétée 3 × 3 et bloc en 3D (vue d'inventaire).
-7. **Application** : rien n'est écrit dans le projet avant « Appliquer au projet ». L'ancienne
+8. **Application** : rien n'est écrit dans le projet avant « Appliquer au projet ». L'ancienne
    texture est copiée dans `.mcstudio/history/textures/<date>-<cible>.png`, la nouvelle écrite de
    façon atomique ; l'action est inscrite au journal d'audit (`mcstudio.texture_apply`), comme
    chaque génération (`mcstudio.texture_generate`) et chaque changement de clé.
@@ -290,6 +297,7 @@ Java : `detect_java` · `inspect_java` · `project_java` · `set_project_java` �
 Contenu : `add_item` · `add_block` · `add_recipe`
 Textures : `openrouter_status` · `set_openrouter_key` · `clear_openrouter_key` · `image_models` ·
 `gemini_status` · `set_gemini_key` · `clear_gemini_key` · `gemini_image_models` · `edit_texture` ·
+`texture_history` · `delete_draft` ·
 `draft_pixels` · `save_draft_pixels` · `set_block_layout` · `create_gui_texture` ·
 `texture_prompt` · `list_textures` · `generate_texture` · `import_texture` · `reprocess_texture` ·
 `apply_texture`

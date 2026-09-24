@@ -4,6 +4,22 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Modifié — Mod Studio : atelier des textures en mode studio
+- Nouvelle disposition : la **scène** au centre (texture, cadrage, retouche au pixel, aperçus
+  répétés et en 3D) et un **inspecteur** à droite (source, service et modèle, description, style et
+  texte envoyé, conversion), sections repliables avec leur résumé. Toutes les fonctions restent.
+- **Cadrage** : on choisit à la souris (ou au clavier) la zone de l'image reçue qui devient la
+  texture, aux proportions de la texture ; la conversion suit aussitôt.
+- **Propositions gardées** : chaque image générée, importée ou retouchée reste dans l'historique
+  de sa texture (20 par texture), même fermée ; on la rouvre d'un clic avec ses réglages.
+
+### Corrigé
+- Onglet Textures : des blocs apparaissaient sans raison (modèles de variantes d'une dalle, d'une
+  bûche…) ; seuls les blocs déclarés ou ayant un état de bloc sont listés, et un bloc à modèle fait
+  main montre sa vraie texture.
+- Tailles de texte (`text-caption`, `text-footnote`…) perdues quand une couleur les suivait dans
+  une classe composée (`cn`) : partout dans l'application.
+
 ### Ajouté — Mod Studio : atelier des textures (ADR 0008)
 - **Faces des blocs** : une texture pour tout le bloc, colonne (côtés + extrémités), dessus /
   dessous / côtés, ou six faces. Le modèle du bloc est réécrit (point de restauration avant), chaque

@@ -415,7 +415,7 @@ export function TexturesPanel({ project }: { project: ProjectSummary }) {
             );
           })}
       </aside>
-      <div className="min-w-0 flex-1 overflow-y-auto px-6 py-6">
+      <div className="min-w-0 flex-1 overflow-hidden">
         {current && textures && (
           <TextureStudio
             key={targetKey(current.target)}

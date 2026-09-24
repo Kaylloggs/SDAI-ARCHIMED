@@ -192,7 +192,7 @@ export function Segmented<T extends string | number>({
             disabled={disabled}
             onClick={() => onChange(option.value)}
             className={cn(
-              "h-7 rounded-sm px-2.5 text-footnote tabular-nums transition-colors disabled:opacity-40",
+              "h-7 whitespace-nowrap rounded-sm px-2.5 text-footnote tabular-nums transition-colors disabled:opacity-40",
               active ? "bg-surface-3 text-text shadow-sm" : "text-text-muted hover:text-text",
               focusRing,
             )}

@@ -75,6 +75,8 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::texture_prompt,
             commands::edit_texture,
             commands::draft_pixels,
+            commands::texture_history,
+            commands::delete_draft,
             commands::save_draft_pixels,
             commands::set_block_layout,
             commands::create_gui_texture,

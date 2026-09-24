@@ -29,8 +29,10 @@ use super::types::{
     PromptSettings, SnapshotKind, TextureDraft, TextureInfo, TextureStyle, TextureTarget, Tiling,
 };
 
-/// Brouillons gardés en cache (les plus récents).
-const KEEP_DRAFTS: usize = 30;
+/// Propositions gardées par texture (historique de l'atelier), les plus récentes.
+const KEEP_PER_TEXTURE: usize = 20;
+/// Propositions gardées en tout dans le cache du module.
+const KEEP_DRAFTS: usize = 150;
 /// Côté minimal de l'icône du mod : une icône 16 × 16 est agrandie sans lissage.
 const ICON_SIDE: u32 = 64;
 /// Longueur maximale d'une description envoyée au modèle.
@@ -214,16 +216,26 @@ pub fn resolve_path(root: &Path, mod_id: &str, target: &TextureTarget) -> AppRes
     let convention = relative_path(mod_id, target)?;
     if let TextureTarget::Block { id, face } = target {
         let model = read_block_model(root, mod_id, id);
-        let key = match face {
-            Some(face) => face_key(model.layout, *face),
-            None => "all",
+        let textures = model.textures();
+        let path_of = |key: &str| {
+            textures
+                .and_then(|t| t.get(key))
+                .and_then(Value::as_str)
+                .and_then(|reference| texture_ref_path(mod_id, reference))
         };
-        if let Some(path) = model
-            .textures()
-            .and_then(|textures| textures.get(key))
-            .and_then(Value::as_str)
-            .and_then(|reference| texture_ref_path(mod_id, reference))
-        {
+        let found = match face {
+            Some(face) => path_of(face_key(model.layout, *face)),
+            // Texture unique : `all`, sinon celle qu'un modèle fait main met en avant.
+            None => ["all", "texture", "side", "end", "top", "particle"]
+                .iter()
+                .find_map(|key| path_of(key))
+                .or_else(|| {
+                    textures?.values().find_map(|reference| {
+                        reference.as_str().and_then(|r| texture_ref_path(mod_id, r))
+                    })
+                }),
+        };
+        if let Some(path) = found {
             return Ok(path);
         }
     }
@@ -351,6 +363,35 @@ fn info_with(
     })
 }
 
+/// Chemins des textures du mod citées par les modèles de blocs et d'objets.
+fn referenced_textures(assets: &Path, mod_id: &str) -> BTreeSet<String> {
+    let mut claimed = BTreeSet::new();
+    for folder in ["models/block", "models/item"] {
+        let Ok(entries) = std::fs::read_dir(assets.join(folder)) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("json") {
+                continue;
+            }
+            let Some(textures) = std::fs::read_to_string(&path)
+                .ok()
+                .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+                .and_then(|value| value.get("textures").cloned())
+            else {
+                continue;
+            };
+            for reference in textures.as_object().into_iter().flat_map(|t| t.values()) {
+                if let Some(path) = reference.as_str().and_then(|r| texture_ref_path(mod_id, r)) {
+                    claimed.insert(path);
+                }
+            }
+        }
+    }
+    claimed
+}
+
 /// Textures d'un bloc : une par face selon son modèle.
 fn block_targets(id: &str, layout: BlockLayout) -> Vec<TextureTarget> {
     let faces = layout_faces(layout);
@@ -387,20 +428,19 @@ pub fn list(root: &Path, mod_id: &str) -> Vec<TextureInfo> {
     let mut items = declared("item");
     items.extend(stems(&textures.join("item"), "png"));
 
-    // Blocs : déclarés, ou dont le modèle suit une répartition connue.
+    // Blocs : déclarés dans les traductions, ou qui ont un état de bloc (`blockstates/`). Les
+    // modèles seuls ne comptent pas : une dalle ou une bûche en ont plusieurs (`_top`,
+    // `_double`, `_horizontal`…) qui ne sont pas des blocs.
     let mut blocks = declared("block");
-    for stem in stems(&assets.join("models/block"), "json") {
-        if read_block_model(root, mod_id, &stem).layout != BlockLayout::Custom {
-            blocks.insert(stem);
-        }
-    }
+    blocks.extend(stems(&assets.join("blockstates"), "json"));
     let mut entries: Vec<(TextureTarget, Option<BlockLayout>)> = vec![(TextureTarget::Icon, None)];
     entries.extend(
         items
             .into_iter()
             .map(|id| (TextureTarget::Item { id }, None)),
     );
-    let mut claimed = BTreeSet::new();
+    // Textures utilisées par un modèle (du bloc, de ses variantes, d'un objet).
+    let mut claimed = referenced_textures(&assets, mod_id);
     let mut block_entries = Vec::new();
     for id in &blocks {
         let model = read_block_model(root, mod_id, id);
@@ -410,13 +450,8 @@ pub fn list(root: &Path, mod_id: &str) -> Vec<TextureInfo> {
             }
             block_entries.push((target, Some(model.layout)));
         }
-        for reference in model.textures().into_iter().flat_map(|t| t.values()) {
-            if let Some(path) = reference.as_str().and_then(|r| texture_ref_path(mod_id, r)) {
-                claimed.insert(path);
-            }
-        }
     }
-    // PNG de bloc que rien ne référence : une texture de bloc à part entière.
+    // PNG de bloc qu'aucun modèle n'utilise : une texture de bloc à part entière.
     for stem in stems(&textures.join("block"), "png") {
         let path = format!("{}/textures/block/{stem}.png", assets_base(mod_id));
         if !claimed.contains(&path) && !blocks.contains(&stem) {
@@ -610,6 +645,7 @@ fn options_for_existing(target: &TextureTarget, raster: &Raster) -> PixelOptions
         width: (!square).then(|| fits(raster.width)),
         height: (!square).then(|| fits(raster.height)),
         atlas: false,
+        crop: None,
     }
 }
 
@@ -847,23 +883,56 @@ impl Drafts {
         info(root, mod_id, &draft.target)
     }
 
-    /// Garde les brouillons les plus récents (nom de dossier sans importance : date du JSON).
-    fn prune(&self) {
+    /// Tous les brouillons du cache, les plus récents d'abord.
+    fn all(&self) -> Vec<(TextureDraft, PathBuf)> {
         let Ok(entries) = std::fs::read_dir(&self.dir) else {
-            return;
+            return Vec::new();
         };
-        let mut drafts: Vec<(String, PathBuf)> = entries
+        let mut drafts: Vec<(TextureDraft, PathBuf)> = entries
             .flatten()
             .filter_map(|entry| {
                 let path = entry.path();
                 let raw = std::fs::read(path.join("draft.json")).ok()?;
                 let draft: TextureDraft = serde_json::from_slice(&raw).ok()?;
-                Some((draft.created_at, path))
+                Some((draft, path))
             })
             .collect();
-        drafts.sort_by(|a, b| b.0.cmp(&a.0));
-        for (_, path) in drafts.into_iter().skip(KEEP_DRAFTS) {
-            let _ = std::fs::remove_dir_all(path);
+        drafts.sort_by(|a, b| b.0.created_at.cmp(&a.0.created_at));
+        drafts
+    }
+
+    /// Propositions déjà faites pour une texture du projet (toutes si `target` est vide), les
+    /// plus récentes d'abord : rien n'est perdu en fermant une proposition.
+    pub fn history(&self, project_id: &str, target: Option<&TextureTarget>) -> Vec<TextureDraft> {
+        self.all()
+            .into_iter()
+            .map(|(draft, _)| draft)
+            .filter(|draft| draft.project_id == project_id)
+            .filter(|draft| target.is_none_or(|t| &draft.target == t))
+            .collect()
+    }
+
+    /// Retire une proposition de l'historique (cache du module, pas un fichier du projet).
+    pub fn delete(&self, id: &str) -> AppResult<()> {
+        let folder = self.folder(id)?;
+        if folder.is_dir() {
+            std::fs::remove_dir_all(folder)?;
+        }
+        Ok(())
+    }
+
+    /// Garde les plus récents : 20 par texture, 150 en tout.
+    fn prune(&self) {
+        let mut per_texture: std::collections::HashMap<(String, TextureTarget), usize> =
+            std::collections::HashMap::new();
+        for (index, (draft, path)) in self.all().into_iter().enumerate() {
+            let count = per_texture
+                .entry((draft.project_id.clone(), draft.target.clone()))
+                .or_insert(0);
+            *count += 1;
+            if *count > KEEP_PER_TEXTURE || index >= KEEP_DRAFTS {
+                let _ = std::fs::remove_dir_all(path);
+            }
         }
     }
 }
@@ -1087,6 +1156,7 @@ mod tests {
             width: None,
             height: None,
             atlas: false,
+            crop: None,
         }
     }
 
@@ -1236,6 +1306,27 @@ mod tests {
             &format!("{assets}/textures/gui/forge.png"),
             &picture(),
         );
+        // Dalle : un état de bloc, deux modèles ; la variante n'est pas un bloc.
+        write(
+            &root,
+            &format!("{assets}/blockstates/ruby_slab.json"),
+            b"{}",
+        );
+        write(
+            &root,
+            &block_model_path("dm", "ruby_slab"),
+            br#"{"parent":"minecraft:block/slab","textures":{"bottom":"dm:block/ruby_planks","side":"dm:block/ruby_planks","top":"dm:block/ruby_planks"}}"#,
+        );
+        write(
+            &root,
+            &block_model_path("dm", "ruby_slab_double"),
+            br#"{"parent":"minecraft:block/cube_all","textures":{"all":"dm:block/ruby_planks"}}"#,
+        );
+        write(
+            &root,
+            &format!("{assets}/textures/block/ruby_planks.png"),
+            &picture(),
+        );
 
         let labels: Vec<String> = list(&root, "dm").into_iter().map(|t| t.label).collect();
         assert_eq!(
@@ -1245,10 +1336,18 @@ mod tests {
                 "Minerai",
                 "Bûche de rubis · côtés",
                 "Bûche de rubis · extrémités",
+                "ruby_slab",
                 "loose",
                 "forge"
             ]
         );
+        // Modèle fait main : sa vraie texture, pas un fichier au nom du bloc.
+        let slab = list(&root, "dm")
+            .into_iter()
+            .find(|t| t.label == "ruby_slab")
+            .unwrap();
+        assert!(slab.exists && slab.relative.ends_with("block/ruby_planks.png"));
+        assert_eq!(slab.layout, Some(BlockLayout::Custom));
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -1527,10 +1626,65 @@ mod tests {
     }
 
     #[test]
+    fn past_proposals_stay_in_the_history() {
+        let module = temp("history");
+        let drafts = Drafts::new(&module);
+        let source = || DraftSource::File {
+            name: "a.png".into(),
+        };
+        let first = drafts
+            .create(
+                "p",
+                TextureTarget::Icon,
+                source(),
+                &picture(),
+                options(16, false),
+            )
+            .unwrap();
+        let second = drafts
+            .create(
+                "p",
+                TextureTarget::Icon,
+                source(),
+                &picture(),
+                options(32, false),
+            )
+            .unwrap();
+        drafts
+            .create(
+                "autre",
+                TextureTarget::Icon,
+                source(),
+                &picture(),
+                options(16, false),
+            )
+            .unwrap();
+        let item = TextureTarget::Item { id: "gem".into() };
+        drafts
+            .create("p", item.clone(), source(), &picture(), options(16, true))
+            .unwrap();
+
+        let icon: Vec<String> = drafts
+            .history("p", Some(&TextureTarget::Icon))
+            .into_iter()
+            .map(|d| d.id)
+            .collect();
+        assert_eq!(icon.len(), 2);
+        assert!(icon.contains(&first.id) && icon.contains(&second.id));
+        assert_eq!(drafts.history("p", None).len(), 3);
+        assert_eq!(drafts.history("p", Some(&item)).len(), 1);
+
+        drafts.delete(&first.id).unwrap();
+        assert_eq!(drafts.history("p", Some(&TextureTarget::Icon)).len(), 1);
+        assert!(drafts.delete("../x").is_err());
+        let _ = std::fs::remove_dir_all(&module);
+    }
+
+    #[test]
     fn old_drafts_are_pruned() {
         let module = temp("prune");
         let drafts = Drafts::new(&module);
-        for _ in 0..KEEP_DRAFTS + 3 {
+        for _ in 0..KEEP_PER_TEXTURE + 3 {
             drafts
                 .create(
                     "p",
@@ -1547,7 +1701,7 @@ mod tests {
             std::fs::read_dir(module.join("cache/textures"))
                 .unwrap()
                 .count(),
-            KEEP_DRAFTS
+            KEEP_PER_TEXTURE
         );
         let _ = std::fs::remove_dir_all(&module);
     }

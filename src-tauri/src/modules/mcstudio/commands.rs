@@ -316,6 +316,22 @@ pub async fn edit_texture(
     blocking(&studio, move |s| s.edit_texture(&id, target)).await
 }
 
+/// Propositions déjà faites pour une texture (ou pour tout le projet).
+#[tauri::command]
+pub async fn texture_history(
+    studio: Studio<'_>,
+    id: String,
+    target: Option<TextureTarget>,
+) -> AppResult<Vec<TextureDraft>> {
+    blocking(&studio, move |s| s.texture_history(&id, target.as_ref())).await
+}
+
+/// Retire une proposition de l'historique.
+#[tauri::command]
+pub async fn delete_draft(studio: Studio<'_>, draft_id: String) -> AppResult<()> {
+    blocking(&studio, move |s| s.delete_draft(&draft_id)).await
+}
+
 #[tauri::command]
 pub async fn draft_pixels(studio: Studio<'_>, draft_id: String) -> AppResult<PixelData> {
     blocking(&studio, move |s| s.draft_pixels(&draft_id)).await

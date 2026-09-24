@@ -21,6 +21,14 @@ export type PromptChoice = {
 
 export const DEFAULT_PROMPT: PromptChoice = { style: "vanilla", extra: "", reference: null, custom: null };
 
+/** Résumé court (en-tête replié de l'inspecteur). */
+export function promptSummary(choice: PromptChoice): string {
+  if (choice.custom !== null) return "texte écrit à la main";
+  const style = STYLE_CHOICES.find((s) => s.value === choice.style)?.label ?? "";
+  const extras = [choice.reference ? "avec référence" : null, choice.extra.trim() ? "consignes" : null].filter(Boolean);
+  return [style, ...extras].join(" · ");
+}
+
 export function promptSettings(choice: PromptChoice, size: { width: number; height: number } | null): PromptSettings {
   return {
     style: choice.style,
@@ -32,7 +40,7 @@ export function promptSettings(choice: PromptChoice, size: { width: number; heig
 }
 
 /**
- * Ce qui part au modèle : style, consignes, texture de référence, et le texte final — lisible
+ * Ce qui part au modèle : style, consignes, texture de référence, et le texte final, lisible
  * avant l'envoi et modifiable mot pour mot.
  */
 export function PromptPanel({
@@ -80,31 +88,30 @@ export function PromptPanel({
     choice.custom !== null && choice.custom.length > MAX_PROMPT ? `${MAX_PROMPT} caractères au plus.` : null;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-        <div className="space-y-1.5">
-          <p className="text-footnote font-medium text-text-muted">Style</p>
-          <Segmented
-            label="Style de la texture"
-            value={choice.style}
-            options={STYLE_CHOICES}
-            disabled={disabled || choice.custom !== null}
-            onChange={(style) => set({ style })}
-          />
-        </div>
-        <div className="min-w-[220px] flex-1 space-y-1.5">
-          <p className="text-footnote font-medium text-text-muted">Texture de référence</p>
-          <Select
-            label="Texture de référence"
-            value={choice.reference ?? ""}
-            disabled={disabled || !referenceAllowed}
-            onChange={(value) => set({ reference: value || null })}
-            options={[
-              { value: "", label: "Aucune" },
-              ...references.map((texture) => ({ value: texture.relative, label: texture.label, hint: `${texture.width}×${texture.height}` })),
-            ]}
-          />
-        </div>
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <p className="text-footnote font-medium text-text-muted">Style</p>
+        <Segmented
+          label="Style de la texture"
+          value={choice.style}
+          options={STYLE_CHOICES}
+          disabled={disabled || choice.custom !== null}
+          onChange={(style) => set({ style })}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <p className="text-footnote font-medium text-text-muted">Texture de référence</p>
+        <Select
+          label="Texture de référence"
+          value={choice.reference ?? ""}
+          disabled={disabled || !referenceAllowed}
+          onChange={(value) => set({ reference: value || null })}
+          className="w-full"
+          options={[
+            { value: "", label: "Aucune" },
+            ...references.map((texture) => ({ value: texture.relative, label: texture.label, hint: `${texture.width}×${texture.height}` })),
+          ]}
+        />
       </div>
       {!referenceAllowed ? (
         <p className="text-caption text-text-subtle">Ce modèle ne lit pas d'image : pas de texture de référence.</p>
@@ -164,7 +171,7 @@ export function PromptPanel({
               <textarea
                 aria-label="Texte envoyé au modèle"
                 value={choice.custom}
-                rows={8}
+                rows={10}
                 disabled={disabled}
                 onChange={(event) => set({ custom: event.target.value })}
                 className={cn(inputClass, "h-auto resize-y py-2 font-mono text-caption leading-relaxed")}

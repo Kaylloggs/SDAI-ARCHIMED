@@ -43,6 +43,17 @@ Les premières textures générées étaient utilisables mais pas « prêtes pou
    écrans sur une toile 256 × 256) ; l'IA peut ensuite les redessiner à leur taille (1 à 256 px,
    toile 256 × 256 facultative). Aucun fichier existant n'est écrasé à la création.
 
+6. **Cadrage et historique** (ajout du même jour). La zone de l'image reçue qui devient la texture
+   fait partie des réglages (`PixelOptions.crop`, pixels de l'image d'origine, ramenée dans ses
+   limites) : recadrer reconvertit sans réseau. Les brouillons forment l'historique de chaque
+   texture (20 par texture, 150 en tout dans le cache) : fermer une proposition ne la perd plus.
+7. **Disposition en studio** : scène (texture, cadrage, retouche, aperçus, propositions) et
+   inspecteur (réglages en sections repliables), côte à côte dès 768 px de large, l'un sous l'autre
+   en dessous.
+8. **Seuls les vrais blocs sont listés** : ceux des traductions et ceux qui ont un état de bloc
+   (`blockstates/`). Les modèles de variantes (`_top`, `_double`…) ne sont pas des blocs ; les
+   textures qu'ils utilisent ne sont pas des « orphelines ».
+
 ## Conséquences
 
 - **Positif** : des blocs à plusieurs faces, des textures qui se répètent proprement, un contrôle

@@ -110,6 +110,10 @@ export const mcstudioApi = {
     invokeModule<string>(PLUGIN, "texture_prompt", { target, description, settings }),
   /** Texture du projet reprise dans un brouillon, pour la retoucher au pixel. */
   editTexture: (id: string, target: TextureTarget) => invokeModule<TextureDraft>(PLUGIN, "edit_texture", { id, target }),
+  /** Propositions déjà faites pour une texture (`null` : tout le projet), les plus récentes d'abord. */
+  textureHistory: (id: string, target: TextureTarget | null) =>
+    invokeModule<TextureDraft[]>(PLUGIN, "texture_history", { id, target }),
+  deleteDraft: (draftId: string) => invokeModule<void>(PLUGIN, "delete_draft", { draftId }),
   draftPixels: (draftId: string) => invokeModule<PixelData>(PLUGIN, "draft_pixels", { draftId }),
   saveDraftPixels: (draftId: string, data: PixelData) =>
     invokeModule<TextureDraft>(PLUGIN, "save_draft_pixels", { draftId, data }),

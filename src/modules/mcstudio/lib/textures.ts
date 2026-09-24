@@ -30,6 +30,7 @@ const BASE: Omit<PixelOptions, "size" | "colors" | "transparent"> = {
   width: null,
   height: null,
   atlas: false,
+  crop: null,
 };
 
 /**
@@ -142,6 +143,27 @@ export const GUI_PRESETS: { value: GuiPreset; label: string; size: string }[] = 
   { value: "arrow", label: "Flèche de progression", size: "24 × 17" },
   { value: "blank", label: "Toile vide", size: "au choix" },
 ];
+
+/** Proportions de la zone à sélectionner dans l'image reçue (largeur / hauteur). */
+export function outputAspect(options: PixelOptions): number {
+  return options.width && options.height ? options.width / options.height : 1;
+}
+
+/** Résumé court des réglages de conversion (en-tête replié de l'inspecteur). */
+export function optionsSummary(options: PixelOptions, gui: boolean): string {
+  const size = gui ? `${options.width ?? "?"}×${options.height ?? "?"}` : `${options.size} px`;
+  const colors = options.colors === 0 ? "couleurs libres" : `${options.colors} couleurs`;
+  const extra = options.transparent
+    ? options.outline
+      ? "détouré, contour"
+      : "détouré"
+    : options.tiling === "both"
+      ? "raccord complet"
+      : options.tiling === "horizontal"
+        ? "raccord en largeur"
+        : "sans raccord";
+  return [size, colors, gui ? null : extra, options.crop ? "zone choisie" : null].filter(Boolean).join(" · ");
+}
 
 /** Qualité du raccord, en mots. */
 export function seamVerdict(seam: number): { label: string; tone: "success" | "warning" | "danger" } {
