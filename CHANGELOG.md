@@ -4,6 +4,17 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Corrigé — IA dans les modules
+- Claude refusait toute création, modification ou suppression (« The canUseTool callback returned
+  an invalid permission result ») : l'autorisation renvoyait `updatedInput: null`. Elle renvoie
+  désormais l'entrée de l'outil (ou celle modifiée dans la carte).
+
+### Modifié — Choix du modèle
+- Le modèle se choisit **par son nom** (Fable 5.1, Opus 5.5, Opus 5, Sonnet 5, Haiku 4.5 ; « Gemini
+  3.8 Flash »… pour Antigravity) et l'effort avec un **curseur** (Auto → Maximum pour Claude, les
+  niveaux listés par `agy` pour Gemini), au lieu d'une entrée par niveau. Haiku 4.5 n'a pas de
+  curseur (pas d'effort réglable). Les conversations existantes gardent leur réglage.
+
 ### Ajouté — Mod Studio : test en jeu
 - Bouton **Tester en jeu** (onglet Build) : `gradlew runClient` lance Minecraft avec le mod, journal
   en direct, « Arrêter le jeu ». Plantages reconnus et expliqués (rapport de plantage, classe ou

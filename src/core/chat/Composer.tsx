@@ -20,6 +20,8 @@ import { useUiStore } from "@/core/stores/ui.store";
 import { FILE_DRAG_TYPE, useOsFileDrop } from "./useOsFileDrop";
 import { useDictation } from "./useDictation";
 import { useDropTarget } from "@/core/dnd";
+import { EffortSlider } from "./EffortSlider";
+import { resolveModel, switchModel } from "./models";
 
 const AUTO_LABELS: Record<AutoMode, string> = {
   off: "Validation manuelle",
@@ -119,6 +121,8 @@ export function Composer({
     });
   }, [prefill]);
   const adapter = adapters.find((a) => a.id === adapterId);
+  /** Modèle affiché (nom réel) et son niveau d'effort, à partir de l'identifiant de la session. */
+  const choice = adapter ? resolveModel(adapter.models, model, adapter.defaultModel) : null;
 
   const addAttachments = useCallback((paths: string[]) => {
     setAttachments((current) => [...new Set([...current, ...paths])]);
@@ -333,16 +337,26 @@ export function Composer({
           {adapter && adapter.models.length > 0 && (
             <Select
               label="Modèle"
-              // Modèle enregistré avant un changement de liste (ex. « sonnet » sans niveau
-              // d'effort) : on retombe sur le modèle par défaut de l'agent.
-              value={
-                model && adapter.models.some((m) => m.id === model)
-                  ? model
-                  : (adapter.defaultModel ?? "")
-              }
-              onChange={onModelChange}
+              value={choice?.model.id ?? ""}
+              onChange={(id) => {
+                const next = adapter.models.find((m) => m.id === id);
+                if (next && next.id !== choice?.model.id) onModelChange(switchModel(next, choice?.effort ?? null));
+              }}
               className="min-w-0 max-w-48"
-              options={adapter.models.map((m) => ({ value: m.id, label: m.label }))}
+              options={adapter.models.map((m) => ({
+                value: m.id,
+                label: m.label,
+                // Un seul niveau (« Thinking »…) : pas de curseur, le niveau reste lisible ici.
+                hint: m.efforts.length === 1 ? m.efforts[0]?.label : undefined,
+              }))}
+            />
+          )}
+
+          {choice && choice.model.efforts.length > 1 && (
+            <EffortSlider
+              efforts={choice.model.efforts}
+              value={choice.effort}
+              onChange={(effort) => onModelChange(effort.id)}
             />
           )}
 

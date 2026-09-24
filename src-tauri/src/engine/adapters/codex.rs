@@ -60,10 +60,7 @@ impl CliAdapter for CodexAdapter {
             ("gpt-5.3-codex-mini", "GPT-5.3 Codex Mini"),
         ]
         .iter()
-        .map(|(id, label)| ModelInfo {
-            id: (*id).to_string(),
-            label: (*label).to_string(),
-        })
+        .map(|(id, label)| ModelInfo::plain(*id, *label))
         .collect()
     }
 

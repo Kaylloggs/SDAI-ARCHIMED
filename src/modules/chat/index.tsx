@@ -9,7 +9,7 @@ import { useAdapters } from "@/core/engine/useAdapters";
 import { useChat } from "@/core/engine/useChat";
 import { useAutoContinue } from "@/core/engine/useAutoContinue";
 import { engineApi } from "@/core/engine/engine.api";
-import { Composer, ConversationView } from "@/core/chat";
+import { Composer, ConversationView, modelLabel } from "@/core/chat";
 import { useService } from "@/core/modules";
 import { useUiStore } from "@/core/stores/ui.store";
 import { SessionList, folderName, formatDate } from "./components/SessionList";
@@ -146,6 +146,11 @@ export default function ChatModule() {
         onSelect={chat.setActive}
         onCreate={createSession}
         onDelete={(target) => void chat.remove(target)}
+        describeModel={(target) =>
+          target.model
+            ? modelLabel(adapters.find((a) => a.id === target.adapter)?.models ?? [], target.model)
+            : target.adapter
+        }
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -154,7 +159,7 @@ export default function ChatModule() {
             <>
               <span className="truncate text-body-sm font-medium">{session.title}</span>
               <Badge tone="neutral">{adapter?.name ?? session.adapter}</Badge>
-              {session.model && <Badge tone="neutral">{session.model}</Badge>}
+              {session.model && <Badge tone="neutral">{modelLabel(adapter?.models ?? [], session.model)}</Badge>}
               <span className="hidden items-center gap-1 text-footnote text-text-subtle md:inline-flex">
                 <FolderOpen size={11} strokeWidth={1.75} />
                 {folderName(session.cwd)}

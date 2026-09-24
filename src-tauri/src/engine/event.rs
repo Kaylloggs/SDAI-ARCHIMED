@@ -306,11 +306,71 @@ pub struct PromptAnswer {
     pub edited_input: Option<serde_json::Value>,
 }
 
+/// Un modèle, sous son vrai nom (« Opus 5.5 », « Gemini 3.8 Flash »), et les niveaux d'effort
+/// qu'il accepte. Chaque niveau porte l'identifiant exact envoyé à la CLI.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelInfo {
+    /// Identifiant par défaut du modèle (niveau automatique ou recommandé).
     pub id: String,
     pub label: String,
+    /// Du plus faible au plus fort ; vide : l'effort ne se règle pas pour ce modèle.
+    pub efforts: Vec<EffortOption>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EffortOption {
+    /// Identifiant envoyé à la CLI pour ce niveau (`claude-opus-5-5:high`, `gemini-3.8-flash-high`…).
+    pub id: String,
+    /// `auto`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, ou le nom donné par la CLI.
+    pub level: String,
+    pub label: String,
+}
+
+impl ModelInfo {
+    /// Modèle sans réglage d'effort.
+    pub fn plain(id: impl Into<String>, label: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            label: label.into(),
+            efforts: Vec::new(),
+        }
+    }
+}
+
+/// Libellé français d'un niveau d'effort.
+pub fn effort_label(level: &str) -> String {
+    match level {
+        "auto" => "Auto".to_string(),
+        "minimal" => "Minimal".to_string(),
+        "low" => "Faible".to_string(),
+        "medium" => "Moyen".to_string(),
+        "high" => "Élevé".to_string(),
+        "xhigh" => "Très élevé".to_string(),
+        "max" => "Maximum".to_string(),
+        other => {
+            let mut chars = other.chars();
+            chars
+                .next()
+                .map(|first| first.to_uppercase().collect::<String>() + chars.as_str())
+                .unwrap_or_default()
+        }
+    }
+}
+
+/// Rang d'un niveau d'effort, pour les ranger du plus faible au plus fort.
+pub fn effort_rank(level: &str) -> u8 {
+    match level {
+        "auto" => 0,
+        "minimal" => 1,
+        "low" => 2,
+        "medium" => 3,
+        "high" => 4,
+        "xhigh" => 5,
+        "max" => 6,
+        _ => 7,
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]

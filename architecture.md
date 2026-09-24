@@ -322,10 +322,18 @@ pub trait CliAdapter: Send + Sync {
 
 | CLI | Binaire | Transport principal | Permissions | Modèles | Switch de modèle |
 |---|---|---|---|---|---|
-| Claude Code | `claude` | Structured : `-p --input-format stream-json --output-format stream-json --verbose` | `--permission-prompt-tool stdio` → `control_request`/`control_response` (§7.2) | `--model` (opus/sonnet/haiku) | relance avec `--resume <session_id> --model <nouveau>` |
+| Claude Code | `claude` | Structured : `-p --input-format stream-json --output-format stream-json --verbose` | `--permission-prompt-tool stdio` → `control_request`/`control_response` (§7.2) | `--model <id>` (Fable 5.1, Opus 5.5, Opus 5, Sonnet 5, Haiku 4.5) + `--effort` (sauf Haiku) | relance avec `--resume <session_id> --model <nouveau>` |
 | Antigravity | `agy` | Structured : `--input-format stream-json --output-format stream-json -p=` (**`-p` attend une valeur : `-p=` en dernier**) ; entrée `{"event":"user","message":{…}}` | refus a posteriori en headless (`permission check failed for <kind> "<cible>"`) → carte Autoriser / Toujours / Refuser ; autoriser écrit `<kind>(<cible>)` dans `~/.gemini/antigravity-cli/settings.json` (`permissions.allow`), relance `--conversation <id>` et demande de reprendre (règle ponctuelle retirée en fin de tour) | `agy models`, `--model` | relance avec `--conversation <id> --model <nouveau>` |
 | Codex (expérimental) | `codex` | Structured one-shot : `codex exec --json -` | aucune (à valider) | `--model` | nouveau processus à chaque message |
 | Déclaratif (`adapters/*.toml`) | via TOML | **PTY** (ConPTY) | questions lues à l'écran (§7.4) | TOML | `resume_args` |
+
+**Modèles et effort.** `ModelInfo` décrit un modèle sous son vrai nom (« Opus 5.5 », « Gemini 3.8
+Flash ») et son échelle `efforts` (du plus faible au plus fort). Chaque niveau porte l'identifiant
+exact envoyé à la CLI : `claude-opus-5-5:high` pour Claude (`--model` + `--effort`, « Auto » = pas
+de niveau, le réglage d'économie de tokens s'applique), la variante listée par `agy models`
+(`gemini-3.8-flash-high`) pour Antigravity, dont les lignes « Nom (Niveau) » sont regroupées. Le
+composeur (`core/chat`) affiche un menu des modèles et un curseur d'effort (`EffortSlider`) ;
+`resolveModel` rattache aussi les identifiants enregistrés avant (`sonnet:medium`).
 
 > Flags vérifiés sur `agy --help` (machine de dev, 2026-09-16). À **revalider à chaque mise à jour de CLI** ; la version testée est notée dans chaque adaptateur.
 

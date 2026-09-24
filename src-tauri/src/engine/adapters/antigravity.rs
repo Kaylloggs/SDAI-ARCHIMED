@@ -27,9 +27,9 @@ use serde_json::{json, Value};
 
 use crate::core::{AppError, AppResult};
 use crate::engine::event::{
-    ActivityPhase, AutoMode, EngineEvent, InteractivePrompt, LaunchOptions, ModelInfo,
-    OptionVariant, PromptAnswer, PromptDetail, PromptKind, PromptOption, PromptSource,
-    RiskLevel, TransportKind,
+    effort_label, effort_rank, ActivityPhase, AutoMode, EffortOption, EngineEvent,
+    InteractivePrompt, LaunchOptions, ModelInfo, OptionVariant, PromptAnswer, PromptDetail,
+    PromptKind, PromptOption, PromptSource, RiskLevel, TransportKind,
 };
 use crate::engine::policy;
 
@@ -241,22 +241,59 @@ impl CliAdapter for AntigravityAdapter {
     }
 }
 
-/// `agy models` : une ligne « id<TAB>libellé » par modèle, précédée d'un message d'attente.
+/// `agy models` liste, après un message d'attente, une ligne par niveau
+/// (« gemini-3.8-flash-high<TAB>Gemini 3.8 Flash (High) ») : on regroupe les niveaux sous le
+/// nom du modèle, pour un sélecteur de modèle et un curseur d'effort.
 fn parse_models(output: &str) -> Vec<ModelInfo> {
-    output
-        .lines()
-        .filter_map(|line| {
-            let (id, label) = line.split_once('\t')?;
-            let id = id.trim();
-            if id.is_empty() || id.contains(' ') {
-                return None;
-            }
-            Some(ModelInfo {
+    static LEVEL: OnceLock<Option<Regex>> = OnceLock::new();
+    let level_pattern = LEVEL
+        .get_or_init(|| Regex::new(r"^(?P<name>.+?)\s*\((?P<level>[^()]+)\)\s*$").ok())
+        .as_ref();
+    let mut models: Vec<ModelInfo> = Vec::new();
+    for line in output.lines() {
+        let Some((id, label)) = line.split_once('\t') else {
+            continue;
+        };
+        let (id, label) = (id.trim(), label.trim());
+        if id.is_empty() || id.contains(' ') {
+            continue;
+        }
+        let Some(caps) = level_pattern.and_then(|re| re.captures(label)) else {
+            models.push(ModelInfo::plain(id, label));
+            continue;
+        };
+        let name = caps["name"].trim().to_string();
+        let level = caps["level"].trim().to_lowercase();
+        let option = EffortOption {
+            id: id.to_string(),
+            label: effort_label(&level),
+            level,
+        };
+        match models
+            .iter_mut()
+            .find(|m| m.label == name && !m.efforts.is_empty())
+        {
+            Some(model) => model.efforts.push(option),
+            None => models.push(ModelInfo {
                 id: id.to_string(),
-                label: label.trim().to_string(),
-            })
-        })
-        .collect()
+                label: name,
+                efforts: vec![option],
+            }),
+        }
+    }
+    for model in &mut models {
+        model.efforts.sort_by_key(|e| effort_rank(&e.level));
+        // Identifiant par défaut : le niveau moyen s'il existe, sinon celui du milieu.
+        if let Some(default) = model
+            .efforts
+            .iter()
+            .find(|e| e.level == "medium")
+            .or_else(|| model.efforts.get(model.efforts.len() / 2))
+        {
+            model.id = default.id.clone();
+        }
+    }
+    models
 }
 
 fn tool_label(tool: &str, info: &Value) -> String {
@@ -673,9 +710,24 @@ mod tests {
     }
 
     #[test]
-    fn parses_models_listing() {
-        let models = parse_models("Fetching available models...\ngemini-3.8-flash-high\tGemini 3.8 Flash (High)\n");
-        assert_eq!(models.len(), 1);
-        assert_eq!(models[0].id, "gemini-3.8-flash-high");
+    fn parses_models_listing_grouped_by_model() {
+        let models = parse_models(
+            "Fetching available models...\ngemini-3.8-flash-high\tGemini 3.8 Flash (High)\ngemini-3.8-flash-low\tGemini 3.8 Flash (Low)\ngemini-3.8-flash-medium\tGemini 3.8 Flash (Medium)\ngemini-3.8-pro-high\tGemini 3.8 Pro (High)\nclaude-sonnet\tClaude Sonnet\n",
+        );
+        let labels: Vec<&str> = models.iter().map(|m| m.label.as_str()).collect();
+        assert_eq!(labels, ["Gemini 3.8 Flash", "Gemini 3.8 Pro", "Claude Sonnet"]);
+        let flash = &models[0];
+        assert_eq!(flash.id, "gemini-3.8-flash-medium");
+        let levels: Vec<(&str, &str)> = flash.efforts.iter().map(|e| (e.id.as_str(), e.label.as_str())).collect();
+        assert_eq!(
+            levels,
+            [
+                ("gemini-3.8-flash-low", "Faible"),
+                ("gemini-3.8-flash-medium", "Moyen"),
+                ("gemini-3.8-flash-high", "Élevé"),
+            ]
+        );
+        assert_eq!(models[1].id, "gemini-3.8-pro-high");
+        assert!(models[2].efforts.is_empty());
     }
 }

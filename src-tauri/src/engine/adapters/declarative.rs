@@ -98,7 +98,7 @@ impl DeclarativeAdapter {
             models: spec
                 .models
                 .into_iter()
-                .map(|m| ModelInfo { id: m.id, label: m.label })
+                .map(|m| ModelInfo::plain(m.id, m.label))
                 .collect(),
             default_model: spec.default_model,
             hint: leak(spec.hint.unwrap_or_else(|| "CLI introuvable dans le PATH.".into())),

@@ -12,17 +12,37 @@ use std::path::{Path, PathBuf};
 use serde_json::{json, Value};
 
 use crate::engine::event::{
-    ActivityPhase, EngineEvent, InteractivePrompt, LaunchOptions, ModelInfo, OptionVariant,
-    PromptAnswer, PromptDetail, PromptKind, PromptOption, PromptSource, RateWindow, TransportKind,
+    effort_label, ActivityPhase, EffortOption, EngineEvent, InteractivePrompt, LaunchOptions,
+    ModelInfo, OptionVariant, PromptAnswer, PromptDetail, PromptKind, PromptOption, PromptSource,
+    RateWindow, TransportKind,
 };
 use crate::engine::policy;
 
 use super::{payload_of, AnswerAction, CliAdapter, DecodeCtx};
 
+/// Modèles proposés, sous leur nom réel : (identifiant `--model`, nom, effort réglable).
+/// Haiku 4.5 n'accepte pas l'option d'effort.
+const MODELS: &[(&str, &str, bool)] = &[
+    ("claude-fable-5-1", "Fable 5.1", true),
+    ("claude-opus-5-5", "Opus 5.5", true),
+    ("claude-opus-5", "Opus 5", true),
+    ("claude-sonnet-5", "Sonnet 5", true),
+    ("claude-haiku-4-5", "Haiku 4.5", false),
+];
+/// Niveaux d'effort de Claude Code (`--effort`), du plus faible au plus fort.
+const EFFORTS: &[&str] = &["low", "medium", "high", "xhigh", "max"];
+
+/// Demande de permission en attente : on garde l'entrée de l'outil, que Claude attend en
+/// retour (`updatedInput`) quand on autorise.
+struct Pending {
+    request_id: String,
+    input: Value,
+}
+
 #[derive(Default)]
 pub struct ClaudeAdapter {
-    /// prompt_id → request_id du control_request en attente.
-    pending: HashMap<String, String>,
+    /// prompt_id → control_request en attente.
+    pending: HashMap<String, Pending>,
 }
 
 impl CliAdapter for ClaudeAdapter {
@@ -76,32 +96,36 @@ impl CliAdapter for ClaudeAdapter {
         Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
     }
 
-    /// Un modèle par niveau d'effort (`--effort`) : plus l'effort est bas, moins la réflexion
-    /// consomme de tokens.
+    /// Un modèle par nom réel, avec son échelle d'effort (`--effort`) : plus l'effort est bas,
+    /// moins la réflexion consomme de tokens. « Auto » laisse le réglage d'économie de tokens.
     fn models(&self, _binary: Option<&Path>) -> Vec<ModelInfo> {
-        const MODELS: &[(&str, &str)] = &[
-            ("opus", "Opus (le plus capable)"),
-            ("sonnet", "Sonnet (équilibré)"),
-            ("haiku", "Haiku (rapide)"),
-        ];
-        const EFFORTS: &[(&str, &str)] = &[
-            ("high", "effort élevé"),
-            ("medium", "effort moyen"),
-            ("low", "effort faible"),
-        ];
         MODELS
             .iter()
-            .flat_map(|(id, label)| {
-                EFFORTS.iter().map(move |(effort, suffix)| ModelInfo {
-                    id: format!("{id}:{effort}"),
-                    label: format!("{} · {suffix}", label.split(" (").next().unwrap_or(label)),
-                })
+            .map(|(id, label, with_effort)| ModelInfo {
+                id: (*id).to_string(),
+                label: (*label).to_string(),
+                efforts: if *with_effort {
+                    std::iter::once("auto")
+                        .chain(EFFORTS.iter().copied())
+                        .map(|level| EffortOption {
+                            id: if level == "auto" {
+                                (*id).to_string()
+                            } else {
+                                format!("{id}:{level}")
+                            },
+                            level: level.to_string(),
+                            label: effort_label(level),
+                        })
+                        .collect()
+                } else {
+                    Vec::new()
+                },
             })
             .collect()
     }
 
     fn default_model(&self) -> Option<String> {
-        Some("sonnet:medium".to_string())
+        Some("claude-sonnet-5".to_string())
     }
 
     fn missing_hint(&self) -> &'static str {
@@ -137,8 +161,10 @@ impl CliAdapter for ClaudeAdapter {
             args.push("--model".to_string());
             args.push(model.to_string());
         }
-        // Effort du modèle choisi, sinon celui des réglages d'économie de tokens.
-        if let Some(effort) = model_effort.or(tuning.effort.as_deref()) {
+        // Effort du modèle choisi, sinon celui des réglages d'économie de tokens ; jamais pour
+        // Haiku, qui refuse l'option.
+        let haiku = model.is_some_and(|m| m.contains("haiku"));
+        if let Some(effort) = model_effort.or(tuning.effort.as_deref()).filter(|_| !haiku) {
             args.push("--effort".to_string());
             args.push(effort.to_string());
         }
@@ -211,20 +237,23 @@ impl CliAdapter for ClaudeAdapter {
         answer: &PromptAnswer,
         allowed: bool,
     ) -> AnswerAction {
-        let Some(request_id) = self.pending.remove(&prompt.prompt_id) else {
+        let Some(Pending { request_id, input }) = self.pending.remove(&prompt.prompt_id) else {
             return AnswerAction::None;
         };
 
         let response = if allowed {
+            // Claude refuse `updatedInput: null` (« invalid permission result ») : on renvoie
+            // l'entrée modifiée dans la carte s'il y en a une, sinon l'entrée d'origine. Le
+            // champ est omis seulement si aucune des deux n'est un objet.
             let updated_input = answer
                 .edited_input
                 .clone()
-                .or_else(|| match &prompt.detail {
-                    Some(PromptDetail::Json { value }) => Some(value.clone()),
-                    _ => None,
-                })
-                .unwrap_or(Value::Null);
-            json!({ "behavior": "allow", "updatedInput": updated_input })
+                .filter(Value::is_object)
+                .or_else(|| Some(input).filter(Value::is_object));
+            match updated_input {
+                Some(updated) => json!({ "behavior": "allow", "updatedInput": updated }),
+                None => json!({ "behavior": "allow" }),
+            }
         } else {
             json!({
                 "behavior": "deny",
@@ -277,7 +306,10 @@ impl ClaudeAdapter {
         let decision = policy::evaluate_in(&tool, &payload, target, ctx.cwd, ctx.auto_mode);
 
         let prompt_id = uuid::Uuid::new_v4().to_string();
-        self.pending.insert(prompt_id.clone(), request_id.to_string());
+        self.pending.insert(
+            prompt_id.clone(),
+            Pending { request_id: request_id.to_string(), input: input.clone() },
+        );
 
         let detail = detail_for(&tool, &input);
         let title = if description.is_empty() {
@@ -548,14 +580,29 @@ mod tests {
     }
 
     #[test]
-    fn model_list_exposes_each_effort_level() {
+    fn models_have_real_names_and_an_effort_scale() {
         let models = ClaudeAdapter::default().models(None);
-        let ids: Vec<&str> = models.iter().map(|m| m.id.as_str()).collect();
-        // Uniquement les variantes par effort : pas d'entrée « modèle seul ».
-        assert!(ids.contains(&"sonnet:high") && ids.contains(&"sonnet:medium") && ids.contains(&"sonnet:low"));
-        assert!(!ids.contains(&"sonnet"));
-        assert_eq!(models.iter().filter(|m| m.id.starts_with("opus")).count(), 3);
-        assert_eq!(ClaudeAdapter::default().default_model().as_deref(), Some("sonnet:medium"));
+        let labels: Vec<&str> = models.iter().map(|m| m.label.as_str()).collect();
+        assert_eq!(labels, ["Fable 5.1", "Opus 5.5", "Opus 5", "Sonnet 5", "Haiku 4.5"]);
+        let opus = &models[1];
+        assert_eq!(opus.id, "claude-opus-5-5");
+        let levels: Vec<&str> = opus.efforts.iter().map(|e| e.level.as_str()).collect();
+        assert_eq!(levels, ["auto", "low", "medium", "high", "xhigh", "max"]);
+        assert_eq!(opus.efforts[0].id, "claude-opus-5-5");
+        assert_eq!(opus.efforts[3].id, "claude-opus-5-5:high");
+        assert!(models[4].efforts.is_empty(), "Haiku : pas d'effort");
+        assert_eq!(ClaudeAdapter::default().default_model().as_deref(), Some("claude-sonnet-5"));
+
+        // Le niveau choisi part en `--effort`, jamais pour Haiku.
+        let args = ClaudeAdapter::default().spawn_args(LaunchOptions::new(Some("claude-opus-5-5:xhigh"), None));
+        assert!(args.windows(2).any(|w| w[0] == "--model" && w[1] == "claude-opus-5-5"));
+        assert!(args.windows(2).any(|w| w[0] == "--effort" && w[1] == "xhigh"));
+        let tuning = crate::engine::event::EngineTuning { effort: Some("high".into()), ..Default::default() };
+        let haiku = ClaudeAdapter::default().spawn_args(LaunchOptions {
+            tuning: &tuning,
+            ..LaunchOptions::new(Some("claude-haiku-4-5"), None)
+        });
+        assert!(!haiku.contains(&"--effort".to_string()));
     }
 
     #[test]
@@ -661,6 +708,65 @@ mod tests {
         };
         assert!(payload.contains("\"request_id\":\"req-2\""));
         assert!(payload.contains("\"behavior\":\"allow\""));
+    }
+
+    /// Réponse réelle attendue par Claude Code : `updatedInput` est un objet, jamais `null`,
+    /// pour tous les outils (écriture, modification, commande…).
+    #[test]
+    fn allowing_any_tool_sends_back_its_input() {
+        for (tool, input) in [
+            ("Write", json!({"file_path": "a.txt", "content": "hi"})),
+            (
+                "Edit",
+                json!({"file_path": "a.txt", "old_string": "a", "new_string": "b"}),
+            ),
+            ("Bash", json!({"command": "gradlew build"})),
+            ("Read", json!({"file_path": "a.txt"})),
+        ] {
+            let mut adapter = ClaudeAdapter::default();
+            let line = json!({
+                "type": "control_request",
+                "request_id": "req-9",
+                "request": { "subtype": "can_use_tool", "tool_name": tool, "input": input }
+            })
+            .to_string();
+            let events = adapter.decode_line(&line, &ctx());
+            let EngineEvent::Prompt { prompt } = &events[0] else {
+                panic!("prompt attendu");
+            };
+            let answer = PromptAnswer {
+                option_id: Some("allow".into()),
+                text: None,
+                edited_input: None,
+            };
+            let AnswerAction::Stdin(payload) = adapter.encode_answer(prompt, &answer, true) else {
+                panic!("stdin attendu");
+            };
+            let sent: Value = serde_json::from_str(&payload).unwrap();
+            let response = &sent["response"]["response"];
+            assert_eq!(response["behavior"], "allow", "{tool}");
+            assert_eq!(response["updatedInput"], input, "{tool}");
+        }
+    }
+
+    #[test]
+    fn an_edited_input_replaces_the_original() {
+        let mut adapter = ClaudeAdapter::default();
+        let line = r#"{"type":"control_request","request_id":"r","request":{"subtype":"can_use_tool","tool_name":"Bash","input":{"command":"rm -rf build"}}}"#;
+        let events = adapter.decode_line(line, &ctx());
+        let EngineEvent::Prompt { prompt } = &events[0] else {
+            panic!("prompt attendu");
+        };
+        let answer = PromptAnswer {
+            option_id: Some("allow".into()),
+            text: None,
+            edited_input: Some(json!({"command": "gradlew clean"})),
+        };
+        let AnswerAction::Stdin(payload) = adapter.encode_answer(prompt, &answer, true) else {
+            panic!("stdin attendu");
+        };
+        assert!(payload.contains("gradlew clean"));
+        assert!(!payload.contains("rm -rf"));
     }
 
     #[test]

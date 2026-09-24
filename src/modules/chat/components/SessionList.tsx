@@ -12,6 +12,8 @@ type Props = {
   onSelect: (id: string) => void;
   onCreate: () => void;
   onDelete: (session: ChatSession) => void;
+  /** Modèle de la session sous son nom réel (« Opus 5.5 · Élevé »). */
+  describeModel: (session: ChatSession) => string;
 };
 
 const dateFormat = new Intl.DateTimeFormat("fr-FR", {
@@ -35,7 +37,7 @@ export function folderName(path: string | null): string {
   return path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
 }
 
-export function SessionList({ sessions, activeId, onSelect, onCreate, onDelete }: Props) {
+export function SessionList({ sessions, activeId, onSelect, onCreate, onDelete, describeModel }: Props) {
   const [confirming, setConfirming] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -112,7 +114,7 @@ export function SessionList({ sessions, activeId, onSelect, onCreate, onDelete }
                           </span>
                           <span className="inline-flex items-center gap-1">
                             <Cpu size={10} strokeWidth={1.75} />
-                            {session.model ?? session.adapter}
+                            {describeModel(session)}
                           </span>
                           <span className="inline-flex max-w-full items-center gap-1 truncate">
                             <FolderOpen size={10} strokeWidth={1.75} />

@@ -22,7 +22,22 @@ export type AdapterInfo = {
   hint: string | null;
 };
 
-export type ModelInfo = { id: string; label: string };
+/** Un modèle sous son vrai nom (« Opus 5.5 », « Gemini 3.8 Flash ») et son échelle d'effort. */
+export type ModelInfo = {
+  /** Identifiant par défaut (niveau automatique ou recommandé). */
+  id: string;
+  label: string;
+  /** Du plus faible au plus fort ; vide : l'effort ne se règle pas pour ce modèle. */
+  efforts: EffortOption[];
+};
+
+export type EffortOption = {
+  /** Identifiant exact envoyé à la CLI pour ce niveau. */
+  id: string;
+  /** `auto`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, ou le nom donné par la CLI. */
+  level: string;
+  label: string;
+};
 
 export type RiskLevel = "low" | "medium" | "high" | "critical";
 export type AutoMode = "off" | "smart" | "full";
