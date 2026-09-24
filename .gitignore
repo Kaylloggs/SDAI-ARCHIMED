@@ -39,3 +39,15 @@ Capture*.png
 
 # Genere par src-tauri/build.rs a partir des dossiers de modules presents.
 src-tauri/capabilities/modules.generated.json
+
+# Genere par vite.config.ts a partir des dossiers de modules presents.
+src/design-system/modules.generated.css
+
+# Artefacts de tsc -b sur la config Vite (la source est vite.config.ts).
+vite.config.js
+vite.config.d.ts
+*.tsbuildinfo
+
+# Caches Python (moteur du module JobAgent).
+__pycache__/
+*.pyc

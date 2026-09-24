@@ -1,6 +1,11 @@
 {
   "compilerOptions": {
     "composite": true,
+    // Un projet composite doit emettre. Sans ces deux lignes, `tsc -b` depose un
+    // vite.config.js a cote du .ts : Vite charge alors ce fichier perime a la place
+    // de la vraie configuration, et les changements de config restent sans effet.
+    "outDir": "./node_modules/.tmp/vite-config",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",

@@ -3,6 +3,9 @@
  * Toute valeur visuelle du projet vient d'ici. Aucune couleur/durée en dur ailleurs.
  */
 @import "tailwindcss";
+/* Dossiers de modules déclarés comme sources (voir vite.config.ts) : Tailwind ignore
+   ce que git ignore, et un module local y perdrait ses classes. */
+@import "./modules.generated.css";
 
 @theme {
   /* ── Neutres (thème sombre par défaut) ─────────────────────────── */
