@@ -9,6 +9,7 @@ use crate::core::{AppError, AppResult};
 
 use super::artwork::{self, Drafts};
 use super::content;
+use super::files;
 use super::gradle::{self, BuildParams, BuildRegistry};
 use super::java;
 use super::jdk::JdkInstaller;
@@ -19,8 +20,9 @@ use super::projects::{self, Projects};
 use super::types::{
     BlockRequest, BuildEvent, BuildRecord, BuildTask, ContentResult, CreateProjectRequest,
     DraftSource, EnvironmentReport, ItemRequest, JavaInstall, JavaStatus, JdkNeed, PixelOptions,
-    ProjectMeta, ProjectStats, ProjectSummary, RecipeRequest, ResolvedVersions, TextureDraft,
-    TextureInfo, TextureRequest, TextureTarget, VersionCatalog, VersionOptions, VersionSelection,
+    ProjectEntry, ProjectFile, ProjectMeta, ProjectStats, ProjectSummary, RecipeRequest,
+    ResolvedVersions, TextureDraft, TextureInfo, TextureRequest, TextureTarget, VersionCatalog,
+    VersionOptions, VersionSelection,
 };
 
 /// Taille maximale d'un journal renvoyé à l'interface (la fin est gardée).
@@ -389,6 +391,48 @@ impl McStudio {
         }
         let (root, meta, _) = self.open_context(project_id)?;
         self.drafts.apply(draft_id, project_id, &root, &meta.mod_id)
+    }
+}
+
+impl McStudio {
+    pub fn list_files(&self, project_id: &str, dir: &str) -> AppResult<Vec<ProjectEntry>> {
+        files::list(&self.projects.root(project_id)?, dir)
+    }
+
+    pub fn read_file(&self, project_id: &str, path: &str) -> AppResult<ProjectFile> {
+        files::read(&self.projects.root(project_id)?, path)
+    }
+
+    pub fn write_file(
+        &self,
+        project_id: &str,
+        path: &str,
+        content: &str,
+        expected_modified: Option<u64>,
+    ) -> AppResult<ProjectFile> {
+        files::write(
+            &self.projects.root(project_id)?,
+            path,
+            content,
+            expected_modified,
+        )
+    }
+
+    pub fn create_file(
+        &self,
+        project_id: &str,
+        path: &str,
+        directory: bool,
+    ) -> AppResult<ProjectEntry> {
+        files::create(&self.projects.root(project_id)?, path, directory)
+    }
+
+    pub fn rename_file(&self, project_id: &str, from: &str, to: &str) -> AppResult<()> {
+        files::rename(&self.projects.root(project_id)?, from, to)
+    }
+
+    pub fn trash_file(&self, project_id: &str, path: &str) -> AppResult<()> {
+        files::trash(&self.projects.root(project_id)?, path)
     }
 }
 

@@ -135,3 +135,22 @@ describe("textures", () => {
     expect(registryIdProblem("")).not.toBeNull();
   });
 });
+
+describe("chemins du projet", () => {
+  it("renomme, rattache et protège", async () => {
+    const { isBuildScript, isUnder, newPathProblem, parentOf, renamed } = await import("../lib/paths");
+    expect(parentOf("src/main/A.java")).toBe("src/main");
+    expect(parentOf("build.gradle")).toBe("");
+    expect(isUnder("src/main/A.java", "src")).toBe(true);
+    expect(isUnder("srcx/A.java", "src")).toBe(false);
+    expect(renamed("src/main/A.java", "src/main", "src/client")).toBe("src/client/A.java");
+    expect(renamed("README.md", "src", "x")).toBe("README.md");
+    expect(isBuildScript("build.gradle")).toBe(true);
+    expect(isBuildScript("gradle/wrapper/gradle-wrapper.properties")).toBe(true);
+    expect(isBuildScript("src/build.gradle.txt")).toBe(false);
+    expect(newPathProblem("src/main/x.json")).toBeNull();
+    for (const bad of ["", "../x", "/abs", "C:\\x", "a//b", ".mcstudio/x", ".git"]) {
+      expect(newPathProblem(bad)).not.toBeNull();
+    }
+  });
+});

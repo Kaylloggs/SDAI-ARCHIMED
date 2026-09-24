@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { ArrowRight, Check, ChevronRight, CloudOff, ImageUp, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
@@ -22,39 +22,10 @@ import {
   SIZE_CHOICES,
 } from "../../lib/textures";
 import { OpenRouterKeyCard } from "../OpenRouterKeyCard";
-import { Field, focusRing, inputClass, Segmented, Switch } from "../ui";
+import { Checker, Field, focusRing, inputClass, PixelImage, Segmented, Switch } from "../ui";
 
 type Mode = "ai" | "file";
 type Phase = "idle" | "generating" | "importing" | "applying";
-
-/** Damier : la transparence d'une texture se voit. */
-export function Checker({ size, children, className }: { size: number; children: ReactNode; className?: string }) {
-  return (
-    <div
-      className={cn(
-        "flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-border",
-        "bg-[repeating-conic-gradient(var(--color-surface-2)_0%_25%,var(--color-surface-1)_0%_50%)] bg-[length:12px_12px]",
-        className,
-      )}
-      style={{ width: size, height: size }}
-    >
-      {children}
-    </div>
-  );
-}
-
-/** Texture affichée pixel pour pixel (`version` contourne le cache après une écriture). */
-export function PixelImage({ path, version, size, alt = "" }: { path: string; version: number | string; size: number; alt?: string }) {
-  return (
-    <img
-      src={`${convertFileSrc(path)}?v=${version}`}
-      alt={alt}
-      draggable={false}
-      className="[image-rendering:pixelated]"
-      style={{ width: size, height: size }}
-    />
-  );
-}
 
 function PixelSettings({
   options,

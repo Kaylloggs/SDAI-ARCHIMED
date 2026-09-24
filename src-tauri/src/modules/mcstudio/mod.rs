@@ -10,6 +10,7 @@ mod artwork;
 mod commands;
 mod content;
 mod diagnostics;
+mod files;
 mod fsutil;
 mod gradle;
 mod java;
@@ -68,6 +69,12 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::import_texture,
             commands::reprocess_texture,
             commands::apply_texture,
+            commands::list_files,
+            commands::read_project_file,
+            commands::write_project_file,
+            commands::create_project_file,
+            commands::rename_project_file,
+            commands::trash_project_file,
         ])
         .setup(|app, _api| {
             let paths = crate::core::paths::Paths::resolve(app)?;

@@ -4,6 +4,19 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Mod Studio : explorateur et éditeur (phase D)
+- **Onglet Fichiers** : arborescence du projet, éditeur à onglets (Java, JSON, TOML, Gradle,
+  `.properties`), aperçu des images, clic droit pour créer, renommer ou mettre à la Corbeille.
+- Brouillons conservés par projet, enregistrement `Ctrl+S`, fermeture d'un fichier modifié
+  confirmée, **aucun écrasement silencieux** d'un fichier changé sur le disque depuis son ouverture.
+- Chemins confinés au projet côté Rust (`..`, absolus, lecteurs, liens symboliques refusés),
+  `.mcstudio/` et `.git/` protégés en écriture, actions auditées ; bandeau sur les scripts Gradle.
+
+### Modifié
+- `CodeEditor` et `FileTree` quittent le module Code pour `src/core/editor/` (génériques : la
+  lecture des dossiers est fournie par le module). Le module Code les utilise sans changement
+  visible ; l'éditeur sait surligner des lignes signalées.
+
 ### Ajouté — Mod Studio : textures par IA (OpenRouter)
 - **Onglet Textures** : icône, objets et blocs du mod, avec leur texture actuelle ou manquante ;
   ajout d'un objet ou d'un bloc (code, modèles, traductions, loot table, outil de minage) sans

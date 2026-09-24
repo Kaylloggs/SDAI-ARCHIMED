@@ -649,3 +649,39 @@ pub struct TextureRequest {
     /// Accord explicite pour un modèle payant.
     pub allow_paid: bool,
 }
+
+// ── Fichiers du projet (explorateur, éditeur) ───────────────────────────────
+
+/// Entrée de l'explorateur ; `path` est relatif au projet, avec des `/`.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectEntry {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    #[ts(type = "number")]
+    pub size: u64,
+    /// Dossier de build, de cache ou d'état interne : affiché en retrait.
+    pub ignored: bool,
+}
+
+/// Fichier ouvert dans l'éditeur.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectFile {
+    pub path: String,
+    /// Texte (vide pour un fichier binaire).
+    pub content: String,
+    pub binary: bool,
+    /// PNG, JPEG… : aperçu au lieu du texte.
+    pub image: bool,
+    /// Fichier trop gros : seul le début est montré, en lecture seule.
+    pub truncated: bool,
+    #[ts(type = "number")]
+    pub size: u64,
+    /// Date de modification (ms) : l'enregistrement refuse d'écraser un fichier changé entre-temps.
+    #[ts(type = "number")]
+    pub modified: u64,
+}

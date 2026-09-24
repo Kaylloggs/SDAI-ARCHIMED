@@ -73,6 +73,8 @@ SDAI ARCHIMED/
 │   │   ├── chat/                        # Composer · ConversationView · useOsFileDrop · useDictation
 │   │   │                                # (UI de conversation partagée chat/code)
 │   │   ├── dnd/                         # glisser-déposer interne (pointeur) : useDragSource · DropZone · DragLayer
+│   │   ├── editor/                      # CodeEditor (CodeMirror aux tokens, lignes signalées) · FileTree (paresseux,
+│   │   │                                # lecture fournie par le module) · languages · theme (partagés Code / Mod Studio)
 │   │   ├── preview/                     # aperçu web : detect (serveurs de test, pages HTML) · usePreviewTargets · PreviewPane
 │   │   ├── modules/                     # define-module · manifest.schema · registry
 │   │   │                                # · useModules · services · slots · types · index

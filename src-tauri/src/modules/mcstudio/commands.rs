@@ -11,9 +11,9 @@ use super::service::{self, McStudio};
 use super::types::{
     BlockRequest, BuildEvent, BuildRecord, BuildTask, ContentResult, CreateProjectRequest,
     EnvironmentReport, ImageModelList, InstallEvent, ItemRequest, JavaInstall, JavaStatus,
-    JdkOffer, OpenRouterStatus, PixelOptions, ProjectStats, ProjectSummary, RecipeRequest,
-    ResolvedVersions, TextureDraft, TextureInfo, TextureRequest, TextureTarget, VersionCatalog,
-    VersionOptions, VersionSelection,
+    JdkOffer, OpenRouterStatus, PixelOptions, ProjectEntry, ProjectFile, ProjectStats,
+    ProjectSummary, RecipeRequest, ResolvedVersions, TextureDraft, TextureInfo, TextureRequest,
+    TextureTarget, VersionCatalog, VersionOptions, VersionSelection,
 };
 
 type Studio<'a> = State<'a, Arc<McStudio>>;
@@ -320,4 +320,66 @@ pub async fn apply_texture(
     draft_id: String,
 ) -> AppResult<TextureInfo> {
     blocking(&studio, move |s| s.apply_texture(&id, &draft_id)).await
+}
+
+// ── Fichiers du projet (explorateur, éditeur) ───────────────────────────────
+
+/// Contenu d'un dossier du projet (`dir` relatif, "" pour la racine).
+#[tauri::command]
+pub async fn list_files(
+    studio: Studio<'_>,
+    id: String,
+    dir: String,
+) -> AppResult<Vec<ProjectEntry>> {
+    blocking(&studio, move |s| s.list_files(&id, &dir)).await
+}
+
+#[tauri::command]
+pub async fn read_project_file(
+    studio: Studio<'_>,
+    id: String,
+    path: String,
+) -> AppResult<ProjectFile> {
+    blocking(&studio, move |s| s.read_file(&id, &path)).await
+}
+
+/// `expected_modified` : date lue à l'ouverture ; `None` pour écraser en connaissance de cause.
+#[tauri::command]
+pub async fn write_project_file(
+    studio: Studio<'_>,
+    id: String,
+    path: String,
+    content: String,
+    expected_modified: Option<u64>,
+) -> AppResult<ProjectFile> {
+    blocking(&studio, move |s| {
+        s.write_file(&id, &path, &content, expected_modified)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn create_project_file(
+    studio: Studio<'_>,
+    id: String,
+    path: String,
+    directory: bool,
+) -> AppResult<ProjectEntry> {
+    blocking(&studio, move |s| s.create_file(&id, &path, directory)).await
+}
+
+#[tauri::command]
+pub async fn rename_project_file(
+    studio: Studio<'_>,
+    id: String,
+    from: String,
+    to: String,
+) -> AppResult<()> {
+    blocking(&studio, move |s| s.rename_file(&id, &from, &to)).await
+}
+
+/// Corbeille (récupérable).
+#[tauri::command]
+pub async fn trash_project_file(studio: Studio<'_>, id: String, path: String) -> AppResult<()> {
+    blocking(&studio, move |s| s.trash_file(&id, &path)).await
 }

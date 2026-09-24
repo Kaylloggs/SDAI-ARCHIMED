@@ -25,6 +25,8 @@ import type { TextureDraft } from "@/core/ipc/bindings/TextureDraft";
 import type { TextureInfo } from "@/core/ipc/bindings/TextureInfo";
 import type { TextureRequest } from "@/core/ipc/bindings/TextureRequest";
 import type { TextureTarget } from "@/core/ipc/bindings/TextureTarget";
+import type { ProjectEntry } from "@/core/ipc/bindings/ProjectEntry";
+import type { ProjectFile } from "@/core/ipc/bindings/ProjectFile";
 
 const PLUGIN = "mcstudio";
 
@@ -100,6 +102,19 @@ export const mcstudioApi = {
   /** Écrit le brouillon dans le projet ; l'ancienne texture part dans `.mcstudio/history/`. */
   applyTexture: (id: string, draftId: string) =>
     invokeModule<TextureInfo>(PLUGIN, "apply_texture", { id, draftId }),
+
+  /** Chemins relatifs au projet, avec des `/` ; `dir` = "" pour la racine. */
+  listFiles: (id: string, dir: string) => invokeModule<ProjectEntry[]>(PLUGIN, "list_files", { id, dir }),
+  readFile: (id: string, path: string) => invokeModule<ProjectFile>(PLUGIN, "read_project_file", { id, path }),
+  /** `expectedModified` : date lue à l'ouverture (conflit refusé) ; `null` pour écraser. */
+  writeFile: (id: string, path: string, content: string, expectedModified: number | null) =>
+    invokeModule<ProjectFile>(PLUGIN, "write_project_file", { id, path, content, expectedModified }),
+  createFile: (id: string, path: string, directory: boolean) =>
+    invokeModule<ProjectEntry>(PLUGIN, "create_project_file", { id, path, directory }),
+  renameFile: (id: string, from: string, to: string) =>
+    invokeModule<void>(PLUGIN, "rename_project_file", { id, from, to }),
+  /** Corbeille (récupérable). */
+  trashFile: (id: string, path: string) => invokeModule<void>(PLUGIN, "trash_project_file", { id, path }),
 };
 
 /** Message lisible d'une erreur renvoyée par le backend. */

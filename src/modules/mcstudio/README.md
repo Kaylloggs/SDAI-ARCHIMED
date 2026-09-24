@@ -19,7 +19,7 @@ un dossier Gradle autonome : il se compile aussi sans ARCHIMED (`gradlew build`)
 | C | Build Gradle réel, diagnostics, jar dans `dist/`, test e2e | ✓ (Fabric 1.21.1 compilé sur Windows) |
 | B+ | 1.14 → 1.21.x, choix des versions du loader, installation des JDK | ✓ (profils hors `fabric-1.21` à valider par l'e2e) |
 | T | Textures par IA (OpenRouter, clé de la personne), import d'image, conversion pixel-art, ajout d'objets et de blocs | ✓ (testé contre un faux OpenRouter local) |
-| D | Explorateur et éditeur (déplacement de `CodeEditor`/`FileTree` vers `core/editor`) | à venir |
+| D | Explorateur et éditeur (`CodeEditor`/`FileTree` déplacés dans `core/editor`) | ✓ |
 | E | Validateur (JSON ligne/colonne, références, assets) et page Diagnostics | à venir |
 | F | Snapshots, historique, undo/redo, relecture des diffs | à venir |
 | G–I | Agent IA de code via les CLI (plan structuré, copie de travail, auto-fix borné) | à venir |
@@ -98,6 +98,24 @@ Source remplaçable (HTTPS uniquement) : `{"adoptiumApi": "https://…"}` dans
 `%APPDATA%\com.sdai.archimed\modules\mcstudio\env.json`. Gradle, Minecraft et les loaders
 n'ont rien à installer : le wrapper et les plugins les téléchargent à la première compilation.
 Décision détaillée : [ADR 0004](../../../docs/adr/0004-mcstudio-jdk-downloads.md).
+
+## Fichiers : explorateur et éditeur
+
+Onglet **Fichiers** : l'arborescence du projet (dossiers de build, `.gradle`, `.mcstudio` en
+retrait) et un éditeur à onglets (CodeMirror partagé, `@/core/editor` : Java, JSON, TOML,
+Gradle/Groovy, `.properties`…). Clic droit : nouveau fichier ou dossier, renommer, mettre à la
+Corbeille. Une image s'affiche pixel pour pixel.
+
+- **Brouillons** gardés par projet quand on change d'onglet ; point sur l'onglet « Fichiers »
+  tant que quelque chose n'est pas enregistré ; fermer un onglet modifié demande quoi faire.
+- **Conflits** : l'enregistrement envoie la date lue à l'ouverture ; si le fichier a changé sur
+  le disque entre-temps (génération, IA, autre éditeur), rien n'est écrasé : « Recharger » ou
+  « Écraser », au choix.
+- **Confinement** : chemins relatifs au projet, `..`, chemins absolus, `C:` et liens symboliques
+  sortants refusés côté Rust ; `.mcstudio/` et `.git/` se lisent mais ne s'écrivent pas d'ici.
+  Écritures, créations, renommages et mises à la Corbeille sont audités (`mcstudio.file_*`).
+- **Scripts de build** (`build.gradle`, `settings.gradle`, `gradle.properties`, `gradlew*`,
+  `gradle/`) : bandeau d'avertissement, Gradle les exécute à chaque compilation.
 
 ## Textures : IA (OpenRouter) ou image importée
 
@@ -178,6 +196,8 @@ Textures : `openrouter_status` · `set_openrouter_key` · `clear_openrouter_key`
 `texture_prompt` · `list_textures` · `generate_texture` · `import_texture` · `reprocess_texture` ·
 `apply_texture`
 Build : `build_project` · `cancel_build` · `list_builds` · `read_build_log`
+Fichiers : `list_files` · `read_project_file` · `write_project_file` · `create_project_file` ·
+`rename_project_file` · `trash_project_file`
 
 ## Tests
 
@@ -185,14 +205,15 @@ Build : `build_project` · `cancel_build` · `list_builds` · `read_build_log`
   JSON/TOML valides, aucun marqueur oublié), générateurs, JDK, diagnostics (dont un vrai journal
   NeoForge), exécution réelle d'un processus de build, conversion pixel-art (fond, cadrage, détails
   rares, palette), brouillons et historique des textures, client OpenRouter contre un faux serveur
-  local (clé, modèles, image en data URL, erreurs 401/429).
+  local (clé, modèles, image en data URL, erreurs 401/429), fichiers (sortie du projet refusée,
+  liens symboliques, conflit d'écriture, état interne protégé).
 - `cargo test mcstudio::e2e -- --ignored --nocapture` : crée **TestMod** (1 objet, 1 bloc, recettes)
   pour la version la plus récente de chaque profil et le compile vraiment ; affiche
   `MODULE BASIC PIPELINE = OK (…)` par version et un bilan final. Options :
   `MCSTUDIO_E2E_PROFILES=fabric-1.21,forge-1.20` (filtre), `MCSTUDIO_E2E_ALL=1` (toutes les
   versions de chaque profil), `MCSTUDIO_E2E_INSTALL_JDK=1` (installe les JDK manquants).
 - `MCSTUDIO_KEEP_TEST_OUTPUT=1 cargo test every_profile_creates` garde les projets générés.
-- `pnpm test` : identifiants, assistant, journal, réglages de texture, choix du modèle.
+- `pnpm test` : identifiants, assistant, journal, réglages de texture, choix du modèle, chemins.
 
 ## Données
 

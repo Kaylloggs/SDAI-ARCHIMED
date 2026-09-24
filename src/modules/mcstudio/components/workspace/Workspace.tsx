@@ -11,12 +11,15 @@ import { LOADER_LABEL } from "../../lib/format";
 import { useMcStudioStore } from "../../store";
 import { focusRing, ModIcon } from "../ui";
 import { BuildPanel } from "./BuildPanel";
+import { unsavedCount, useEditorStore } from "../../editor";
 import { Dashboard } from "./Dashboard";
+import { FilesPanel } from "./FilesPanel";
 import { TexturesPanel } from "./TexturesPanel";
 
-type Tab = "dashboard" | "textures" | "build";
+type Tab = "dashboard" | "files" | "textures" | "build";
 const TABS: { id: Tab; label: string }[] = [
   { id: "dashboard", label: "Tableau de bord" },
+  { id: "files", label: "Fichiers" },
   { id: "textures", label: "Textures" },
   { id: "build", label: "Build" },
 ];
@@ -59,6 +62,7 @@ export function Workspace({ project }: { project: ProjectSummary }) {
   const [java, setJava] = useState<JavaStatus | null>(null);
   const [javaError, setJavaError] = useState<string | null>(null);
   const iconVersion = useMcStudioStore((s) => s.iconRevision[project.id] ?? 0);
+  const unsaved = useEditorStore((s) => unsavedCount(s.editors[project.id]));
   const meta = project.meta;
 
   useEffect(() => {
@@ -121,6 +125,9 @@ export function Workspace({ project }: { project: ProjectSummary }) {
             )}
           >
             {label}
+            {id === "files" && unsaved > 0 && (
+              <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label={`${unsaved} non enregistré(s)`} />
+            )}
             {tab === id && (
               <motion.span layoutId="mc-tab-indicator" className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-accent" />
             )}
@@ -143,6 +150,8 @@ export function Workspace({ project }: { project: ProjectSummary }) {
           >
             {tab === "dashboard" ? (
               <Dashboard project={project} java={java} javaError={javaError} onJavaChange={setJava} onCompile={compile} />
+            ) : tab === "files" ? (
+              <FilesPanel project={project} />
             ) : tab === "textures" ? (
               <TexturesPanel project={project} />
             ) : (

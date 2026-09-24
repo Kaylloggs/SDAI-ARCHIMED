@@ -10,8 +10,8 @@ import { errorText, mcstudioApi } from "../../api";
 import { registryIdProblem, suggestRegistryId } from "../../lib/naming";
 import { targetKey } from "../../lib/textures";
 import { useMcStudioStore } from "../../store";
-import { Field, focusRing, inputClass, Segmented } from "../ui";
-import { Checker, PixelImage, TextureStudio } from "./TextureStudio";
+import { Checker, Field, focusRing, inputClass, PixelImage, Segmented } from "../ui";
+import { TextureStudio } from "./TextureStudio";
 
 /** Dureté et résistance usuelles de chaque matière (valeurs du jeu). */
 const MATERIALS: Record<BlockSound, { label: string; hardness: number; resistance: number }> = {
