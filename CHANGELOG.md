@@ -4,6 +4,23 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Mod Studio : atelier des textures (ADR 0008)
+- **Faces des blocs** : une texture pour tout le bloc, colonne (côtés + extrémités), dessus /
+  dessous / côtés, ou six faces. Le modèle du bloc est réécrit (point de restauration avant), chaque
+  face a son onglet ; aperçu du bloc en 3D.
+- **Vrai raccord** : cadre ajouté par le modèle retiré, bords fondus pour que la texture se
+  répète sans coupure (en largeur seulement pour un côté d'herbe), qualité du raccord affichée,
+  aperçu répété 3 × 3.
+- **Texte envoyé à l'IA personnalisable** : style (jeu de base, détaillé, simple), consignes en plus,
+  texture de référence (palette partagée entre les faces, variantes), et texte final modifiable
+  mot pour mot.
+- **Retouche au pixel** : crayon, gomme, remplissage, pipette, miroir, grille, décalage pour
+  corriger un raccord, annuler / rétablir, clavier ; sur une proposition ou sur la texture actuelle.
+- **Éléments d'interface** (`textures/gui/`) : écran de conteneur (avec l'inventaire du joueur),
+  bouton, case, flèche de progression ou toile libre, aux couleurs du jeu ; générables par l'IA à
+  leur taille (toile 256 × 256 pour les écrans).
+- Contour sombre facultatif pour les objets.
+
 ### Ajouté — Mod Studio : textures avec Google Gemini (ADR 0007)
 - Nouveau **service d'image** dans l'onglet Textures : Google Gemini (modèles Nano Banana, dont
   Nano Banana 2), avec une clé Google AI Studio vérifiée puis rangée dans le Gestionnaire

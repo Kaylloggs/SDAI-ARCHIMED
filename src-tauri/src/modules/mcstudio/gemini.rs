@@ -221,33 +221,55 @@ impl Gemini {
         Ok(models)
     }
 
-    /// Envoie la demande au modèle et renvoie l'image reçue (PNG, JPEG ou WebP).
-    pub async fn generate(&self, model: &ImageModel, prompt: &str) -> AppResult<Vec<u8>> {
+    /// Envoie la demande au modèle (avec une image de référence en PNG si fournie) et renvoie
+    /// l'image reçue (PNG, JPEG ou WebP). `aspect` : format demandé (« 1:1 », « 21:9 »…).
+    pub async fn generate(
+        &self,
+        model: &ImageModel,
+        prompt: &str,
+        reference: Option<&[u8]>,
+        aspect: &str,
+    ) -> AppResult<Vec<u8>> {
         let key = self.key()?;
-        match self.request_image(&key, model, prompt, true).await {
-            // Modèle qui ne connaît pas `imageConfig` : même demande sans le format carré
+        let ask = |with_format: bool| Ask {
+            key: &key,
+            model,
+            prompt,
+            reference,
+            aspect: with_format.then_some(aspect),
+        };
+        match self.request_image(ask(true)).await {
+            // Modèle qui ne connaît pas `imageConfig` : même demande sans le format
             // (la conversion recadre de toute façon).
             Err(Rejected::ImageConfig(_)) => self
-                .request_image(&key, model, prompt, false)
+                .request_image(ask(false))
                 .await
                 .map_err(Rejected::into_error),
             other => other.map_err(Rejected::into_error),
         }
     }
 
-    async fn request_image(
-        &self,
-        key: &str,
-        model: &ImageModel,
-        prompt: &str,
-        square: bool,
-    ) -> Result<Vec<u8>, Rejected> {
+    async fn request_image(&self, ask: Ask<'_>) -> Result<Vec<u8>, Rejected> {
+        let Ask {
+            key,
+            model,
+            prompt,
+            reference,
+            aspect,
+        } = ask;
         let mut config = json!({ "responseModalities": ["TEXT", "IMAGE"] });
-        if square {
-            config["imageConfig"] = json!({ "aspectRatio": "1:1" });
+        if let Some(aspect) = aspect {
+            config["imageConfig"] = json!({ "aspectRatio": aspect });
+        }
+        let mut parts = vec![json!({ "text": prompt })];
+        if let Some(png) = reference {
+            parts.push(json!({ "inlineData": {
+                "mimeType": "image/png",
+                "data": base64::engine::general_purpose::STANDARD.encode(png),
+            } }));
         }
         let request = json!({
-            "contents": [{ "role": "user", "parts": [{ "text": prompt }] }],
+            "contents": [{ "role": "user", "parts": parts }],
             "generationConfig": config,
         });
         let response = self
@@ -266,7 +288,7 @@ impl Gemini {
             .text()
             .await
             .map_err(|e| Rejected::Other(unreachable(e)))?;
-        if status == 400 && square && mentions_image_config(&body) {
+        if status == 400 && aspect.is_some() && mentions_image_config(&body) {
             return Err(Rejected::ImageConfig(api_error(status, &body)));
         }
         if status != 200 {
@@ -274,6 +296,15 @@ impl Gemini {
         }
         first_image(&body).map_err(Rejected::Other)
     }
+}
+
+/// Une demande d'image.
+struct Ask<'a> {
+    key: &'a str,
+    model: &'a ImageModel,
+    prompt: &'a str,
+    reference: Option<&'a [u8]>,
+    aspect: Option<&'a str>,
 }
 
 enum Rejected {
@@ -413,6 +444,7 @@ fn parse_models(body: &str) -> AppResult<(Vec<ImageModel>, Option<String>)> {
                 free: false,
                 description,
                 text_output: true,
+                image_input: true,
             })
         })
         .collect();
@@ -599,6 +631,13 @@ mod tests {
             free: false,
             description: String::new(),
             text_output: true,
+            image_input: true,
+        }
+    }
+
+    impl Gemini {
+        async fn generate_plain(&self, model: &ImageModel, prompt: &str) -> AppResult<Vec<u8>> {
+            self.generate(model, prompt, None, "1:1").await
         }
     }
 
@@ -677,7 +716,7 @@ mod tests {
         assert!(!gemini.status(true).await.unwrap().configured);
         assert!(gemini.models().await.is_err());
         assert!(gemini
-            .generate(&model("gemini-3.1-flash-image"), "x")
+            .generate_plain(&model("gemini-3.1-flash-image"), "x")
             .await
             .is_err());
         assert!(seen.lock().unwrap().is_empty());
@@ -703,7 +742,7 @@ mod tests {
         assert_eq!(list.models[0].id, "gemini-3.1-flash-image");
 
         let bytes = gemini
-            .generate(&model("gemini-3.1-flash-image"), "a ruby sword")
+            .generate_plain(&model("gemini-3.1-flash-image"), "a ruby sword")
             .await
             .unwrap();
         assert_eq!(pixelart::decode(&bytes).unwrap().width, 4);
@@ -723,9 +762,30 @@ mod tests {
             assert!(call.contains("a ruby sword"));
         }
 
+        // Texture de référence et format allongé.
+        gemini
+            .generate(
+                &model("gemini-3.1-flash-image"),
+                "same style",
+                Some(&tiny_png()),
+                "21:9",
+            )
+            .await
+            .unwrap();
+        {
+            let seen = seen.lock().unwrap();
+            let call = seen.iter().find(|c| c.contains("same style")).unwrap();
+            assert!(
+                call.contains(r#""inlineData":{"data":"#)
+                    || call.contains(r#""mimeType":"image/png""#),
+                "{call}"
+            );
+            assert!(call.contains(r#""aspectRatio":"21:9""#), "{call}");
+        }
+
         // Modèle qui ignore `imageConfig` : la demande repart sans.
         let bytes = gemini
-            .generate(&model("gemini-old-image"), "a ruby")
+            .generate_plain(&model("gemini-old-image"), "a ruby")
             .await
             .unwrap();
         assert!(!bytes.is_empty());
@@ -738,19 +798,19 @@ mod tests {
         assert_eq!(retries, 2);
 
         let busy = gemini
-            .generate(&model("gemini-busy"), "x")
+            .generate_plain(&model("gemini-busy"), "x")
             .await
             .err()
             .unwrap();
         assert!(busy.message.contains("Quota Gemini atteint"));
         let refused = gemini
-            .generate(&model("gemini-3.1-flash-image"), "forbidden thing")
+            .generate_plain(&model("gemini-3.1-flash-image"), "forbidden thing")
             .await
             .err()
             .unwrap();
         assert!(refused.message.contains("IMAGE_SAFETY"));
         let mute = gemini
-            .generate(&model("gemini-3.1-flash-image"), "mute")
+            .generate_plain(&model("gemini-3.1-flash-image"), "mute")
             .await
             .err()
             .unwrap();

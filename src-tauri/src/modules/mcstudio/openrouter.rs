@@ -204,19 +204,36 @@ impl OpenRouter {
         }
     }
 
-    /// Envoie la demande au modèle et renvoie l'image reçue (PNG, JPEG ou WebP).
-    pub async fn generate(&self, model: &ImageModel, prompt: &str) -> AppResult<Vec<u8>> {
+    /// Envoie la demande au modèle (avec une image de référence en PNG si fournie) et
+    /// renvoie l'image reçue (PNG, JPEG ou WebP).
+    pub async fn generate(
+        &self,
+        model: &ImageModel,
+        prompt: &str,
+        reference: Option<&[u8]>,
+        aspect: &str,
+    ) -> AppResult<Vec<u8>> {
         let key = self.key()?;
         let modalities = if model.text_output {
             json!(["image", "text"])
         } else {
             json!(["image"])
         };
+        let content = match reference {
+            Some(png) => json!([
+                { "type": "text", "text": prompt },
+                { "type": "image_url", "image_url": { "url": format!(
+                    "data:image/png;base64,{}",
+                    base64::engine::general_purpose::STANDARD.encode(png)
+                ) } },
+            ]),
+            None => json!(prompt),
+        };
         let request = json!({
             "model": model.id,
-            "messages": [{ "role": "user", "content": prompt }],
+            "messages": [{ "role": "user", "content": content }],
             "modalities": modalities,
-            "image_config": { "aspect_ratio": "1:1" },
+            "image_config": { "aspect_ratio": aspect },
         });
         let response = self
             .http()?
@@ -411,6 +428,9 @@ fn parse_models(body: &str) -> AppResult<Vec<ImageModel>> {
                 name: model["name"].as_str().unwrap_or(&id).to_string(),
                 free: id.ends_with(":free") || costs_nothing(&model["pricing"]),
                 text_output: outputs.iter().any(|m| m == "text"),
+                image_input: modalities(&model["architecture"]["input_modalities"])
+                    .iter()
+                    .any(|m| m == "image"),
                 description,
                 id,
             })
@@ -489,7 +509,7 @@ mod tests {
          "architecture":{"output_modalities":["text"]}},
         {"id":"acme/painter","name":"Painter Pro","description":"Paints.\n\nMore.",
          "pricing":{"prompt":"0.000001","completion":"0.00003","image":"0.03"},
-         "architecture":{"output_modalities":["image","text"]}},
+         "architecture":{"input_modalities":["text","image"],"output_modalities":["image","text"]}},
         {"id":"acme/sketch:free","name":"Sketch (free)","pricing":{"prompt":"0","completion":"0"},
          "architecture":{"output_modalities":["image"]}},
         {"id":"acme/router","name":"Auto","pricing":{"prompt":"-1","completion":"-1"},
@@ -592,6 +612,13 @@ mod tests {
             free: true,
             description: String::new(),
             text_output,
+            image_input: true,
+        }
+    }
+
+    impl OpenRouter {
+        async fn generate_plain(&self, model: &ImageModel, prompt: &str) -> AppResult<Vec<u8>> {
+            self.generate(model, prompt, None, "1:1").await
         }
     }
 
@@ -603,6 +630,7 @@ mod tests {
         assert!(models[0].free && !models[0].text_output);
         assert!(!models[1].free, "prix variable (-1) : pas gratuit");
         assert!(!models[2].free && models[2].text_output);
+        assert!(models[2].image_input && !models[0].image_input);
         assert_eq!(models[2].description, "Paints.");
     }
 
@@ -651,7 +679,7 @@ mod tests {
         // Pas de clé : statut vide, génération refusée sans appel réseau.
         assert!(!router.status(true).await.unwrap().configured);
         assert!(router
-            .generate(&model("acme/sketch:free", false), "x")
+            .generate_plain(&model("acme/sketch:free", false), "x")
             .await
             .is_err());
 
@@ -670,7 +698,7 @@ mod tests {
         assert_eq!(list.models.len(), 3);
 
         let bytes = router
-            .generate(&model("acme/sketch:free", false), "a ruby sword")
+            .generate_plain(&model("acme/sketch:free", false), "a ruby sword")
             .await
             .unwrap();
         assert_eq!(pixelart::decode(&bytes).unwrap().width, 4);
@@ -684,14 +712,31 @@ mod tests {
             assert!(call.contains("a ruby sword"));
         }
 
+        router
+            .generate(
+                &model("acme/painter", true),
+                "same style",
+                Some(&tiny_png()),
+                "3:2",
+            )
+            .await
+            .unwrap();
+        {
+            let seen = seen.lock().unwrap();
+            let call = seen.iter().find(|c| c.contains("same style")).unwrap();
+            assert!(call.contains(r#""type":"image_url""#), "{call}");
+            assert!(call.contains("data:image/png;base64,"), "{call}");
+            assert!(call.contains(r#""aspect_ratio":"3:2""#), "{call}");
+        }
+
         let busy = router
-            .generate(&model("acme/busy", true), "x")
+            .generate_plain(&model("acme/busy", true), "x")
             .await
             .err()
             .unwrap();
         assert!(busy.message.contains("Limite de requêtes"));
         let mute = router
-            .generate(&model("acme/mute", true), "x")
+            .generate_plain(&model("acme/mute", true), "x")
             .await
             .err()
             .unwrap();

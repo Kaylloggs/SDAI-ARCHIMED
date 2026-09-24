@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { History, Loader2, RotateCcw, Sparkles, Trash2, Undo2 } from "lucide-react";
+import { History, Loader2, Palette, RotateCcw, Sparkles, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/design-system/primitives";
 import type { Snapshot } from "@/core/ipc/bindings/Snapshot";
 import type { SnapshotKind } from "@/core/ipc/bindings/SnapshotKind";
@@ -12,6 +12,7 @@ const KIND: Record<SnapshotKind, { label: string; Icon: typeof History }> = {
   manual: { label: "Manuel", Icon: History },
   ai: { label: "Avant l'IA", Icon: Sparkles },
   restore: { label: "Avant restauration", Icon: Undo2 },
+  texture: { label: "Atelier des textures", Icon: Palette },
 };
 
 function size(bytes: number): string {

@@ -165,9 +165,167 @@ pub fn icon(mod_id: &str) -> Image {
     image
 }
 
+// ── Éléments d'interface, aux couleurs des écrans du jeu ────────────────────
+
+const GUI_BLACK: [u8; 4] = [0, 0, 0, 255];
+const GUI_WHITE: [u8; 4] = [255, 255, 255, 255];
+const GUI_BASE: [u8; 4] = [198, 198, 198, 255];
+const GUI_SHADOW: [u8; 4] = [85, 85, 85, 255];
+const SLOT_DARK: [u8; 4] = [55, 55, 55, 255];
+const SLOT_FILL: [u8; 4] = [139, 139, 139, 255];
+
+/// Panneau d'écran : fond gris clair, contour noir aux coins arrondis, biseau clair en haut à
+/// gauche et sombre en bas à droite.
+fn draw_panel(image: &mut Image, x0: u32, y0: u32, w: u32, h: u32) {
+    for j in 0..h {
+        for i in 0..w {
+            let (right, bottom) = (w - 1 - i, h - 1 - j);
+            let near = |a: u32, b: u32| a + b < 2;
+            // Coins arrondis : les trois pixels du coin restent transparents.
+            if near(i, j) || near(right, j) || near(i, bottom) || near(right, bottom) {
+                continue;
+            }
+            let diagonal = (i == 1 || right == 1) && (j == 1 || bottom == 1);
+            let color = if i == 0 || j == 0 || right == 0 || bottom == 0 || diagonal {
+                GUI_BLACK
+            } else if (i <= 2 || j <= 2) && (right <= 2 || bottom <= 2) {
+                GUI_BASE
+            } else if i <= 2 || j <= 2 {
+                GUI_WHITE
+            } else if right <= 2 || bottom <= 2 {
+                GUI_SHADOW
+            } else {
+                GUI_BASE
+            };
+            image.set(x0 + i, y0 + j, color);
+        }
+    }
+}
+
+/// Case d'inventaire 18 × 18 (bord sombre en haut à gauche, clair en bas à droite).
+fn draw_slot(image: &mut Image, x0: u32, y0: u32) {
+    for j in 0..18 {
+        for i in 0..18 {
+            let color = if (i == 17 && j == 0) || (i == 0 && j == 17) {
+                SLOT_FILL
+            } else if i == 0 || j == 0 {
+                SLOT_DARK
+            } else if i == 17 || j == 17 {
+                GUI_WHITE
+            } else {
+                SLOT_FILL
+            };
+            image.set(x0 + i, y0 + j, color);
+        }
+    }
+}
+
+/// Fond d'écran de conteneur 176 × 166 sur une toile 256 × 256, avec l'inventaire du joueur
+/// (3 × 9 cases et barre rapide) aux positions du jeu si demandé.
+pub fn gui_panel(with_inventory: bool) -> Image {
+    let mut image = Image::new(256, 256);
+    draw_panel(&mut image, 0, 0, 176, 166);
+    if with_inventory {
+        for row in 0..3 {
+            for col in 0..9 {
+                draw_slot(&mut image, 7 + col * 18, 83 + row * 18);
+            }
+        }
+        for col in 0..9 {
+            draw_slot(&mut image, 7 + col * 18, 141);
+        }
+    }
+    image
+}
+
+pub fn gui_slot() -> Image {
+    let mut image = Image::new(18, 18);
+    draw_slot(&mut image, 0, 0);
+    image
+}
+
+/// Bouton 200 × 20 : contour noir, reflet en haut, ombre en bas.
+pub fn gui_button() -> Image {
+    let (w, h) = (200u32, 20u32);
+    let mut image = Image::new(w, h);
+    for j in 0..h {
+        for i in 0..w {
+            let color = if i == 0 || j == 0 || i == w - 1 || j == h - 1 {
+                GUI_BLACK
+            } else if j == 1 || i == 1 {
+                [170, 170, 170, 255]
+            } else if j >= h - 3 || i == w - 2 {
+                [86, 86, 86, 255]
+            } else {
+                [111, 111, 111, 255]
+            };
+            image.set(i, j, color);
+        }
+    }
+    image
+}
+
+/// Flèche de progression 24 × 17 (blanche, comme celle du four une fois pleine).
+pub fn gui_arrow() -> Image {
+    let mut image = Image::new(24, 17);
+    for j in 0..17u32 {
+        for i in 0..24u32 {
+            let shaft = i < 15 && (6..=10).contains(&j);
+            // Pointe : triangle de la colonne 15 (pleine hauteur) à la colonne 23.
+            let head = i >= 15 && (i - 15) <= 8 && j.abs_diff(8) <= 8 - (i - 15);
+            if shaft || head {
+                image.set(i, j, GUI_WHITE);
+            }
+        }
+    }
+    image
+}
+
+/// Toile transparente.
+pub fn blank(width: u32, height: u32) -> Image {
+    Image::new(width, height)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn pixel(image: &Image, x: u32, y: u32) -> [u8; 4] {
+        let i = ((y * image.width + x) * 4) as usize;
+        [
+            image.rgba[i],
+            image.rgba[i + 1],
+            image.rgba[i + 2],
+            image.rgba[i + 3],
+        ]
+    }
+
+    #[test]
+    fn gui_elements_follow_the_game_layout() {
+        let panel = gui_panel(true);
+        assert_eq!((panel.width, panel.height), (256, 256));
+        assert_eq!(pixel(&panel, 0, 0)[3], 0, "coin arrondi");
+        assert_eq!(pixel(&panel, 2, 0), GUI_BLACK);
+        assert_eq!(pixel(&panel, 1, 1), GUI_BLACK);
+        assert_eq!(pixel(&panel, 3, 2), GUI_WHITE, "reflet de deux pixels");
+        assert_eq!(pixel(&panel, 3, 3), GUI_BASE);
+        assert_eq!(pixel(&panel, 173, 100), GUI_SHADOW);
+        assert_eq!(pixel(&panel, 100, 164), GUI_SHADOW);
+        assert_eq!(pixel(&panel, 88, 40), GUI_BASE);
+        // Première case de l'inventaire du joueur : bord en (7, 83), intérieur en (8, 84).
+        assert_eq!(pixel(&panel, 7, 84), SLOT_DARK);
+        assert_eq!(pixel(&panel, 8, 84), SLOT_FILL);
+        assert_eq!(
+            pixel(&panel, 200, 200)[3],
+            0,
+            "hors du panneau : transparent"
+        );
+        assert_eq!(pixel(&gui_slot(), 17, 5), GUI_WHITE);
+        assert_eq!((gui_button().width, gui_button().height), (200, 20));
+        let arrow = gui_arrow();
+        assert_eq!(pixel(&arrow, 23, 8), GUI_WHITE, "pointe");
+        assert_eq!(pixel(&arrow, 5, 0)[3], 0);
+    }
 
     #[test]
     fn textures_are_valid_png_with_expected_size() {

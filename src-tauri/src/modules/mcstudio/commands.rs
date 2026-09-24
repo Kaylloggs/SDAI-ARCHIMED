@@ -17,6 +17,7 @@ use super::types::{
 };
 
 use super::types::{ApplyOutcome, Snapshot, WorkChange, WorkInfo};
+use super::types::{BlockLayout, GuiRequest, PixelData, PromptSettings};
 
 type Studio<'a> = State<'a, Arc<McStudio>>;
 
@@ -295,10 +296,63 @@ pub async fn gemini_image_models(studio: Studio<'_>) -> AppResult<ImageModelList
     studio.gemini.models().await
 }
 
-/// Texte exact envoyé au modèle, montré avant l'envoi.
+/// Texte exact envoyé au modèle, montré (et modifiable) avant l'envoi.
 #[tauri::command]
-pub async fn texture_prompt(target: TextureTarget, description: String) -> AppResult<String> {
-    Ok(artwork::prompt_for(&target, &description))
+pub async fn texture_prompt(
+    target: TextureTarget,
+    description: String,
+    settings: PromptSettings,
+) -> AppResult<String> {
+    Ok(artwork::prompt_for(&target, &description, &settings))
+}
+
+/// Texture du projet reprise dans un brouillon, pour la retoucher au pixel.
+#[tauri::command]
+pub async fn edit_texture(
+    studio: Studio<'_>,
+    id: String,
+    target: TextureTarget,
+) -> AppResult<TextureDraft> {
+    blocking(&studio, move |s| s.edit_texture(&id, target)).await
+}
+
+#[tauri::command]
+pub async fn draft_pixels(studio: Studio<'_>, draft_id: String) -> AppResult<PixelData> {
+    blocking(&studio, move |s| s.draft_pixels(&draft_id)).await
+}
+
+/// Retouches de l'éditeur (même taille que la texture).
+#[tauri::command]
+pub async fn save_draft_pixels(
+    studio: Studio<'_>,
+    draft_id: String,
+    data: PixelData,
+) -> AppResult<TextureDraft> {
+    blocking(&studio, move |s| s.save_draft_pixels(&draft_id, &data)).await
+}
+
+/// Répartition des textures d'un bloc sur ses faces (point de restauration avant).
+#[tauri::command]
+pub async fn set_block_layout(
+    studio: Studio<'_>,
+    id: String,
+    block: String,
+    layout: BlockLayout,
+    replace_custom: bool,
+) -> AppResult<Vec<TextureInfo>> {
+    blocking(&studio, move |s| {
+        s.set_block_layout(&id, &block, layout, replace_custom)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn create_gui_texture(
+    studio: Studio<'_>,
+    id: String,
+    request: GuiRequest,
+) -> AppResult<TextureInfo> {
+    blocking(&studio, move |s| s.create_gui_texture(&id, &request)).await
 }
 
 #[tauri::command]

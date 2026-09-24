@@ -11,4 +11,8 @@ free: boolean, description: string,
 /**
  * Le modèle répond aussi du texte (`modalities: ["image", "text"]`).
  */
-textOutput: boolean, };
+textOutput: boolean, 
+/**
+ * Le modèle accepte une image en entrée (texture de référence, retouche).
+ */
+imageInput: boolean, };

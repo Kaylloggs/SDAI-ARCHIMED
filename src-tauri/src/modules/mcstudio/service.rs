@@ -22,11 +22,12 @@ use super::projects::{self, Projects};
 use super::snapshots;
 use super::types::{ApplyOutcome, Snapshot, WorkChange, WorkInfo};
 use super::types::{
-    BlockRequest, BuildEvent, BuildRecord, BuildTask, ContentResult, CreateProjectRequest,
-    DraftSource, EnvironmentReport, ImageModel, ImageProvider, ItemRequest, JavaInstall,
-    JavaStatus, JdkNeed, PixelOptions, ProjectEntry, ProjectFile, ProjectMeta, ProjectStats,
-    ProjectSummary, RecipeRequest, ResolvedVersions, TextureDraft, TextureInfo, TextureRequest,
-    TextureTarget, ValidationReport, VersionCatalog, VersionOptions, VersionSelection,
+    BlockLayout, BlockRequest, BuildEvent, BuildRecord, BuildTask, ContentResult,
+    CreateProjectRequest, DraftSource, EnvironmentReport, GuiRequest, ImageModel, ImageProvider,
+    ItemRequest, JavaInstall, JavaStatus, JdkNeed, PixelData, PixelOptions, ProjectEntry,
+    ProjectFile, ProjectMeta, ProjectStats, ProjectSummary, RecipeRequest, ResolvedVersions,
+    TextureDraft, TextureInfo, TextureRequest, TextureTarget, ValidationReport, VersionCatalog,
+    VersionOptions, VersionSelection,
 };
 use super::validator;
 
@@ -305,26 +306,74 @@ impl McStudio {
         project_id: &str,
         request: TextureRequest,
     ) -> AppResult<TextureDraft> {
-        self.open_context(project_id)?;
-        artwork::validate_description(&request.description)?;
+        let (root, _, _) = self.open_context(project_id)?;
+        let custom = request.custom_prompt.as_deref().map(str::trim);
+        if custom.is_none() {
+            artwork::validate_description(&request.description)?;
+        }
+        artwork::validate_prompt(&request.prompt, custom)?;
         artwork::relative_path("mod", &request.target)?;
         pixelart::validate(&request.options)?;
+        let reference = match request.reference.clone() {
+            Some(relative) => Some(
+                tauri::async_runtime::spawn_blocking(move || {
+                    artwork::reference_image(&root, &relative)
+                })
+                .await
+                .map_err(|e| AppError::internal(e.to_string()))??,
+            ),
+            None => None,
+        };
         let (models, service) = match request.provider {
             ImageProvider::OpenRouter => (self.openrouter.models().await?.models, "OpenRouter"),
             ImageProvider::Gemini => (self.gemini.models().await?.models, "Google Gemini"),
         };
         let model = pick_image_model(models, &request, service)?;
-        let prompt = artwork::prompt_for(&request.target, &request.description);
+        if reference.is_some() && !model.image_input {
+            return Err(AppError::invalid(format!(
+                "{} ne lit pas d'image en entrée : retirez la référence ou choisissez un autre modèle.",
+                model.name
+            )));
+        }
+        let (width, height) = pixelart::output_size(&request.options);
+        let prompt = match custom {
+            Some(text) => text.to_string(),
+            None => {
+                let mut settings = request.prompt.clone();
+                settings.with_reference = reference.is_some();
+                if matches!(request.target, TextureTarget::Gui { .. }) {
+                    settings.width = Some(width);
+                    settings.height = Some(height);
+                }
+                artwork::prompt_for(&request.target, &request.description, &settings)
+            }
+        };
+        let aspect = pixelart::aspect_ratio(width, height);
         let (result, origin) = match request.provider {
             ImageProvider::OpenRouter => (
-                self.openrouter.generate(&model, &prompt).await,
+                self.openrouter
+                    .generate(&model, &prompt, reference.as_deref(), aspect)
+                    .await,
                 "openrouter",
             ),
-            ImageProvider::Gemini => (self.gemini.generate(&model, &prompt).await, "gemini"),
+            ImageProvider::Gemini => (
+                self.gemini
+                    .generate(&model, &prompt, reference.as_deref(), aspect)
+                    .await,
+                "gemini",
+            ),
         };
         crate::core::audit::record(
             "mcstudio.texture_generate",
-            &format!("{origin}:{}", model.id),
+            &format!(
+                "{origin}:{}{}",
+                model.id,
+                if reference.is_some() {
+                    " (avec référence)"
+                } else {
+                    ""
+                }
+            ),
             if result.is_ok() { "received" } else { "failed" },
             "user",
         );
@@ -388,13 +437,56 @@ impl McStudio {
     }
 
     pub fn apply_texture(&self, project_id: &str, draft_id: &str) -> AppResult<TextureInfo> {
+        self.idle(project_id)?;
+        let (root, meta, _) = self.open_context(project_id)?;
+        self.drafts.apply(draft_id, project_id, &root, &meta.mod_id)
+    }
+
+    fn idle(&self, project_id: &str) -> AppResult<()> {
         if self.builds.is_running(project_id) {
             return Err(AppError::invalid(
                 "Attendez la fin de la compilation en cours.",
             ));
         }
+        Ok(())
+    }
+
+    /// Texture du projet reprise telle quelle dans un brouillon, pour la retoucher.
+    pub fn edit_texture(&self, project_id: &str, target: TextureTarget) -> AppResult<TextureDraft> {
         let (root, meta, _) = self.open_context(project_id)?;
-        self.drafts.apply(draft_id, project_id, &root, &meta.mod_id)
+        self.drafts
+            .open_project_texture(project_id, &root, &meta.mod_id, target)
+    }
+
+    pub fn draft_pixels(&self, draft_id: &str) -> AppResult<PixelData> {
+        self.drafts.pixels(draft_id)
+    }
+
+    pub fn save_draft_pixels(&self, draft_id: &str, data: &PixelData) -> AppResult<TextureDraft> {
+        self.drafts.save_pixels(draft_id, data)
+    }
+
+    /// Répartit les textures d'un bloc sur ses faces (réécrit son modèle).
+    pub fn set_block_layout(
+        &self,
+        project_id: &str,
+        block: &str,
+        layout: BlockLayout,
+        replace_custom: bool,
+    ) -> AppResult<Vec<TextureInfo>> {
+        self.idle(project_id)?;
+        let (root, meta, _) = self.open_context(project_id)?;
+        artwork::set_block_layout(&root, &meta.mod_id, block, layout, replace_custom)
+    }
+
+    /// Nouvel élément d'interface (`textures/gui/`), dessiné aux couleurs du jeu.
+    pub fn create_gui_texture(
+        &self,
+        project_id: &str,
+        request: &GuiRequest,
+    ) -> AppResult<TextureInfo> {
+        let (root, meta, _) = self.open_context(project_id)?;
+        artwork::create_gui(&root, &meta.mod_id, request)
     }
 }
 

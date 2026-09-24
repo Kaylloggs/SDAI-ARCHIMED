@@ -1,6 +1,8 @@
 //! Conversion d'une image quelconque (réponse d'un modèle d'image, fichier importé) en
-//! texture Minecraft : fond retiré, objet cadré, réduction à 16 × 16 (ou 32, 64) par
-//! couleur dominante, palette limitée.
+//! texture Minecraft : fond retiré, objet cadré, réduction à 16 × 16 (ou 32, 64, ou à la
+//! taille d'un élément d'interface) par couleur dominante, palette limitée. Les faces de
+//! bloc sont rendues raccordables (leurs bords se continuent une fois répétées) après avoir
+//! retiré le cadre uni que les modèles d'image ajoutent souvent.
 //!
 //! Déterministe : même image et mêmes réglages donnent les mêmes pixels. Aucune IA ici.
 
@@ -10,7 +12,7 @@ use std::io::Cursor;
 use crate::core::{AppError, AppResult};
 
 use super::textures::Image;
-use super::types::PixelOptions;
+use super::types::{PixelOptions, Tiling};
 
 /// Côté maximal accepté à l'entrée (anti « bombe » de décompression).
 const MAX_SIDE: u32 = 4096;
@@ -20,6 +22,8 @@ pub const MAX_BYTES: usize = 32 * 1024 * 1024;
 const WORK_SIDE: u32 = 1024;
 /// Tailles de texture proposées.
 pub const SIZES: [u32; 3] = [16, 32, 64];
+/// Côté maximal d'un élément d'interface, et de la toile des écrans du jeu.
+pub const GUI_MAX: u32 = 256;
 
 /// Écart de couleur (distance euclidienne RVB au carré).
 fn distance(a: [u8; 4], b: [u8; 4]) -> u32 {
@@ -56,11 +60,11 @@ impl Raster {
         }
     }
 
-    fn at(&self, x: u32, y: u32) -> [u8; 4] {
+    pub fn at(&self, x: u32, y: u32) -> [u8; 4] {
         self.px[(y * self.width + x) as usize]
     }
 
-    fn put(&mut self, x: u32, y: u32, color: [u8; 4]) {
+    pub fn put(&mut self, x: u32, y: u32, color: [u8; 4]) {
         let index = (y * self.width + x) as usize;
         self.px[index] = color;
     }
@@ -115,10 +119,31 @@ pub fn decode(bytes: &[u8]) -> AppResult<Raster> {
 }
 
 pub fn validate(options: &PixelOptions) -> AppResult<()> {
-    if !SIZES.contains(&options.size) {
-        return Err(AppError::invalid(
-            "Taille de texture : 16, 32 ou 64 pixels.",
-        ));
+    match (options.width, options.height) {
+        (Some(w), Some(h)) => {
+            if !(1..=GUI_MAX).contains(&w) || !(1..=GUI_MAX).contains(&h) {
+                return Err(AppError::invalid(format!(
+                    "Taille d'un élément d'interface : de 1 à {GUI_MAX} pixels de côté."
+                )));
+            }
+        }
+        (None, None) => {
+            if !SIZES.contains(&options.size) {
+                return Err(AppError::invalid(
+                    "Taille de texture : 16, 32 ou 64 pixels.",
+                ));
+            }
+            if options.atlas {
+                return Err(AppError::invalid(
+                    "La toile 256 × 256 est réservée aux éléments d'interface.",
+                ));
+            }
+        }
+        _ => {
+            return Err(AppError::invalid(
+                "Taille d'un élément d'interface : largeur et hauteur.",
+            ))
+        }
     }
     if options.colors == 1 || options.colors > 256 {
         return Err(AppError::invalid(
@@ -128,21 +153,112 @@ pub fn validate(options: &PixelOptions) -> AppResult<()> {
     Ok(())
 }
 
-/// Image source → texture carrée de `options.size` pixels de côté.
+/// Largeur et hauteur de la texture produite (avant la toile 256 × 256).
+pub fn output_size(options: &PixelOptions) -> (u32, u32) {
+    match (options.width, options.height) {
+        (Some(w), Some(h)) => (w, h),
+        _ => (options.size, options.size),
+    }
+}
+
+/// Format d'image demandé au modèle : celui de la liste des modèles d'image le plus proche
+/// des proportions de la texture.
+pub fn aspect_ratio(width: u32, height: u32) -> &'static str {
+    const RATIOS: [(&str, f64); 10] = [
+        ("1:1", 1.0),
+        ("2:3", 2.0 / 3.0),
+        ("3:2", 1.5),
+        ("3:4", 0.75),
+        ("4:3", 4.0 / 3.0),
+        ("4:5", 0.8),
+        ("5:4", 1.25),
+        ("9:16", 9.0 / 16.0),
+        ("16:9", 16.0 / 9.0),
+        ("21:9", 21.0 / 9.0),
+    ];
+    let wanted = (f64::from(width.max(1)) / f64::from(height.max(1))).ln();
+    RATIOS
+        .iter()
+        .min_by(|a, b| {
+            (a.1.ln() - wanted)
+                .abs()
+                .total_cmp(&(b.1.ln() - wanted).abs())
+        })
+        .map_or("1:1", |(name, _)| name)
+}
+
+/// Texture convertie, et ce que la conversion a corrigé.
+pub struct Converted {
+    pub raster: Raster,
+    /// Qualité du raccord (0 à 100), textures pleines seulement.
+    pub seam: Option<u8>,
+    pub notes: Vec<String>,
+}
+
+/// Image source → texture de `options.size` pixels de côté (ou `width` × `height`).
 pub fn convert(source: &Raster, options: &PixelOptions) -> AppResult<Raster> {
+    Ok(convert_full(source, options)?.raster)
+}
+
+pub fn convert_full(source: &Raster, options: &PixelOptions) -> AppResult<Converted> {
     validate(options)?;
+    let (width, height) = output_size(options);
+    let mut notes = Vec::new();
     let mut work = shrink_to(source, WORK_SIDE);
+    // Place gardée autour de l'objet pour son contour.
+    let outline = options.outline && options.transparent && width > 4 && height > 4;
+    let (inner_w, inner_h) = if outline {
+        (width - 2, height - 2)
+    } else {
+        (width, height)
+    };
     let framed = if options.transparent {
         remove_background(&mut work);
-        pad_square(&crop_to_content(&work), options.size)
+        pad_to(&crop_to_content(&work), inner_w, inner_h)
     } else {
-        center_square(&work)
+        let trimmed = if options.tiling != Tiling::None {
+            let (trimmed, removed) = trim_frame(&work);
+            if removed > 0 {
+                notes.push("Cadre uni ajouté par le modèle retiré.".to_string());
+            }
+            trimmed
+        } else {
+            work
+        };
+        let cropped = cover_crop(&trimmed, width, height);
+        match options.tiling {
+            Tiling::None => cropped,
+            tiling => {
+                notes.push(
+                    match tiling {
+                        Tiling::Horizontal => {
+                            "Bords gauche et droit fondus : la texture se raccorde côte à côte."
+                        }
+                        _ => "Bords fondus : la texture se raccorde dans les deux sens.",
+                    }
+                    .to_string(),
+                );
+                make_seamless(&cropped, tiling == Tiling::Both)
+            }
+        }
     };
-    let mut out = downscale(&framed, options.size, options.transparent);
+    let mut out = downscale(&framed, inner_w, inner_h, options.transparent);
+    if outline {
+        out = add_outline(&out);
+    }
     if options.colors > 0 {
         quantize(&mut out, options.colors as usize);
     }
-    Ok(out)
+    let seam =
+        (!options.transparent).then(|| seam_quality(&out, options.tiling != Tiling::Horizontal));
+    if options.atlas {
+        out = place_on_canvas(&out, GUI_MAX, GUI_MAX, 0);
+    }
+    Ok(Converted {
+        raster: out,
+        seam,
+        notes,
+    })
 }
 
 /// Agrandit sans lisser (chaque pixel devient un carré) jusqu'à au moins `side`.
@@ -389,12 +505,28 @@ fn crop_to_content(raster: &Raster) -> Raster {
     out
 }
 
-/// Centre l'objet dans un carré transparent, avec un demi-pixel de marge finale.
-fn pad_square(raster: &Raster, size: u32) -> Raster {
-    let side = raster.width.max(raster.height);
-    let side = side + side.div_ceil(size);
-    let mut out = Raster::new(side, side);
-    let (ox, oy) = ((side - raster.width) / 2, (side - raster.height) / 2);
+/// Centre l'objet dans une toile transparente aux proportions de la texture, avec un
+/// demi-pixel de marge finale.
+fn pad_to(raster: &Raster, width: u32, height: u32) -> Raster {
+    let (canvas_w, canvas_h) = if width == height {
+        let side = raster.width.max(raster.height);
+        let side = side + side.div_ceil(width);
+        (side, side)
+    } else {
+        // Pixels de la source par pixel final, marge d'un pixel final comprise.
+        let scale = (f64::from(raster.width) / f64::from(width))
+            .max(f64::from(raster.height) / f64::from(height))
+            * (1.0 + 1.0 / f64::from(width.min(height)));
+        (
+            ((f64::from(width) * scale).ceil() as u32).max(raster.width),
+            ((f64::from(height) * scale).ceil() as u32).max(raster.height),
+        )
+    };
+    let mut out = Raster::new(canvas_w, canvas_h);
+    let (ox, oy) = (
+        (canvas_w - raster.width) / 2,
+        (canvas_h - raster.height) / 2,
+    );
     for y in 0..raster.height {
         for x in 0..raster.width {
             out.put(ox + x, oy + y, raster.at(x, y));
@@ -403,14 +535,245 @@ fn pad_square(raster: &Raster, size: u32) -> Raster {
     out
 }
 
-/// Carré central (textures de bloc : elles remplissent toute la case).
-fn center_square(raster: &Raster) -> Raster {
-    let side = raster.width.min(raster.height);
-    let (ox, oy) = ((raster.width - side) / 2, (raster.height - side) / 2);
-    let mut out = Raster::new(side, side);
-    for y in 0..side {
-        for x in 0..side {
+/// Plus grand rectangle central aux proportions de la texture (elle remplit toute la case).
+fn cover_crop(raster: &Raster, width: u32, height: u32) -> Raster {
+    let (w, h) = (u64::from(raster.width), u64::from(raster.height));
+    let (tw, th) = (u64::from(width), u64::from(height));
+    let (crop_w, crop_h) = if w * th > h * tw {
+        ((h * tw / th).max(1), h)
+    } else {
+        (w, (w * th / tw).max(1))
+    };
+    let (crop_w, crop_h) = (crop_w as u32, crop_h as u32);
+    let (ox, oy) = ((raster.width - crop_w) / 2, (raster.height - crop_h) / 2);
+    let mut out = Raster::new(crop_w, crop_h);
+    for y in 0..crop_h {
+        for x in 0..crop_w {
             out.put(x, y, raster.at(ox + x, oy + y));
+        }
+    }
+    out
+}
+
+/// Écart maximal à la moyenne pour qu'une ligne passe pour unie.
+const FRAME_SPREAD: u32 = 30 * 30;
+/// Écart maximal entre les lignes d'un même cadre (un dégradé n'est pas un cadre).
+const FRAME_RUN: u32 = 12 * 12;
+/// Écart minimal entre le cadre et la texture qu'il entoure.
+const FRAME_CONTRAST: u32 = 26 * 26;
+
+fn mean(pixels: &[[u8; 4]]) -> [u8; 4] {
+    let n = pixels.len().max(1) as u32;
+    let sum = pixels.iter().fold([0u32; 3], |mut acc, p| {
+        for (total, value) in acc.iter_mut().zip(p) {
+            *total += u32::from(*value);
+        }
+        acc
+    });
+    [
+        (sum[0] / n) as u8,
+        (sum[1] / n) as u8,
+        (sum[2] / n) as u8,
+        255,
+    ]
+}
+
+/// Retire le cadre uni (bordure, fond autour d'une tuile) que les modèles d'image dessinent
+/// souvent autour d'une texture : chaque bord perd ses lignes unies qui tranchent avec
+/// l'intérieur, jusqu'à 15 % de la taille. Renvoie l'image et le nombre de lignes retirées.
+fn trim_frame(raster: &Raster) -> (Raster, u32) {
+    let (w, h) = (raster.width, raster.height);
+    if w < 16 || h < 16 {
+        return (raster.clone(), 0);
+    }
+    // (x, y) de la ligne `k` depuis un bord, horizontale ou verticale.
+    let line = |side: u8, k: u32| -> Vec<[u8; 4]> {
+        match side {
+            0 => (0..w).map(|x| raster.at(x, k)).collect(),
+            1 => (0..w).map(|x| raster.at(x, h - 1 - k)).collect(),
+            2 => (0..h).map(|y| raster.at(k, y)).collect(),
+            _ => (0..h).map(|y| raster.at(w - 1 - k, y)).collect(),
+        }
+    };
+    let uniform = |pixels: &[[u8; 4]]| -> Option<[u8; 4]> {
+        let average = mean(pixels);
+        pixels
+            .iter()
+            .all(|p| distance(*p, average) <= FRAME_SPREAD)
+            .then_some(average)
+    };
+    let mut cut = [0u32; 4];
+    for (side, cut) in cut.iter_mut().enumerate() {
+        let side = side as u8;
+        let depth = if side < 2 { h } else { w };
+        let limit = depth * 15 / 100;
+        let Some(frame) = uniform(&line(side, 0)) else {
+            continue;
+        };
+        // Lignes unies de la couleur du bord : l'épaisseur du cadre.
+        let mut k = 1;
+        while k < limit {
+            match uniform(&line(side, k)) {
+                Some(color) if distance(color, frame) <= FRAME_RUN => k += 1,
+                _ => break,
+            }
+        }
+        // Trop épais : c'est la texture elle-même (aplat), pas un cadre.
+        if k >= limit {
+            continue;
+        }
+        // Un cadre tranche avec ce qu'il entoure (la ligne d'après, souvent adoucie, est
+        // retirée avec lui).
+        let inside = mean(&line(side, (k + 1).min(depth - 1)));
+        if distance(frame, inside) >= FRAME_CONTRAST {
+            *cut = k + 1;
+        }
+    }
+    let [top, bottom, left, right] = cut;
+    if top + bottom + left + right == 0 {
+        return (raster.clone(), 0);
+    }
+    let (nw, nh) = (w - left - right, h - top - bottom);
+    let mut out = Raster::new(nw, nh);
+    for y in 0..nh {
+        for x in 0..nw {
+            out.put(x, y, raster.at(left + x, top + y));
+        }
+    }
+    (out, top + bottom + left + right)
+}
+
+/// Part de la largeur (depuis chaque bord) sur laquelle la texture est fondue avec sa
+/// copie décalée d'une demi-largeur.
+const SEAM_BAND: f64 = 0.3;
+
+fn blend(a: [u8; 4], b: [u8; 4], weight_a: f64) -> [u8; 4] {
+    let mix =
+        |i: usize| (f64::from(a[i]) * weight_a + f64::from(b[i]) * (1.0 - weight_a)).round() as u8;
+    [mix(0), mix(1), mix(2), mix(3)]
+}
+
+/// Poids de l'image d'origine : 1 au centre, 0 sur les bords, transition douce.
+fn seam_weight(position: u32, length: u32) -> f64 {
+    if length < 2 {
+        return 1.0;
+    }
+    let t = 1.0 - (2.0 * f64::from(position) / f64::from(length - 1) - 1.0).abs();
+    let x = (t / (2.0 * SEAM_BAND)).clamp(0.0, 1.0);
+    x * x * (3.0 - 2.0 * x)
+}
+
+/// Rend l'image raccordable : près de chaque bord, elle est fondue avec sa copie décalée
+/// d'une demi-largeur (puis d'une demi-hauteur si `vertical`). Sur les bords, c'est la copie
+/// décalée qui s'affiche, dont les pixels opposés sont voisins dans l'image : répétée, la
+/// texture ne montre plus de coupure. Le centre reste l'image d'origine.
+fn make_seamless(raster: &Raster, vertical: bool) -> Raster {
+    let (w, h) = (raster.width, raster.height);
+    let mut across = Raster::new(w, h);
+    for y in 0..h {
+        for x in 0..w {
+            let shifted = raster.at((x + w / 2) % w, y);
+            across.put(x, y, blend(raster.at(x, y), shifted, seam_weight(x, w)));
+        }
+    }
+    if !vertical {
+        return across;
+    }
+    let mut out = Raster::new(w, h);
+    for y in 0..h {
+        for x in 0..w {
+            let shifted = across.at(x, (y + h / 2) % h);
+            out.put(x, y, blend(across.at(x, y), shifted, seam_weight(y, h)));
+        }
+    }
+    out
+}
+
+fn gap(a: [u8; 4], b: [u8; 4]) -> f64 {
+    f64::from(distance(a, b)).sqrt()
+}
+
+/// Qualité du raccord (0 à 100) : écart moyen entre bords opposés (gauche-droite, et
+/// haut-bas si `vertical`), comparé à l'écart moyen entre pixels voisins à l'intérieur.
+pub fn seam_quality(raster: &Raster, vertical: bool) -> u8 {
+    let (w, h) = (raster.width, raster.height);
+    if w < 2 || h < 2 {
+        return 100;
+    }
+    let mut inside = (0.0, 0u32);
+    for y in 0..h {
+        for x in 0..w {
+            if x + 1 < w {
+                inside.0 += gap(raster.at(x, y), raster.at(x + 1, y));
+                inside.1 += 1;
+            }
+            if y + 1 < h {
+                inside.0 += gap(raster.at(x, y), raster.at(x, y + 1));
+                inside.1 += 1;
+            }
+        }
+    }
+    let mut wrap = (0.0, 0u32);
+    for y in 0..h {
+        wrap.0 += gap(raster.at(w - 1, y), raster.at(0, y));
+        wrap.1 += 1;
+    }
+    if vertical {
+        for x in 0..w {
+            wrap.0 += gap(raster.at(x, h - 1), raster.at(x, 0));
+            wrap.1 += 1;
+        }
+    }
+    let inside = inside.0 / f64::from(inside.1.max(1));
+    let wrap = wrap.0 / f64::from(wrap.1.max(1));
+    ((100.0 * (inside + 6.0) / (wrap + 6.0)).min(100.0)).round() as u8
+}
+
+/// Contour d'un pixel autour de l'objet, dans une teinte sombre de sa bordure.
+fn add_outline(inner: &Raster) -> Raster {
+    let mut out = place_on_canvas(inner, inner.width + 2, inner.height + 2, 1);
+    let source = out.clone();
+    for y in 0..out.height {
+        for x in 0..out.width {
+            if source.at(x, y)[3] > 0 {
+                continue;
+            }
+            let neighbours: Vec<[u8; 4]> = [
+                (x.wrapping_sub(1), y),
+                (x + 1, y),
+                (x, y.wrapping_sub(1)),
+                (x, y + 1),
+            ]
+            .iter()
+            .filter(|&&(nx, ny)| nx < out.width && ny < out.height)
+            .map(|&(nx, ny)| source.at(nx, ny))
+            .filter(|p| p[3] > 0)
+            .collect();
+            if neighbours.is_empty() {
+                continue;
+            }
+            let edge = mean(&neighbours);
+            out.put(
+                x,
+                y,
+                [
+                    (f64::from(edge[0]) * 0.35) as u8,
+                    (f64::from(edge[1]) * 0.35) as u8,
+                    (f64::from(edge[2]) * 0.35) as u8,
+                    255,
+                ],
+            );
+        }
+    }
+    out
+}
+
+/// Pose l'image sur une toile transparente, à `offset` pixels du coin haut gauche.
+pub fn place_on_canvas(raster: &Raster, width: u32, height: u32, offset: u32) -> Raster {
+    let mut out = Raster::new(width, height);
+    for y in 0..raster.height.min(height.saturating_sub(offset)) {
+        for x in 0..raster.width.min(width.saturating_sub(offset)) {
+            out.put(offset + x, offset + y, raster.at(x, y));
         }
     }
     out
@@ -419,17 +782,17 @@ fn center_square(raster: &Raster) -> Raster {
 /// Chaque pixel final prend une couleur franche de sa zone (voir [`Histogram::salient`]) :
 /// des aplats nets, comme du pixel-art, au lieu d'une moyenne boueuse. Transparence tout
 /// ou rien.
-fn downscale(raster: &Raster, size: u32, transparent: bool) -> Raster {
+fn downscale(raster: &Raster, width: u32, height: u32, transparent: bool) -> Raster {
     let visible = |p: &[u8; 4]| !transparent || p[3] >= 128;
     let image = Histogram::of(raster.px.iter().copied().filter(visible));
-    let mut out = Raster::new(size, size);
+    let mut out = Raster::new(width, height);
     let (w, h) = (raster.width, raster.height);
-    for ty in 0..size {
-        let y0 = ty * h / size;
-        let y1 = ((ty + 1) * h / size).max(y0 + 1).min(h);
-        for tx in 0..size {
-            let x0 = tx * w / size;
-            let x1 = ((tx + 1) * w / size).max(x0 + 1).min(w);
+    for ty in 0..height {
+        let y0 = ty * h / height;
+        let y1 = ((ty + 1) * h / height).max(y0 + 1).min(h);
+        for tx in 0..width {
+            let x0 = tx * w / width;
+            let x1 = ((tx + 1) * w / width).max(x0 + 1).min(w);
             let total = (x1 - x0) * (y1 - y0);
             let zone = Histogram::of(
                 (y0..y1)
@@ -555,6 +918,11 @@ mod tests {
             size,
             colors,
             transparent,
+            tiling: Tiling::None,
+            outline: false,
+            width: None,
+            height: None,
+            atlas: false,
         }
     }
 
@@ -675,6 +1043,120 @@ mod tests {
         // Trop large : refusé à la lecture de l'en-tête, avant toute allocation.
         let wide = Raster::new(MAX_SIDE + 1, 1).png().unwrap();
         assert!(decode(&wide).is_err());
+    }
+
+    /// Pierre ondulée, plus claire à droite qu'à gauche : ne se raccorde pas telle quelle.
+    /// `frame` : cadre noir de cette épaisseur autour.
+    fn stone(side: u32, frame: u32) -> Raster {
+        let mut raster = Raster::new(side, side);
+        for y in 0..side {
+            for x in 0..side {
+                let color = if x < frame || y < frame || x >= side - frame || y >= side - frame {
+                    [10, 10, 10, 255]
+                } else {
+                    let (fx, fy) = (x as f32, y as f32);
+                    let v = 100.0
+                        + 30.0 * (fx * 0.05).sin() * (fy * 0.07).cos()
+                        + fx * 0.25
+                        + ((x * 7 + y * 13) % 9) as f32;
+                    let v = v.clamp(0.0, 255.0) as u8;
+                    [v, v, v.saturating_add(8), 255]
+                };
+                raster.put(x, y, color);
+            }
+        }
+        raster
+    }
+
+    fn tiled(tiling: Tiling) -> PixelOptions {
+        PixelOptions {
+            tiling,
+            ..opts(16, 0, false)
+        }
+    }
+
+    #[test]
+    fn a_tiling_face_connects_at_the_edges() {
+        let source = stone(300, 0);
+        let plain = convert_full(&source, &opts(16, 0, false)).unwrap();
+        let both = convert_full(&source, &tiled(Tiling::Both)).unwrap();
+        let (before, after) = (plain.seam.unwrap(), both.seam.unwrap());
+        assert!(before < 60 && after >= 75, "raccord {before} → {after}");
+        assert!(both.notes.iter().any(|n| n.contains("deux sens")));
+
+        // En largeur seulement : gauche-droite raccordés, haut et bas laissés tels quels.
+        let across = convert_full(&source, &tiled(Tiling::Horizontal)).unwrap();
+        assert!(across.notes.iter().any(|n| n.contains("gauche et droit")));
+        assert!(across.seam.unwrap() >= 75, "{:?}", across.seam);
+    }
+
+    #[test]
+    fn the_frame_drawn_by_a_model_is_removed() {
+        let framed = stone(320, 20);
+        let plain = convert_full(&framed, &opts(16, 0, false)).unwrap();
+        assert!(
+            plain.raster.at(0, 0)[0] < 30,
+            "sans raccord : image intacte"
+        );
+        let both = convert_full(&framed, &tiled(Tiling::Both)).unwrap();
+        assert!(both.raster.px.iter().all(|p| p[0] > 60), "cadre retiré");
+        assert!(both.notes.iter().any(|n| n.contains("Cadre")));
+        // Un dégradé régulier n'est pas pris pour un cadre.
+        let unframed = convert_full(&stone(320, 0), &tiled(Tiling::Both)).unwrap();
+        assert!(!unframed.notes.iter().any(|n| n.contains("Cadre")));
+    }
+
+    #[test]
+    fn items_get_an_outline_and_gui_elements_their_own_size() {
+        let outlined = PixelOptions {
+            outline: true,
+            ..opts(16, 8, true)
+        };
+        let out = convert(&disc(256, false), &outlined).unwrap();
+        assert_eq!((out.width, out.height), (16, 16));
+        // Premier pixel visible de la ligne du milieu : le contour, bien plus sombre.
+        let edge = (0..16).map(|x| out.at(x, 8)).find(|p| p[3] > 0).unwrap();
+        assert!(edge[0] < 100, "contour sombre : {edge:?}");
+
+        let button = PixelOptions {
+            width: Some(200),
+            height: Some(20),
+            ..opts(16, 0, false)
+        };
+        let out = convert(&disc(300, false), &button).unwrap();
+        assert_eq!((out.width, out.height), (200, 20));
+        let panel = PixelOptions {
+            width: Some(176),
+            height: Some(166),
+            atlas: true,
+            ..opts(16, 0, false)
+        };
+        let out = convert(&disc(300, false), &panel).unwrap();
+        assert_eq!((out.width, out.height), (256, 256));
+        assert_eq!(out.at(200, 200)[3], 0, "hors de l'élément : transparent");
+        assert_eq!(out.at(10, 10)[3], 255);
+
+        assert!(validate(&PixelOptions {
+            width: Some(300),
+            height: Some(20),
+            ..opts(16, 0, false)
+        })
+        .is_err());
+        assert!(validate(&PixelOptions {
+            width: Some(30),
+            height: None,
+            ..opts(16, 0, false)
+        })
+        .is_err());
+        assert!(validate(&PixelOptions {
+            atlas: true,
+            ..opts(16, 0, false)
+        })
+        .is_err());
+        assert_eq!(aspect_ratio(16, 16), "1:1");
+        assert_eq!(aspect_ratio(200, 20), "21:9");
+        assert_eq!(aspect_ratio(176, 166), "1:1");
+        assert_eq!(aspect_ratio(24, 17), "4:3");
     }
 
     #[test]

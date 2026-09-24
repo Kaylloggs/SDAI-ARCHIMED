@@ -176,14 +176,21 @@ Supprimer un point le met à la Corbeille. Stockage : `<projet>/.mcstudio/snapsh
 
 ## Textures : IA (OpenRouter ou Google Gemini) ou image importée
 
-Onglet **Textures** d'un projet : l'icône, les objets et les blocs (présents, ou déclarés sans
-texture). « + » ajoute un objet ou un bloc (code, modèles, traductions, loot table, outil de minage)
-avec une texture provisoire.
+Onglet **Textures** d'un projet : l'icône, les objets, les blocs (et leurs faces) et les éléments
+d'interface (présents, ou déclarés sans texture). « + » ajoute un objet ou un bloc (code, modèles,
+traductions, loot table, outil de minage) avec une texture provisoire, ou un élément d'interface
+(écran de conteneur avec ou sans inventaire du joueur, bouton, case, flèche de progression, toile
+libre) dessiné sans IA aux couleurs des écrans du jeu, dans `textures/gui/`.
 
 1. **Source** : une description envoyée à un modèle d'image d'OpenRouter ou de Google Gemini
-   (« Service d'image »), ou un PNG/JPEG/WebP.
-   Le texte exact envoyé au modèle est visible avant l'envoi (description cadrée pour Minecraft :
-   objet isolé sur fond uni, tuile sans bord pour un bloc).
+   (« Service d'image »), un PNG/JPEG/WebP, ou la texture actuelle (« Retoucher l'actuelle »).
+   Le texte envoyé est construit pour la cible (objet isolé sur fond uni ; face de bloc vue de
+   face, pleine case, sans cadre, raccordable ; côté d'un bloc à dessus distinct raccordable en
+   largeur ; extrémité de bûche en coupe ; écran d'interface au format demandé), avec un **style**
+   (jeu de base, détaillé, simple), des **consignes en plus** et, si le modèle lit les images, une
+   **texture de référence** du projet (agrandie pixel par pixel à 512 px) pour garder la palette
+   d'un bloc d'une face à l'autre ou demander une variante. Le texte final est visible et
+   **modifiable mot pour mot** avant l'envoi (il part alors tel quel).
 2. **Clé** : saisie dans l'app, vérifiée par OpenRouter (`/key`) puis rangée dans le Gestionnaire
    d'identifiants de Windows (`mcstudio-openrouter.com.sdai.archimed`). Elle ne revient jamais vers
    l'interface et n'est envoyée qu'à OpenRouter.
@@ -197,11 +204,27 @@ avec une texture provisoire.
    le projet de la clé, donc soumis à « Accepter la facturation Google ». L'abonnement Gemini
    (Google AI Pro) ne couvre pas l'API ; ses crédits Google Cloud mensuels, si.
 4. **Conversion** (`pixelart.rs`, déterministe) : fond uni ou en dégradé retiré par remplissage
-   depuis les bords, objet cadré, réduction à 16, 32 ou 64 px en gardant par zone une couleur
-   franche (la plus rare de l'image quand elle couvre au moins 12 % de la zone : les éclats d'un
-   minerai ou un contour survivent), palette limitée par coupe médiane. Une icône est agrandie à
-   64 px sans lissage. Changer un réglage reconvertit la même image, sans réseau.
-5. **Application** : rien n'est écrit dans le projet avant « Appliquer au projet ». L'ancienne
+   depuis les bords, objet cadré, réduction à 16, 32 ou 64 px (ou à la taille d'un élément
+   d'interface, posé si besoin sur une toile 256 × 256) en gardant par zone une couleur franche
+   (la plus rare de l'image quand elle couvre au moins 12 % de la zone : les éclats d'un minerai
+   ou un contour survivent), palette limitée par coupe médiane, **contour sombre** facultatif
+   pour les objets. Une icône est agrandie à 64 px sans lissage. Changer un réglage reconvertit la
+   même image, sans réseau (après confirmation si elle a été retouchée).
+   **Raccord** (faces de bloc) : le cadre uni que les modèles ajoutent souvent est retiré, puis
+   les bords sont fondus avec la copie décalée d'une demi-case de l'image (en largeur seulement,
+   ou dans les deux sens) : répétée, la texture ne montre plus de coupure. La qualité du raccord
+   (0 à 100 %) est mesurée sur la texture finale et affichée.
+5. **Faces des blocs** : « Faces du bloc » choisit la répartition du modèle (`cube_all`,
+   `cube_column`, `cube_bottom_top`, `cube` à six faces). Le modèle est réécrit après un point de
+   restauration (autres réglages du modèle gardés), les faces manquantes partent de la texture
+   actuelle ; chaque face a son onglet et sa texture (`<bloc>_<face>.png`, ou celle que le modèle
+   référence déjà). Un modèle écrit à la main n'est remplacé par un cube qu'après confirmation.
+6. **Retouche au pixel** : crayon, gomme, remplissage, pipette, miroir, grille, décalage d'une
+   demi-case (les bords opposés se retrouvent au milieu pour corriger un raccord), annuler /
+   rétablir, zoom, palette de la texture, couleur hexadécimale ; au clavier : flèches + Espace,
+   B/E/G/I/M, Ctrl+Z / Ctrl+Y. Les retouches s'enregistrent dans la proposition au fil de l'eau ;
+   aperçus en direct : texture répétée 3 × 3 et bloc en 3D (vue d'inventaire).
+7. **Application** : rien n'est écrit dans le projet avant « Appliquer au projet ». L'ancienne
    texture est copiée dans `.mcstudio/history/textures/<date>-<cible>.png`, la nouvelle écrite de
    façon atomique ; l'action est inscrite au journal d'audit (`mcstudio.texture_apply`), comme
    chaque génération (`mcstudio.texture_generate`) et chaque changement de clé.
@@ -209,7 +232,8 @@ avec une texture provisoire.
 Brouillons : `%APPDATA%\com.sdai.archimed\modules\mcstudio\cache\textures\` (30 derniers).
 Sources remplaçables (HTTPS uniquement) : `{"openrouterApi": "https://…", "geminiApi": "https://…"}`
 dans `env.json`. Décisions : [ADR 0005](../../../docs/adr/0005-mcstudio-openrouter-textures.md)
-(OpenRouter, conversion), [ADR 0007](../../../docs/adr/0007-mcstudio-gemini-textures.md) (Gemini).
+(OpenRouter, conversion), [ADR 0007](../../../docs/adr/0007-mcstudio-gemini-textures.md) (Gemini),
+[ADR 0008](../../../docs/adr/0008-mcstudio-texture-workshop.md) (faces, raccord, retouche, interface).
 
 ## Projet généré
 
@@ -265,7 +289,8 @@ Java : `detect_java` · `inspect_java` · `project_java` · `set_project_java` �
 `jdk_offer` · `install_jdk` · `cancel_jdk_install`
 Contenu : `add_item` · `add_block` · `add_recipe`
 Textures : `openrouter_status` · `set_openrouter_key` · `clear_openrouter_key` · `image_models` ·
-`gemini_status` · `set_gemini_key` · `clear_gemini_key` · `gemini_image_models` ·
+`gemini_status` · `set_gemini_key` · `clear_gemini_key` · `gemini_image_models` · `edit_texture` ·
+`draft_pixels` · `save_draft_pixels` · `set_block_layout` · `create_gui_texture` ·
 `texture_prompt` · `list_textures` · `generate_texture` · `import_texture` · `reprocess_texture` ·
 `apply_texture`
 Build : `build_project` · `cancel_build` · `list_builds` · `read_build_log`
@@ -294,7 +319,8 @@ Assistant : `agent_prepare` · `agent_instructions` · `agent_changes` · `agent
   `MCSTUDIO_E2E_PROFILES=fabric-1.21,forge-1.20` (filtre), `MCSTUDIO_E2E_ALL=1` (toutes les
   versions de chaque profil), `MCSTUDIO_E2E_INSTALL_JDK=1` (installe les JDK manquants).
 - `MCSTUDIO_KEEP_TEST_OUTPUT=1 cargo test every_profile_creates` garde les projets générés.
-- `pnpm test` : identifiants, assistant de création, journal, réglages de texture, choix du modèle,
+- `pnpm test` : identifiants, assistant de création, journal, réglages de texture (raccord par face,
+  éléments d'interface), éditeur de pixels (aller-retour base64, remplissage, traits, palette), choix du modèle,
   chemins, message de correction et sélection par défaut de l'assistant IA.
 
 ## Données

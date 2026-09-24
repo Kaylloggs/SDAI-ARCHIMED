@@ -581,6 +581,9 @@ pub struct ImageModel {
     pub description: String,
     /// Le modèle répond aussi du texte (`modalities: ["image", "text"]`).
     pub text_output: bool,
+    /// Le modèle accepte une image en entrée (texture de référence, retouche).
+    #[serde(default)]
+    pub image_input: bool,
 }
 
 #[derive(Debug, Clone, Serialize, TS)]
@@ -592,14 +595,59 @@ pub struct ImageModelList {
     pub offline: bool,
 }
 
-/// Ce qu'une texture habille : un objet, un bloc ou l'icône du mod.
+/// Face d'un bloc dont les faces n'ont pas toutes la même texture.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub enum BlockFace {
+    Top,
+    Bottom,
+    /// Les quatre côtés (colonne, dessus-dessous-côtés).
+    Side,
+    /// Les deux extrémités d'une colonne (bûche, pilier).
+    End,
+    North,
+    South,
+    East,
+    West,
+}
+
+/// Répartition des textures sur les faces d'un bloc (modèle parent du jeu).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub enum BlockLayout {
+    /// Une texture sur les six faces (`cube_all`).
+    All,
+    /// Côtés + extrémités, comme une bûche (`cube_column`).
+    Column,
+    /// Dessus, dessous et côtés (`cube_bottom_top`).
+    BottomTop,
+    /// Six faces différentes (`cube`).
+    Faces,
+    /// Modèle écrit à la main : ses textures ne sont pas réparties par l'atelier.
+    Custom,
+}
+
+/// Ce qu'une texture habille : un objet, un bloc (ou une de ses faces), l'icône du mod ou un
+/// élément d'interface (`textures/gui/`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../src/core/ipc/bindings/")]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum TextureTarget {
-    Item { id: String },
-    Block { id: String },
+    Item {
+        id: String,
+    },
+    Block {
+        id: String,
+        /// `None` : la texture unique du bloc (`cube_all`).
+        #[serde(default)]
+        face: Option<BlockFace>,
+    },
     Icon,
+    Gui {
+        name: String,
+    },
 }
 
 /// Une texture du projet (existante ou attendue par un objet / bloc déclaré).
@@ -620,6 +668,22 @@ pub struct TextureInfo {
     /// Date de modification (ms), pour rafraîchir l'aperçu.
     #[ts(type = "number | null")]
     pub modified: Option<u64>,
+    /// Blocs : répartition des textures sur les faces.
+    pub layout: Option<BlockLayout>,
+}
+
+/// Raccord d'une texture répétée côte à côte.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub enum Tiling {
+    /// Texture unique (face avant, extrémité de bûche, objet).
+    #[default]
+    None,
+    /// Gauche ↔ droite seulement (côté d'un bloc d'herbe : sa bande du haut reste en haut).
+    Horizontal,
+    /// Dans les deux sens (pierre, minerai, planches).
+    Both,
 }
 
 /// Réglages de conversion en pixel-art.
@@ -633,6 +697,20 @@ pub struct PixelOptions {
     pub colors: u32,
     /// Retirer le fond et cadrer l'objet (objets, icône détourée).
     pub transparent: bool,
+    /// Raccord quand la texture est répétée (faces de bloc).
+    #[serde(default)]
+    pub tiling: Tiling,
+    /// Contour sombre d'un pixel autour de l'objet, comme les objets du jeu.
+    #[serde(default)]
+    pub outline: bool,
+    /// Éléments d'interface : taille libre (remplace `size`), 1 à 256 pixels.
+    #[serde(default)]
+    pub width: Option<u32>,
+    #[serde(default)]
+    pub height: Option<u32>,
+    /// Élément posé en haut à gauche d'une toile 256 × 256 (convention des écrans du jeu).
+    #[serde(default)]
+    pub atlas: bool,
 }
 
 /// Origine d'un brouillon de texture.
@@ -640,9 +718,21 @@ pub struct PixelOptions {
 #[ts(export, export_to = "../../src/core/ipc/bindings/")]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum DraftSource {
-    OpenRouter { model: String, prompt: String },
-    Gemini { model: String, prompt: String },
-    File { name: String },
+    OpenRouter {
+        model: String,
+        prompt: String,
+    },
+    Gemini {
+        model: String,
+        prompt: String,
+    },
+    File {
+        name: String,
+    },
+    /// Texture du projet reprise telle quelle pour être retouchée.
+    Project {
+        path: String,
+    },
 }
 
 /// Texture proposée, pas encore écrite dans le projet.
@@ -664,6 +754,90 @@ pub struct TextureDraft {
     /// Augmente à chaque conversion : contourne le cache de l'aperçu.
     pub revision: u32,
     pub created_at: String,
+    /// Retouchée à la main : une nouvelle conversion effacerait ces retouches.
+    #[serde(default)]
+    pub edited: bool,
+    /// Qualité du raccord quand la texture est répétée (0 à 100), textures pleines seulement.
+    #[serde(default)]
+    pub seam: Option<u8>,
+    /// Ce que la conversion a corrigé (cadre retiré, raccord…).
+    #[serde(default)]
+    pub notes: Vec<String>,
+}
+
+/// Pixels d'un brouillon, pour l'éditeur (RVBA, ligne par ligne, en base64).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct PixelData {
+    pub width: u32,
+    pub height: u32,
+    pub rgba: String,
+}
+
+/// Style demandé au modèle d'image.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub enum TextureStyle {
+    /// Textures du jeu de base : palette réduite, léger bruit, lumière en haut à gauche.
+    #[default]
+    Vanilla,
+    /// Plus de détails et de contraste, toujours en pixel-art.
+    Detailed,
+    /// Formes simples, peu de couleurs, aplats.
+    Simple,
+}
+
+/// Comment le texte envoyé au modèle est construit.
+#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct PromptSettings {
+    #[serde(default)]
+    pub style: TextureStyle,
+    /// Consignes ajoutées à la fin (« lumière froide », « bordure dorée »…).
+    #[serde(default)]
+    pub extra: String,
+    /// Une texture de référence accompagne la demande.
+    #[serde(default)]
+    pub with_reference: bool,
+    /// Taille visée (éléments d'interface), pour annoncer le format au modèle.
+    #[serde(default)]
+    pub width: Option<u32>,
+    #[serde(default)]
+    pub height: Option<u32>,
+}
+
+/// Élément d'interface de départ, dessiné sans IA au format des écrans du jeu.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub enum GuiPreset {
+    /// Fond d'écran de conteneur 176 × 166 (toile 256 × 256).
+    Panel,
+    /// Même fond avec l'inventaire du joueur (3 × 9 cases + barre rapide).
+    InventoryPanel,
+    /// Bouton 200 × 20.
+    Button,
+    /// Case d'inventaire 18 × 18.
+    Slot,
+    /// Flèche de progression 24 × 17.
+    Arrow,
+    /// Toile transparente de la taille choisie.
+    Blank,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct GuiRequest {
+    /// Nom du fichier dans `textures/gui/` (minuscules, chiffres, `_`).
+    pub name: String,
+    pub preset: GuiPreset,
+    /// Taille de la toile vide (`Blank`) : 1 à 256.
+    pub width: u32,
+    pub height: u32,
 }
 
 #[derive(Debug, Clone, Deserialize, TS)]
@@ -680,6 +854,14 @@ pub struct TextureRequest {
     pub options: PixelOptions,
     /// Accord explicite pour un modèle payant.
     pub allow_paid: bool,
+    #[serde(default)]
+    pub prompt: PromptSettings,
+    /// Texte envoyé tel quel au modèle, à la place du texte construit.
+    #[serde(default)]
+    pub custom_prompt: Option<String>,
+    /// Texture du projet envoyée en référence (chemin relatif au projet, `.png`).
+    #[serde(default)]
+    pub reference: Option<String>,
 }
 
 // ── Fichiers du projet (explorateur, éditeur) ───────────────────────────────
@@ -765,6 +947,8 @@ pub enum SnapshotKind {
     Ai,
     /// Avant une restauration (pour pouvoir l'annuler).
     Restore,
+    /// Avant un changement fait dans l'atelier des textures (faces d'un bloc).
+    Texture,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

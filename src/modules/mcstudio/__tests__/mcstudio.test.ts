@@ -12,7 +12,7 @@ import {
   suggestPackage,
   suggestRegistryId,
 } from "../lib/naming";
-import { defaultOptions, loadProvider, modelOptions, pickModel, targetKey } from "../lib/textures";
+import { defaultOptions, defaultTiling, loadProvider, modelOptions, pickModel, seamVerdict, targetKey } from "../lib/textures";
 import type { ImageModel } from "@/core/ipc/bindings/ImageModel";
 
 describe("identifiants dérivés du nom", () => {
@@ -103,16 +103,34 @@ describe("formats", () => {
 
 describe("textures", () => {
   const models: ImageModel[] = [
-    { id: "a/free:free", name: "Libre", free: true, description: "", textOutput: false },
-    { id: "b/paid", name: "Payant", free: false, description: "", textOutput: true },
+    { id: "a/free:free", name: "Libre", free: true, description: "", textOutput: false, imageInput: false },
+    { id: "b/paid", name: "Payant", free: false, description: "", textOutput: true, imageInput: true },
   ];
 
   it("règle la conversion selon la cible", () => {
-    expect(defaultOptions({ kind: "item", id: "ruby" })).toEqual({ size: 16, colors: 16, transparent: true });
-    expect(defaultOptions({ kind: "block", id: "ore" }).transparent).toBe(false);
+    expect(defaultOptions({ kind: "item", id: "ruby" })).toMatchObject({ size: 16, colors: 16, transparent: true, tiling: "none" });
+    expect(defaultOptions({ kind: "block", id: "ore", face: null })).toMatchObject({ transparent: false, tiling: "both" });
     expect(defaultOptions({ kind: "icon" }).size).toBe(32);
-    expect(targetKey({ kind: "block", id: "ore" })).toBe("block:ore");
+    expect(targetKey({ kind: "block", id: "ore", face: null })).toBe("block:ore:all");
+    expect(targetKey({ kind: "block", id: "log", face: "end" })).toBe("block:log:end");
+    expect(targetKey({ kind: "gui", name: "forge" })).toBe("gui:forge");
     expect(targetKey({ kind: "icon" })).toBe("icon");
+  });
+
+  it("raccorde chaque face selon son rôle", () => {
+    // Herbe : les côtés ne se raccordent qu'en largeur (bande du haut) ; extrémité de bûche : pas du tout.
+    expect(defaultTiling("side", "bottomTop")).toBe("horizontal");
+    expect(defaultTiling("side", "column")).toBe("both");
+    expect(defaultTiling("top", "bottomTop")).toBe("both");
+    expect(defaultTiling("end", "column")).toBe("none");
+    expect(defaultTiling("north", "faces")).toBe("none");
+    // Écran existant sur une toile 256 × 256 : zone d'un conteneur, toile gardée.
+    const screen = defaultOptions({ kind: "gui", name: "forge" }, { width: 256, height: 256, layout: null, exists: true });
+    expect(screen).toMatchObject({ width: 176, height: 166, atlas: true, transparent: false });
+    const button = defaultOptions({ kind: "gui", name: "b" }, { width: 200, height: 20, layout: null, exists: true });
+    expect(button).toMatchObject({ width: 200, height: 20, atlas: false });
+    expect(seamVerdict(92).tone).toBe("success");
+    expect(seamVerdict(40).tone).toBe("danger");
   });
 
   it("ne propose un modèle payant qu'avec accord", () => {
@@ -129,7 +147,7 @@ describe("textures", () => {
 
   it("présente les modèles Gemini comme facturés par Google", () => {
     const gemini: ImageModel[] = [
-      { id: "gemini-3.1-flash-image", name: "Nano Banana 2", free: false, description: "", textOutput: true },
+      { id: "gemini-3.1-flash-image", name: "Nano Banana 2", free: false, description: "", textOutput: true, imageInput: true },
     ];
     expect(modelOptions(gemini, false, "gemini")).toEqual([
       { value: "gemini-3.1-flash-image", label: "Nano Banana 2", hint: "facturé par Google", disabled: true },

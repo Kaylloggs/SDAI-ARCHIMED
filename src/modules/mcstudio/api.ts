@@ -21,6 +21,10 @@ import type { VersionCatalog } from "@/core/ipc/bindings/VersionCatalog";
 import type { ImageModelList } from "@/core/ipc/bindings/ImageModelList";
 import type { OpenRouterStatus } from "@/core/ipc/bindings/OpenRouterStatus";
 import type { GeminiStatus } from "@/core/ipc/bindings/GeminiStatus";
+import type { BlockLayout } from "@/core/ipc/bindings/BlockLayout";
+import type { GuiRequest } from "@/core/ipc/bindings/GuiRequest";
+import type { PixelData } from "@/core/ipc/bindings/PixelData";
+import type { PromptSettings } from "@/core/ipc/bindings/PromptSettings";
 import type { PixelOptions } from "@/core/ipc/bindings/PixelOptions";
 import type { TextureDraft } from "@/core/ipc/bindings/TextureDraft";
 import type { TextureInfo } from "@/core/ipc/bindings/TextureInfo";
@@ -101,9 +105,19 @@ export const mcstudioApi = {
   setGeminiKey: (key: string) => invokeModule<GeminiStatus>(PLUGIN, "set_gemini_key", { key }),
   clearGeminiKey: () => invokeModule<void>(PLUGIN, "clear_gemini_key"),
   geminiImageModels: () => invokeModule<ImageModelList>(PLUGIN, "gemini_image_models"),
-  /** Texte exact envoyé au modèle pour cette description. */
-  texturePrompt: (target: TextureTarget, description: string) =>
-    invokeModule<string>(PLUGIN, "texture_prompt", { target, description }),
+  /** Texte exact envoyé au modèle pour cette description et ces réglages. */
+  texturePrompt: (target: TextureTarget, description: string, settings: PromptSettings) =>
+    invokeModule<string>(PLUGIN, "texture_prompt", { target, description, settings }),
+  /** Texture du projet reprise dans un brouillon, pour la retoucher au pixel. */
+  editTexture: (id: string, target: TextureTarget) => invokeModule<TextureDraft>(PLUGIN, "edit_texture", { id, target }),
+  draftPixels: (draftId: string) => invokeModule<PixelData>(PLUGIN, "draft_pixels", { draftId }),
+  saveDraftPixels: (draftId: string, data: PixelData) =>
+    invokeModule<TextureDraft>(PLUGIN, "save_draft_pixels", { draftId, data }),
+  /** Réécrit le modèle du bloc (point de restauration avant) ; renvoie ses faces. */
+  setBlockLayout: (id: string, block: string, layout: BlockLayout, replaceCustom: boolean) =>
+    invokeModule<TextureInfo[]>(PLUGIN, "set_block_layout", { id, block, layout, replaceCustom }),
+  createGuiTexture: (id: string, request: GuiRequest) =>
+    invokeModule<TextureInfo>(PLUGIN, "create_gui_texture", { id, request }),
   listTextures: (id: string) => invokeModule<TextureInfo[]>(PLUGIN, "list_textures", { id }),
   generateTexture: (id: string, request: TextureRequest) =>
     invokeModule<TextureDraft>(PLUGIN, "generate_texture", { id, request }),

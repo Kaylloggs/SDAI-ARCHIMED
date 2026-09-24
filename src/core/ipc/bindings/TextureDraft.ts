@@ -18,4 +18,16 @@ pixelPath: string, options: PixelOptions,
 /**
  * Augmente à chaque conversion : contourne le cache de l'aperçu.
  */
-revision: number, createdAt: string, };
+revision: number, createdAt: string, 
+/**
+ * Retouchée à la main : une nouvelle conversion effacerait ces retouches.
+ */
+edited: boolean, 
+/**
+ * Qualité du raccord quand la texture est répétée (0 à 100), textures pleines seulement.
+ */
+seam: number | null, 
+/**
+ * Ce que la conversion a corrigé (cadre retiré, raccord…).
+ */
+notes: Array<string>, };
