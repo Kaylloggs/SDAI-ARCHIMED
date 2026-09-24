@@ -528,10 +528,11 @@ mod tests {
 
     #[test]
     fn system_prompt_never_goes_through_a_batch_script() {
-        assert!(uses_prompt_flag(true, std::path::Path::new("C:/bin/claude.exe")));
-        assert!(!uses_prompt_flag(true, std::path::Path::new("C:/npm/claude.cmd")));
-        assert!(!uses_prompt_flag(true, std::path::Path::new("C:/npm/CLAUDE.BAT")));
-        assert!(uses_prompt_flag(true, std::path::Path::new("/usr/local/bin/claude")));
-        assert!(!uses_prompt_flag(false, std::path::Path::new("C:/bin/agy.exe")));
+        use std::path::Path;
+        assert!(uses_prompt_flag(true, Path::new("C:/bin/claude.exe")));
+        assert!(!uses_prompt_flag(true, Path::new("C:/npm/claude.cmd")));
+        assert!(!uses_prompt_flag(true, Path::new("C:/npm/CLAUDE.BAT")));
+        assert!(uses_prompt_flag(true, Path::new("/usr/local/bin/claude")));
+        assert!(!uses_prompt_flag(false, Path::new("C:/bin/agy.exe")));
     }
 }
