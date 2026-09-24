@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, ChevronRight, GitCompareArrows, Hammer, Loader2, RefreshCw, RotateCcw, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronRight, GitCompareArrows, Hammer, Loader2, Minus, RefreshCw, RotateCcw, X } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { DiffView } from "@/core/cards/DiffView";
 import { diffLines, diffStats } from "@/core/lib/diff";
@@ -12,13 +12,13 @@ import { useMcStudioStore } from "../../store";
 import { Checker, focusRing, PixelImage } from "../ui";
 import { problemsSummary } from "./ProblemsPanel";
 
-/** Case à cocher aux couleurs du thème (pas de case native, design.md §7.4). */
-function Tick({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) {
+/** Case à cocher aux couleurs du thème (pas de case native, design.md §7.4). `mixed` : une partie cochée. */
+function Tick({ checked, mixed = false, onChange, label }: { checked: boolean; mixed?: boolean; onChange: () => void; label: string }) {
   return (
     <button
       type="button"
       role="checkbox"
-      aria-checked={checked}
+      aria-checked={mixed ? "mixed" : checked}
       aria-label={label}
       onClick={(event) => {
         event.stopPropagation();
@@ -26,11 +26,11 @@ function Tick({ checked, onChange, label }: { checked: boolean; onChange: () => 
       }}
       className={cn(
         "flex size-4 shrink-0 items-center justify-center rounded-xs border transition-colors",
-        checked ? "border-accent bg-accent text-accent-fg" : "border-border-strong bg-surface-1",
+        checked || mixed ? "border-accent bg-accent text-accent-fg" : "border-border-strong bg-surface-1",
         focusRing,
       )}
     >
-      {checked && <Check size={11} strokeWidth={3} />}
+      {mixed ? <Minus size={11} strokeWidth={3} /> : checked && <Check size={11} strokeWidth={3} />}
     </button>
   );
 }
@@ -150,6 +150,9 @@ export function ChangesPanel({
   }, [signature]);
 
   const chosen = changes.filter((change) => selected.has(change.path)).map((change) => change.path);
+  const allChosen = changes.length > 0 && chosen.length === changes.length;
+  // Tout est coché : tout se décoche ; sinon tout se coche.
+  const toggleAll = () => setSelected(allChosen ? new Set() : new Set(changes.map((change) => change.path)));
   const toggle = (path: string) =>
     setSelected((current) => {
       const next = new Set(current);
@@ -224,17 +227,37 @@ export function ChangesPanel({
             supprime apparaît ici, et n'entre dans le projet que si vous l'appliquez.
           </p>
         ) : (
-          <ul aria-label="Fichiers modifiés par l'IA">
-            {changes.map((change) => (
-              <ChangeRow
-                key={change.path}
-                change={change}
-                selected={selected.has(change.path)}
-                onToggle={() => toggle(change.path)}
-                revision={revision}
+          <>
+            <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-bg-subtle px-3 py-2">
+              <Tick
+                checked={allChosen}
+                mixed={chosen.length > 0 && !allChosen}
+                onChange={toggleAll}
+                label={allChosen ? "Tout décocher" : "Tout cocher"}
               />
-            ))}
-          </ul>
+              <button
+                type="button"
+                onClick={toggleAll}
+                className={cn("rounded-xs text-footnote font-medium text-text-muted hover:text-text", focusRing)}
+              >
+                {allChosen ? "Tout décocher" : "Tout cocher"}
+              </button>
+              <span className="ml-auto text-caption tabular-nums text-text-subtle">
+                {chosen.length} sur {changes.length}
+              </span>
+            </div>
+            <ul aria-label="Fichiers modifiés par l'IA">
+              {changes.map((change) => (
+                <ChangeRow
+                  key={change.path}
+                  change={change}
+                  selected={selected.has(change.path)}
+                  onToggle={() => toggle(change.path)}
+                  revision={revision}
+                />
+              ))}
+            </ul>
+          </>
         )}
       </div>
 
