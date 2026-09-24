@@ -1,0 +1,12 @@
+# Moteur de recherche d'annonces (JobSpy vendorisé + sources ARCHIMED).
+requests>=2.31
+beautifulsoup4>=4.12
+pydantic>=2.3
+tls-client>=1.0.1
+markdownify>=1.1
+regex>=2024.4.28
+# Serveur MCP pour le CLI Claude (gratuit, Apache-2.0).
+fastmcp>=2.0
+# Lecture du CV importé (PDF, DOCX).
+pypdf>=4.2
+python-docx>=1.1

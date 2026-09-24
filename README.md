@@ -1,6 +1,6 @@
 # SDAI ARCHIMED
 
-An evolutive, modular desktop app uniting **Claude Code**, **Antigravity** and **Codex** with their full agentic capabilities in a single interface. It features a VS Code-like editor, a modern chat, skills management, a task planner and an AI memory. Its plug-and-play architecture lets you enable, disable or create modules on the fly. Powered by **Tauri 2 & Rust**.
+An evolutive, modular desktop app uniting **Claude Code**, **Antigravity** and **Codex** with their full agentic capabilities in a single interface. It features a VS Code-like editor, a modern chat, skills management, a task planner, an AI memory and a job-search agent. Its plug-and-play architecture lets you enable, disable or create modules on the fly. Powered by **Tauri 2 & Rust**.
 
 > Windows 10/11 desktop app · free and open source (MIT) · made by **SearaDesign**
 
@@ -56,6 +56,13 @@ ARCHIMED does not replace the CLIs: it drives the ones installed on your machine
 - Import a `.txt`, `.md` or `.json` file to add many entries at once.
 - Active entries are sent at the start of each new conversation, with an exact preview.
 
+### 💼 Job search (`jobagent` module)
+- Search several jobs, countries and cities at once on Indeed, LinkedIn, Glassdoor, ZipRecruiter, Google Jobs, **HelloWork** and **Welcome to the Jungle** (built on [JobSpy](https://github.com/speedyapply/JobSpy)), with filters for contract type, education level, freshness and remote work.
+- Review hundreds of results quickly: collapsible sections, exclusive tabs (to review, all, favorites, applications), multi-select, keyboard triage (`F` favorite, `Del` delete, undo with `Ctrl+Z`), and a world map with one dot per city.
+- Optionally find a recruiting address on each company's website during the search (reads `robots.txt`, four pages at most per company).
+- Cover letters and emails written by Antigravity from your French or English CV, in a natural style; batch sending over SMTP after a single confirmation that lists every recipient.
+- The chat agents can search too: the module exposes its tools over MCP, switched on from the module, with no command to type.
+
 ### 📊 Credits (`usage` module)
 - Remaining subscription limits reported by Claude (5-hour and 7-day windows).
 - Tokens, estimated cost and time spent per CLI and per day.
@@ -70,6 +77,7 @@ ARCHIMED is built to be **infinitely evolutive**:
 - **Toggle anytime**: enable or disable any module in Settings, with no side effects.
 - **Add modules on demand**: scaffold one with `pnpm new:module <id>`.
 - **Extension points**: slots (UI contributions), services and events let modules cooperate without depending on each other.
+- **Tools for the agents**: a module can declare an MCP server; ARCHIMED merges these declarations and hands them to every Claude session automatically.
 
 ### Shipped modules
 
@@ -81,10 +89,11 @@ ARCHIMED is built to be **infinitely evolutive**:
 | `skills` | Skills library, activation and sync to the CLIs |
 | `planner` | Task boards, calendar view, `roadmap.md` sync, Google Calendar / `.ics` |
 | `memory` | Information you give the AIs, per project or global, importable from a file |
+| `jobagent` | Multi-platform job search, review, cover letters and batch applications |
 | `usage` | Subscription limits and token usage per CLI |
 | `settings` | Themes, CLI detection, modules, data |
 
-Planned: system file manager, voice dictation, local image generation, agent workflow automations.
+Planned: system file manager, local image generation, agent workflow automations.
 
 ---
 
@@ -100,6 +109,7 @@ Planned: system file manager, voice dictation, local image generation, agent wor
 | **Rust** (MSVC toolchain) | stable, 1.85 or newer | [rustup.rs](https://rustup.rs) | `rustc -V` |
 | **Visual Studio Build Tools** | 2022 | [Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/), select **"Desktop development with C++"** | — |
 | **WebView2** | — | built into Windows 11 ([installer](https://developer.microsoft.com/microsoft-edge/webview2/) for Windows 10) | — |
+| **Python** (optional) | 3.10 or newer | [python.org](https://www.python.org/downloads/) — only for the `jobagent` module, which installs its own environment | `python --version` |
 
 ### 2. Install at least one AI CLI
 
@@ -177,6 +187,7 @@ Internal docs (guidelines, architecture, design, changelog) are written in Frenc
 - Everything stays on your machine: conversations, memory, boards and settings live in `%APPDATA%\com.sdai.archimed\`.
 - ARCHIMED never launches a CLI with `--dangerously-skip-permissions`. Permissions go through its own risk policy, and every decision is written to a local audit log.
 - Programs (`.exe`, `.bat`, `.ps1`…) are never launched from a link in the chat.
+- Job applications are never sent without an explicit confirmation listing every recipient. The SMTP password is encrypted with Windows DPAPI and never read back by the interface.
 
 ## 🤝 Contributing
 
@@ -187,5 +198,7 @@ Issues and pull requests are welcome. Read [`guidelines.md`](guidelines.md) firs
 [MIT](LICENSE) © 2026 SearaDesign. Free to use, modify and share, as long as the copyright notice is kept.
 
 The token saver bundles the Caveman skill by Julius Brussee (MIT, see `src/core/engine/prompts/caveman.LICENSE`); ARCHIMED is not affiliated with Caveman.
+
+The `jobagent` module vendors [JobSpy](https://github.com/speedyapply/JobSpy) (MIT, see `src-tauri/src/modules/jobagent/engine/LICENSE.jobspy`) and ships city data from [GeoNames](https://www.geonames.org/) (CC BY 4.0) and country outlines from [Natural Earth](https://www.naturalearthdata.com/) (public domain). Job boards' terms of use apply to the searches you run.
 
 Claude, Antigravity and Codex are trademarks of their respective owners. ARCHIMED is an independent project, not affiliated with Anthropic, Google or OpenAI.

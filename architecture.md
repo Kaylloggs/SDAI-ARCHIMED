@@ -104,6 +104,9 @@ SDAI ARCHIMED/
 │       │   ├── components/              # BoardSidebar · BoardView · CardItem · CardPanel
 │       │   ├── lib/                     # board (synchro roadmap) · extract · calendar
 │       │   └── slots/                   # MessageActions (chat) · RoadmapFooter (code)
+│       ├── jobagent/                    # Recherche d'emploi : module.config · index · api · store · types · README
+│       │   ├── components/              # SearchForm · OfferList · OfferPanel · ApplyPanel · BatchPanel · WorldMap
+│       │   └── lib/                     # triage (onglets, sélection) · batch (envois) · cv (langue)
 │       ├── usage/                       # Crédits : module.config · index · api · lib/format · README
 │       ├── memory/                      # Mémoire : index · api · services/context · README
 │       ├── skills/                      # module.config · index · api · README
@@ -141,6 +144,8 @@ SDAI ARCHIMED/
             ├── usage/                   # résumé du registre, compte et limites Claude
             ├── memory/                  # notes.json (activables, par projet), bloc de contexte injecté
             ├── planner/                 # boards.json, roadmap.rs (parse/réécriture), ics.rs, watcher notify
+            ├── jobagent/                # moteur Python embarqué (engine/ : JobSpy + archimed_jobagent),
+            │                            # service.rs, letters.rs (Antigravity), secrets.rs (DPAPI), serveur MCP
             └── skills/                  # module.toml · mod.rs · commands.rs
                                          # · service.rs · types.rs
 ```
@@ -252,6 +257,7 @@ fn main() {
 | Service | `system.fs` / `system.shell` | core | actions système passant par la policy |
 | Service | `notify.toast` | core | notifications UI |
 | Événement backend | `planner:roadmap-changed` | planner | un roadmap.md surveillé a changé sur disque |
+| Événement backend | `jobagent:progress`, `jobagent:install` | jobagent | avancement d'une recherche, journal d'installation du moteur |
 | Événement backend | `code:fs-changed` | code | fichiers du projet ouvert créés, modifiés ou supprimés (`{ root, dirs, files }`, regroupés sur 250 ms) |
 | Événement | `engine.turn.completed` | core (session.store) | fin d'un tour d'agent : demande, réponse, outils utilisés |
 | Événement | `skills.changed`, `settings.changed`, `modules.changed`, `engine.cli_detected` | core/modules | |
@@ -514,6 +520,7 @@ arrête son processus puis efface son entrée.
 | Chemins de CLI forcés | `%APPDATA%\com.sdai.archimed\engine.json` |
 | Adaptateurs déclaratifs | `%APPDATA%\com.sdai.archimed\adapters\*.toml` |
 | Tableaux du Planner | `%APPDATA%\com.sdai.archimed\modules\planner\boards.json` |
+| Offres, profil, CV et compte d'envoi de JobAgent | `%APPDATA%\com.sdai.archimed\modules\jobagent\` (mot de passe SMTP chiffré par DPAPI) |
 | Journal d'audit | `%APPDATA%\com.sdai.archimed\logs\audit.jsonl` (rotation 5 Mo) |
 | Skills | `%APPDATA%\com.sdai.archimed\skills\` |
 | Logs | `%APPDATA%\com.sdai.archimed\logs\` (`app.log` rotatif, `audit.jsonl`) |

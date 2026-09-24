@@ -1,0 +1,2 @@
+id = "jobagent"
+commands = ["status", "install_engine", "search", "cancel_search", "offer_detail", "sources", "load_state", "save_state", "load_profile", "save_profile", "import_cv", "clear_cv", "write_letter", "save_text", "set_mcp", "mail_settings", "save_mail_settings", "smtp_hint", "send_application"]
