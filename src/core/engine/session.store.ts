@@ -31,8 +31,21 @@ export type TimelineItem =
 
 export type SessionStatus = "idle" | "starting" | "running" | "awaiting" | "ended" | "error";
 
-/** Module qui a créé la conversation : chaque module n'affiche que les siennes. */
-export type SessionOrigin = "chat" | "code";
+/**
+ * Module qui a créé la conversation : chaque module n'affiche que les siennes. Ouvert :
+ * un module tiers passe son identifiant (`"mcstudio"`…).
+ */
+export type SessionOrigin = "chat" | "code" | (string & {});
+
+/**
+ * Consignes d'un module pour les sessions d'une conversation (miroir de
+ * `SessionOptions`, src-tauri/src/engine/event.rs) : prompt système ajouté quand la CLI le
+ * permet, sinon placé en tête du premier message ; outils refusés d'office (Claude).
+ */
+export type SessionOptions = {
+  appendSystemPrompt?: string | null;
+  disallowedTools?: string[];
+};
 
 /**
  * Une conversation persistée. Son identité (`id`) survit à l'arrêt du processus CLI :
@@ -56,6 +69,8 @@ export type ChatSession = {
   raw: string;
   usage: { inputTokens: number; outputTokens: number; costUsd: number | null };
   pendingPromptId: string | null;
+  /** Consignes du module, repassées à chaque (re)lancement de la CLI. */
+  options?: SessionOptions;
   /** Action en cours de l'agent (non persisté). */
   activity: { phase: ActivityPhase; label: string | null; since: number } | null;
   /** Début du tour en cours, pour mesurer la durée si la CLI ne la fournit pas. */
@@ -73,6 +88,7 @@ type Store = {
     autoMode: AutoMode;
     origin?: SessionOrigin;
     title?: string;
+    options?: SessionOptions;
     /** `false` : ne change pas la conversation active du module Chat. */
     activate?: boolean;
   }) => string;
@@ -98,7 +114,7 @@ export const useSessionStore = create<Store>()(
       sessions: [],
       activeId: null,
 
-      createSession: ({ adapter, model, cwd, autoMode, origin = "chat", title, activate = true }) => {
+      createSession: ({ adapter, model, cwd, autoMode, origin = "chat", title, options, activate = true }) => {
         const id = crypto.randomUUID();
         const now = Date.now();
         const session: ChatSession = {
@@ -118,6 +134,7 @@ export const useSessionStore = create<Store>()(
           raw: "",
           usage: { inputTokens: 0, outputTokens: 0, costUsd: null },
           pendingPromptId: null,
+          ...(options ? { options } : {}),
           activity: null,
           turnStartedAt: null,
         };

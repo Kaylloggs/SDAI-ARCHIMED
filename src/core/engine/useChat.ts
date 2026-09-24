@@ -88,6 +88,7 @@ export function useChat() {
       autoMode: chat.autoMode,
       resume: chat.cliSessionId ?? null,
       tuning: engineTuning(),
+      options: chat.options,
       onEvent: channel,
     });
 

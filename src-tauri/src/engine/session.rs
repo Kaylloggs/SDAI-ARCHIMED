@@ -44,6 +44,8 @@ pub struct SpawnRequest {
     pub resume: Option<String>,
     /// Réglages d'économie de tokens (Réglages).
     pub tuning: super::event::EngineTuning,
+    /// Consignes du module qui ouvre la session.
+    pub options: super::event::SessionOptions,
 }
 
 /// Démarre le processus CLI et la boucle de session.
@@ -60,6 +62,7 @@ pub fn spawn(
         auto_mode,
         resume,
         tuning,
+        options,
     } = request;
     let binary = adapters::resolve_binary(adapter.as_ref(), binary_overrides)
         .ok_or_else(|| AppError::cli_missing(adapter.missing_hint()))?;
@@ -75,7 +78,7 @@ pub fn spawn(
             super::pty_session::PtySpawn {
                 session_id: id.clone(),
                 binary: &binary,
-                args: adapter.spawn_args(super::event::LaunchOptions { model: model.as_deref(), resume: resume.as_deref(), auto_mode, cwd: cwd.as_deref(), tuning: &tuning, mcp_config: crate::core::mcp::merged().as_deref() }),
+                args: adapter.spawn_args(super::event::LaunchOptions { model: model.as_deref(), resume: resume.as_deref(), auto_mode, cwd: cwd.as_deref(), tuning: &tuning, mcp_config: crate::core::mcp::merged().as_deref(), session: &options }),
                 cwd,
                 auto_mode,
                 extra_rules: adapter.prompt_rules(),
@@ -89,12 +92,20 @@ pub fn spawn(
         });
     }
 
+    // Consignes en tête du message, pour les CLI sans option de prompt système : au premier
+    // message d'une nouvelle conversation, ou à chaque message pour une CLI sans mémoire.
+    let mut preface = options
+        .append_system_prompt
+        .clone()
+        .filter(|text| !text.trim().is_empty() && !adapter.supports_system_prompt())
+        .filter(|_| resume.is_none() || adapter.closes_stdin_after_message());
     let launch = Launch {
         session_id: id.clone(),
         binary,
         model: model.clone(),
         cwd,
         tuning,
+        options,
         channel: channel.clone(),
     };
     let process = launch.start(adapter.as_ref(), resume.as_deref(), auto_mode)?;
@@ -134,7 +145,7 @@ pub fn spawn(
                 Some(line) = process.lines.recv() => {
                     // Console brute : le flux tel que la CLI l'émet (une ligne JSON par événement).
                     let _ = channel.send(EngineEvent::RawOutput { chunk: format!("{line}\n") });
-                    let ctx = DecodeCtx { session_id: &session_id, auto_mode };
+                    let ctx = DecodeCtx { session_id: &session_id, auto_mode, cwd: launch.cwd.as_deref() };
                     for event in adapter.decode_line(&line, &ctx) {
                         record_usage(&adapter_id, &model_label, &event);
                         match &event {
@@ -147,7 +158,7 @@ pub fn spawn(
                             _ => {}
                         }
                         if let EngineEvent::Prompt { prompt } = &event {
-                            let auto = try_auto_resolve(prompt, auto_mode);
+                            let auto = try_auto_resolve(prompt, auto_mode, launch.cwd.as_deref());
                             prompts.insert(prompt.prompt_id.clone(), prompt.clone());
                             let _ = channel.send(event.clone());
 
@@ -179,6 +190,16 @@ pub fn spawn(
                 Some(command) = rx.recv() => {
                     match command {
                         SessionCommand::Send(text) => {
+                            let text = match &preface {
+                                Some(instructions) => {
+                                    let framed = format!("[Consignes]\n{instructions}\n\n[Demande]\n{text}");
+                                    if !adapter.closes_stdin_after_message() {
+                                        preface = None;
+                                    }
+                                    framed
+                                }
+                                None => text,
+                            };
                             let payload = adapter.encode_user_message(&text);
                             if let Err(error) = write_line(&mut process.stdin, &payload).await {
                                 let _ = channel.send(EngineEvent::Error {
@@ -285,6 +306,7 @@ struct Launch {
     model: Option<String>,
     cwd: Option<String>,
     tuning: super::event::EngineTuning,
+    options: super::event::SessionOptions,
     channel: Channel<EngineEvent>,
 }
 
@@ -305,6 +327,7 @@ impl Launch {
                 tuning: &self.tuning,
                 // Outils fournis par les modules : ils suivent chaque relance de la CLI.
                 mcp_config: crate::core::mcp::merged().as_deref(),
+                session: &self.options,
             }))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -395,7 +418,11 @@ fn record_usage(adapter: &str, model: &str, event: &EngineEvent) {
 }
 
 /// Décide si le Mode Auto peut répondre seul. `None` = demander à l'utilisateur.
-fn try_auto_resolve(prompt: &InteractivePrompt, mode: AutoMode) -> Option<bool> {
+fn try_auto_resolve(prompt: &InteractivePrompt, mode: AutoMode, cwd: Option<&str>) -> Option<bool> {
+    let target = match &prompt.detail {
+        Some(super::event::PromptDetail::Diff { path, .. }) => Some(path.as_str()),
+        _ => None,
+    };
     let payload = prompt
         .detail
         .as_ref()
@@ -407,7 +434,13 @@ fn try_auto_resolve(prompt: &InteractivePrompt, mode: AutoMode) -> Option<bool> 
         })
         .unwrap_or_default();
 
-    let decision = policy::evaluate(prompt.tool.as_deref().unwrap_or(""), &payload, mode);
+    let decision = policy::evaluate_in(
+        prompt.tool.as_deref().unwrap_or(""),
+        &payload,
+        target,
+        cwd,
+        mode,
+    );
     match decision.verdict {
         Verdict::Allow => Some(true),
         Verdict::Deny => Some(false),

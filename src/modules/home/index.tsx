@@ -128,6 +128,9 @@ export default function HomeModule() {
   const openSession = (id: string, origin: string, cwd: string | null) => {
     if (origin === "code" && cwd) {
       openModule("code", { cwd });
+    } else if (origin !== "chat" && modules.some((m) => m.id === origin)) {
+      // Conversation d'un autre module (Mod Studio…) : il sait la retrouver.
+      openModule(origin, { conversationId: id });
     } else {
       setActive(id);
       navigate("chat");

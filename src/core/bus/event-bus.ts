@@ -13,7 +13,8 @@ export type BusEvents = {
   /** Fin d'un tour d'agent (voir `turnSummary`, session.store.ts). */
   "engine.turn.completed": {
     conversationId: string;
-    origin: "chat" | "code";
+    /** Module qui a créé la conversation (`chat`, `code`, `mcstudio`…). */
+    origin: string;
     title: string;
     adapter: string;
     cwd: string | null;

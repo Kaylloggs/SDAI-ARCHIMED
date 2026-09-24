@@ -108,6 +108,7 @@ pub async fn refresh_claude_limits(binary: &Path) -> AppResult<AdapterLimits> {
         tuning: &crate::engine::event::DEFAULT_TUNING,
         // Sonde de limites : inutile de charger les outils des modules.
         mcp_config: None,
+        session: &crate::engine::event::DEFAULT_SESSION_OPTIONS,
     });
 
     let mut child = crate::core::process::async_command(binary)
@@ -128,6 +129,7 @@ pub async fn refresh_claude_limits(binary: &Path) -> AppResult<AdapterLimits> {
     let ctx = DecodeCtx {
         session_id: "usage-probe",
         auto_mode: AutoMode::Off,
+        cwd: None,
     };
     let read = async {
         let mut lines = BufReader::new(stdout).lines();

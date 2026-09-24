@@ -62,7 +62,8 @@ SDAI ARCHIMED/
 │   ├── 0002-modules-as-inline-tauri-plugins.md
 │   ├── 0003-mcstudio-real-builds-and-version-profiles.md
 │   ├── 0004-mcstudio-jdk-downloads.md
-│   └── 0005-mcstudio-openrouter-textures.md
+│   ├── 0005-mcstudio-openrouter-textures.md
+│   └── 0006-module-sessions-and-mcstudio-agent.md
 ├── scripts/
 │   ├── new-module.mjs                   # pnpm new:module <id> [--category] [--backend]
 │   └── check-modules.mjs                # invariants de modularité (pnpm check)
@@ -218,8 +219,15 @@ const channel = new Channel<EngineEvent>();
 channel.onmessage = (e) => useSessionStore.getState().apply(sessionId, e);
 const { sessionId } = await invokeCore("engine_start_session", {
   adapter: "claude", model: "claude-opus-5", cwd, autoMode: "off", onEvent: channel,
+  // Facultatif, pour un module : consignes et outils refusés (SessionOptions).
+  options: { appendSystemPrompt: "Projet Fabric 1.21.1…", disallowedTools: ["WebSearch"] },
 });
 ```
+
+`SessionOptions` (ADR 0006) : Claude reçoit `--append-system-prompt` et `--disallowedTools` ;
+les CLI sans option équivalente (`supports_system_prompt() == false`) reçoivent les consignes en
+tête du premier message d'une nouvelle conversation (de chaque message pour une CLI sans
+mémoire, comme `codex exec`). Les adaptateurs PTY déclaratifs ne les reçoivent pas.
 
 ---
 
@@ -483,7 +491,9 @@ Exemple : le chat détecte un projet via le service `code.project`, propose une 
 et ouvre le module Code sur le dossier de la conversation.
 
 ### 7.9 Conversations multiples
-Chaque conversation porte une **origine** (`chat` | `code`) : un module n'affiche que les siennes,
+Chaque conversation porte une **origine** (`chat`, `code`, ou l'identifiant d'un module comme
+`mcstudio`, ADR 0006) : un module n'affiche que les siennes, l'accueil rouvre la conversation
+dans son module (`openModule(origine, { conversationId })`),
 et la conversation active du Chat n'est jamais modifiée par le module Code.
 Une **conversation** (frontend, persistée) est distincte d'une **session moteur** (processus CLI vivant) :
 `ChatSession.engineSessionId` vaut `null` tant qu'aucun processus ne tourne. Le premier message
@@ -499,10 +509,10 @@ arrête son processus puis efface son entrée.
 |---|---|---|---|---|
 | Low | lecture fichier, `ls`, recherche web | Ask | Allow | Allow |
 | Medium | édition dans le dossier de travail, `pnpm install` | Ask | Allow | Allow |
-| High | suppression, commande hors dossier de travail, téléchargement d'exécutable | Ask | Ask | Allow |
+| High | suppression, **modification de fichier hors du dossier de travail**, commande hors dossier de travail, téléchargement d'exécutable | Ask | Ask | Allow |
 | Critical | `rm -rf`/`Remove-Item -Recurse` sur racine ou profil, `format`, `reg delete`, `bcdedit`, désactivation antivirus, lecture de fichiers d'identifiants | Ask | Ask | **Ask** |
 
-- Classification dans `risk.rs` : outil + chemins (dans/hors `cwd`) + motifs de commande (liste versionnée et testée).
+- Classification dans `policy.rs` : outil + chemins (dans/hors `cwd`, comparaison lexicale insensible à la casse, `..` résolus : `classify_in` / `evaluate_in`) + motifs de commande (liste versionnée et testée).
 - Le Mode Auto se règle **par session** (toggle dans le composer) avec un défaut global.
 - Chaque décision → `audit.jsonl` + chip « Auto-validé » dans la timeline (cliquable pour voir le détail).
 

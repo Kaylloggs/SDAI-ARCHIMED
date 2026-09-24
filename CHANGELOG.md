@@ -4,6 +4,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Modifié — Moteur (ADR 0006)
+- **Mode Auto plus sûr** : en « Smart », une modification de fichier **hors du dossier de travail**
+  de la conversation (chemin absolu ailleurs, `..`, `~`) n'est plus validée d'office : elle est
+  demandée, pour tous les modules.
+- Les modules peuvent ouvrir leurs propres conversations (origine libre, rouvertes depuis
+  l'accueil dans leur module) et leur passer des consignes : prompt système ajouté (Claude
+  `--append-system-prompt`, sinon en tête du premier message) et outils refusés
+  (`--disallowedTools`).
+
 ### Ajouté — Mod Studio : points de restauration (phase F)
 - Tableau de bord → **Points de restauration** : création à la main (tous les fichiers du
   projet), restauration confirmée et **annulable** (l'état courant est sauvegardé d'abord),
