@@ -21,7 +21,7 @@ un dossier Gradle autonome : il se compile aussi sans ARCHIMED (`gradlew build`)
 | T | Textures par IA (OpenRouter, clé de la personne), import d'image, conversion pixel-art, ajout d'objets et de blocs | ✓ (testé contre un faux OpenRouter local) |
 | D | Explorateur et éditeur (`CodeEditor`/`FileTree` déplacés dans `core/editor`) | ✓ |
 | E | Validateur (JSON/TOML ligne/colonne, références, format de la version) et panneau Problèmes | ✓ |
-| F | Snapshots, historique, undo/redo, relecture des diffs | à venir |
+| F | Points de restauration (annulables), vrai diff dans `core/lib/diff` | ✓ |
 | G–I | Agent IA de code via les CLI (plan structuré, copie de travail, auto-fix borné) | à venir |
 | J–M | `runClient`/`runServer`, import de projets, audit/portage, export ZIP | à venir |
 
@@ -133,6 +133,16 @@ fichier à la ligne, lignes surlignées dans l'éditeur) et sur le tableau de bo
 
 Les 23 profils génèrent des projets qui passent cette vérification sans aucun problème (test).
 
+## Points de restauration
+
+Tableau de bord → **Points de restauration** : copie de tous les fichiers du projet (hors
+builds, caches, `.git`), à la main ; Mod Studio en prend un automatiquement avant d'appliquer
+des modifications proposées par une IA (seulement les fichiers touchés). **Restaurer** remet
+ces fichiers dans leur état d'alors ; ceux qui n'existaient pas partent à la Corbeille. L'état
+courant est d'abord sauvegardé : une restauration s'annule en restaurant ce nouveau point.
+Supprimer un point le met à la Corbeille. Stockage : `<projet>/.mcstudio/snapshots/<id>/`
+(`manifest.json` + copies), restaurations auditées.
+
 ## Textures : IA (OpenRouter) ou image importée
 
 Onglet **Textures** d'un projet : l'icône, les objets et les blocs (présents, ou déclarés sans
@@ -214,6 +224,7 @@ Textures : `openrouter_status` · `set_openrouter_key` · `clear_openrouter_key`
 Build : `build_project` · `cancel_build` · `list_builds` · `read_build_log`
 Fichiers : `list_files` · `read_project_file` · `write_project_file` · `create_project_file` ·
 `rename_project_file` · `trash_project_file` · `validate_project`
+Restauration : `list_snapshots` · `create_snapshot` · `restore_snapshot` · `delete_snapshot`
 
 ## Tests
 
@@ -223,7 +234,8 @@ Fichiers : `list_files` · `read_project_file` · `write_project_file` · `creat
   rares, palette), brouillons et historique des textures, client OpenRouter contre un faux serveur
   local (clé, modèles, image en data URL, erreurs 401/429), fichiers (sortie du projet refusée,
   liens symboliques, conflit d'écriture, état interne protégé), validateur (syntaxe localisée,
-  formats par version, références cassées ; chaque projet généré passe sans problème).
+  formats par version, références cassées ; chaque projet généré passe sans problème), points de
+  restauration (fichiers remis, fichiers créés retirés, restauration elle-même annulable).
 - `cargo test mcstudio::e2e -- --ignored --nocapture` : crée **TestMod** (1 objet, 1 bloc, recettes)
   pour la version la plus récente de chaque profil et le compile vraiment ; affiche
   `MODULE BASIC PIPELINE = OK (…)` par version et un bilan final. Options :

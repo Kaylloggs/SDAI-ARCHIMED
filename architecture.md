@@ -85,10 +85,10 @@ SDAI ARCHIMED/
 │   │   ├── engine/                      # types · engine.api · useAdapters · useChat · tokenSaver (mode caveman)
 │   │   │                                # · prompts/ (caveman.md embarqué) · useAutoContinue
 │   │   │                                # · session.store (conversations persistées) · __tests__
-│   │   ├── cards/                       # PromptCard · DiffView · ToolCallCard
+│   │   ├── cards/                       # PromptCard · DiffView (diff unifié numéroté) · ToolCallCard
 │   │   ├── bus/event-bus.ts
 │   │   ├── stores/                      # modules.store · ui.store · theme.store
-│   │   └── lib/cn.ts
+│   │   └── lib/                         # cn · diff (Myers : lignes, blocs, compteurs)
 │   ├── design-system/
 │   │   ├── tokens.css                   # source de vérité visuelle (@theme Tailwind v4)
 │   │   ├── themes.ts                    # presets de thème (Archimède, Papier, Tokyo Néon…)
@@ -159,7 +159,8 @@ SDAI ARCHIMED/
             │                            # gradle (build réel), diagnostics, java (détection JDK), jdk (installation
             │                            # Adoptium vérifiée SHA-256), projects, textures (PNG), openrouter (clé,
             │                            # modèles d'image), pixelart (conversion), artwork (brouillons, application),
-            │                            # files (explorateur confiné), validator (vérification sans compiler)
+            │                            # files (explorateur confiné), validator (vérification sans compiler),
+            │                            # snapshots (points de restauration)
             ├── jobagent/                # moteur Python embarqué (engine/ : JobSpy + archimed_jobagent),
             │                            # service.rs, letters.rs (Antigravity), secrets.rs (DPAPI), serveur MCP
             └── skills/                  # module.toml · mod.rs · commands.rs
@@ -540,7 +541,7 @@ arrête son processus puis efface son entrée.
 | Clé OpenRouter de Mod Studio | Gestionnaire d'identifiants Windows (`mcstudio-openrouter.com.sdai.archimed`) |
 | Brouillons de textures, modèles d'image connus | `%APPDATA%\com.sdai.archimed\modules\mcstudio\cache\` (`textures/`, `openrouter-models.json`) |
 | JDK installés par Mod Studio, source de téléchargement | `%APPDATA%\com.sdai.archimed\modules\mcstudio\` (`jdks/<version>/`, `env.json` : `adoptiumApi`, `openrouterApi`, HTTPS uniquement) |
-| Identité et builds d'un projet de mod | `<projet>/.mcstudio/` (`project.json`, `builds.json`, `builds/<id>.log`, `history/textures/`) — le projet reste autonome |
+| Identité et builds d'un projet de mod | `<projet>/.mcstudio/` (`project.json`, `builds.json`, `builds/<id>.log`, `history/textures/`, `snapshots/<id>/`) — le projet reste autonome |
 | Offres, profil, CV et compte d'envoi de JobAgent | `%APPDATA%\com.sdai.archimed\modules\jobagent\` (mot de passe SMTP chiffré par DPAPI) |
 | Journal d'audit | `%APPDATA%\com.sdai.archimed\logs\audit.jsonl` (rotation 5 Mo) |
 | Skills | `%APPDATA%\com.sdai.archimed\skills\` |

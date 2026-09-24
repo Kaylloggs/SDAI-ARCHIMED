@@ -720,3 +720,40 @@ pub struct ValidationReport {
     pub errors: u32,
     pub warnings: u32,
 }
+
+// ── Instantanés (points de restauration) ────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub enum SnapshotKind {
+    /// Créé à la main.
+    Manual,
+    /// Avant l'application de modifications proposées par une IA.
+    Ai,
+    /// Avant une restauration (pour pouvoir l'annuler).
+    Restore,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct SnapshotFile {
+    pub path: String,
+    /// Le fichier n'existait pas : le restaurer revient à le supprimer (Corbeille).
+    pub existed: bool,
+}
+
+/// Point de restauration : copie des fichiers concernés, dans `.mcstudio/snapshots/<id>/`.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct Snapshot {
+    pub id: String,
+    pub label: String,
+    pub kind: SnapshotKind,
+    pub created_at: String,
+    pub files: Vec<SnapshotFile>,
+    #[ts(type = "number")]
+    pub size: u64,
+}

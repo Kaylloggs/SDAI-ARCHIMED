@@ -20,6 +20,7 @@ mod pixelart;
 mod profiles;
 mod projects;
 mod service;
+mod snapshots;
 mod templates;
 mod textures;
 pub mod types;
@@ -77,6 +78,10 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::rename_project_file,
             commands::trash_project_file,
             commands::validate_project,
+            commands::list_snapshots,
+            commands::create_snapshot,
+            commands::restore_snapshot,
+            commands::delete_snapshot,
         ])
         .setup(|app, _api| {
             let paths = crate::core::paths::Paths::resolve(app)?;

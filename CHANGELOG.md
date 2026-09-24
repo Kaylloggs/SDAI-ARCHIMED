@@ -4,6 +4,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Mod Studio : points de restauration (phase F)
+- Tableau de bord → **Points de restauration** : création à la main (tous les fichiers du
+  projet), restauration confirmée et **annulable** (l'état courant est sauvegardé d'abord),
+  fichiers créés depuis remis à la Corbeille, suppression vers la Corbeille.
+
+### Modifié
+- **Vrai diff** dans le core (`core/lib/diff.ts`, algorithme de Myers) : `DiffView` affiche un
+  diff unifié par blocs, avec contexte, numéros de ligne et compteurs. L'ancien diff comparait
+  des ensembles de lignes et ne voyait ni les déplacements ni les lignes répétées.
+
 ### Ajouté — Mod Studio : vérification sans compiler (phase E)
 - Panneau **Problèmes** (onglet Fichiers) et résumé sur le tableau de bord : JSON et TOML
   localisés à la ligne et à la colonne avec une explication, PNG illisibles ou de mauvaise

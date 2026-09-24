@@ -16,6 +16,8 @@ use super::types::{
     TextureTarget, ValidationReport, VersionCatalog, VersionOptions, VersionSelection,
 };
 
+use super::types::Snapshot;
+
 type Studio<'a> = State<'a, Arc<McStudio>>;
 
 /// Exécute un travail disque hors du thread asynchrone (guidelines §10).
@@ -388,4 +390,31 @@ pub async fn trash_project_file(studio: Studio<'_>, id: String, path: String) ->
 #[tauri::command]
 pub async fn validate_project(studio: Studio<'_>, id: String) -> AppResult<ValidationReport> {
     blocking(&studio, move |s| s.validate(&id)).await
+}
+
+// ── Points de restauration ──────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn list_snapshots(studio: Studio<'_>, id: String) -> AppResult<Vec<Snapshot>> {
+    blocking(&studio, move |s| s.snapshots(&id)).await
+}
+
+#[tauri::command]
+pub async fn create_snapshot(studio: Studio<'_>, id: String, label: String) -> AppResult<Snapshot> {
+    blocking(&studio, move |s| s.create_snapshot(&id, &label)).await
+}
+
+/// Renvoie l'instantané pris juste avant (pour annuler la restauration).
+#[tauri::command]
+pub async fn restore_snapshot(
+    studio: Studio<'_>,
+    id: String,
+    snapshot_id: String,
+) -> AppResult<Snapshot> {
+    blocking(&studio, move |s| s.restore_snapshot(&id, &snapshot_id)).await
+}
+
+#[tauri::command]
+pub async fn delete_snapshot(studio: Studio<'_>, id: String, snapshot_id: String) -> AppResult<()> {
+    blocking(&studio, move |s| s.delete_snapshot(&id, &snapshot_id)).await
 }

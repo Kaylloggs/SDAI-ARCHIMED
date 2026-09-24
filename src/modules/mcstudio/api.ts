@@ -28,6 +28,7 @@ import type { TextureTarget } from "@/core/ipc/bindings/TextureTarget";
 import type { ProjectEntry } from "@/core/ipc/bindings/ProjectEntry";
 import type { ProjectFile } from "@/core/ipc/bindings/ProjectFile";
 import type { ValidationReport } from "@/core/ipc/bindings/ValidationReport";
+import type { Snapshot } from "@/core/ipc/bindings/Snapshot";
 
 const PLUGIN = "mcstudio";
 
@@ -118,6 +119,15 @@ export const mcstudioApi = {
   trashFile: (id: string, path: string) => invokeModule<void>(PLUGIN, "trash_project_file", { id, path }),
   /** Problèmes visibles sans compiler : syntaxe, références, format de la version. */
   validate: (id: string) => invokeModule<ValidationReport>(PLUGIN, "validate_project", { id }),
+
+  listSnapshots: (id: string) => invokeModule<Snapshot[]>(PLUGIN, "list_snapshots", { id }),
+  /** Copie de tous les fichiers du projet (hors builds et caches). */
+  createSnapshot: (id: string, label: string) => invokeModule<Snapshot>(PLUGIN, "create_snapshot", { id, label }),
+  /** Renvoie l'instantané pris juste avant : la restauration s'annule. */
+  restoreSnapshot: (id: string, snapshotId: string) =>
+    invokeModule<Snapshot>(PLUGIN, "restore_snapshot", { id, snapshotId }),
+  deleteSnapshot: (id: string, snapshotId: string) =>
+    invokeModule<void>(PLUGIN, "delete_snapshot", { id, snapshotId }),
 };
 
 /** Message lisible d'une erreur renvoyée par le backend. */

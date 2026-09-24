@@ -14,6 +14,7 @@ import { JdkInstallCard } from "../JdkInstallCard";
 import { useEditorStore } from "../../editor";
 import { BuildResult } from "./BuildResult";
 import { problemsSummary } from "./ProblemsPanel";
+import { HistorySection } from "./HistorySection";
 import { VersionsSection } from "./VersionsSection";
 
 const STAT_LABELS: [keyof ProjectStats, string][] = [
@@ -155,6 +156,8 @@ export function Dashboard({
           </section>
 
           <VersionsSection project={project} busy={running} />
+
+          <HistorySection projectId={project.id} busy={running} />
         </div>
 
         <aside className="space-y-6">

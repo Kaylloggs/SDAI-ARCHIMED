@@ -17,6 +17,8 @@ use super::openrouter::OpenRouter;
 use super::pixelart;
 use super::profiles::{self, meta::MetaClient, Profile};
 use super::projects::{self, Projects};
+use super::snapshots;
+use super::types::Snapshot;
 use super::types::{
     BlockRequest, BuildEvent, BuildRecord, BuildTask, ContentResult, CreateProjectRequest,
     DraftSource, EnvironmentReport, ItemRequest, JavaInstall, JavaStatus, JdkNeed, PixelOptions,
@@ -434,6 +436,33 @@ impl McStudio {
 
     pub fn trash_file(&self, project_id: &str, path: &str) -> AppResult<()> {
         files::trash(&self.projects.root(project_id)?, path)
+    }
+
+    pub fn snapshots(&self, project_id: &str) -> AppResult<Vec<Snapshot>> {
+        Ok(snapshots::list(&self.projects.root(project_id)?))
+    }
+
+    /// Point de restauration manuel : tous les fichiers du projet.
+    pub fn create_snapshot(&self, project_id: &str, label: &str) -> AppResult<Snapshot> {
+        let label = if label.trim().is_empty() {
+            "Point de restauration"
+        } else {
+            label
+        };
+        snapshots::create_full(&self.projects.root(project_id)?, label)
+    }
+
+    pub fn restore_snapshot(&self, project_id: &str, snapshot_id: &str) -> AppResult<Snapshot> {
+        if self.builds.is_running(project_id) {
+            return Err(AppError::invalid(
+                "Attendez la fin de la compilation en cours.",
+            ));
+        }
+        snapshots::restore(&self.projects.root(project_id)?, snapshot_id)
+    }
+
+    pub fn delete_snapshot(&self, project_id: &str, snapshot_id: &str) -> AppResult<()> {
+        snapshots::delete(&self.projects.root(project_id)?, snapshot_id)
     }
 
     /// Vérifie le projet sans compiler (formats de la version, références, syntaxe).
