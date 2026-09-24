@@ -25,4 +25,9 @@ modified: number | null,
 /**
  * Blocs : répartition des textures sur les faces.
  */
-layout: BlockLayout | null, };
+layout: BlockLayout | null, 
+/**
+ * PNG qu'aucun modèle, objet ni bloc n'utilise (face laissée par un changement de
+ * répartition, fichier en trop) : proposé à la suppression.
+ */
+unused: boolean, };

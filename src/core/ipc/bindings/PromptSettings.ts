@@ -16,4 +16,9 @@ withReference: boolean,
 /**
  * Taille visée (éléments d'interface), pour annoncer le format au modèle.
  */
-width: number | null, height: number | null, };
+width: number | null, height: number | null, 
+/**
+ * Le fond sera retiré : le modèle dessine sur un fond d'incrustation uni (magenta, ou vert
+ * si l'objet est rose ou violet).
+ */
+transparent: boolean, };

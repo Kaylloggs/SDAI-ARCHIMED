@@ -4,18 +4,37 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
-### Modifié — Mod Studio : atelier des textures en mode studio
-- Nouvelle disposition : la **scène** au centre (texture, cadrage, retouche au pixel, aperçus
-  répétés et en 3D) et un **inspecteur** à droite (source, service et modèle, description, style et
-  texte envoyé, conversion), sections repliables avec leur résumé. Toutes les fonctions restent.
-- **Cadrage** : on choisit à la souris (ou au clavier) la zone de l'image reçue qui devient la
-  texture, aux proportions de la texture ; la conversion suit aussitôt.
+### Modifié — Mod Studio : atelier des textures
+- Nouvelle disposition, pensée comme un atelier : le **canevas** au centre, les **outils** en
+  colonne à gauche (crayon, gomme, remplissage, pipette, **Cadrer**…), les **aperçus** à droite (en
+  jeu en 3D, répétée, taille réelle, qualité du raccord), la **bande des versions** dessous et une
+  **barre de création** en bas, comme le chat : description (Entrée génère), service et modèle,
+  style et texte envoyé, Retirer le fond, import d'une image. Toutes les fonctions restent.
+- **Cadrage dans la retouche** : l'outil « Cadrer » (C) choisit la zone de l'image reçue qui
+  devient la texture, aux proportions de la texture ; la conversion suit aussitôt.
+- **Moins de réglages** : taille, couleurs et raccord ne se choisissent plus. La taille est celle
+  de la texture en place (16 px pour une nouvelle), la palette suit la taille, le raccord suit la
+  face du bloc.
 - **Propositions gardées** : chaque image générée, importée ou retouchée reste dans l'historique
   de sa texture (20 par texture), même fermée ; on la rouvre d'un clic avec ses réglages.
 
+### Amélioré — Retirer le fond
+- Le modèle reçoit la consigne d'un fond uni magenta pur (vert si l'objet est rose ou violet),
+  retiré ensuite avec une tolérance large. Le retrait part des couleurs dominantes du bord : fond
+  uni, dégradé ou damier « faux transparent ». Les zones de fond enfermées (entre le bras et le
+  corps), le liseré coloré autour de l'objet et les poussières isolées disparaissent aussi.
+
+### Ajouté — Supprimer une texture
+- Corbeille dans l'en-tête de l'atelier et sur chaque ligne de la liste (confirmation) : la
+  texture part à la Corbeille, restaurable.
+- Groupe **Non utilisées** : les PNG qu'aucun modèle ne référence (les faces laissées en essayant
+  plusieurs répartitions d'un bloc) ne sont plus pris pour des blocs ; « Tout supprimer » les met à
+  la Corbeille d'un coup.
+
 ### Corrigé
 - Onglet Textures : des blocs apparaissaient sans raison (modèles de variantes d'une dalle, d'une
-  bûche…) ; seuls les blocs déclarés ou ayant un état de bloc sont listés, et un bloc à modèle fait
+  bûche, faces laissées par un changement de répartition) ; seuls les blocs déclarés ou ayant un
+  état de bloc sont listés, les autres PNG vont sous « Non utilisées », et un bloc à modèle fait
   main montre sa vraie texture.
 - Tailles de texte (`text-caption`, `text-footnote`…) perdues quand une couleur les suivait dans
   une classe composée (`cn`) : partout dans l'application.
@@ -35,7 +54,6 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Éléments d'interface** (`textures/gui/`) : écran de conteneur (avec l'inventaire du joueur),
   bouton, case, flèche de progression ou toile libre, aux couleurs du jeu ; générables par l'IA à
   leur taille (toile 256 × 256 pour les écrans).
-- Contour sombre facultatif pour les objets.
 
 ### Ajouté — Mod Studio : textures avec Google Gemini (ADR 0007)
 - Nouveau **service d'image** dans l'onglet Textures : Google Gemini (modèles Nano Banana, dont

@@ -103,11 +103,20 @@ export function PixelEditor({
   resetKey,
   onChange,
   disabled = false,
+  suspended = false,
+  extraTools,
+  children,
 }: {
   initial: Pixels;
   resetKey: string;
   onChange: (pixels: Pixels) => void;
   disabled?: boolean;
+  /** Un autre outil occupe le canevas (cadrage) : dessin en pause. */
+  suspended?: boolean;
+  /** Outils ajoutés dans la barre (cadrage). */
+  extraTools?: ReactNode;
+  /** Disposition des morceaux de l'éditeur : barre d'outils, canevas, palette. */
+  children: (parts: { rail: ReactNode; canvas: ReactNode; palette: ReactNode }) => ReactNode;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const work = useRef<Pixels>(clonePixels(pixels));
@@ -266,7 +275,7 @@ export function PixelEditor({
   };
 
   const onKeyDown = (event: React.KeyboardEvent) => {
-    if (disabled || (event.target as HTMLElement).tagName === "INPUT") return;
+    if (disabled || suspended || (event.target as HTMLElement).tagName === "INPUT") return;
     const ctrl = event.ctrlKey || event.metaKey;
     const key = event.key.toLowerCase();
     if (ctrl && key === "z") {
@@ -314,144 +323,150 @@ export function PixelEditor({
   };
 
   const colorLabel = color[3] === 0 ? "transparent" : toHex(color);
+  const locked = disabled || suspended;
 
-  return (
-    <div className="space-y-3" onKeyDown={onKeyDown}>
-      <div role="toolbar" aria-label="Outils de dessin" className="flex flex-wrap items-center gap-1">
-        {TOOLS.map(({ value, label, key, Icon }) => (
-          <ToolButton key={value} label={`${label} (${key})`} pressed={tool === value} disabled={disabled} onClick={() => setTool(value)}>
-            <Icon size={16} strokeWidth={1.75} />
-          </ToolButton>
-        ))}
-        <span aria-hidden className="mx-1 h-5 w-px bg-border" />
-        <ToolButton label="Miroir gauche-droite (M)" pressed={mirror} disabled={disabled} onClick={() => setMirror((v) => !v)}>
-          <FlipHorizontal2 size={16} strokeWidth={1.75} />
+  const separator = <span aria-hidden className="my-1 h-px w-5 bg-border" />;
+  const rail = (
+    <div
+      role="toolbar"
+      aria-label="Outils"
+      aria-orientation="vertical"
+      className="flex flex-col items-center gap-1"
+    >
+      {TOOLS.map(({ value, label, key, Icon }) => (
+        <ToolButton key={value} label={`${label} (${key})`} pressed={!suspended && tool === value} disabled={locked} onClick={() => setTool(value)}>
+          <Icon size={16} strokeWidth={1.75} />
         </ToolButton>
-        <ToolButton label="Grille" pressed={grid} onClick={() => setGrid((v) => !v)}>
-          <Grid3x3 size={16} strokeWidth={1.75} />
-        </ToolButton>
-        <ToolButton
-          label="Décaler d'une demi-case : les bords se retrouvent au milieu pour corriger le raccord (deux fois pour revenir)"
-          disabled={disabled}
-          onClick={shift}
-        >
-          <Move size={16} strokeWidth={1.75} />
-        </ToolButton>
-        <span aria-hidden className="mx-1 h-5 w-px bg-border" />
-        <ToolButton label="Annuler (Ctrl+Z)" disabled={disabled || history.undo === 0} onClick={doUndo}>
-          <Undo2 size={16} strokeWidth={1.75} />
-        </ToolButton>
-        <ToolButton label="Rétablir (Ctrl+Y)" disabled={disabled || history.redo === 0} onClick={doRedo}>
-          <Redo2 size={16} strokeWidth={1.75} />
-        </ToolButton>
-        <span aria-hidden className="mx-1 h-5 w-px bg-border" />
-        <ToolButton label="Réduire" disabled={zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - (z > 8 ? 4 : 1)))}>
-          <ZoomOut size={16} strokeWidth={1.75} />
-        </ToolButton>
-        <span className="w-10 text-center text-caption tabular-nums text-text-subtle">×{zoom}</span>
-        <ToolButton label="Agrandir" disabled={zoom >= MAX_ZOOM} onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + (z >= 8 ? 4 : 1)))}>
-          <ZoomIn size={16} strokeWidth={1.75} />
-        </ToolButton>
-      </div>
-
-      <div className="flex flex-wrap items-start gap-4">
-        <div className="max-h-[520px] max-w-full overflow-auto rounded-md border border-border">
-          <canvas
-            ref={canvasRef}
-            width={pixels.width * zoom}
-            height={pixels.height * zoom}
-            tabIndex={disabled ? -1 : 0}
-            role="img"
-            aria-label={`Texture ${pixels.width} × ${pixels.height} en cours de retouche. Flèches pour se déplacer, Espace pour appliquer l'outil.`}
-            onPointerDown={(event) => {
-              if (disabled || event.button !== 0) return;
-              event.currentTarget.focus();
-              const [x, y] = cellAt(event);
-              if (begin(x, y)) event.currentTarget.setPointerCapture(event.pointerId);
-            }}
-            onPointerMove={(event) => {
-              if (stroke.current) extend(...cellAt(event));
-            }}
-            onPointerUp={end}
-            onPointerCancel={end}
-            onBlur={() => setCursor(null)}
-            className={cn(
-              "block touch-none [image-rendering:pixelated]",
-              "bg-[repeating-conic-gradient(var(--color-surface-2)_0%_25%,var(--color-surface-1)_0%_50%)] bg-[length:16px_16px]",
-              tool === "picker" ? "cursor-copy" : "cursor-crosshair",
-              focusRing,
-            )}
-          />
-        </div>
-
-        <div className="w-[200px] space-y-3">
-          <div className="flex items-center gap-2">
-            <span
-              aria-hidden
-              className="size-8 shrink-0 rounded-sm border border-border-strong bg-[repeating-conic-gradient(var(--color-surface-2)_0%_25%,var(--color-surface-1)_0%_50%)] bg-[length:8px_8px]"
-            >
-              <span className="block size-full rounded-sm" style={{ backgroundColor: `rgba(${color.join(",")})` }} />
-            </span>
-            <input
-              aria-label="Couleur en hexadécimal"
-              value={hex}
-              spellCheck={false}
-              onChange={(event) => {
-                setHex(event.target.value);
-                const parsed = fromHex(event.target.value);
-                if (parsed) setColor(parsed);
-              }}
-              onBlur={() => setHex(toHex(color))}
-              className={cn(inputClass, "h-8 font-mono uppercase")}
-            />
-          </div>
-          <div className="flex gap-1">
-            <button
-              type="button"
-              onClick={() => pickColor(shade(color, 0.15))}
-              className={cn("h-7 flex-1 rounded-sm text-footnote text-text-muted hover:bg-surface-2 hover:text-text", focusRing)}
-            >
-              Plus clair
-            </button>
-            <button
-              type="button"
-              onClick={() => pickColor(shade(color, -0.15))}
-              className={cn("h-7 flex-1 rounded-sm text-footnote text-text-muted hover:bg-surface-2 hover:text-text", focusRing)}
-            >
-              Plus sombre
-            </button>
-          </div>
-          <div>
-            <p className="mb-1.5 text-caption text-text-subtle">Couleurs de la texture</p>
-            <div role="listbox" aria-label="Couleurs de la texture" className="grid grid-cols-8 gap-1">
-              {palette.map((swatch) => {
-                const active = toHex(swatch) === toHex(color);
-                return (
-                  <button
-                    key={swatch.join(",")}
-                    type="button"
-                    role="option"
-                    aria-selected={active}
-                    aria-label={toHex(swatch)}
-                    title={toHex(swatch)}
-                    onClick={() => pickColor(swatch)}
-                    className={cn(
-                      "size-5 rounded-xs border",
-                      active ? "border-accent ring-1 ring-accent" : "border-border hover:border-border-strong",
-                      focusRing,
-                    )}
-                    style={{ backgroundColor: `rgba(${swatch.join(",")})` }}
-                  />
-                );
-              })}
-            </div>
-          </div>
-          <p className="text-caption text-text-subtle">
-            Couleur : <span className="font-mono">{colorLabel}</span>. Pipette <Kbd>I</Kbd> pour reprendre une couleur ;
-            clic dans la texture pour peindre.
-          </p>
-        </div>
-      </div>
+      ))}
+      {extraTools}
+      {separator}
+      <ToolButton label="Miroir gauche-droite (M)" pressed={mirror} disabled={locked} onClick={() => setMirror((v) => !v)}>
+        <FlipHorizontal2 size={16} strokeWidth={1.75} />
+      </ToolButton>
+      <ToolButton label="Grille" pressed={grid} disabled={suspended} onClick={() => setGrid((v) => !v)}>
+        <Grid3x3 size={16} strokeWidth={1.75} />
+      </ToolButton>
+      <ToolButton
+        label="Décaler d'une demi-case : les bords se retrouvent au milieu pour corriger le raccord (deux fois pour revenir)"
+        disabled={locked}
+        onClick={shift}
+      >
+        <Move size={16} strokeWidth={1.75} />
+      </ToolButton>
+      {separator}
+      <ToolButton label="Annuler (Ctrl+Z)" disabled={locked || history.undo === 0} onClick={doUndo}>
+        <Undo2 size={16} strokeWidth={1.75} />
+      </ToolButton>
+      <ToolButton label="Rétablir (Ctrl+Y)" disabled={locked || history.redo === 0} onClick={doRedo}>
+        <Redo2 size={16} strokeWidth={1.75} />
+      </ToolButton>
+      {separator}
+      <ToolButton label="Agrandir" disabled={suspended || zoom >= MAX_ZOOM} onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + (z >= 8 ? 4 : 1)))}>
+        <ZoomIn size={16} strokeWidth={1.75} />
+      </ToolButton>
+      <span className="text-caption tabular-nums text-text-subtle">×{zoom}</span>
+      <ToolButton label="Réduire" disabled={suspended || zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - (z > 8 ? 4 : 1)))}>
+        <ZoomOut size={16} strokeWidth={1.75} />
+      </ToolButton>
     </div>
   );
+
+  const canvas = (
+    <canvas
+      ref={canvasRef}
+      width={pixels.width * zoom}
+      height={pixels.height * zoom}
+      tabIndex={locked ? -1 : 0}
+      role="img"
+      aria-label={`Texture ${pixels.width} × ${pixels.height} en cours de retouche. Flèches pour se déplacer, Espace pour appliquer l'outil.`}
+      onPointerDown={(event) => {
+        if (locked || event.button !== 0) return;
+        event.currentTarget.focus();
+        const [x, y] = cellAt(event);
+        if (begin(x, y)) event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={(event) => {
+        if (stroke.current) extend(...cellAt(event));
+      }}
+      onPointerUp={end}
+      onPointerCancel={end}
+      onBlur={() => setCursor(null)}
+      className={cn(
+        "block touch-none rounded-md border border-border [image-rendering:pixelated]",
+        "bg-[repeating-conic-gradient(var(--color-surface-2)_0%_25%,var(--color-surface-1)_0%_50%)] bg-[length:16px_16px]",
+        tool === "picker" ? "cursor-copy" : "cursor-crosshair",
+        focusRing,
+      )}
+    />
+  );
+
+  const paletteView = (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <span
+          aria-hidden
+          className="size-7 shrink-0 rounded-sm border border-border-strong bg-[repeating-conic-gradient(var(--color-surface-2)_0%_25%,var(--color-surface-1)_0%_50%)] bg-[length:8px_8px]"
+        >
+          <span className="block size-full rounded-sm" style={{ backgroundColor: `rgba(${color.join(",")})` }} />
+        </span>
+        <input
+          aria-label="Couleur en hexadécimal"
+          value={hex}
+          spellCheck={false}
+          disabled={locked}
+          onChange={(event) => {
+            setHex(event.target.value);
+            const parsed = fromHex(event.target.value);
+            if (parsed) setColor(parsed);
+          }}
+          onBlur={() => setHex(toHex(color))}
+          className={cn(inputClass, "h-7 font-mono uppercase")}
+        />
+      </div>
+      <div className="flex gap-1">
+        {[
+          { label: "Plus clair", amount: 0.15 },
+          { label: "Plus sombre", amount: -0.15 },
+        ].map(({ label, amount }) => (
+          <button
+            key={label}
+            type="button"
+            disabled={locked}
+            onClick={() => pickColor(shade(color, amount))}
+            className={cn("h-7 flex-1 rounded-sm text-footnote text-text-muted hover:bg-surface-2 hover:text-text disabled:opacity-40", focusRing)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div role="listbox" aria-label="Couleurs de la texture" className="grid grid-cols-8 gap-1">
+        {palette.map((swatch) => {
+          const active = toHex(swatch) === toHex(color);
+          return (
+            <button
+              key={swatch.join(",")}
+              type="button"
+              role="option"
+              aria-selected={active}
+              aria-label={toHex(swatch)}
+              title={toHex(swatch)}
+              disabled={locked}
+              onClick={() => pickColor(swatch)}
+              className={cn(
+                "aspect-square w-full rounded-xs border",
+                active ? "border-accent ring-1 ring-accent" : "border-border hover:border-border-strong",
+                focusRing,
+              )}
+              style={{ backgroundColor: `rgba(${swatch.join(",")})` }}
+            />
+          );
+        })}
+      </div>
+      <p className="text-caption text-text-subtle">
+        <span className="font-mono">{colorLabel}</span> · pipette <Kbd>I</Kbd>
+      </p>
+    </div>
+  );
+
+  return <div onKeyDown={onKeyDown} className="contents">{children({ rail, canvas, palette: paletteView })}</div>;
 }

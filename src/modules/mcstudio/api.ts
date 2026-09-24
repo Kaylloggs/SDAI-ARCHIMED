@@ -120,6 +120,8 @@ export const mcstudioApi = {
   /** Réécrit le modèle du bloc (point de restauration avant) ; renvoie ses faces. */
   setBlockLayout: (id: string, block: string, layout: BlockLayout, replaceCustom: boolean) =>
     invokeModule<TextureInfo[]>(PLUGIN, "set_block_layout", { id, block, layout, replaceCustom }),
+  /** Met des textures du mod à la Corbeille ; renvoie le nombre de fichiers retirés. */
+  deleteTextures: (id: string, paths: string[]) => invokeModule<number>(PLUGIN, "delete_textures", { id, paths }),
   createGuiTexture: (id: string, request: GuiRequest) =>
     invokeModule<TextureInfo>(PLUGIN, "create_gui_texture", { id, request }),
   listTextures: (id: string) => invokeModule<TextureInfo[]>(PLUGIN, "list_textures", { id }),

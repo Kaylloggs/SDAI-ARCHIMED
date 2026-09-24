@@ -341,6 +341,7 @@ impl McStudio {
             None => {
                 let mut settings = request.prompt.clone();
                 settings.with_reference = reference.is_some();
+                settings.transparent = request.options.transparent;
                 if matches!(request.target, TextureTarget::Gui { .. }) {
                     settings.width = Some(width);
                     settings.height = Some(height);
@@ -491,6 +492,13 @@ impl McStudio {
         self.idle(project_id)?;
         let (root, meta, _) = self.open_context(project_id)?;
         artwork::set_block_layout(&root, &meta.mod_id, block, layout, replace_custom)
+    }
+
+    /// Met des textures du mod à la Corbeille (textures en trop, faces inutilisées…).
+    pub fn delete_textures(&self, project_id: &str, relatives: &[String]) -> AppResult<usize> {
+        self.idle(project_id)?;
+        let (root, meta, _) = self.open_context(project_id)?;
+        artwork::delete_textures(&root, &meta.mod_id, relatives)
     }
 
     /// Nouvel élément d'interface (`textures/gui/`), dessiné aux couleurs du jeu.

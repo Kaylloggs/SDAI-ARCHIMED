@@ -80,6 +80,7 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::save_draft_pixels,
             commands::set_block_layout,
             commands::create_gui_texture,
+            commands::delete_textures,
             commands::list_textures,
             commands::generate_texture,
             commands::import_texture,

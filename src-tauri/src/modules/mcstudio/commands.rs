@@ -362,6 +362,16 @@ pub async fn set_block_layout(
     .await
 }
 
+/// Met des textures du mod à la Corbeille ; renvoie le nombre de fichiers retirés.
+#[tauri::command]
+pub async fn delete_textures(
+    studio: Studio<'_>,
+    id: String,
+    paths: Vec<String>,
+) -> AppResult<usize> {
+    blocking(&studio, move |s| s.delete_textures(&id, &paths)).await
+}
+
 #[tauri::command]
 pub async fn create_gui_texture(
     studio: Studio<'_>,

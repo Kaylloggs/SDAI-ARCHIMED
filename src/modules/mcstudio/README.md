@@ -203,13 +203,19 @@ libre) dessiné sans IA aux couleurs des écrans du jeu, dans `textures/gui/`.
    en-tête `x-goog-api-key`. Modèles « Nano Banana » lus en direct ; tous facturés par Google sur
    le projet de la clé, donc soumis à « Accepter la facturation Google ». L'abonnement Gemini
    (Google AI Pro) ne couvre pas l'API ; ses crédits Google Cloud mensuels, si.
-4. **Conversion** (`pixelart.rs`, déterministe) : fond uni ou en dégradé retiré par remplissage
-   depuis les bords, objet cadré, réduction à 16, 32 ou 64 px (ou à la taille d'un élément
-   d'interface, posé si besoin sur une toile 256 × 256) en gardant par zone une couleur franche
-   (la plus rare de l'image quand elle couvre au moins 12 % de la zone : les éclats d'un minerai
-   ou un contour survivent), palette limitée par coupe médiane, **contour sombre** facultatif
-   pour les objets. Une icône est agrandie à 64 px sans lissage. Changer un réglage reconvertit la
-   même image, sans réseau (après confirmation si elle a été retouchée).
+4. **Conversion** (`pixelart.rs`, déterministe), sans réglage à choisir : la taille est celle de
+   la texture en place (16, 32 ou 64 px ; 16 pour une nouvelle), la palette suit la taille, le
+   raccord suit la face. Réduction en gardant par zone une couleur franche (la plus rare de
+   l'image quand elle couvre au moins 12 % de la zone : les éclats d'un minerai ou un contour
+   survivent), palette limitée par coupe médiane. Une icône est agrandie à 64 px sans lissage ;
+   un élément d'interface garde la taille de son fichier (toile 256 × 256 si besoin).
+   **Retirer le fond** (seul interrupteur, actif par défaut pour un objet) : le texte envoyé
+   demande un fond uni magenta pur (vert si l'objet est rose ou violet), puis le fond est retiré
+   par remplissage depuis les bords, à partir des couleurs dominantes du bord (fond uni, en
+   dégradé ou en damier « faux transparent »). La couleur-clé est retirée avec une tolérance
+   large, y compris les zones enfermées (entre le bras et le corps), le liseré de bord et les
+   poussières isolées ; l'objet est ensuite cadré. Changer ce réglage reconvertit la même image,
+   sans réseau (après confirmation si elle a été retouchée).
    **Raccord** (faces de bloc) : le cadre uni que les modèles ajoutent souvent est retiré, puis
    les bords sont fondus avec la copie décalée d'une demi-case de l'image (en largeur seulement,
    ou dans les deux sens) : répétée, la texture ne montre plus de coupure. La qualité du raccord
@@ -219,13 +225,13 @@ libre) dessiné sans IA aux couleurs des écrans du jeu, dans `textures/gui/`.
    restauration (autres réglages du modèle gardés), les faces manquantes partent de la texture
    actuelle ; chaque face a son onglet et sa texture (`<bloc>_<face>.png`, ou celle que le modèle
    référence déjà). Un modèle écrit à la main n'est remplacé par un cube qu'après confirmation.
-6. **Cadrage** : sur l'image reçue, glisser pour choisir la zone qui devient la texture (aux
-   proportions de la texture ; flèches pour la déplacer, Maj + flèches pour la redimensionner),
-   « Toute l'image » pour revenir. La zone (`PixelOptions.crop`, pixels de l'image d'origine) est
+6. **Cadrage** : outil « Cadrer » (C) de la retouche. Sur l'image reçue, glisser pour choisir la
+   zone qui devient la texture (aux proportions de la texture ; flèches pour la déplacer, Maj +
+   flèches pour la redimensionner), « Toute l'image » pour revenir, « Terminé » pour retoucher. La zone (`PixelOptions.crop`, pixels de l'image d'origine) est
    appliquée avant toute la conversion.
    **Propositions** : chaque image générée, importée ou retouchée reste dans l'historique de sa
-   texture (`texture_history`, 20 par texture, 150 en tout), même fermée ; on la rouvre avec ses
-   réglages, ou on la retire (`delete_draft`).
+   texture (`texture_history`, 20 par texture, 150 en tout), même fermée : bande des versions sous
+   le canevas, on la rouvre avec ses réglages, ou on la retire (`delete_draft`).
 7. **Retouche au pixel** : crayon, gomme, remplissage, pipette, miroir, grille, décalage d'une
    demi-case (les bords opposés se retrouvent au milieu pour corriger un raccord), annuler /
    rétablir, zoom, palette de la texture, couleur hexadécimale ; au clavier : flèches + Espace,
@@ -235,8 +241,20 @@ libre) dessiné sans IA aux couleurs des écrans du jeu, dans `textures/gui/`.
    texture est copiée dans `.mcstudio/history/textures/<date>-<cible>.png`, la nouvelle écrite de
    façon atomique ; l'action est inscrite au journal d'audit (`mcstudio.texture_apply`), comme
    chaque génération (`mcstudio.texture_generate`) et chaque changement de clé.
+9. **Textures non utilisées et suppression** : un PNG d'objet ou de bloc qu'aucun modèle ne
+   référence et qui n'est pas un bloc (souvent une face laissée par un changement de répartition :
+   `<bloc>_top.png`, `<bloc>_north.png`…) est rangé sous « Non utilisées », pas parmi les blocs.
+   « Tout supprimer » (après confirmation) ou la corbeille d'une ligne ou de l'en-tête de l'atelier
+   les met à la **Corbeille** (`delete_textures`, restaurables) ; seuls des `.png` sous
+   `assets/<modid>/textures/` ou l'icône du mod sont acceptés.
 
-Brouillons : `%APPDATA%\com.sdai.archimed\modules\mcstudio\cache\textures\` (30 derniers).
+**Disposition** : liste des textures à gauche ; l'atelier au centre avec l'en-tête (texture,
+corbeille, Fermer, Appliquer au projet), les faces du bloc, les outils en colonne (dont Cadrer),
+le canevas, à droite les aperçus (en jeu en 3D, répétée, taille réelle, qualité du raccord), la
+bande des versions, puis la barre de création en bas, comme le chat : description (Entrée
+génère), service et modèle, style et texte envoyé, Retirer le fond, import d'une image, Générer.
+
+Brouillons : `%APPDATA%\com.sdai.archimed\modules\mcstudio\cache\textures\` (20 par texture, 150 en tout).
 Sources remplaçables (HTTPS uniquement) : `{"openrouterApi": "https://…", "geminiApi": "https://…"}`
 dans `env.json`. Décisions : [ADR 0005](../../../docs/adr/0005-mcstudio-openrouter-textures.md)
 (OpenRouter, conversion), [ADR 0007](../../../docs/adr/0007-mcstudio-gemini-textures.md) (Gemini),
@@ -298,7 +316,7 @@ Contenu : `add_item` · `add_block` · `add_recipe`
 Textures : `openrouter_status` · `set_openrouter_key` · `clear_openrouter_key` · `image_models` ·
 `gemini_status` · `set_gemini_key` · `clear_gemini_key` · `gemini_image_models` · `edit_texture` ·
 `texture_history` · `delete_draft` ·
-`draft_pixels` · `save_draft_pixels` · `set_block_layout` · `create_gui_texture` ·
+`draft_pixels` · `save_draft_pixels` · `set_block_layout` · `create_gui_texture` · `delete_textures` ·
 `texture_prompt` · `list_textures` · `generate_texture` · `import_texture` · `reprocess_texture` ·
 `apply_texture`
 Build : `build_project` · `cancel_build` · `list_builds` · `read_build_log`

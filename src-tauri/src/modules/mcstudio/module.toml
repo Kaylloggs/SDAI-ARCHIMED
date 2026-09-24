@@ -7,7 +7,7 @@ commands = [
   "openrouter_status", "set_openrouter_key", "clear_openrouter_key", "image_models", "texture_prompt",
   "gemini_status", "set_gemini_key", "clear_gemini_key", "gemini_image_models",
   "list_textures", "generate_texture", "import_texture", "reprocess_texture", "apply_texture",
-  "edit_texture", "texture_history", "delete_draft", "draft_pixels", "save_draft_pixels", "set_block_layout", "create_gui_texture",
+  "edit_texture", "texture_history", "delete_draft", "draft_pixels", "save_draft_pixels", "set_block_layout", "create_gui_texture", "delete_textures",
   "list_files", "read_project_file", "write_project_file", "create_project_file", "rename_project_file",
   "trash_project_file", "validate_project",
   "list_snapshots", "create_snapshot", "restore_snapshot", "delete_snapshot",

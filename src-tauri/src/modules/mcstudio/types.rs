@@ -670,6 +670,9 @@ pub struct TextureInfo {
     pub modified: Option<u64>,
     /// Blocs : répartition des textures sur les faces.
     pub layout: Option<BlockLayout>,
+    /// PNG qu'aucun modèle, objet ni bloc n'utilise (face laissée par un changement de
+    /// répartition, fichier en trop) : proposé à la suppression.
+    pub unused: bool,
 }
 
 /// Raccord d'une texture répétée côte à côte.
@@ -822,6 +825,10 @@ pub struct PromptSettings {
     pub width: Option<u32>,
     #[serde(default)]
     pub height: Option<u32>,
+    /// Le fond sera retiré : le modèle dessine sur un fond d'incrustation uni (magenta, ou vert
+    /// si l'objet est rose ou violet).
+    #[serde(default)]
+    pub transparent: bool,
 }
 
 /// Élément d'interface de départ, dessiné sans IA au format des écrans du jeu.

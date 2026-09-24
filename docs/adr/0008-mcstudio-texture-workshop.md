@@ -47,19 +47,32 @@ Les premières textures générées étaient utilisables mais pas « prêtes pou
    fait partie des réglages (`PixelOptions.crop`, pixels de l'image d'origine, ramenée dans ses
    limites) : recadrer reconvertit sans réseau. Les brouillons forment l'historique de chaque
    texture (20 par texture, 150 en tout dans le cache) : fermer une proposition ne la perd plus.
-7. **Disposition en studio** : scène (texture, cadrage, retouche, aperçus, propositions) et
-   inspecteur (réglages en sections repliables), côte à côte dès 768 px de large, l'un sous l'autre
-   en dessous.
+7. **Disposition en atelier** (remplace la scène + inspecteur, jugée trop chargée) : le canevas au
+   centre, les outils de retouche en colonne à gauche (le cadrage en est un, « Cadrer »), les
+   aperçus à droite, la bande des versions dessous et une barre de création en bas, sur le modèle
+   du composeur du chat. Les réglages rares (service, modèle, style, texte envoyé) s'ouvrent dans
+   des panneaux flottants depuis cette barre.
 8. **Seuls les vrais blocs sont listés** : ceux des traductions et ceux qui ont un état de bloc
    (`blockstates/`). Les modèles de variantes (`_top`, `_double`…) ne sont pas des blocs ; les
    textures qu'ils utilisent ne sont pas des « orphelines ».
+9. **Conversion sans réglages** : taille, palette et raccord ne se choisissent plus (taille de la
+   texture en place, 16 px sinon ; palette selon la taille ; raccord selon la face). Seul « Retirer
+   le fond » reste. Pour qu'il marche, le texte envoyé demande un fond uni magenta pur (vert si
+   l'objet est rose ou violet), et le retrait part des couleurs dominantes du bord (fond uni,
+   dégradé, damier), retire la couleur-clé avec une tolérance large, les zones enfermées, le liseré
+   et les poussières.
+10. **Textures non utilisées** : un PNG qu'aucun modèle ne référence et qui n'est pas un bloc (face
+   laissée par un changement de répartition) est listé à part, et peut partir à la Corbeille
+   (`delete_textures`, chemins limités à `textures/` et à l'icône du mod).
 
 ## Conséquences
 
 - **Positif** : des blocs à plusieurs faces, des textures qui se répètent proprement, un contrôle
   total du texte envoyé et de chaque pixel, des écrans d'interface cohérents avec le jeu.
-- **Négatif** : le fondu des bords peut adoucir un motif très régulier (briques) ; le raccord se
-  désactive par face, et l'éditeur permet de reprendre les joints (décalage d'une demi-case).
+- **Négatif** : le fondu des bords peut adoucir un motif très régulier (briques) ; l'éditeur
+  permet de reprendre les joints (décalage d'une demi-case).
+- **Négatif** : sans réglage de taille, une texture change de taille en modifiant le fichier en
+  place (ou dans le code du mod), pas dans l'atelier.
 - **Négatif** : la référence ajoute une image à la demande (coût un peu plus élevé chez les
   services payants).
 - **Aucune dépendance ajoutée.**

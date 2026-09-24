@@ -15,15 +15,6 @@ export const MAX_DESCRIPTION = 600;
 export const MAX_EXTRA = 600;
 export const MAX_PROMPT = 4000;
 
-export const SIZE_CHOICES = [16, 32, 64].map((size) => ({ value: size, label: `${size} px` }));
-
-export const COLOR_CHOICES: SelectOption[] = [
-  { value: "8", label: "8 couleurs" },
-  { value: "16", label: "16 couleurs", hint: "conseillé" },
-  { value: "32", label: "32 couleurs" },
-  { value: "0", label: "Sans limite" },
-];
-
 const BASE: Omit<PixelOptions, "size" | "colors" | "transparent"> = {
   tiling: "none",
   outline: false,
@@ -44,16 +35,29 @@ export function defaultTiling(face: BlockFace | null, layout: BlockLayout | null
   return "none";
 }
 
+/** Taille d'une texture existante (16, 32 ou 64 px de côté, animée ou non), sinon 16. */
+function keptSize(info?: Pick<TextureInfo, "width" | "height" | "exists">): number {
+  if (!info?.exists) return 16;
+  const { width, height } = info;
+  return [16, 32, 64].includes(width) && height > 0 && height % width === 0 ? width : 16;
+}
+
 /**
- * Réglages de départ : un objet est détouré, une face de bloc remplit sa case et se raccorde,
- * l'icône est plus fine, un élément d'interface garde la taille de son fichier.
+ * Réglages de départ, sans rien à choisir : un objet est détouré, une face de bloc remplit sa
+ * case et se raccorde, la taille est celle de la texture en place (16 px sinon), l'icône est
+ * plus fine, un élément d'interface garde la taille de son fichier.
  */
-export function defaultOptions(target: TextureTarget, info?: Pick<TextureInfo, "width" | "height" | "layout" | "exists">): PixelOptions {
+export function defaultOptions(
+  target: TextureTarget,
+  info?: Pick<TextureInfo, "width" | "height" | "layout" | "exists">,
+): PixelOptions {
+  const size = keptSize(info);
+  const colors = size === 16 ? 16 : 32;
   switch (target.kind) {
     case "item":
-      return { ...BASE, size: 16, colors: 16, transparent: true };
+      return { ...BASE, size, colors, transparent: true };
     case "block":
-      return { ...BASE, size: 16, colors: 16, transparent: false, tiling: defaultTiling(target.face, info?.layout ?? null) };
+      return { ...BASE, size, colors, transparent: false, tiling: defaultTiling(target.face, info?.layout ?? null) };
     case "icon":
       return { ...BASE, size: 32, colors: 32, transparent: false };
     case "gui": {
@@ -123,12 +127,6 @@ export const LAYOUTS: { value: Exclude<BlockLayout, "custom">; label: string; hi
   { value: "faces", label: "Six faces", hint: "une texture par face" },
 ];
 
-export const TILING_CHOICES: { value: Tiling; label: string }[] = [
-  { value: "none", label: "Aucun" },
-  { value: "horizontal", label: "En largeur" },
-  { value: "both", label: "Complet" },
-];
-
 export const STYLE_CHOICES: { value: TextureStyle; label: string }[] = [
   { value: "vanilla", label: "Jeu de base" },
   { value: "detailed", label: "Détaillé" },
@@ -147,22 +145,6 @@ export const GUI_PRESETS: { value: GuiPreset; label: string; size: string }[] = 
 /** Proportions de la zone à sélectionner dans l'image reçue (largeur / hauteur). */
 export function outputAspect(options: PixelOptions): number {
   return options.width && options.height ? options.width / options.height : 1;
-}
-
-/** Résumé court des réglages de conversion (en-tête replié de l'inspecteur). */
-export function optionsSummary(options: PixelOptions, gui: boolean): string {
-  const size = gui ? `${options.width ?? "?"}×${options.height ?? "?"}` : `${options.size} px`;
-  const colors = options.colors === 0 ? "couleurs libres" : `${options.colors} couleurs`;
-  const extra = options.transparent
-    ? options.outline
-      ? "détouré, contour"
-      : "détouré"
-    : options.tiling === "both"
-      ? "raccord complet"
-      : options.tiling === "horizontal"
-        ? "raccord en largeur"
-        : "sans raccord";
-  return [size, colors, gui ? null : extra, options.crop ? "zone choisie" : null].filter(Boolean).join(" · ");
 }
 
 /** Qualité du raccord, en mots. */

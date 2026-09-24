@@ -111,6 +111,12 @@ describe("textures", () => {
     expect(defaultOptions({ kind: "item", id: "ruby" })).toMatchObject({ size: 16, colors: 16, transparent: true, tiling: "none" });
     expect(defaultOptions({ kind: "block", id: "ore", face: null })).toMatchObject({ transparent: false, tiling: "both" });
     expect(defaultOptions({ kind: "icon" }).size).toBe(32);
+    // La taille suit la texture en place (animée comprise), 16 px sinon.
+    const hd = { width: 32, height: 32, layout: null, exists: true };
+    expect(defaultOptions({ kind: "item", id: "ruby" }, hd)).toMatchObject({ size: 32, colors: 32 });
+    expect(defaultOptions({ kind: "block", id: "lava", face: null }, { ...hd, height: 512 }).size).toBe(32);
+    expect(defaultOptions({ kind: "item", id: "odd" }, { ...hd, width: 20, height: 20 }).size).toBe(16);
+    expect(defaultOptions({ kind: "item", id: "new" }, { ...hd, exists: false }).size).toBe(16);
     expect(targetKey({ kind: "block", id: "ore", face: null })).toBe("block:ore:all");
     expect(targetKey({ kind: "block", id: "log", face: "end" })).toBe("block:log:end");
     expect(targetKey({ kind: "gui", name: "forge" })).toBe("gui:forge");

@@ -29,13 +29,18 @@ export function promptSummary(choice: PromptChoice): string {
   return [style, ...extras].join(" · ");
 }
 
-export function promptSettings(choice: PromptChoice, size: { width: number; height: number } | null): PromptSettings {
+export function promptSettings(
+  choice: PromptChoice,
+  size: { width: number; height: number } | null,
+  transparent: boolean,
+): PromptSettings {
   return {
     style: choice.style,
     extra: choice.extra,
     withReference: choice.reference !== null,
     width: size?.width ?? null,
     height: size?.height ?? null,
+    transparent,
   };
 }
 
@@ -51,6 +56,7 @@ export function PromptPanel({
   references,
   referenceAllowed,
   guiSize,
+  transparent,
   disabled,
 }: {
   target: TextureTarget;
@@ -62,6 +68,8 @@ export function PromptPanel({
   /** Le modèle choisi lit les images en entrée. */
   referenceAllowed: boolean;
   guiSize: { width: number; height: number } | null;
+  /** Le fond sera retiré (le texte demande un fond d'incrustation). */
+  transparent: boolean;
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(choice.custom !== null);
@@ -69,7 +77,7 @@ export function PromptPanel({
   const set = (patch: Partial<PromptChoice>) => onChange({ ...choice, ...patch });
 
   // Texte construit par l'application, recalculé quand un réglage change.
-  const settings = promptSettings(choice, guiSize);
+  const settings = promptSettings(choice, guiSize, transparent);
   const signature = JSON.stringify([target, description, settings]);
   useEffect(() => {
     if (!open) return;

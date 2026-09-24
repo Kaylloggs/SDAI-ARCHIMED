@@ -399,10 +399,6 @@ impl Histogram {
     }
 }
 
-fn dominant(pixels: impl Iterator<Item = [u8; 4]>) -> Option<[u8; 4]> {
-    Histogram::of(pixels).dominant()
-}
-
 fn border(raster: &Raster) -> Vec<(u32, u32)> {
     let (w, h) = (raster.width, raster.height);
     let mut cells = Vec::new();
@@ -421,7 +417,99 @@ fn border(raster: &Raster) -> Vec<(u32, u32)> {
     cells
 }
 
-/// Rend transparent le fond uni (ou en léger dégradé) qui touche les bords.
+/// Couleurs du fond : celles qui couvrent une part notable du bord de l'image (fond uni, fond
+/// en dégradé, damier « transparent » dessiné par le modèle). Quatre au plus.
+fn background_colors(raster: &Raster, edge: &[(u32, u32)]) -> Vec<[u8; 4]> {
+    let histogram = Histogram::of(edge.iter().map(|&(x, y)| raster.at(x, y)));
+    let mut buckets: Vec<&(u32, [u32; 3])> = histogram.buckets.values().collect();
+    buckets.sort_by(|a, b| b.0.cmp(&a.0));
+    let seeds: Vec<[u8; 4]> = buckets
+        .into_iter()
+        .take(4)
+        .filter(|entry| entry.0 * 100 >= histogram.total * BACKGROUND_SHARE)
+        .map(Histogram::mean)
+        .collect();
+    if seeds.is_empty() {
+        histogram.dominant().into_iter().collect()
+    } else {
+        seeds
+    }
+}
+
+/// Saut permis d'une couleur du fond à une autre (case voisine d'un damier), même sans dégradé.
+const JUMP_TOLERANCE: u32 = 30 * 30;
+/// Part du bord qu'une couleur doit couvrir pour compter comme fond (%).
+const BACKGROUND_SHARE: u32 = 8;
+/// Fond d'incrustation (magenta, vert vif) : aucune teinte d'objet ne s'en approche, on peut
+/// être bien plus large.
+const KEY_REACH: u32 = 150 * 150;
+/// Halo d'un fond d'incrustation (mélange du fond et de l'objet sur le bord).
+const KEY_FRINGE: u32 = 175 * 175;
+/// Écart maximal d'une zone enclavée (trou d'un anneau, espace entre lame et garde) à la
+/// couleur du fond.
+const ENCLOSED_TOLERANCE: u32 = 26 * 26;
+const KEY_ENCLOSED_TOLERANCE: u32 = 110 * 110;
+
+/// Couleur d'incrustation franche : un canal presque éteint, les autres saturés (magenta, vert).
+fn is_key(color: [u8; 4]) -> bool {
+    let [r, g, b, _] = color;
+    let magenta = r > 200 && b > 200 && g < 70;
+    let green = g > 200 && r < 90 && b < 90;
+    magenta || green
+}
+
+/// Écart au fond le plus proche, et la tolérance qui va avec ce fond.
+fn to_background(color: [u8; 4], seeds: &[[u8; 4]]) -> (u32, bool) {
+    seeds
+        .iter()
+        .map(|seed| (distance(color, *seed), is_key(*seed)))
+        .min_by_key(|(d, _)| *d)
+        .unwrap_or((u32::MAX, false))
+}
+
+fn neighbours(x: u32, y: u32) -> [(u32, u32); 4] {
+    [
+        (x.wrapping_sub(1), y),
+        (x + 1, y),
+        (x, y.wrapping_sub(1)),
+        (x, y + 1),
+    ]
+}
+
+/// Zones connexes (4 voisins) des pixels pour lesquels `inside` est vrai.
+fn components(width: u32, height: u32, inside: impl Fn(usize) -> bool) -> Vec<Vec<usize>> {
+    let mut seen = vec![false; (width * height) as usize];
+    let mut found = Vec::new();
+    for start in 0..seen.len() {
+        if seen[start] || !inside(start) {
+            continue;
+        }
+        let mut zone = vec![start];
+        seen[start] = true;
+        let mut cursor = 0;
+        while cursor < zone.len() {
+            let index = zone[cursor];
+            cursor += 1;
+            let (x, y) = (index as u32 % width, index as u32 / width);
+            for (nx, ny) in neighbours(x, y) {
+                if nx >= width || ny >= height {
+                    continue;
+                }
+                let next = (ny * width + nx) as usize;
+                if !seen[next] && inside(next) {
+                    seen[next] = true;
+                    zone.push(next);
+                }
+            }
+        }
+        found.push(zone);
+    }
+    found
+}
+
+/// Rend transparent le fond qui touche les bords, qu'il soit uni, en dégradé, en damier ou d'une
+/// couleur d'incrustation ; puis le fond enclavé dans l'objet (trou d'un anneau) et les
+/// poussières restées dans le vide.
 fn remove_background(raster: &mut Raster) {
     let edge = border(raster);
     let transparent = edge
@@ -432,8 +520,13 @@ fn remove_background(raster: &mut Raster) {
     if transparent * 2 > edge.len() {
         return;
     }
-    let Some(background) = dominant(edge.iter().map(|&(x, y)| raster.at(x, y))) else {
+    let seeds = background_colors(raster, &edge);
+    if seeds.is_empty() {
         return;
+    }
+    let reach = |color: [u8; 4]| {
+        let (gap, key) = to_background(color, &seeds);
+        gap <= if key { KEY_REACH } else { REACH_TOLERANCE }
     };
 
     let (w, h) = (raster.width, raster.height);
@@ -441,20 +534,17 @@ fn remove_background(raster: &mut Raster) {
     let mut queue = VecDeque::new();
     for &(x, y) in &edge {
         let index = (y * w + x) as usize;
-        if !removed[index] && distance(raster.at(x, y), background) <= SEED_TOLERANCE {
+        let color = raster.at(x, y);
+        let (gap, key) = to_background(color, &seeds);
+        let seed_ok = gap <= if key { KEY_REACH } else { SEED_TOLERANCE };
+        if !removed[index] && seed_ok {
             removed[index] = true;
             queue.push_back((x, y));
         }
     }
     while let Some((x, y)) = queue.pop_front() {
         let here = raster.at(x, y);
-        let neighbours = [
-            (x.wrapping_sub(1), y),
-            (x + 1, y),
-            (x, y.wrapping_sub(1)),
-            (x, y + 1),
-        ];
-        for (nx, ny) in neighbours {
+        for (nx, ny) in neighbours(x, y) {
             if nx >= w || ny >= h {
                 continue;
             }
@@ -463,38 +553,74 @@ fn remove_background(raster: &mut Raster) {
                 continue;
             }
             let color = raster.at(nx, ny);
-            if distance(color, here) <= STEP_TOLERANCE
-                && distance(color, background) <= REACH_TOLERANCE
-            {
+            // Pas à pas dans un dégradé ou d'une case du damier à l'autre, sans jamais quitter
+            // les couleurs du fond.
+            let (gap, key) = to_background(color, &seeds);
+            let step_ok = distance(color, here) <= STEP_TOLERANCE || gap <= JUMP_TOLERANCE || key;
+            if step_ok && reach(color) {
                 removed[index] = true;
                 queue.push_back((nx, ny));
             }
         }
     }
 
-    // Liseré : pixels de bordure encore teintés par le fond (anticrénelage).
-    let mut fringe = Vec::new();
-    for y in 0..h {
-        for x in 0..w {
-            let index = (y * w + x) as usize;
-            if removed[index] || distance(raster.at(x, y), background) > FRINGE_TOLERANCE {
-                continue;
-            }
-            let touches = [
-                (x.wrapping_sub(1), y),
-                (x + 1, y),
-                (x, y.wrapping_sub(1)),
-                (x, y + 1),
-            ]
-            .iter()
-            .any(|&(nx, ny)| nx < w && ny < h && removed[(ny * w + nx) as usize]);
-            if touches {
-                fringe.push(index);
-            }
+    // Fond enclavé : zones proches d'une couleur du fond que le remplissage n'a pas atteintes.
+    let minimum = ((w * h) / 1000).max(12) as usize;
+    let enclosed = components(w, h, |index| {
+        if removed[index] {
+            return false;
+        }
+        let (gap, key) = to_background(raster.px[index], &seeds);
+        gap <= if key {
+            KEY_ENCLOSED_TOLERANCE
+        } else {
+            ENCLOSED_TOLERANCE
+        }
+    });
+    for zone in enclosed.into_iter().filter(|zone| zone.len() >= minimum) {
+        for index in zone {
+            removed[index] = true;
         }
     }
-    for index in fringe {
-        removed[index] = true;
+
+    // Liseré : pixels de bordure encore teintés par le fond (anticrénelage). Un fond
+    // d'incrustation laisse un halo plus large et plus coloré : deux passes, plus tolérantes.
+    let keyed = seeds.iter().any(|seed| is_key(*seed));
+    for _ in 0..if keyed { 2 } else { 1 } {
+        let mut fringe = Vec::new();
+        for y in 0..h {
+            for x in 0..w {
+                let index = (y * w + x) as usize;
+                if removed[index] {
+                    continue;
+                }
+                let (gap, key) = to_background(raster.at(x, y), &seeds);
+                if gap > if key { KEY_FRINGE } else { FRINGE_TOLERANCE } {
+                    continue;
+                }
+                let touches = neighbours(x, y)
+                    .iter()
+                    .any(|&(nx, ny)| nx < w && ny < h && removed[(ny * w + nx) as usize]);
+                if touches {
+                    fringe.push(index);
+                }
+            }
+        }
+        for index in fringe {
+            removed[index] = true;
+        }
+    }
+
+    // Poussières : petits îlots restés au milieu du vide (bruit de compression, reflets).
+    let speck = ((w * h) / 4000).max(4) as usize;
+    let islands = components(w, h, |index| !removed[index]);
+    let largest = islands.iter().map(Vec::len).max().unwrap_or(0);
+    for zone in islands {
+        if zone.len() < speck && zone.len() < largest {
+            for index in zone {
+                removed[index] = true;
+            }
+        }
     }
 
     for (pixel, gone) in raster.px.iter_mut().zip(removed) {
@@ -977,6 +1103,86 @@ mod tests {
                 .iter()
                 .all(|p| p[3] == 0 || distance(*p, WHITE) > 90 * 90));
         }
+    }
+
+    /// Disque (ou anneau si `hole`) de `color` sur un fond fourni par `background(x, y)`.
+    fn object_on(
+        side: u32,
+        color: [u8; 4],
+        hole: bool,
+        background: impl Fn(u32, u32) -> [u8; 4],
+    ) -> Raster {
+        let mut raster = Raster::new(side, side);
+        let (c, r) = (side as f32 / 2.0, side as f32 * 0.32);
+        for y in 0..side {
+            for x in 0..side {
+                let d = ((x as f32 - c).powi(2) + (y as f32 - c).powi(2)).sqrt();
+                let inside = d <= r && !(hole && d <= r * 0.45);
+                raster.put(x, y, if inside { color } else { background(x, y) });
+            }
+        }
+        raster
+    }
+
+    fn opaque_share(raster: &Raster, keep: impl Fn([u8; 4]) -> bool) -> usize {
+        raster.px.iter().filter(|p| p[3] > 0 && keep(**p)).count()
+    }
+
+    #[test]
+    fn checkerboards_rings_keys_and_specks_are_cleaned() {
+        // Damier « transparent » dessiné par le modèle : les deux gris partent.
+        let checker = object_on(256, RED, false, |x, y| {
+            if (x / 16 + y / 16) % 2 == 0 {
+                [255, 255, 255, 255]
+            } else {
+                [204, 204, 204, 255]
+            }
+        });
+        let out = convert(&checker, &opts(16, 0, true)).unwrap();
+        assert_eq!(
+            opaque_share(&out, |p| p[0] > 150 && p[1] > 150),
+            0,
+            "damier retiré"
+        );
+        assert!(distance(out.at(8, 8), RED) < 30 * 30);
+
+        // Anneau : le fond vu à travers le trou part aussi.
+        let ring = object_on(256, [30, 90, 200, 255], true, |_, _| WHITE);
+        let out = convert(&ring, &opts(16, 0, true)).unwrap();
+        assert_eq!(out.at(8, 8)[3], 0, "trou transparent");
+        assert!(out.at(8, 2)[3] > 0 || out.at(2, 8)[3] > 0, "anneau gardé");
+
+        // Fond d'incrustation magenta, bord anticrénelé : aucune trace de magenta.
+        let green = [30, 110, 40, 255];
+        let mut keyed = object_on(256, green, false, |_, _| [255, 0, 255, 255]);
+        let (c, r) = (128.0f32, 256.0 * 0.32);
+        for y in 0..256 {
+            for x in 0..256 {
+                let d = ((x as f32 - c).powi(2) + (y as f32 - c).powi(2)).sqrt();
+                if (r..r + 2.0).contains(&d) {
+                    keyed.put(x, y, [140, 55, 150, 255]);
+                }
+            }
+        }
+        let out = convert(&keyed, &opts(16, 0, true)).unwrap();
+        assert_eq!(
+            opaque_share(&out, |p| p[0] > 120 && p[2] > 120 && p[1] < 100),
+            0,
+            "magenta retiré"
+        );
+        assert!(opaque_share(&out, |p| distance(p, green) < 40 * 40) > 60);
+
+        // Poussières isolées dans le fond : retirées.
+        let mut dusty = object_on(256, RED, false, |_, _| WHITE);
+        for (x, y) in [(10, 10), (240, 20), (20, 235)] {
+            for dy in 0..3 {
+                for dx in 0..3 {
+                    dusty.put(x + dx, y + dy, [20, 20, 20, 255]);
+                }
+            }
+        }
+        let out = convert(&dusty, &opts(16, 0, true)).unwrap();
+        assert_eq!(opaque_share(&out, |p| p[0] < 60), 0, "poussières retirées");
     }
 
     #[test]

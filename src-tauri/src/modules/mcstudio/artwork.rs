@@ -313,7 +313,14 @@ pub fn info(root: &Path, mod_id: &str, target: &TextureTarget) -> AppResult<Text
         TextureTarget::Block { id, .. } => Some(read_block_model(root, mod_id, id).layout),
         _ => None,
     };
-    info_with(root, mod_id, target, &lang_names(root, mod_id), layout)
+    info_with(
+        root,
+        mod_id,
+        target,
+        &lang_names(root, mod_id),
+        layout,
+        false,
+    )
 }
 
 fn info_with(
@@ -322,6 +329,7 @@ fn info_with(
     target: &TextureTarget,
     names: &Map<String, Value>,
     layout: Option<BlockLayout>,
+    unused: bool,
 ) -> AppResult<TextureInfo> {
     let relative = resolve_path(root, mod_id, target)?;
     let path = root.join(&relative);
@@ -360,6 +368,7 @@ fn info_with(
         height,
         modified,
         layout,
+        unused,
     })
 }
 
@@ -425,55 +434,87 @@ pub fn list(root: &Path, mod_id: &str) -> Vec<TextureInfo> {
             .map(str::to_string)
             .collect()
     };
-    let mut items = declared("item");
-    items.extend(stems(&textures.join("item"), "png"));
+    // Textures utilisées par un modèle (d'un bloc, de ses variantes, d'un objet).
+    let mut claimed = referenced_textures(&assets, mod_id);
+    let texture_path =
+        |folder: &str, stem: &str| format!("{}/textures/{folder}/{stem}.png", assets_base(mod_id));
 
+    // Objets : déclarés dans les traductions, ou dont un modèle utilise la texture.
+    let mut items = declared("item");
+    for stem in stems(&textures.join("item"), "png") {
+        if claimed.contains(&texture_path("item", &stem)) {
+            items.insert(stem);
+        }
+    }
     // Blocs : déclarés dans les traductions, ou qui ont un état de bloc (`blockstates/`). Les
     // modèles seuls ne comptent pas : une dalle ou une bûche en ont plusieurs (`_top`,
     // `_double`, `_horizontal`…) qui ne sont pas des blocs.
     let mut blocks = declared("block");
     blocks.extend(stems(&assets.join("blockstates"), "json"));
-    let mut entries: Vec<(TextureTarget, Option<BlockLayout>)> = vec![(TextureTarget::Icon, None)];
-    entries.extend(
-        items
-            .into_iter()
-            .map(|id| (TextureTarget::Item { id }, None)),
-    );
-    // Textures utilisées par un modèle (du bloc, de ses variantes, d'un objet).
-    let mut claimed = referenced_textures(&assets, mod_id);
-    let mut block_entries = Vec::new();
+
+    let mut entries: Vec<(TextureTarget, Option<BlockLayout>, bool)> =
+        vec![(TextureTarget::Icon, None, false)];
+    for id in items {
+        claimed.insert(texture_path("item", &id));
+        entries.push((TextureTarget::Item { id }, None, false));
+    }
     for id in &blocks {
         let model = read_block_model(root, mod_id, id);
         for target in block_targets(id, model.layout) {
             if let Ok(path) = resolve_path(root, mod_id, &target) {
                 claimed.insert(path);
             }
-            block_entries.push((target, Some(model.layout)));
+            entries.push((target, Some(model.layout), false));
         }
     }
-    // PNG de bloc qu'aucun modèle n'utilise : une texture de bloc à part entière.
-    for stem in stems(&textures.join("block"), "png") {
-        let path = format!("{}/textures/block/{stem}.png", assets_base(mod_id));
-        if !claimed.contains(&path) && !blocks.contains(&stem) {
-            block_entries.push((
-                TextureTarget::Block {
-                    id: stem,
-                    face: None,
-                },
-                Some(BlockLayout::All),
-            ));
-        }
-    }
-    entries.extend(block_entries);
     entries.extend(
         stems(&textures.join("gui"), "png")
             .into_iter()
-            .map(|name| (TextureTarget::Gui { name }, None)),
+            .map(|name| (TextureTarget::Gui { name }, None, false)),
     );
+    // PNG qu'aucun objet, bloc ni modèle n'utilise : à part, proposés à la suppression.
+    for stem in stems(&textures.join("item"), "png") {
+        if !claimed.contains(&texture_path("item", &stem)) {
+            entries.push((TextureTarget::Item { id: stem }, None, true));
+        }
+    }
+    for stem in stems(&textures.join("block"), "png") {
+        if !claimed.contains(&texture_path("block", &stem)) && !blocks.contains(&stem) {
+            let target = TextureTarget::Block {
+                id: stem,
+                face: None,
+            };
+            entries.push((target, None, true));
+        }
+    }
     entries
         .into_iter()
-        .filter_map(|(target, layout)| info_with(root, mod_id, &target, &names, layout).ok())
+        .filter_map(|(target, layout, unused)| {
+            info_with(root, mod_id, &target, &names, layout, unused).ok()
+        })
         .collect()
+}
+
+/// Met à la Corbeille des textures du projet (`assets/<mod>/textures/…png` ou l'icône).
+/// Renvoie le nombre de fichiers retirés.
+pub fn delete_textures(root: &Path, mod_id: &str, relatives: &[String]) -> AppResult<usize> {
+    let base = assets_base(mod_id);
+    for relative in relatives {
+        let clean = relative.replace('\\', "/");
+        let allowed = (clean.starts_with(&format!("{base}/textures/"))
+            || clean == format!("{base}/icon.png"))
+            && clean.ends_with(".png")
+            && !clean.contains("..");
+        if !allowed {
+            return Err(AppError::invalid(format!(
+                "« {relative} » n'est pas une texture du mod : rien n'a été supprimé."
+            )));
+        }
+    }
+    for relative in relatives {
+        files::trash(root, relative)?;
+    }
+    Ok(relatives.len())
 }
 
 // ── Texte envoyé au modèle ──────────────────────────────────────────────────
@@ -488,6 +529,31 @@ const TILE_ACROSS: &str = "The pattern must continue seamlessly across the left 
 const REFERENCE: &str = "The attached image is an existing Minecraft texture: use it as the \
                          reference for palette, lighting and pixel style, and as the starting \
                          point if the description asks for a variation of it.";
+
+/// Couleur d'incrustation demandée au modèle quand le fond sera retiré : magenta, sauf si le
+/// sujet est lui-même rose ou violet (vert alors).
+fn key_color(description: &str) -> (&'static str, &'static str) {
+    const PINKISH: [&str; 12] = [
+        "pink",
+        "magenta",
+        "purple",
+        "violet",
+        "fuchsia",
+        "rose",
+        "mauve",
+        "lilac",
+        "lilas",
+        "pourpre",
+        "améthyste",
+        "amethyst",
+    ];
+    let lower = description.to_lowercase();
+    if PINKISH.iter().any(|word| lower.contains(word)) {
+        ("green", "#00FF00")
+    } else {
+        ("magenta", "#FF00FF")
+    }
+}
 
 fn style_line(style: TextureStyle) -> &'static str {
     match style {
@@ -515,8 +581,7 @@ pub fn prompt_for(target: &TextureTarget, description: &str, settings: &PromptSe
         TextureTarget::Item { .. } => format!(
             "Minecraft item sprite of {what}. One single object, centered and entirely visible, \
              drawn like a Minecraft inventory icon: bold readable silhouette, simple shading. \
-             Isolated on a plain uniform background of one flat color that contrasts with the \
-             object. No text, no border, no shadow, no frame."
+             No text, no border, no frame."
         ),
         TextureTarget::Icon => format!(
             "Square logo icon for a Minecraft mod: {what}. Bold and readable at small size, \
@@ -571,6 +636,32 @@ pub fn prompt_for(target: &TextureTarget, description: &str, settings: &PromptSe
         }
     };
     let mut parts = vec![subject, style_line(settings.style).to_string()];
+    let background = match target {
+        TextureTarget::Item { .. } if !settings.transparent => Some(
+            "Isolated on a plain uniform background of one flat color that contrasts with \
+                  the object, no shadow."
+                .to_string(),
+        ),
+        TextureTarget::Block { .. } if settings.transparent => {
+            let key = key_color(what);
+            Some(format!(
+                "Areas that should be see-through (glass, gaps, holes) are filled with solid pure \
+                 {} ({}).",
+                key.0, key.1
+            ))
+        }
+        _ if settings.transparent => {
+            let key = key_color(what);
+            Some(format!(
+                "Isolated on a perfectly flat, solid pure {} background ({}): no gradient, no \
+                 shadow, no ground, no reflection, no outline glow. The subject itself never \
+                 uses that color.",
+                key.0, key.1
+            ))
+        }
+        _ => None,
+    };
+    parts.extend(background);
     if settings.with_reference {
         parts.push(REFERENCE.to_string());
     }
@@ -1082,7 +1173,7 @@ pub fn set_block_layout(
     let names = lang_names(root, mod_id);
     targets
         .iter()
-        .map(|target| info_with(root, mod_id, target, &names, Some(layout)))
+        .map(|target| info_with(root, mod_id, target, &names, Some(layout), false))
         .collect()
 }
 
@@ -1189,6 +1280,18 @@ mod tests {
             &plain,
         );
         assert!(item.starts_with("Minecraft item sprite of une épée en rubis."));
+        assert!(item.contains("plain uniform background"));
+        // Fond retiré ensuite : fond d'incrustation, vert si l'objet est rose.
+        let keyed = PromptSettings {
+            transparent: true,
+            ..PromptSettings::default()
+        };
+        let sword = prompt_for(&TextureTarget::Item { id: "s".into() }, "épée", &keyed);
+        assert!(sword.contains("magenta background (#FF00FF)"));
+        let pink = prompt_for(&TextureTarget::Item { id: "s".into() }, "Pink gem", &keyed);
+        assert!(pink.contains("green background (#00FF00)"));
+        let glass = prompt_for(&block("g", None), "glass", &keyed);
+        assert!(glass.contains("see-through") && glass.contains("#FF00FF"));
         assert!(item.contains("Style: vanilla Minecraft"));
         assert!(prompt_for(&block("x", None), "x", &plain).contains("top/bottom edges"));
         let side = prompt_for(&block("x", Some(BlockFace::Side)), "grass", &plain);
@@ -1208,6 +1311,7 @@ mod tests {
             with_reference: true,
             width: Some(176),
             height: Some(166),
+            transparent: false,
         };
         let gui = prompt_for(
             &TextureTarget::Gui {
@@ -1337,10 +1441,17 @@ mod tests {
                 "Bûche de rubis · côtés",
                 "Bûche de rubis · extrémités",
                 "ruby_slab",
-                "loose",
-                "forge"
+                "forge",
+                "loose"
             ]
         );
+        // Texture que rien n'utilise : à part, proposée à la suppression.
+        let listed = list(&root, "dm");
+        assert!(listed.iter().find(|t| t.label == "loose").unwrap().unused);
+        assert!(listed
+            .iter()
+            .filter(|t| t.label != "loose")
+            .all(|t| !t.unused));
         // Modèle fait main : sa vraie texture, pas un fichier au nom du bloc.
         let slab = list(&root, "dm")
             .into_iter()
@@ -1410,6 +1521,48 @@ mod tests {
         assert_eq!(written["parent"], "minecraft:block/cube_column");
         assert!(written.get("elements").is_none());
         assert!(set_block_layout(&root, "dm", "ore", BlockLayout::Custom, true).is_err());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn faces_left_by_a_layout_change_are_unused_not_blocks() {
+        let root = temp("phantoms");
+        let assets = assets_base("dm");
+        write(&root, &format!("{assets}/blockstates/ore.json"), b"{}");
+        write(
+            &root,
+            &block_model_path("dm", "ore"),
+            br#"{"parent":"minecraft:block/cube_all","textures":{"all":"dm:block/ore"}}"#,
+        );
+        write(
+            &root,
+            &format!("{assets}/textures/block/ore.png"),
+            &picture(),
+        );
+        // On essaie six faces, puis on revient à une seule texture.
+        set_block_layout(&root, "dm", "ore", BlockLayout::Faces, false).unwrap();
+        set_block_layout(&root, "dm", "ore", BlockLayout::All, false).unwrap();
+
+        let listed = list(&root, "dm");
+        let blocks: Vec<&str> = listed
+            .iter()
+            .filter(|t| matches!(t.target, TextureTarget::Block { .. }) && !t.unused)
+            .map(|t| t.label.as_str())
+            .collect();
+        assert_eq!(blocks, ["ore"], "un seul vrai bloc");
+        let leftovers: Vec<String> = listed
+            .iter()
+            .filter(|t| t.unused)
+            .map(|t| t.relative.clone())
+            .collect();
+        assert_eq!(leftovers.len(), 6, "{leftovers:?}");
+
+        // Suppression : seulement des textures du mod.
+        assert!(delete_textures(&root, "dm", &["build.gradle".into()]).is_err());
+        assert!(
+            delete_textures(&root, "dm", &[format!("{assets}/textures/../lang/x.png")]).is_err()
+        );
+        let _ = delete_textures(&root, "dm", &leftovers);
         let _ = std::fs::remove_dir_all(&root);
     }
 

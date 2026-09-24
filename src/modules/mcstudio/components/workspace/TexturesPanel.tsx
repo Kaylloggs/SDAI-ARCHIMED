@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Box, LayoutPanelTop, Loader2, Plus, Sword } from "lucide-react";
+import { Box, LayoutPanelTop, Loader2, Plus, Sword, Trash2 } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Button, Select } from "@/design-system/primitives";
 import type { BlockSound } from "@/core/ipc/bindings/BlockSound";
@@ -232,15 +232,19 @@ function TextureRow({
   texture,
   selected,
   onSelect,
+  onDelete,
   label = texture.label,
 }: {
   texture: TextureInfo;
   selected: boolean;
   onSelect: () => void;
+  /** Suppression (second clic pour confirmer) ; absente si rien à supprimer. */
+  onDelete?: () => void;
   label?: string;
 }) {
+  const [asking, setAsking] = useState(false);
   return (
-    <li>
+    <li className="group relative">
       <button
         type="button"
         aria-current={selected ? "true" : undefined}
@@ -267,6 +271,30 @@ function TextureRow({
           </span>
         </span>
       </button>
+      {onDelete && texture.exists && (
+        <button
+          type="button"
+          aria-label={asking ? `Confirmer : mettre ${label} à la Corbeille` : `Supprimer ${label}`}
+          title={asking ? "Cliquer encore pour mettre à la Corbeille" : "Supprimer la texture"}
+          onClick={() => {
+            if (asking) {
+              setAsking(false);
+              onDelete();
+            } else setAsking(true);
+          }}
+          onBlur={() => setAsking(false)}
+          className={cn(
+            "absolute right-1.5 top-1/2 flex h-7 -translate-y-1/2 items-center justify-center gap-1 rounded-sm px-1.5 text-caption transition-opacity",
+            asking
+              ? "bg-danger text-text opacity-100"
+              : "bg-surface-2 text-text-muted opacity-0 hover:text-danger group-hover:opacity-100 focus-visible:opacity-100",
+            focusRing,
+          )}
+        >
+          <Trash2 size={13} />
+          {asking && "Supprimer"}
+        </button>
+      )}
     </li>
   );
 }
@@ -325,8 +353,29 @@ export function TexturesPanel({ project }: { project: ProjectSummary }) {
   const addLabel: Record<NewKind, string> = { item: "Nouvel objet", block: "Nouveau bloc", gui: "Nouvel élément d'interface" };
 
   const applied = (info: TextureInfo) => {
-    setTextures((list) => list?.map((t) => (targetKey(t.target) === targetKey(info.target) ? info : t)) ?? null);
+    setTextures(
+      (list) => list?.map((t) => (targetKey(t.target) === targetKey(info.target) ? { ...info, unused: t.unused } : t)) ?? null,
+    );
     if (info.target.kind === "icon") useMcStudioStore.getState().bumpIcon(project.id);
+  };
+
+  const unused = textures?.filter((t) => t.unused) ?? [];
+  const [confirmAll, setConfirmAll] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  /** Met des textures à la Corbeille, puis relit la liste. */
+  const remove = async (paths: string[]) => {
+    setDeleting(true);
+    setError(null);
+    try {
+      await mcstudioApi.deleteTextures(project.id, paths);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setDeleting(false);
+      setConfirmAll(false);
+      void load();
+    }
   };
 
   // Nouvelle répartition des faces : la liste change, on ouvre la première face.
@@ -346,7 +395,7 @@ export function TexturesPanel({ project }: { project: ProjectSummary }) {
         {!textures && !error && <Loader2 size={16} className="animate-spin text-text-subtle" aria-label="Chargement" />}
         {textures &&
           groups.map(({ title, kind, add, Icon, empty }) => {
-            const list = rows(textures.filter((t) => t.target.kind === kind));
+            const list = rows(textures.filter((t) => t.target.kind === kind && !t.unused));
             return (
               <section key={kind} className="space-y-1.5">
                 <div className="flex items-center justify-between px-2">
@@ -406,6 +455,12 @@ export function TexturesPanel({ project }: { project: ProjectSummary }) {
                           label={blockLabel(texture)}
                           selected={isSelected}
                           onSelect={() => setSelected(targetKey(texture.target))}
+                          // Un bloc à plusieurs faces se supprime face par face, dans l'atelier.
+                          onDelete={
+                            kind === "icon" || (texture.target.kind === "block" && texture.target.face)
+                              ? undefined
+                              : () => void remove([texture.relative])
+                          }
                         />
                       );
                     })}
@@ -414,6 +469,44 @@ export function TexturesPanel({ project }: { project: ProjectSummary }) {
               </section>
             );
           })}
+        {unused.length > 0 && (
+          <section aria-labelledby="mc-unused" className="space-y-1.5 border-t border-border pt-4">
+            <div className="flex items-center justify-between gap-2 px-2">
+              <h2 id="mc-unused" className="text-caption font-semibold uppercase tracking-[0.04em] text-text-subtle">
+                Non utilisées <span className="font-normal">· {unused.length}</span>
+              </h2>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => (confirmAll ? void remove(unused.map((t) => t.relative)) : setConfirmAll(true))}
+                onBlur={() => setConfirmAll(false)}
+                className={cn(
+                  "flex h-6 items-center gap-1 rounded-sm px-1.5 text-caption transition-colors disabled:opacity-40",
+                  confirmAll ? "bg-danger text-text" : "text-text-subtle hover:bg-danger-soft hover:text-danger",
+                  focusRing,
+                )}
+              >
+                {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                {confirmAll ? `Confirmer (${unused.length})` : "Tout supprimer"}
+              </button>
+            </div>
+            <p className="px-2 text-caption text-text-subtle">
+              Aucun objet, bloc ni modèle ne s'en sert : faces laissées par un changement de répartition, fichiers en trop.
+              Supprimées, elles vont à la Corbeille.
+            </p>
+            <ul className="space-y-0.5">
+              {unused.map((texture) => (
+                <TextureRow
+                  key={targetKey(texture.target)}
+                  texture={texture}
+                  selected={current !== null && targetKey(current.target) === targetKey(texture.target)}
+                  onSelect={() => setSelected(targetKey(texture.target))}
+                  onDelete={() => void remove([texture.relative])}
+                />
+              ))}
+            </ul>
+          </section>
+        )}
       </aside>
       <div className="min-w-0 flex-1 overflow-hidden">
         {current && textures && (
@@ -425,6 +518,7 @@ export function TexturesPanel({ project }: { project: ProjectSummary }) {
             onApplied={applied}
             onSelect={(target) => setSelected(targetKey(target))}
             onLayoutChanged={layoutChanged}
+            onDeleted={() => void load()}
           />
         )}
       </div>
