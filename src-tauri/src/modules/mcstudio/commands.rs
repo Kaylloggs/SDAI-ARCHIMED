@@ -10,8 +10,8 @@ use super::java;
 use super::service::{self, McStudio};
 use super::types::{
     BlockRequest, BuildEvent, BuildRecord, BuildTask, ContentResult, CreateProjectRequest,
-    EnvironmentReport, ImageModelList, InstallEvent, ItemRequest, JavaInstall, JavaStatus,
-    JdkOffer, OpenRouterStatus, PixelOptions, ProjectEntry, ProjectFile, ProjectStats,
+    EnvironmentReport, GeminiStatus, ImageModelList, InstallEvent, ItemRequest, JavaInstall,
+    JavaStatus, JdkOffer, OpenRouterStatus, PixelOptions, ProjectEntry, ProjectFile, ProjectStats,
     ProjectSummary, RecipeRequest, ResolvedVersions, TextureDraft, TextureInfo, TextureRequest,
     TextureTarget, ValidationReport, VersionCatalog, VersionOptions, VersionSelection,
 };
@@ -269,6 +269,30 @@ pub async fn clear_openrouter_key(studio: Studio<'_>) -> AppResult<()> {
 #[tauri::command]
 pub async fn image_models(studio: Studio<'_>) -> AppResult<ImageModelList> {
     studio.openrouter.models().await
+}
+
+// ── Textures (Google Gemini) ────────────────────────────────────────────────
+
+/// Clé présente ? Avec `check`, l'API Gemini est interrogée (modèles d'image ouverts).
+#[tauri::command]
+pub async fn gemini_status(studio: Studio<'_>, check: bool) -> AppResult<GeminiStatus> {
+    studio.gemini.status(check).await
+}
+
+/// Vérifie la clé Google AI Studio puis la range dans le Gestionnaire d'identifiants.
+#[tauri::command]
+pub async fn set_gemini_key(studio: Studio<'_>, key: String) -> AppResult<GeminiStatus> {
+    studio.gemini.set_key(&key).await
+}
+
+#[tauri::command]
+pub async fn clear_gemini_key(studio: Studio<'_>) -> AppResult<()> {
+    studio.gemini.clear_key()
+}
+
+#[tauri::command]
+pub async fn gemini_image_models(studio: Studio<'_>) -> AppResult<ImageModelList> {
+    studio.gemini.models().await
 }
 
 /// Texte exact envoyé au modèle, montré avant l'envoi.

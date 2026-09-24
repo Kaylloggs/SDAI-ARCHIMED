@@ -11,6 +11,7 @@ use super::agent::{self, Workspaces};
 use super::artwork::{self, Drafts};
 use super::content;
 use super::files;
+use super::gemini::Gemini;
 use super::gradle::{self, BuildParams, BuildRegistry};
 use super::java;
 use super::jdk::JdkInstaller;
@@ -22,10 +23,10 @@ use super::snapshots;
 use super::types::{ApplyOutcome, Snapshot, WorkChange, WorkInfo};
 use super::types::{
     BlockRequest, BuildEvent, BuildRecord, BuildTask, ContentResult, CreateProjectRequest,
-    DraftSource, EnvironmentReport, ItemRequest, JavaInstall, JavaStatus, JdkNeed, PixelOptions,
-    ProjectEntry, ProjectFile, ProjectMeta, ProjectStats, ProjectSummary, RecipeRequest,
-    ResolvedVersions, TextureDraft, TextureInfo, TextureRequest, TextureTarget, ValidationReport,
-    VersionCatalog, VersionOptions, VersionSelection,
+    DraftSource, EnvironmentReport, ImageModel, ImageProvider, ItemRequest, JavaInstall,
+    JavaStatus, JdkNeed, PixelOptions, ProjectEntry, ProjectFile, ProjectMeta, ProjectStats,
+    ProjectSummary, RecipeRequest, ResolvedVersions, TextureDraft, TextureInfo, TextureRequest,
+    TextureTarget, ValidationReport, VersionCatalog, VersionOptions, VersionSelection,
 };
 use super::validator;
 
@@ -39,6 +40,7 @@ pub struct McStudio {
     builds: Arc<BuildRegistry>,
     pub jdk: JdkInstaller,
     pub openrouter: OpenRouter,
+    pub gemini: Gemini,
     drafts: Drafts,
     workspaces: Workspaces,
 }
@@ -51,6 +53,7 @@ impl McStudio {
             builds: Arc::new(BuildRegistry::default()),
             jdk: JdkInstaller::new(&module_dir),
             openrouter: OpenRouter::new(&module_dir),
+            gemini: Gemini::new(&module_dir),
             drafts: Drafts::new(&module_dir),
             workspaces: Workspaces::new(&module_dir),
             module_dir,
@@ -306,47 +309,42 @@ impl McStudio {
         artwork::validate_description(&request.description)?;
         artwork::relative_path("mod", &request.target)?;
         pixelart::validate(&request.options)?;
-        let model = self
-            .openrouter
-            .models()
-            .await?
-            .models
-            .into_iter()
-            .find(|m| m.id == request.model)
-            .ok_or_else(|| {
-                AppError::not_found(format!(
-                    "« {} » ne produit pas d'images sur OpenRouter : rechargez la liste des modèles.",
-                    request.model
-                ))
-            })?;
-        if !model.free && !request.allow_paid {
-            return Err(AppError::invalid(format!(
-                "{} est payant : autorisez les modèles payants pour l'utiliser.",
-                model.name
-            )));
-        }
+        let (models, service) = match request.provider {
+            ImageProvider::OpenRouter => (self.openrouter.models().await?.models, "OpenRouter"),
+            ImageProvider::Gemini => (self.gemini.models().await?.models, "Google Gemini"),
+        };
+        let model = pick_image_model(models, &request, service)?;
         let prompt = artwork::prompt_for(&request.target, &request.description);
-        let result = self.openrouter.generate(&model, &prompt).await;
+        let (result, origin) = match request.provider {
+            ImageProvider::OpenRouter => (
+                self.openrouter.generate(&model, &prompt).await,
+                "openrouter",
+            ),
+            ImageProvider::Gemini => (self.gemini.generate(&model, &prompt).await, "gemini"),
+        };
         crate::core::audit::record(
             "mcstudio.texture_generate",
-            &format!("openrouter:{}", model.id),
+            &format!("{origin}:{}", model.id),
             if result.is_ok() { "received" } else { "failed" },
             "user",
         );
         let bytes = result?;
+        let source = match request.provider {
+            ImageProvider::OpenRouter => DraftSource::OpenRouter {
+                model: model.id,
+                prompt,
+            },
+            ImageProvider::Gemini => DraftSource::Gemini {
+                model: model.id,
+                prompt,
+            },
+        };
         let studio = self.clone();
         let project_id = project_id.to_string();
         tauri::async_runtime::spawn_blocking(move || {
-            studio.drafts.create(
-                &project_id,
-                request.target,
-                DraftSource::OpenRouter {
-                    model: model.id,
-                    prompt,
-                },
-                &bytes,
-                request.options,
-            )
+            studio
+                .drafts
+                .create(&project_id, request.target, source, &bytes, request.options)
         })
         .await
         .map_err(|e| AppError::internal(e.to_string()))?
@@ -514,6 +512,35 @@ impl McStudio {
             context.data_format,
         ))
     }
+}
+
+/// Modèle demandé, s'il est encore proposé par le service ; un modèle payant exige l'accord
+/// explicite de la personne (tous ceux de Google Gemini le sont).
+fn pick_image_model(
+    models: Vec<ImageModel>,
+    request: &TextureRequest,
+    service: &str,
+) -> AppResult<ImageModel> {
+    let model = models
+        .into_iter()
+        .find(|m| m.id == request.model)
+        .ok_or_else(|| {
+            AppError::not_found(format!(
+                "« {} » ne produit pas d'images sur {service} : rechargez la liste des modèles.",
+                request.model
+            ))
+        })?;
+    if !model.free && !request.allow_paid {
+        let rule = match request.provider {
+            ImageProvider::OpenRouter => "autorisez les modèles payants pour l'utiliser",
+            ImageProvider::Gemini => "acceptez la facturation Google pour l'utiliser",
+        };
+        return Err(AppError::invalid(format!(
+            "{} est payant : {rule}.",
+            model.name
+        )));
+    }
+    Ok(model)
 }
 
 /// JDK à utiliser pour ce projet : celui qu'il a mémorisé, sinon le meilleur détecté.

@@ -1,6 +1,6 @@
 //! Génération d'images par OpenRouter, avec la clé API de la personne.
 //!
-//! - La clé vit dans le Gestionnaire d'identifiants de Windows (`keyring`), jamais dans un
+//! - La clé vit dans le Gestionnaire d'identifiants de Windows (`secrets`), jamais dans un
 //!   fichier ni dans les journaux ; elle ne revient jamais vers l'interface.
 //! - La liste des modèles est lue en direct (`/models`, sortie « image ») et gardée en cache.
 //!   Un modèle payant n'est appelé qu'avec l'accord explicite de la personne.
@@ -8,7 +8,6 @@
 //!   `<données>/modules/mcstudio/env.json`.
 
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 use std::time::Duration;
 
 use base64::Engine;
@@ -19,6 +18,7 @@ use crate::core::error::AppErrorCode;
 use crate::core::{AppError, AppResult};
 
 use super::pixelart;
+use super::secrets::{check_shape, CredentialStore, KeyStore};
 use super::types::{ImageModel, ImageModelList, OpenRouterStatus};
 
 const DEFAULT_API: &str = "https://openrouter.ai/api/v1";
@@ -27,74 +27,6 @@ const REFERER: &str = "https://github.com/Kaylloggs/SDAI-ARCHIMED";
 const TITLE: &str = "SDAI ARCHIMED Mod Studio";
 /// Une image se fait en 5 à 60 secondes selon le modèle et la charge.
 const GENERATION_TIMEOUT: Duration = Duration::from_secs(180);
-
-/// Où la clé est rangée.
-pub trait KeyStore: Send + Sync {
-    fn load(&self) -> AppResult<Option<String>>;
-    fn save(&self, key: &str) -> AppResult<()>;
-    fn clear(&self) -> AppResult<()>;
-}
-
-/// Gestionnaire d'identifiants de Windows (« Informations d'identification Windows »,
-/// entrée `mcstudio-openrouter.com.sdai.archimed`).
-pub struct CredentialStore;
-
-impl CredentialStore {
-    fn entry() -> AppResult<keyring::Entry> {
-        keyring::Entry::new("com.sdai.archimed", "mcstudio-openrouter").map_err(store_error)
-    }
-}
-
-fn store_error(error: keyring::Error) -> AppError {
-    AppError::internal(format!(
-        "Gestionnaire d'identifiants inaccessible ({error})."
-    ))
-}
-
-impl KeyStore for CredentialStore {
-    fn load(&self) -> AppResult<Option<String>> {
-        match Self::entry()?.get_password() {
-            Ok(key) => Ok(Some(key)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(error) => Err(store_error(error)),
-        }
-    }
-
-    fn save(&self, key: &str) -> AppResult<()> {
-        Self::entry()?.set_password(key).map_err(store_error)
-    }
-
-    fn clear(&self) -> AppResult<()> {
-        match Self::entry()?.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(error) => Err(store_error(error)),
-        }
-    }
-}
-
-/// Rangement en mémoire, pour les tests.
-#[derive(Default)]
-pub struct MemoryStore(Mutex<Option<String>>);
-
-impl KeyStore for MemoryStore {
-    fn load(&self) -> AppResult<Option<String>> {
-        Ok(self.0.lock().map(|k| k.clone()).unwrap_or(None))
-    }
-
-    fn save(&self, key: &str) -> AppResult<()> {
-        if let Ok(mut slot) = self.0.lock() {
-            *slot = Some(key.to_string());
-        }
-        Ok(())
-    }
-
-    fn clear(&self) -> AppResult<()> {
-        if let Ok(mut slot) = self.0.lock() {
-            *slot = None;
-        }
-        Ok(())
-    }
-}
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -121,7 +53,7 @@ impl OpenRouter {
             .unwrap_or_else(|| DEFAULT_API.to_string());
         Self::with_parts(
             &api,
-            Box::new(CredentialStore),
+            Box::new(CredentialStore::new("mcstudio-openrouter")),
             module_dir.join("cache").join("openrouter-models.json"),
             reqwest::Client::builder(),
         )
@@ -189,11 +121,7 @@ impl OpenRouter {
     /// Vérifie la clé auprès d'OpenRouter, puis la range. Une clé refusée n'est pas gardée.
     pub async fn set_key(&self, key: &str) -> AppResult<OpenRouterStatus> {
         let key = key.trim();
-        if key.is_empty() || key.len() > 512 || key.chars().any(char::is_whitespace) {
-            return Err(AppError::invalid(
-                "Clé invalide : copiez-la telle quelle depuis openrouter.ai/keys.",
-            ));
-        }
+        check_shape(key, "copiez-la telle quelle depuis openrouter.ai/keys.")?;
         let described = self.describe_key(key).await?;
         self.store.save(key)?;
         crate::core::audit::record("mcstudio.openrouter_key", "openrouter", "saved", "user");
@@ -551,7 +479,8 @@ fn first_image(body: &str) -> AppResult<Picture> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
+    use crate::modules::mcstudio::secrets::MemoryStore;
+    use std::sync::{Arc, Mutex};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
 

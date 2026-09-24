@@ -4,7 +4,7 @@ import { cn } from "@/core/lib/cn";
 import type { EnvironmentReport } from "@/core/ipc/bindings/EnvironmentReport";
 import { errorText, mcstudioApi } from "../api";
 import { JdkInstallCard } from "./JdkInstallCard";
-import { OpenRouterKeyCard } from "./OpenRouterKeyCard";
+import { GeminiKeyCard, OpenRouterKeyCard } from "./ApiKeyCard";
 import { focusRing } from "./ui";
 
 /**
@@ -85,11 +85,27 @@ export function EnvironmentPanel() {
                 Textures par IA <span className="font-normal text-text-subtle">· facultatif</span>
               </p>
               <p className="text-caption text-text-subtle">
-                Clé OpenRouter : des modèles d'image, dont certains gratuits, dessinent les textures.
+                Clé OpenRouter : des modèles d'image de plusieurs fournisseurs dessinent les textures (gratuits quand
+                OpenRouter en propose).
               </p>
             </div>
             <div className="w-full sm:w-auto sm:min-w-[320px] sm:max-w-[420px]">
               <OpenRouterKeyCard compact />
+            </div>
+          </div>
+          <div className="flex flex-wrap items-start gap-x-4 gap-y-2 border-t border-border pt-3">
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p className="text-body-sm font-medium">
+                Textures avec Google Gemini <span className="font-normal text-text-subtle">· facultatif</span>
+              </p>
+              <p className="text-caption text-text-subtle">
+                Clé Google AI Studio : les modèles Nano Banana dessinent les textures. Facturé par Google sur le projet de
+                la clé ; l'abonnement Gemini (Google AI Pro) ne couvre pas l'API, mais ses crédits Google Cloud s'y
+                appliquent.
+              </p>
+            </div>
+            <div className="w-full sm:w-auto sm:min-w-[320px] sm:max-w-[420px]">
+              <GeminiKeyCard compact />
             </div>
           </div>
           <p className="text-caption text-text-subtle">

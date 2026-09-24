@@ -63,7 +63,8 @@ SDAI ARCHIMED/
 │   ├── 0003-mcstudio-real-builds-and-version-profiles.md
 │   ├── 0004-mcstudio-jdk-downloads.md
 │   ├── 0005-mcstudio-openrouter-textures.md
-│   └── 0006-module-sessions-and-mcstudio-agent.md
+│   ├── 0006-module-sessions-and-mcstudio-agent.md
+│   └── 0007-mcstudio-gemini-textures.md
 ├── scripts/
 │   ├── new-module.mjs                   # pnpm new:module <id> [--category] [--backend]
 │   └── check-modules.mjs                # invariants de modularité (pnpm check)

@@ -528,7 +528,30 @@ pub enum RecipeRequest {
     },
 }
 
-// ── Textures : OpenRouter, brouillons, application ──────────────────────────
+// ── Textures : OpenRouter, Google Gemini, brouillons, application ───────────
+
+/// Service qui dessine les textures, avec la clé API de la personne.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub enum ImageProvider {
+    #[default]
+    OpenRouter,
+    /// API Gemini de Google (clé Google AI Studio) : modèles « Nano Banana ».
+    Gemini,
+}
+
+/// Clé Google AI Studio : présente ou non, et ce que l'API Gemini en dit quand on vérifie.
+#[derive(Debug, Clone, Default, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct GeminiStatus {
+    pub configured: bool,
+    /// Modèles d'image accessibles avec la clé (lu lors de la vérification).
+    pub image_models: Option<u32>,
+    /// Vérification impossible (réseau, clé refusée) : explication.
+    pub problem: Option<String>,
+}
 
 /// Clé OpenRouter : présente ou non, et ce qu'OpenRouter en dit quand on vérifie.
 #[derive(Debug, Clone, Default, Serialize, TS)]
@@ -546,7 +569,7 @@ pub struct OpenRouterStatus {
     pub problem: Option<String>,
 }
 
-/// Modèle d'OpenRouter capable de produire des images.
+/// Modèle capable de produire des images (OpenRouter ou Google Gemini).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../src/core/ipc/bindings/")]
 #[serde(rename_all = "camelCase")]
@@ -565,7 +588,7 @@ pub struct ImageModel {
 #[serde(rename_all = "camelCase")]
 pub struct ImageModelList {
     pub models: Vec<ImageModel>,
-    /// Liste lue dans le cache : OpenRouter injoignable.
+    /// Liste lue dans le cache : service injoignable.
     pub offline: bool,
 }
 
@@ -618,6 +641,7 @@ pub struct PixelOptions {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum DraftSource {
     OpenRouter { model: String, prompt: String },
+    Gemini { model: String, prompt: String },
     File { name: String },
 }
 
@@ -649,6 +673,9 @@ pub struct TextureRequest {
     pub target: TextureTarget,
     /// Ce que la personne décrit (« épée en rubis, garde dorée »).
     pub description: String,
+    /// Service qui dessine (OpenRouter si absent : demandes d'avant Gemini).
+    #[serde(default)]
+    pub provider: ImageProvider,
     pub model: String,
     pub options: PixelOptions,
     /// Accord explicite pour un modèle payant.

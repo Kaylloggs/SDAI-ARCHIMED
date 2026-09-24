@@ -5,7 +5,7 @@ import { ArrowRight, Check, ChevronRight, CloudOff, ImageUp, Loader2, RefreshCw,
 import { cn } from "@/core/lib/cn";
 import { Button, Select } from "@/design-system/primitives";
 import type { ImageModelList } from "@/core/ipc/bindings/ImageModelList";
-import type { OpenRouterStatus } from "@/core/ipc/bindings/OpenRouterStatus";
+import type { ImageProvider } from "@/core/ipc/bindings/ImageProvider";
 import type { PixelOptions } from "@/core/ipc/bindings/PixelOptions";
 import type { ProjectSummary } from "@/core/ipc/bindings/ProjectSummary";
 import type { TextureDraft } from "@/core/ipc/bindings/TextureDraft";
@@ -16,12 +16,15 @@ import {
   defaultOptions,
   DESCRIPTION_PLACEHOLDER,
   KIND_LABEL,
+  loadProvider,
   MAX_DESCRIPTION,
   modelOptions,
   pickModel,
+  PROVIDER_LABEL,
+  saveProvider,
   SIZE_CHOICES,
 } from "../../lib/textures";
-import { OpenRouterKeyCard } from "../OpenRouterKeyCard";
+import { GeminiKeyCard, OpenRouterKeyCard } from "../ApiKeyCard";
 import { Checker, Field, focusRing, inputClass, PixelImage, Segmented, Switch } from "../ui";
 
 type Mode = "ai" | "file";
@@ -61,9 +64,30 @@ function PixelSettings({
   );
 }
 
+/** Ce que la personne doit savoir avant d'ajouter la clé d'un service. */
+function KeyIntro({ provider }: { provider: ImageProvider }) {
+  return provider === "gemini" ? (
+    <div className="space-y-1.5 text-body-sm text-text-muted">
+      <p>
+        Les textures sont dessinées par les modèles d'image de Google (Nano Banana), avec une clé Google AI Studio.
+      </p>
+      <p className="text-footnote">
+        L'abonnement Gemini (Google AI Pro) ne donne pas accès à l'API : la clé se crée sur aistudio.google.com avec
+        le même compte, et chaque image est facturée sur le projet Google de la clé. Les crédits Google Cloud offerts
+        avec Google AI Pro s'y appliquent.
+      </p>
+    </div>
+  ) : (
+    <p className="text-body-sm text-text-muted">
+      Les textures sont dessinées par un modèle d'image d'OpenRouter, avec votre clé. Les modèles gratuits, quand
+      OpenRouter en propose, sont limités par des quotas.
+    </p>
+  );
+}
+
 /**
- * Atelier d'une texture : description envoyée à un modèle d'image d'OpenRouter (ou image
- * importée), conversion en pixel-art réglable, aperçu, puis application au projet.
+ * Atelier d'une texture : description envoyée à un modèle d'image (OpenRouter ou Google
+ * Gemini, ou image importée), conversion en pixel-art réglable, aperçu, puis application.
  */
 export function TextureStudio({
   project,
@@ -78,11 +102,14 @@ export function TextureStudio({
   const [mode, setMode] = useState<Mode>("ai");
   const [description, setDescription] = useState("");
   const [options, setOptions] = useState<PixelOptions>(() => defaultOptions(target));
-  const [key, setKey] = useState<OpenRouterStatus | null>(null);
+  const [provider, setProvider] = useState<ImageProvider>(loadProvider);
+  /** Clé présente pour chaque service (`null` : pas encore lu). */
+  const [keys, setKeys] = useState<Record<ImageProvider, boolean | null>>({ openRouter: null, gemini: null });
   const [models, setModels] = useState<ImageModelList | null>(null);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [model, setModel] = useState<string | null>(null);
-  const [allowPaid, setAllowPaid] = useState(false);
+  /** Accord pour les modèles payants, donné service par service. */
+  const [paid, setPaid] = useState<Record<ImageProvider, boolean>>({ openRouter: false, gemini: false });
   const [showPrompt, setShowPrompt] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [draft, setDraft] = useState<TextureDraft | null>(null);
@@ -94,28 +121,50 @@ export function TextureStudio({
   const conversion = useRef(0);
   const draftRef = useRef<HTMLElement>(null);
   const busy = phase !== "idle";
+  const key = keys[provider];
+  const allowPaid = paid[provider];
+  const setKeyConfigured = useCallback(
+    (service: ImageProvider, configured: boolean) => setKeys((current) => ({ ...current, [service]: configured })),
+    [],
+  );
+  const onOpenRouterKey = useCallback((s: { configured: boolean }) => setKeyConfigured("openRouter", s.configured), [setKeyConfigured]);
+  const onGeminiKey = useCallback((s: { configured: boolean }) => setKeyConfigured("gemini", s.configured), [setKeyConfigured]);
 
   useEffect(() => {
     let cancelled = false;
-    mcstudioApi
-      .openrouterStatus(false)
-      .then((status) => !cancelled && setKey(status))
-      .catch(() => !cancelled && setKey({ configured: false, label: null, freeTier: null, creditsLeft: null, problem: null }));
+    const read = (service: ImageProvider, status: Promise<{ configured: boolean }>) =>
+      status
+        .then((s) => !cancelled && setKeyConfigured(service, s.configured))
+        .catch(() => !cancelled && setKeyConfigured(service, false));
+    void read("openRouter", mcstudioApi.openrouterStatus(false));
+    void read("gemini", mcstudioApi.geminiStatus(false));
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [setKeyConfigured]);
+
+  // Autre service : sa propre liste de modèles.
+  const current = useRef(provider);
+  const chooseProvider = (next: ImageProvider) => {
+    if (next === provider) return;
+    current.current = next;
+    saveProvider(next);
+    setProvider(next);
+    setModels(null);
+    setModelsError(null);
+    setModel(null);
+  };
 
   const loadModels = useCallback(() => {
+    const service = current.current;
     setModelsError(null);
-    mcstudioApi
-      .imageModels()
-      .then(setModels)
-      .catch((e) => setModelsError(errorText(e)));
+    (service === "gemini" ? mcstudioApi.geminiImageModels() : mcstudioApi.imageModels())
+      .then((list) => current.current === service && setModels(list))
+      .catch((e) => current.current === service && setModelsError(errorText(e)));
   }, []);
   useEffect(() => {
-    if (key?.configured && !models && !modelsError) loadModels();
-  }, [key?.configured, models, modelsError, loadModels]);
+    if (key && !models && !modelsError) loadModels();
+  }, [key, provider, models, modelsError, loadModels]);
 
   useEffect(() => {
     setModel((current) => pickModel(models?.models ?? [], current, allowPaid));
@@ -163,7 +212,7 @@ export function TextureStudio({
     run("generating", async () => {
       if (!model) return;
       setDraft(
-        await mcstudioApi.generateTexture(project.id, { target, description, model, options, allowPaid }),
+        await mcstudioApi.generateTexture(project.id, { target, description, provider, model, options, allowPaid }),
       );
     });
 
@@ -204,10 +253,10 @@ export function TextureStudio({
     });
 
   const chosen = models?.models.find((m) => m.id === model) ?? null;
-  const noFreeModel = models !== null && !models.models.some((m) => m.free);
+  const noFreeModel = models !== null && models.models.length > 0 && !models.models.some((m) => m.free);
   const descriptionProblem = description.length > MAX_DESCRIPTION ? `${MAX_DESCRIPTION} caractères au plus.` : null;
   const canGenerate =
-    !busy && key?.configured && !!model && description.trim().length > 0 && !descriptionProblem;
+    !busy && key === true && !!model && description.trim().length > 0 && !descriptionProblem;
   // L'icône est agrandie à 64 px au moins ; les autres textures gardent leur taille.
   const pixelSide = target.kind === "icon" ? Math.max(options.size, 64) : options.size;
   const scales = target.kind === "icon" ? [1] : [1, 2, 4];
@@ -244,14 +293,28 @@ export function TextureStudio({
         ]}
       />
 
+      {mode === "ai" && (
+        <Segmented
+          label="Service d'image"
+          value={provider}
+          onChange={chooseProvider}
+          disabled={busy}
+          options={[
+            { value: "openRouter", label: PROVIDER_LABEL.openRouter },
+            { value: "gemini", label: `${PROVIDER_LABEL.gemini} (Nano Banana)` },
+          ]}
+        />
+      )}
+
       {mode === "ai" ? (
-        key && !key.configured ? (
+        key === false ? (
           <div className="space-y-2">
-            <p className="text-body-sm text-text-muted">
-              Les textures sont dessinées par un modèle d'image d'OpenRouter, avec votre clé. Plusieurs modèles sont
-              gratuits (quotas limités par OpenRouter).
-            </p>
-            <OpenRouterKeyCard onChange={setKey} />
+            <KeyIntro provider={provider} />
+            {provider === "gemini" ? (
+              <GeminiKeyCard key="gemini" onChange={onGeminiKey} />
+            ) : (
+              <OpenRouterKeyCard key="openRouter" onChange={onOpenRouterKey} />
+            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -278,7 +341,7 @@ export function TextureStudio({
                   <Select
                     label="Modèle d'image"
                     value={model ?? ""}
-                    options={modelOptions(models?.models ?? [], allowPaid)}
+                    options={modelOptions(models?.models ?? [], allowPaid, provider)}
                     onChange={setModel}
                     disabled={busy || !models}
                     placeholder={models ? "Aucun modèle disponible" : "Chargement des modèles…"}
@@ -301,25 +364,39 @@ export function TextureStudio({
                 >
                   <RefreshCw size={14} />
                 </button>
-                <Switch checked={allowPaid} disabled={busy} onChange={setAllowPaid}>
-                  Autoriser les modèles payants
+                <Switch
+                  checked={allowPaid}
+                  disabled={busy}
+                  onChange={(allowed) => setPaid((current) => ({ ...current, [provider]: allowed }))}
+                >
+                  {provider === "gemini" ? "Accepter la facturation Google" : "Autoriser les modèles payants"}
                 </Switch>
               </div>
               {chosen?.description && <p className="text-caption text-text-subtle">{chosen.description}</p>}
               {allowPaid && (
                 <p className="text-caption text-warning">
-                  Un modèle payant est facturé sur votre crédit OpenRouter à chaque image (tarif sur openrouter.ai).
+                  {provider === "gemini"
+                    ? "Chaque image est facturée par Google sur le projet de votre clé (quelques centimes l'image, tarifs sur ai.google.dev/pricing)."
+                    : "Un modèle payant est facturé sur votre crédit OpenRouter à chaque image (tarif sur openrouter.ai)."}
                 </p>
               )}
               {models?.offline && (
                 <p className="flex items-center gap-1.5 text-caption text-text-subtle">
-                  <CloudOff size={12} /> OpenRouter injoignable : dernière liste connue.
+                  <CloudOff size={12} /> {PROVIDER_LABEL[provider]} injoignable : dernière liste connue.
+                </p>
+              )}
+              {models !== null && models.models.length === 0 && (
+                <p className="text-footnote text-warning">
+                  {provider === "gemini"
+                    ? "Aucun modèle d'image Gemini n'est ouvert à cette clé (pays non couvert ou projet sans l'API Gemini)."
+                    : "OpenRouter ne propose aucun modèle d'image en ce moment."}
                 </p>
               )}
               {noFreeModel && !allowPaid && (
                 <p className="text-footnote text-warning">
-                  Aucun modèle d'image gratuit sur OpenRouter en ce moment. Autorisez les modèles payants (crédit
-                  requis) ou importez une image.
+                  {provider === "gemini"
+                    ? "Les modèles d'image de Gemini sont payants : acceptez la facturation Google pour générer, ou importez une image."
+                    : "Aucun modèle d'image gratuit sur OpenRouter en ce moment. Autorisez les modèles payants (crédit requis), passez à Google Gemini, ou importez une image."}
                 </p>
               )}
               {modelsError && <p className="text-footnote text-danger">{modelsError}</p>}
@@ -338,7 +415,7 @@ export function TextureStudio({
         <PixelSettings options={options} onChange={changeOptions} disabled={busy} />
       </div>
 
-      {mode === "ai" && key?.configured && (
+      {mode === "ai" && key === true && (
         <div className="space-y-2">
           <button
             type="button"
@@ -358,7 +435,7 @@ export function TextureStudio({
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        {mode === "ai" && !key?.configured ? null : mode === "ai" ? (
+        {mode === "ai" && key !== true ? null : mode === "ai" ? (
           <Button
             type="button"
             variant="primary"
@@ -404,7 +481,9 @@ export function TextureStudio({
               Proposition
             </h3>
             <p className="text-caption text-text-subtle">
-              {draft.source.kind === "openRouter" ? `Dessinée par ${chosen?.name ?? draft.source.model}` : `Importée de ${draft.source.name}`}
+              {draft.source.kind === "file"
+                ? `Importée de ${draft.source.name}`
+                : `Dessinée par ${chosen?.id === draft.source.model ? chosen.name : draft.source.model}`}
               {` · image reçue ${draft.originalWidth}×${draft.originalHeight}`}
             </p>
           </div>

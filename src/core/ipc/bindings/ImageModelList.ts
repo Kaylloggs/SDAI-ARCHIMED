@@ -3,6 +3,6 @@ import type { ImageModel } from "./ImageModel";
 
 export type ImageModelList = { models: Array<ImageModel>, 
 /**
- * Liste lue dans le cache : OpenRouter injoignable.
+ * Liste lue dans le cache : service injoignable.
  */
 offline: boolean, };

@@ -1,5 +1,6 @@
 import type { SelectOption } from "@/design-system/primitives";
 import type { ImageModel } from "@/core/ipc/bindings/ImageModel";
+import type { ImageProvider } from "@/core/ipc/bindings/ImageProvider";
 import type { PixelOptions } from "@/core/ipc/bindings/PixelOptions";
 import type { TextureTarget } from "@/core/ipc/bindings/TextureTarget";
 
@@ -43,12 +44,36 @@ export const DESCRIPTION_PLACEHOLDER: Record<TextureTarget["kind"], string> = {
   icon: "Ex. : un dragon rouge enroulé autour d'une épée",
 };
 
+export const PROVIDER_LABEL: Record<ImageProvider, string> = {
+  openRouter: "OpenRouter",
+  gemini: "Google Gemini",
+};
+
+const PROVIDER_KEY = "mcstudio.textureProvider";
+
+/** Dernier service choisi (préférence de ce poste ; OpenRouter par défaut). */
+export function loadProvider(): ImageProvider {
+  try {
+    return localStorage.getItem(PROVIDER_KEY) === "gemini" ? "gemini" : "openRouter";
+  } catch {
+    return "openRouter";
+  }
+}
+
+export function saveProvider(provider: ImageProvider): void {
+  try {
+    localStorage.setItem(PROVIDER_KEY, provider);
+  } catch {
+    // Stockage indisponible : le choix vaut pour cette fenêtre seulement.
+  }
+}
+
 /** Modèles pour le menu : gratuits signalés, payants grisés tant qu'ils ne sont pas autorisés. */
-export function modelOptions(models: ImageModel[], allowPaid: boolean): SelectOption[] {
+export function modelOptions(models: ImageModel[], allowPaid: boolean, provider: ImageProvider = "openRouter"): SelectOption[] {
   return models.map((model) => ({
     value: model.id,
     label: model.name,
-    hint: model.free ? "gratuit" : "payant",
+    hint: model.free ? "gratuit" : provider === "gemini" ? "facturé par Google" : "payant",
     disabled: !model.free && !allowPaid,
   }));
 }

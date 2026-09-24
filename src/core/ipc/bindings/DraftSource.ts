@@ -3,4 +3,4 @@
 /**
  * Origine d'un brouillon de texture.
  */
-export type DraftSource = { "kind": "openRouter", model: string, prompt: string, } | { "kind": "file", name: string, };
+export type DraftSource = { "kind": "openRouter", model: string, prompt: string, } | { "kind": "gemini", model: string, prompt: string, } | { "kind": "file", name: string, };

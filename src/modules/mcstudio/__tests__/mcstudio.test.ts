@@ -12,7 +12,7 @@ import {
   suggestPackage,
   suggestRegistryId,
 } from "../lib/naming";
-import { defaultOptions, modelOptions, pickModel, targetKey } from "../lib/textures";
+import { defaultOptions, loadProvider, modelOptions, pickModel, targetKey } from "../lib/textures";
 import type { ImageModel } from "@/core/ipc/bindings/ImageModel";
 
 describe("identifiants dérivés du nom", () => {
@@ -125,6 +125,18 @@ describe("textures", () => {
     expect(pickModel(models, "b/paid", false)).toBe("a/free:free");
     expect(pickModel(models, "b/paid", true)).toBe("b/paid");
     expect(pickModel([models[1]!], null, false)).toBeNull();
+  });
+
+  it("présente les modèles Gemini comme facturés par Google", () => {
+    const gemini: ImageModel[] = [
+      { id: "gemini-3.1-flash-image", name: "Nano Banana 2", free: false, description: "", textOutput: true },
+    ];
+    expect(modelOptions(gemini, false, "gemini")).toEqual([
+      { value: "gemini-3.1-flash-image", label: "Nano Banana 2", hint: "facturé par Google", disabled: true },
+    ]);
+    expect(pickModel(gemini, null, true)).toBe("gemini-3.1-flash-image");
+    // Sans stockage (tests, navigation privée) : OpenRouter par défaut, sans erreur.
+    expect(loadProvider()).toBe("openRouter");
   });
 
   it("dérive le nom de registre du nom en jeu", () => {

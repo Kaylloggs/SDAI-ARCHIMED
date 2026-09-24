@@ -4,6 +4,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Mod Studio : textures avec Google Gemini (ADR 0007)
+- Nouveau **service d'image** dans l'onglet Textures : Google Gemini (modèles Nano Banana, dont
+  Nano Banana 2), avec une clé Google AI Studio vérifiée puis rangée dans le Gestionnaire
+  d'identifiants. Modèles lus en direct ; chaque génération est facturée par Google sur le projet
+  de la clé et demande « Accepter la facturation Google ». L'abonnement Gemini ne couvre pas
+  l'API (ses crédits Google Cloud, si) : c'est dit dans l'application.
+- Clé Gemini aussi réglable dans Environnement (liste des projets).
+
 ### Corrigé — IA dans les modules
 - Claude refusait toute création, modification ou suppression (« The canUseTool callback returned
   an invalid permission result ») : l'autorisation renvoyait `updatedInput: null`. Elle renvoie

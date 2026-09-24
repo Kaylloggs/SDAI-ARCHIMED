@@ -13,6 +13,7 @@ mod content;
 mod diagnostics;
 mod files;
 mod fsutil;
+mod gemini;
 mod gradle;
 mod java;
 mod jdk;
@@ -20,6 +21,7 @@ mod openrouter;
 mod pixelart;
 mod profiles;
 mod projects;
+mod secrets;
 mod service;
 mod snapshots;
 mod templates;
@@ -66,6 +68,10 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::set_openrouter_key,
             commands::clear_openrouter_key,
             commands::image_models,
+            commands::gemini_status,
+            commands::set_gemini_key,
+            commands::clear_gemini_key,
+            commands::gemini_image_models,
             commands::texture_prompt,
             commands::list_textures,
             commands::generate_texture,

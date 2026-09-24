@@ -303,6 +303,7 @@ impl Drafts {
         fsutil::write_atomic(&path, &pixels)?;
         let origin = match &draft.source {
             DraftSource::OpenRouter { model, .. } => format!("openrouter:{model}"),
+            DraftSource::Gemini { model, .. } => format!("gemini:{model}"),
             DraftSource::File { .. } => "fichier".to_string(),
         };
         crate::core::audit::record(

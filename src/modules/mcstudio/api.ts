@@ -20,6 +20,7 @@ import type { ResolvedVersions } from "@/core/ipc/bindings/ResolvedVersions";
 import type { VersionCatalog } from "@/core/ipc/bindings/VersionCatalog";
 import type { ImageModelList } from "@/core/ipc/bindings/ImageModelList";
 import type { OpenRouterStatus } from "@/core/ipc/bindings/OpenRouterStatus";
+import type { GeminiStatus } from "@/core/ipc/bindings/GeminiStatus";
 import type { PixelOptions } from "@/core/ipc/bindings/PixelOptions";
 import type { TextureDraft } from "@/core/ipc/bindings/TextureDraft";
 import type { TextureInfo } from "@/core/ipc/bindings/TextureInfo";
@@ -94,6 +95,12 @@ export const mcstudioApi = {
   setOpenrouterKey: (key: string) => invokeModule<OpenRouterStatus>(PLUGIN, "set_openrouter_key", { key }),
   clearOpenrouterKey: () => invokeModule<void>(PLUGIN, "clear_openrouter_key"),
   imageModels: () => invokeModule<ImageModelList>(PLUGIN, "image_models"),
+  /** `check` : interroge l'API Gemini (modèles d'image ouverts). La clé ne revient jamais. */
+  geminiStatus: (check: boolean) => invokeModule<GeminiStatus>(PLUGIN, "gemini_status", { check }),
+  /** Vérifiée auprès de Google avant d'être rangée dans le Gestionnaire d'identifiants. */
+  setGeminiKey: (key: string) => invokeModule<GeminiStatus>(PLUGIN, "set_gemini_key", { key }),
+  clearGeminiKey: () => invokeModule<void>(PLUGIN, "clear_gemini_key"),
+  geminiImageModels: () => invokeModule<ImageModelList>(PLUGIN, "gemini_image_models"),
   /** Texte exact envoyé au modèle pour cette description. */
   texturePrompt: (target: TextureTarget, description: string) =>
     invokeModule<string>(PLUGIN, "texture_prompt", { target, description }),

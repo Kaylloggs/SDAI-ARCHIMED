@@ -8,7 +8,8 @@ un dossier Gradle autonome : il se compile aussi sans ARCHIMED (`gradlew build`)
   `Channel<BuildEvent>` propre à chaque build.
 - **Dépendances ajoutées** : `reqwest` (HTTPS), `png` (textures), `trash` (Corbeille, exigée par
   guidelines §11), `zip`, `tar`, `flate2`, `sha2` (installation vérifiée des JDK), `image`,
-  `base64` (images reçues d'OpenRouter), `keyring` (clé API dans le Gestionnaire d'identifiants).
+  `base64` (images reçues d'OpenRouter et de Gemini), `keyring` (clés API dans le Gestionnaire
+  d'identifiants).
 
 ## État des phases
 
@@ -18,7 +19,7 @@ un dossier Gradle autonome : il se compile aussi sans ARCHIMED (`gradlew build`)
 | B | Profils de version, métadonnées officielles, templates, JDK, création | ✓ |
 | C | Build Gradle réel, diagnostics, jar dans `dist/`, test e2e | ✓ (Fabric 1.21.1 compilé sur Windows) |
 | B+ | 1.14 → 1.21.x, choix des versions du loader, installation des JDK | ✓ (profils hors `fabric-1.21` à valider par l'e2e) |
-| T | Textures par IA (OpenRouter, clé de la personne), import d'image, conversion pixel-art, ajout d'objets et de blocs | ✓ (testé contre un faux OpenRouter local) |
+| T | Textures par IA (OpenRouter ou Google Gemini, clé de la personne), import d'image, conversion pixel-art, ajout d'objets et de blocs | ✓ (testé contre de faux OpenRouter et Gemini locaux) |
 | D | Explorateur et éditeur (`CodeEditor`/`FileTree` déplacés dans `core/editor`) | ✓ |
 | E | Validateur (JSON/TOML ligne/colonne, références, format de la version) et panneau Problèmes | ✓ |
 | F | Points de restauration (annulables), vrai diff dans `core/lib/diff` | ✓ |
@@ -173,13 +174,14 @@ courant est d'abord sauvegardé : une restauration s'annule en restaurant ce nou
 Supprimer un point le met à la Corbeille. Stockage : `<projet>/.mcstudio/snapshots/<id>/`
 (`manifest.json` + copies), restaurations auditées.
 
-## Textures : IA (OpenRouter) ou image importée
+## Textures : IA (OpenRouter ou Google Gemini) ou image importée
 
 Onglet **Textures** d'un projet : l'icône, les objets et les blocs (présents, ou déclarés sans
 texture). « + » ajoute un objet ou un bloc (code, modèles, traductions, loot table, outil de minage)
 avec une texture provisoire.
 
-1. **Source** : une description envoyée à un modèle d'image d'OpenRouter, ou un PNG/JPEG/WebP.
+1. **Source** : une description envoyée à un modèle d'image d'OpenRouter ou de Google Gemini
+   (« Service d'image »), ou un PNG/JPEG/WebP.
    Le texte exact envoyé au modèle est visible avant l'envoi (description cadrée pour Minecraft :
    objet isolé sur fond uni, tuile sans bord pour un bloc).
 2. **Clé** : saisie dans l'app, vérifiée par OpenRouter (`/key`) puis rangée dans le Gestionnaire
@@ -189,6 +191,11 @@ avec une texture provisoire.
    Un modèle payant est grisé tant que « Autoriser les modèles payants » n'est pas activé, et le
    backend le refuse de même. Les modèles gratuits vont et viennent chez OpenRouter et ont des
    quotas (erreur 429 expliquée).
+   **Google Gemini** (ADR 0007) : clé Google AI Studio (aistudio.google.com/apikey), vérifiée par
+   `GET /models` puis rangée à part (`mcstudio-gemini.com.sdai.archimed`), envoyée seulement en
+   en-tête `x-goog-api-key`. Modèles « Nano Banana » lus en direct ; tous facturés par Google sur
+   le projet de la clé, donc soumis à « Accepter la facturation Google ». L'abonnement Gemini
+   (Google AI Pro) ne couvre pas l'API ; ses crédits Google Cloud mensuels, si.
 4. **Conversion** (`pixelart.rs`, déterministe) : fond uni ou en dégradé retiré par remplissage
    depuis les bords, objet cadré, réduction à 16, 32 ou 64 px en gardant par zone une couleur
    franche (la plus rare de l'image quand elle couvre au moins 12 % de la zone : les éclats d'un
@@ -200,8 +207,9 @@ avec une texture provisoire.
    chaque génération (`mcstudio.texture_generate`) et chaque changement de clé.
 
 Brouillons : `%APPDATA%\com.sdai.archimed\modules\mcstudio\cache\textures\` (30 derniers).
-Source remplaçable (HTTPS uniquement) : `{"openrouterApi": "https://…"}` dans `env.json`.
-Décision détaillée : [ADR 0005](../../../docs/adr/0005-mcstudio-openrouter-textures.md).
+Sources remplaçables (HTTPS uniquement) : `{"openrouterApi": "https://…", "geminiApi": "https://…"}`
+dans `env.json`. Décisions : [ADR 0005](../../../docs/adr/0005-mcstudio-openrouter-textures.md)
+(OpenRouter, conversion), [ADR 0007](../../../docs/adr/0007-mcstudio-gemini-textures.md) (Gemini).
 
 ## Projet généré
 
@@ -257,6 +265,7 @@ Java : `detect_java` · `inspect_java` · `project_java` · `set_project_java` �
 `jdk_offer` · `install_jdk` · `cancel_jdk_install`
 Contenu : `add_item` · `add_block` · `add_recipe`
 Textures : `openrouter_status` · `set_openrouter_key` · `clear_openrouter_key` · `image_models` ·
+`gemini_status` · `set_gemini_key` · `clear_gemini_key` · `gemini_image_models` ·
 `texture_prompt` · `list_textures` · `generate_texture` · `import_texture` · `reprocess_texture` ·
 `apply_texture`
 Build : `build_project` · `cancel_build` · `list_builds` · `read_build_log`
@@ -271,8 +280,9 @@ Assistant : `agent_prepare` · `agent_instructions` · `agent_changes` · `agent
 - `cargo test mcstudio` : profils, parseurs de métadonnées, rendu des templates (tous les profils,
   JSON/TOML valides, aucun marqueur oublié), générateurs, JDK, diagnostics (dont un vrai journal
   NeoForge), exécution réelle d'un processus de build, conversion pixel-art (fond, cadrage, détails
-  rares, palette), brouillons et historique des textures, client OpenRouter contre un faux serveur
-  local (clé, modèles, image en data URL, erreurs 401/429), fichiers (sortie du projet refusée,
+  rares, palette), brouillons et historique des textures, clients OpenRouter et Gemini contre de
+  faux serveurs locaux (clé, modèles, image en data URL ou `inlineData`, repli sans `imageConfig`,
+  refus de sécurité, erreurs 401/429), fichiers (sortie du projet refusée,
   liens symboliques, conflit d'écriture, état interne protégé), validateur (syntaxe localisée,
   formats par version, références cassées ; chaque projet généré passe sans problème), points de
   restauration (fichiers remis, fichiers créés retirés, restauration elle-même annulable), agent
@@ -294,8 +304,8 @@ Assistant : `agent_prepare` · `agent_instructions` · `agent_changes` · `agent
 | `%APPDATA%\com.sdai.archimed\modules\mcstudio\projects.json` | chemins des projets connus |
 | `…\mcstudio\profiles\*.toml` | profils de l'utilisateur (remplacent ceux livrés) |
 | `…\mcstudio\cache\meta\` | dernières réponses des métadonnées des loaders |
-| `…\mcstudio\cache\openrouter-models.json` · `cache\textures\` | modèles d'image connus, brouillons de textures |
+| `…\mcstudio\cache\openrouter-models.json` · `gemini-models.json` · `cache\textures\` | modèles d'image connus, brouillons de textures |
 | `…\mcstudio\jdks\` · `env.json` | JDK installés par Mod Studio, sources remplaçables |
 | `…\mcstudio\work\<projet>\` · `work\<projet>.base.json` | copie de travail de l'assistant IA, empreintes de base |
-| Gestionnaire d'identifiants Windows | clé OpenRouter (`mcstudio-openrouter.com.sdai.archimed`) |
+| Gestionnaire d'identifiants Windows | clés OpenRouter (`mcstudio-openrouter.com.sdai.archimed`) et Google AI Studio (`mcstudio-gemini.com.sdai.archimed`) |
 | `<projet>\.mcstudio\` | identité, historique et journaux de build, anciennes textures (`history/textures/`) |
