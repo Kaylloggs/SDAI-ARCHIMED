@@ -37,6 +37,10 @@ import type { Snapshot } from "@/core/ipc/bindings/Snapshot";
 import type { ApplyOutcome } from "@/core/ipc/bindings/ApplyOutcome";
 import type { WorkChange } from "@/core/ipc/bindings/WorkChange";
 import type { WorkInfo } from "@/core/ipc/bindings/WorkInfo";
+import type { EntityModel } from "@/core/ipc/bindings/EntityModel";
+import type { EntitySaved } from "@/core/ipc/bindings/EntitySaved";
+import type { ModelFile } from "@/core/ipc/bindings/ModelFile";
+import type { ModelInfo } from "@/core/ipc/bindings/ModelInfo";
 
 const PLUGIN = "mcstudio";
 
@@ -125,6 +129,22 @@ export const mcstudioApi = {
   createGuiTexture: (id: string, request: GuiRequest) =>
     invokeModule<TextureInfo>(PLUGIN, "create_gui_texture", { id, request }),
   listTextures: (id: string) => invokeModule<TextureInfo[]>(PLUGIN, "list_textures", { id }),
+
+  // Atelier 3D
+  listModels: (id: string) => invokeModule<ModelInfo[]>(PLUGIN, "list_models", { id }),
+  /** `block/lamp` ou `dm:block/lamp` ; les modèles du jeu sont refusés. */
+  readModel: (id: string, reference: string) => invokeModule<ModelFile>(PLUGIN, "read_model", { id, reference }),
+  /** Réécrit (ou crée) un modèle de bloc ou d'objet ; point de restauration avant. */
+  saveModel: (id: string, reference: string, json: string, create = false) =>
+    invokeModule<string>(PLUGIN, "save_model", { id, reference, json, create }),
+  readEntityModel: (id: string, name: string) => invokeModule<EntityModel>(PLUGIN, "read_entity_model", { id, name }),
+  /** Source, code Java (1.17+) et texture vide si elle manque ; point de restauration avant. */
+  saveEntityModel: (id: string, model: EntityModel) =>
+    invokeModule<EntitySaved>(PLUGIN, "save_entity_model", { id, model }),
+  entityModelCode: (id: string, model: EntityModel) => invokeModule<string>(PLUGIN, "entity_model_code", { id, model }),
+  texturePixels: (id: string, path: string) => invokeModule<PixelData>(PLUGIN, "texture_pixels", { id, path }),
+  saveTexturePixels: (id: string, path: string, pixels: PixelData) =>
+    invokeModule<void>(PLUGIN, "save_texture_pixels", { id, path, pixels }),
   generateTexture: (id: string, request: TextureRequest) =>
     invokeModule<TextureDraft>(PLUGIN, "generate_texture", { id, request }),
   importTexture: (id: string, target: TextureTarget, path: string, options: PixelOptions) =>

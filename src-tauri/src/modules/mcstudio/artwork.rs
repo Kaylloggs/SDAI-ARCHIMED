@@ -286,7 +286,7 @@ pub fn validate_prompt(settings: &PromptSettings, custom: Option<&str>) -> AppRe
     Ok(())
 }
 
-fn lang_names(root: &Path, mod_id: &str) -> Map<String, Value> {
+pub(super) fn lang_names(root: &Path, mod_id: &str) -> Map<String, Value> {
     let mut names = Map::new();
     // Le français d'abord, l'anglais comble les manques.
     for lang in ["en_us", "fr_fr"] {

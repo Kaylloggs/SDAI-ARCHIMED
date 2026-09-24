@@ -15,6 +15,7 @@ use super::gemini::Gemini;
 use super::gradle::{self, BuildParams, BuildRegistry};
 use super::java;
 use super::jdk::JdkInstaller;
+use super::models;
 use super::openrouter::OpenRouter;
 use super::pixelart;
 use super::profiles::{self, meta::MetaClient, Profile};
@@ -23,11 +24,11 @@ use super::snapshots;
 use super::types::{ApplyOutcome, Snapshot, WorkChange, WorkInfo};
 use super::types::{
     BlockLayout, BlockRequest, BuildEvent, BuildRecord, BuildTask, ContentResult,
-    CreateProjectRequest, DraftSource, EnvironmentReport, GuiRequest, ImageModel, ImageProvider,
-    ItemRequest, JavaInstall, JavaStatus, JdkNeed, PixelData, PixelOptions, ProjectEntry,
-    ProjectFile, ProjectMeta, ProjectStats, ProjectSummary, RecipeRequest, ResolvedVersions,
-    TextureDraft, TextureInfo, TextureRequest, TextureTarget, ValidationReport, VersionCatalog,
-    VersionOptions, VersionSelection,
+    CreateProjectRequest, DraftSource, EntityModel, EntitySaved, EnvironmentReport, GuiRequest,
+    ImageModel, ImageProvider, ItemRequest, JavaInstall, JavaStatus, JdkNeed, ModelFile, ModelInfo,
+    PixelData, PixelOptions, ProjectEntry, ProjectFile, ProjectMeta, ProjectStats, ProjectSummary,
+    RecipeRequest, ResolvedVersions, TextureDraft, TextureInfo, TextureRequest, TextureTarget,
+    ValidationReport, VersionCatalog, VersionOptions, VersionSelection,
 };
 use super::validator;
 
@@ -502,6 +503,69 @@ impl McStudio {
         self.idle(project_id)?;
         let (root, meta, _) = self.open_context(project_id)?;
         artwork::delete_textures(&root, &meta.mod_id, relatives)
+    }
+
+    // ── Modèles 3D ──────────────────────────────────────────────────────────
+
+    pub fn list_models(&self, project_id: &str) -> AppResult<Vec<ModelInfo>> {
+        let (root, meta, _) = self.open_context(project_id)?;
+        let names = artwork::lang_names(&root, &meta.mod_id);
+        Ok(models::list(&root, &meta.mod_id, &names))
+    }
+
+    pub fn read_model(&self, project_id: &str, reference: &str) -> AppResult<ModelFile> {
+        let (root, meta, _) = self.open_context(project_id)?;
+        models::read_model(&root, &meta.mod_id, reference)
+    }
+
+    pub fn save_model(
+        &self,
+        project_id: &str,
+        reference: &str,
+        json: &str,
+        create: bool,
+    ) -> AppResult<String> {
+        self.idle(project_id)?;
+        let (root, meta, _) = self.open_context(project_id)?;
+        models::save_model(&root, &meta.mod_id, reference, json, create)
+    }
+
+    pub fn read_entity_model(&self, project_id: &str, name: &str) -> AppResult<EntityModel> {
+        let (root, _, _) = self.open_context(project_id)?;
+        models::read_entity(&root, name)
+    }
+
+    pub fn save_entity_model(
+        &self,
+        project_id: &str,
+        model: &EntityModel,
+    ) -> AppResult<EntitySaved> {
+        self.idle(project_id)?;
+        let (root, meta, profile) = self.open_context(project_id)?;
+        models::save_entity(&root, &meta, &profile, model)
+    }
+
+    /// Code Java du modèle d'entité, sans rien écrire (aperçu).
+    pub fn entity_model_code(&self, project_id: &str, model: &EntityModel) -> AppResult<String> {
+        let (_, meta, profile) = self.open_context(project_id)?;
+        models::validate_entity(model)?;
+        models::entity_java(model, &meta, &profile)
+    }
+
+    pub fn texture_pixels(&self, project_id: &str, relative: &str) -> AppResult<PixelData> {
+        let (root, meta, _) = self.open_context(project_id)?;
+        models::texture_pixels(&root, &meta.mod_id, relative)
+    }
+
+    pub fn save_texture_pixels(
+        &self,
+        project_id: &str,
+        relative: &str,
+        data: &PixelData,
+    ) -> AppResult<()> {
+        self.idle(project_id)?;
+        let (root, meta, _) = self.open_context(project_id)?;
+        models::save_texture_pixels(&root, &meta.mod_id, relative, data)
     }
 
     /// Nouvel élément d'interface (`textures/gui/`), dessiné aux couleurs du jeu.

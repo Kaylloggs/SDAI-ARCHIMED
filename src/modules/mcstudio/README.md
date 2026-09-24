@@ -25,6 +25,7 @@ un dossier Gradle autonome : il se compile aussi sans ARCHIMED (`gradlew build`)
 | F | Points de restauration (annulables), vrai diff dans `core/lib/diff` | ✓ |
 | G | Assistant IA via les CLI installées : copie de travail, relecture fichier par fichier, application avec point de restauration, correction bornée | ✓ (à essayer avec vos CLI) |
 | J | Test en jeu (`runClient`), plantages expliqués | ✓ (à essayer sur Windows) |
+| 3D | Atelier 3D : modèles de blocs, d'objets, d'entités (code Java généré) et armures, peinture sur le modèle | ✓ |
 | K–M | `runServer`, import de projets existants, audit/portage de version, export ZIP | à venir |
 
 Rien n'est simulé : un bouton qui n'a pas encore de moteur n'est pas affiché.
@@ -270,6 +271,34 @@ dans `env.json`. Décisions : [ADR 0005](../../../docs/adr/0005-mcstudio-openrou
 (OpenRouter, conversion), [ADR 0007](../../../docs/adr/0007-mcstudio-gemini-textures.md) (Gemini),
 [ADR 0008](../../../docs/adr/0008-mcstudio-texture-workshop.md) (faces, raccord, retouche, interface).
 
+## Modèles 3D (atelier, ADR 0009)
+
+Onglet **Modèles 3D** : les modèles de blocs et d'objets du mod (`models/block`, `models/item`),
+ses entités (`.mcstudio/models/`) et ses armures (couches trouvées dans `textures/`). Vue 3D
+(three.js) : glisser pour tourner, molette pour zoomer, clic droit pour déplacer la vue ; un clic
+choisit un cube, ses flèches le déplacent au pixel. Barre d'outils : sélection, crayon, gomme,
+remplissage, pipette, couleur, pinceau de 1 à 16 px, annuler / rétablir (Ctrl+Z / Ctrl+Y, un
+seul historique pour le modèle et les textures). Suppr, Ctrl+D (dupliquer), Ctrl+S.
+
+- **Blocs et objets** : cubes (position, taille, rotation ±22,5° / 45° autour d'un centre,
+  ombrage), faces (visible, variable de texture, UV automatiques ou saisis, rotation), variables
+  de texture et création d'une texture. La forme d'un parent du jeu (cube, colonne, dalle, croix,
+  tapis) s'affiche et se convertit en cubes (« Modifier la forme »). Un objet à plat
+  (`item/generated`) se montre en relief et se peint directement. « + » crée un modèle (cube,
+  dalle ou vide, parent `block/block`) : même nom qu'un bloc ou un objet du mod pour lui donner
+  cette forme.
+- **Entités** : gabarits (humanoïde 64 × 64, quadrupède 64 × 32, vide), os (nom, parent, pivot,
+  rotation) et cubes (position, taille, UV en boîte, gonflement, miroir) comme dans le jeu ;
+  « Répartir » range les zones de texture sans chevauchement, « Patron » colore chaque face pour
+  peindre ensuite. L'enregistrement écrit la source, la texture `textures/entity/<nom>.png` et
+  la classe `client/model/<Nom>ModelData.java` (Yarn ou Mojmap selon le profil, 1.17+), visible
+  avec « Code Java ».
+- **Armures** : couches 1 (casque, plastron, bottes) et 2 (jambières) sur le modèle d'armure du
+  jeu, autour d'un mannequin ; couche manquante créée en 64 × 32.
+
+Tout enregistrement de modèle crée d'abord un point de restauration ; une texture remplacée est
+copiée dans `.mcstudio/history/textures/`.
+
 ## Projet généré
 
 ```
@@ -329,6 +358,9 @@ Textures : `openrouter_status` · `set_openrouter_key` · `clear_openrouter_key`
 `draft_pixels` · `save_draft_pixels` · `set_block_layout` · `create_gui_texture` · `delete_textures` ·
 `texture_prompt` · `list_textures` · `generate_texture` · `import_texture` · `reprocess_texture` ·
 `apply_texture`
+
+Modèles 3D : `list_models` · `read_model` · `save_model` · `read_entity_model` · `save_entity_model` ·
+`entity_model_code` · `texture_pixels` · `save_texture_pixels`
 Build : `build_project` · `cancel_build` · `list_builds` · `read_build_log`
 Fichiers : `list_files` · `read_project_file` · `write_project_file` · `create_project_file` ·
 `rename_project_file` · `trash_project_file` · `validate_project`

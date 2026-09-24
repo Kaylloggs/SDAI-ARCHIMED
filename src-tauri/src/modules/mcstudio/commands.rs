@@ -18,6 +18,7 @@ use super::types::{
 
 use super::types::{ApplyOutcome, Snapshot, WorkChange, WorkInfo};
 use super::types::{BlockLayout, GuiRequest, PixelData, PromptSettings};
+use super::types::{EntityModel, EntitySaved, ModelFile, ModelInfo};
 
 type Studio<'a> = State<'a, Arc<McStudio>>;
 
@@ -370,6 +371,72 @@ pub async fn delete_textures(
     paths: Vec<String>,
 ) -> AppResult<usize> {
     blocking(&studio, move |s| s.delete_textures(&id, &paths)).await
+}
+
+#[tauri::command]
+pub async fn list_models(studio: Studio<'_>, id: String) -> AppResult<Vec<ModelInfo>> {
+    blocking(&studio, move |s| s.list_models(&id)).await
+}
+
+#[tauri::command]
+pub async fn read_model(studio: Studio<'_>, id: String, reference: String) -> AppResult<ModelFile> {
+    blocking(&studio, move |s| s.read_model(&id, &reference)).await
+}
+
+#[tauri::command]
+pub async fn save_model(
+    studio: Studio<'_>,
+    id: String,
+    reference: String,
+    json: String,
+    create: bool,
+) -> AppResult<String> {
+    blocking(&studio, move |s| {
+        s.save_model(&id, &reference, &json, create)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn read_entity_model(
+    studio: Studio<'_>,
+    id: String,
+    name: String,
+) -> AppResult<EntityModel> {
+    blocking(&studio, move |s| s.read_entity_model(&id, &name)).await
+}
+
+#[tauri::command]
+pub async fn save_entity_model(
+    studio: Studio<'_>,
+    id: String,
+    model: EntityModel,
+) -> AppResult<EntitySaved> {
+    blocking(&studio, move |s| s.save_entity_model(&id, &model)).await
+}
+
+#[tauri::command]
+pub async fn entity_model_code(
+    studio: Studio<'_>,
+    id: String,
+    model: EntityModel,
+) -> AppResult<String> {
+    blocking(&studio, move |s| s.entity_model_code(&id, &model)).await
+}
+
+#[tauri::command]
+pub async fn texture_pixels(studio: Studio<'_>, id: String, path: String) -> AppResult<PixelData> {
+    blocking(&studio, move |s| s.texture_pixels(&id, &path)).await
+}
+
+#[tauri::command]
+pub async fn save_texture_pixels(
+    studio: Studio<'_>,
+    id: String,
+    path: String,
+    pixels: PixelData,
+) -> AppResult<()> {
+    blocking(&studio, move |s| s.save_texture_pixels(&id, &path, &pixels)).await
 }
 
 #[tauri::command]

@@ -821,6 +821,111 @@ pub struct PixelData {
     pub rgba: String,
 }
 
+/// Famille d'un modèle 3D du mod (onglet Modèles).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub enum ModelKind {
+    /// `models/block/…json` (cubes du format des blocs).
+    Block,
+    /// `models/item/…json` : objet à plat (sprite en relief) ou en 3D (cubes).
+    Item,
+    /// Modèle d'entité (`.mcstudio/models/<nom>.json`), traduit en code Java.
+    Entity,
+    /// Armure portée : textures des couches sur le modèle humanoïde du jeu.
+    Armor,
+}
+
+/// Un modèle 3D du projet.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct ModelInfo {
+    pub kind: ModelKind,
+    /// `block/lamp`, `item/ruby_sword` (chemin sous `models/`), nom de l'entité ou de l'armure.
+    pub id: String,
+    pub label: String,
+    /// Fichier source, relatif au projet.
+    pub relative: String,
+    /// Bloc ou objet décrit par ses propres cubes (`elements`), et non par un parent.
+    pub custom: bool,
+    pub parent: Option<String>,
+    /// Textures portées (relatives au projet) : entité ; couches 1 et 2 d'une armure.
+    pub textures: Vec<String>,
+    #[ts(type = "number | null")]
+    pub modified: Option<u64>,
+}
+
+/// Fichier de modèle de bloc ou d'objet, lu tel quel.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct ModelFile {
+    pub relative: String,
+    pub exists: bool,
+    /// Contenu JSON (vide si le fichier n'existe pas).
+    pub json: String,
+}
+
+/// Cube d'un os, dans l'espace des modèles d'entité du jeu (pixels, Y vers le bas).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct EntityCube {
+    /// Coin minimal, relatif au pivot de l'os.
+    pub origin: [f32; 3],
+    pub size: [f32; 3],
+    /// Coin haut-gauche de la zone du cube dans la texture (UV « en boîte » du jeu).
+    pub uv: [u32; 2],
+    /// Gonflement (armure, couches superposées), sans changer la zone de texture.
+    #[serde(default)]
+    pub inflate: f32,
+    /// Zone de texture retournée gauche-droite (bras et jambes symétriques).
+    #[serde(default)]
+    pub mirror: bool,
+}
+
+/// Os d'un modèle d'entité : un point de pivot, une rotation, des cubes et des os enfants.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct EntityBone {
+    pub name: String,
+    /// Os parent ; `None` : à la racine du modèle.
+    #[serde(default)]
+    pub parent: Option<String>,
+    /// Pivot, relatif à celui du parent (à la racine : 24 = sol).
+    pub pivot: [f32; 3],
+    /// Rotation en degrés autour de X, Y et Z (appliquée comme le jeu : Z, puis Y, puis X).
+    #[serde(default)]
+    pub rotation: [f32; 3],
+    #[serde(default)]
+    pub cubes: Vec<EntityCube>,
+}
+
+/// Modèle d'entité : ce que le jeu construit avec `TexturedModelData` / `LayerDefinition`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct EntityModel {
+    pub name: String,
+    pub texture_width: u32,
+    pub texture_height: u32,
+    pub bones: Vec<EntityBone>,
+}
+
+/// Ce que l'enregistrement d'un modèle d'entité a écrit.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct EntitySaved {
+    pub model: ModelInfo,
+    /// Classe Java générée (relative au projet).
+    pub java: Option<String>,
+    /// Pourquoi le code n'a pas été généré (versions 1.14 à 1.16).
+    pub note: Option<String>,
+}
+
 /// Style demandé au modèle d'image.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../src/core/ipc/bindings/")]
@@ -999,6 +1104,8 @@ pub enum SnapshotKind {
     Restore,
     /// Avant un changement fait dans l'atelier des textures (faces d'un bloc).
     Texture,
+    /// Avant l'enregistrement d'un modèle 3D.
+    Model,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

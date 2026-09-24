@@ -4,6 +4,20 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Mod Studio : atelier 3D (ADR 0009)
+- Nouvel onglet **Modèles 3D**, à la manière de Blockbench : vue 3D des modèles de blocs et
+  d'objets, des entités et des armures, avec la texture peinte directement sur le modèle (crayon,
+  gomme, remplissage, pipette, pinceau de 1 à 16 px) ou à plat avec les zones de chaque face.
+- **Blocs et objets 3D** : cubes à placer (poignée de déplacement ou valeurs), tourner, dupliquer ;
+  faces, UV et variables de texture ; la forme d'un parent du jeu se convertit en cubes d'un clic ;
+  les objets à plat se montrent en relief.
+- **Entités** : gabarits humanoïde et quadrupède, os et cubes (pivot, rotation, UV en boîte,
+  gonflement, miroir), répartition automatique des UV, patron de texture. L'enregistrement génère
+  la classe Java de la géométrie (Yarn ou Mojmap, Minecraft 1.17+).
+- **Armures** : les couches de texture portées sur le modèle d'armure du jeu, autour d'un mannequin.
+- Annuler / rétablir communs au modèle et à ses textures ; point de restauration avant chaque
+  enregistrement.
+
 ### Ajouté — Taille du pinceau
 - Retouche au pixel : le crayon et la gomme ont une taille de 1 à 16 px (boutons − / + ou
   touches [ et ]), carrée jusqu'à 3 px, ronde au-delà ; l'empreinte s'affiche sous la souris.

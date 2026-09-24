@@ -16,13 +16,15 @@ import { AssistantPanel } from "./AssistantPanel";
 import { Dashboard } from "./Dashboard";
 import { FilesPanel } from "./FilesPanel";
 import { TexturesPanel } from "./TexturesPanel";
+import { ModelsPanel } from "./models/ModelsPanel";
 
-type Tab = "dashboard" | "assistant" | "files" | "textures" | "build";
+type Tab = "dashboard" | "assistant" | "files" | "textures" | "models" | "build";
 const TABS: { id: Tab; label: string }[] = [
   { id: "dashboard", label: "Tableau de bord" },
   { id: "assistant", label: "Assistant IA" },
   { id: "files", label: "Fichiers" },
   { id: "textures", label: "Textures" },
+  { id: "models", label: "Modèles 3D" },
   { id: "build", label: "Build" },
 ];
 
@@ -176,6 +178,8 @@ export function Workspace({ project }: { project: ProjectSummary }) {
               <FilesPanel project={project} />
             ) : tab === "textures" ? (
               <TexturesPanel project={project} />
+            ) : tab === "models" ? (
+              <ModelsPanel project={project} />
             ) : (
               <BuildPanel project={project} java={java} onJavaChange={setJava} />
             )}

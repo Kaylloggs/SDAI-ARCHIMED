@@ -17,6 +17,7 @@ mod gemini;
 mod gradle;
 mod java;
 mod jdk;
+mod models;
 mod openrouter;
 mod pixelart;
 mod profiles;
@@ -82,6 +83,14 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::set_block_layout,
             commands::create_gui_texture,
             commands::delete_textures,
+            commands::list_models,
+            commands::read_model,
+            commands::save_model,
+            commands::read_entity_model,
+            commands::save_entity_model,
+            commands::entity_model_code,
+            commands::texture_pixels,
+            commands::save_texture_pixels,
             commands::list_textures,
             commands::generate_texture,
             commands::import_texture,

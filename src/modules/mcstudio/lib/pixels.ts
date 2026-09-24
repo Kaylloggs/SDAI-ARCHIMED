@@ -170,3 +170,27 @@ export function samePixels(a: Pixels, b: Pixels): boolean {
   for (let i = 0; i < a.data.length; i += 1) if (a.data[i] !== b.data[i]) return false;
   return true;
 }
+
+/** Nouvelle taille : les pixels communs sont gardés, le reste est transparent. */
+export function resizePixels(pixels: Pixels, width: number, height: number): Pixels {
+  const out: Pixels = { width, height, data: new Uint8ClampedArray(width * height * 4) };
+  for (let y = 0; y < Math.min(height, pixels.height); y += 1) {
+    const row = pixels.data.subarray(y * pixels.width * 4, (y * pixels.width + Math.min(width, pixels.width)) * 4);
+    out.data.set(row, y * width * 4);
+  }
+  return out;
+}
+
+/** Image vide (transparente). */
+export function blankPixels(width: number, height: number): Pixels {
+  return { width, height, data: new Uint8ClampedArray(width * height * 4) };
+}
+
+/** Remplit un rectangle (bornes comprises dans l'image). */
+export function fillRect(pixels: Pixels, x: number, y: number, w: number, h: number, color: Rgba) {
+  for (let py = Math.max(0, Math.floor(y)); py < Math.min(pixels.height, Math.ceil(y + h)); py += 1) {
+    for (let px = Math.max(0, Math.floor(x)); px < Math.min(pixels.width, Math.ceil(x + w)); px += 1) {
+      pixels.data.set(color, (py * pixels.width + px) * 4);
+    }
+  }
+}
