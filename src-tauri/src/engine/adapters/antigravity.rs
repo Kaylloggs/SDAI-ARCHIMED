@@ -522,6 +522,7 @@ mod tests {
         DecodeCtx {
             session_id: "s1",
             auto_mode: AutoMode::Off,
+            cwd: None,
         }
     }
 
@@ -541,6 +542,7 @@ mod tests {
             cwd: Some("F:/projet"),
             tuning: &crate::engine::event::DEFAULT_TUNING,
             mcp_config: None,
+            session: &crate::engine::event::DEFAULT_SESSION_OPTIONS,
         });
         assert!(args.windows(2).any(|w| w[0] == "--add-dir" && w[1] == "F:/projet"));
         assert_eq!(args.last().map(String::as_str), Some("-p="));

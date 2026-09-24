@@ -1,0 +1,17 @@
+# Forge · 1.19.3 – 1.19.4
+# Versions exactes (loader, mappings, API) : résolues à la création depuis les métadonnées officielles.
+id = "forge-1.19.3"
+loader = "forge"
+label = "Forge · 1.19.3 – 1.19.4"
+minecraft_min = "1.19.3"
+minecraft_max = "1.19.4"
+java = 17
+java_max = 17
+gradle = "7.6.4"
+plugin = "5.1.+"
+mappings = "official"
+template = "forge-1.19.3"
+dialect = "forge-1.19.3"
+data_format = "1.14"
+pack_format = 13
+verified = false

@@ -5,6 +5,7 @@
 - **Backend** : plugin `code` (`src-tauri/src/modules/code/`).
 - **Commandes** : `list_dir`, `read_file`, `write_file` (atomique, auditée), `project_info`, `search_files`, `watch_root`, `unwatch_root`.
 - **Événement émis** : `code:fs-changed` — l'arborescence, les onglets non modifiés et l'aperçu se mettent à jour seuls quand une IA crée ou modifie des fichiers (dépendances et builds ignorés).
+- **Éditeur et arborescence** : `@/core/editor` (`CodeEditor`, `FileTree`), partagés avec Mod Studio ; ce module fournit la lecture (`list_dir`), la surveillance et les états vide / binaire.
 - **Panneaux redimensionnables** : arborescence, éditeur, aperçu et assistant (`ResizeHandle`, tailles mémorisées ; double clic = taille par défaut).
 - **Aperçu** (bouton globe) : serveur de test lancé par l'agent (pastille verte quand il répond) ou page HTML ouverte / créée, dans une colonne dédiée (`@/core/preview`).
 - **Services consommés** : moteur core (`useChat`, `useAdapters`), composants `@/core/chat`.

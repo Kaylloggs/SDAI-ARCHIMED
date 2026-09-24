@@ -59,7 +59,11 @@ SDAI ARCHIMED/
 ├── tsconfig.json · tsconfig.node.json · index.html
 ├── docs/adr/                            # décisions d'architecture
 │   ├── 0001-claude-permissions-via-stdio-control-protocol.md
-│   └── 0002-modules-as-inline-tauri-plugins.md
+│   ├── 0002-modules-as-inline-tauri-plugins.md
+│   ├── 0003-mcstudio-real-builds-and-version-profiles.md
+│   ├── 0004-mcstudio-jdk-downloads.md
+│   ├── 0005-mcstudio-openrouter-textures.md
+│   └── 0006-module-sessions-and-mcstudio-agent.md
 ├── scripts/
 │   ├── new-module.mjs                   # pnpm new:module <id> [--category] [--backend]
 │   └── check-modules.mjs                # invariants de modularité (pnpm check)
@@ -70,6 +74,8 @@ SDAI ARCHIMED/
 │   │   ├── chat/                        # Composer · ConversationView · useOsFileDrop · useDictation
 │   │   │                                # (UI de conversation partagée chat/code)
 │   │   ├── dnd/                         # glisser-déposer interne (pointeur) : useDragSource · DropZone · DragLayer
+│   │   ├── editor/                      # CodeEditor (CodeMirror aux tokens, lignes signalées) · FileTree (paresseux,
+│   │   │                                # lecture fournie par le module) · languages · theme (partagés Code / Mod Studio)
 │   │   ├── preview/                     # aperçu web : detect (serveurs de test, pages HTML) · usePreviewTargets · PreviewPane
 │   │   ├── modules/                     # define-module · manifest.schema · registry
 │   │   │                                # · useModules · services · slots · types · index
@@ -80,10 +86,10 @@ SDAI ARCHIMED/
 │   │   ├── engine/                      # types · engine.api · useAdapters · useChat · tokenSaver (mode caveman)
 │   │   │                                # · prompts/ (caveman.md embarqué) · useAutoContinue
 │   │   │                                # · session.store (conversations persistées) · __tests__
-│   │   ├── cards/                       # PromptCard · DiffView · ToolCallCard
+│   │   ├── cards/                       # PromptCard · DiffView (diff unifié numéroté) · ToolCallCard
 │   │   ├── bus/event-bus.ts
 │   │   ├── stores/                      # modules.store · ui.store · theme.store
-│   │   └── lib/cn.ts
+│   │   └── lib/                         # cn · diff (Myers : lignes, blocs, compteurs)
 │   ├── design-system/
 │   │   ├── tokens.css                   # source de vérité visuelle (@theme Tailwind v4)
 │   │   ├── themes.ts                    # presets de thème (Archimède, Papier, Tokyo Néon…)
@@ -107,6 +113,13 @@ SDAI ARCHIMED/
 │       ├── jobagent/                    # Recherche d'emploi : module.config · index · api · store · types · README
 │       │   ├── components/              # SearchForm · OfferList · OfferPanel · ApplyPanel · BatchPanel · WorldMap
 │       │   └── lib/                     # triage (onglets, sélection) · batch (envois) · cv (langue)
+│       ├── mcstudio/                    # Minecraft Mod Studio : module.config · index · api · store · README
+│       │   ├── components/              # ProjectList · EnvironmentPanel · JdkInstallCard · OpenRouterKeyCard · VersionPicker
+│       │   │                            # · wizard/ (6 étapes) · workspace/ (Dashboard · VersionsSection · TexturesPanel
+│       │   │                            #   · TextureStudio · FilesPanel · ProblemsPanel · HistorySection · AssistantPanel
+│       │   │                            #   · ChangesPanel · BuildPanel · BuildResult)
+│       │   └── lib/                     # naming (Mod ID, package, registre) · logs (niveaux) · format · textures
+│       │                                # · paths · assistant (correction bornée) ; editor.ts (onglets, vérification)
 │       ├── usage/                       # Crédits : module.config · index · api · lib/format · README
 │       ├── memory/                      # Mémoire : index · api · services/context · README
 │       ├── skills/                      # module.config · index · api · README
@@ -144,6 +157,14 @@ SDAI ARCHIMED/
             ├── usage/                   # résumé du registre, compte et limites Claude
             ├── memory/                  # notes.json (activables, par projet), bloc de contexte injecté
             ├── planner/                 # boards.json, roadmap.rs (parse/réécriture), ics.rs, watcher notify
+            ├── mcstudio/                # projets de mods Minecraft : profiles/ (TOML + métadonnées officielles),
+            │                            # templates/ (fichiers embarqués, Gradle Wrapper), content (générateurs),
+            │                            # gradle (build réel), diagnostics, java (détection JDK), jdk (installation
+            │                            # Adoptium vérifiée SHA-256), projects, textures (PNG), openrouter (clé,
+            │                            # modèles d'image), pixelart (conversion), artwork (brouillons, application),
+            │                            # files (explorateur confiné), validator (vérification sans compiler),
+            │                            # snapshots (points de restauration), agent (copie de travail, consignes,
+            │                            # comparaison, application)
             ├── jobagent/                # moteur Python embarqué (engine/ : JobSpy + archimed_jobagent),
             │                            # service.rs, letters.rs (Antigravity), secrets.rs (DPAPI), serveur MCP
             └── skills/                  # module.toml · mod.rs · commands.rs
@@ -201,8 +222,16 @@ const channel = new Channel<EngineEvent>();
 channel.onmessage = (e) => useSessionStore.getState().apply(sessionId, e);
 const { sessionId } = await invokeCore("engine_start_session", {
   adapter: "claude", model: "claude-opus-5", cwd, autoMode: "off", onEvent: channel,
+  // Facultatif, pour un module : consignes et outils refusés (SessionOptions).
+  options: { appendSystemPrompt: "Projet Fabric 1.21.1…", disallowedTools: ["WebSearch"] },
 });
 ```
+
+`SessionOptions` (ADR 0006) : Claude reçoit `--append-system-prompt` et `--disallowedTools` ;
+les CLI sans option équivalente (`supports_system_prompt() == false`), ou lancées par un script
+`.cmd`/`.bat` (Windows ne transmet pas d'argument multiligne à un script), reçoivent les consignes en
+tête du premier message d'une nouvelle conversation (de chaque message pour une CLI sans
+mémoire, comme `codex exec`). Les adaptateurs PTY déclaratifs ne les reçoivent pas.
 
 ---
 
@@ -466,7 +495,9 @@ Exemple : le chat détecte un projet via le service `code.project`, propose une 
 et ouvre le module Code sur le dossier de la conversation.
 
 ### 7.9 Conversations multiples
-Chaque conversation porte une **origine** (`chat` | `code`) : un module n'affiche que les siennes,
+Chaque conversation porte une **origine** (`chat`, `code`, ou l'identifiant d'un module comme
+`mcstudio`, ADR 0006) : un module n'affiche que les siennes, l'accueil rouvre la conversation
+dans son module (`openModule(origine, { conversationId })`),
 et la conversation active du Chat n'est jamais modifiée par le module Code.
 Une **conversation** (frontend, persistée) est distincte d'une **session moteur** (processus CLI vivant) :
 `ChatSession.engineSessionId` vaut `null` tant qu'aucun processus ne tourne. Le premier message
@@ -482,10 +513,10 @@ arrête son processus puis efface son entrée.
 |---|---|---|---|---|
 | Low | lecture fichier, `ls`, recherche web | Ask | Allow | Allow |
 | Medium | édition dans le dossier de travail, `pnpm install` | Ask | Allow | Allow |
-| High | suppression, commande hors dossier de travail, téléchargement d'exécutable | Ask | Ask | Allow |
+| High | suppression, **modification de fichier hors du dossier de travail**, commande hors dossier de travail, téléchargement d'exécutable | Ask | Ask | Allow |
 | Critical | `rm -rf`/`Remove-Item -Recurse` sur racine ou profil, `format`, `reg delete`, `bcdedit`, désactivation antivirus, lecture de fichiers d'identifiants | Ask | Ask | **Ask** |
 
-- Classification dans `risk.rs` : outil + chemins (dans/hors `cwd`) + motifs de commande (liste versionnée et testée).
+- Classification dans `policy.rs` : outil + chemins (dans/hors `cwd`, comparaison lexicale insensible à la casse, `..` résolus : `classify_in` / `evaluate_in`) + motifs de commande (liste versionnée et testée).
 - Le Mode Auto se règle **par session** (toggle dans le composer) avec un défaut global.
 - Chaque décision → `audit.jsonl` + chip « Auto-validé » dans la timeline (cliquable pour voir le détail).
 
@@ -520,6 +551,12 @@ arrête son processus puis efface son entrée.
 | Chemins de CLI forcés | `%APPDATA%\com.sdai.archimed\engine.json` |
 | Adaptateurs déclaratifs | `%APPDATA%\com.sdai.archimed\adapters\*.toml` |
 | Tableaux du Planner | `%APPDATA%\com.sdai.archimed\modules\planner\boards.json` |
+| Projets Mod Studio (liste), profils de version de l'utilisateur, cache des métadonnées | `%APPDATA%\com.sdai.archimed\modules\mcstudio\` (`projects.json`, `profiles/*.toml`, `cache/meta/`) |
+| Clé OpenRouter de Mod Studio | Gestionnaire d'identifiants Windows (`mcstudio-openrouter.com.sdai.archimed`) |
+| Brouillons de textures, modèles d'image connus | `%APPDATA%\com.sdai.archimed\modules\mcstudio\cache\` (`textures/`, `openrouter-models.json`) |
+| Copie de travail de l'assistant IA de Mod Studio | `%APPDATA%\com.sdai.archimed\modules\mcstudio\work\` (`<projet>/`, `<projet>.base.json`) |
+| JDK installés par Mod Studio, source de téléchargement | `%APPDATA%\com.sdai.archimed\modules\mcstudio\` (`jdks/<version>/`, `env.json` : `adoptiumApi`, `openrouterApi`, HTTPS uniquement) |
+| Identité et builds d'un projet de mod | `<projet>/.mcstudio/` (`project.json`, `builds.json`, `builds/<id>.log`, `history/textures/`, `snapshots/<id>/`) — le projet reste autonome |
 | Offres, profil, CV et compte d'envoi de JobAgent | `%APPDATA%\com.sdai.archimed\modules\jobagent\` (mot de passe SMTP chiffré par DPAPI) |
 | Journal d'audit | `%APPDATA%\com.sdai.archimed\logs\audit.jsonl` (rotation 5 Mo) |
 | Skills | `%APPDATA%\com.sdai.archimed\skills\` |

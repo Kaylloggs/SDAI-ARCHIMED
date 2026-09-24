@@ -1,0 +1,18 @@
+# Forge · 1.21.3
+# Versions exactes (loader, mappings, API) : résolues à la création depuis les métadonnées officielles.
+# Identifiants de registre fixés dans les propriétés des objets et des blocs.
+id = "forge-1.21.3"
+loader = "forge"
+label = "Forge · 1.21.3"
+minecraft_min = "1.21.3"
+minecraft_max = "1.21.3"
+java = 21
+gradle = "8.8"
+plugin = "[6.0.16,6.2)"
+mappings = "official"
+template = "forge-1.21.3"
+dialect = "forge-1.21.3"
+data_format = "1.21.2"
+pack_format = 42
+verified = false
+notes = "Identifiants de registre fixés dans les propriétés des objets et des blocs."

@@ -63,6 +63,16 @@ ARCHIMED does not replace the CLIs: it drives the ones installed on your machine
 - Cover letters and emails written by Antigravity from your French or English CV, in a natural style; batch sending over SMTP after a single confirmation that lists every recipient.
 - The chat agents can search too: the module exposes its tools over MCP, switched on from the module, with no command to type.
 
+### ⛏️ Minecraft Mod Studio (`mcstudio` module)
+- Create **real** Minecraft mod projects for **Fabric**, **Forge** or **NeoForge**: a Gradle project with its wrapper, metadata, registries, icon, assets and data files, ready to compile.
+- **Every Minecraft release from 1.14 to 1.21.x**: 23 versioned profiles (Java, Gradle, plugin, mappings, code dialect, data format) cover Fabric 1.14 → 1.21.x, Forge 1.14.4 → 1.21.5 and NeoForge 1.20.4 → 1.21.x. Anything else (snapshots, pre-1.14, Forge 1.21.6+) is shown as unsupported, with the reason.
+- **Pick your loader version**: loader, Fabric API and Yarn (or Forge / NeoForge) versions come from the official metadata (Fabric Meta, Modrinth, Forge promotions, NeoForge Maven), cached for offline use; the recommended one is preselected, any published one can be chosen, at creation or later.
+- **AI textures (OpenRouter)**: describe a texture, an image model on OpenRouter draws it with your own API key (free models are listed first; paid ones need an explicit opt-in), or import any PNG/JPEG/WebP. Mod Studio removes the background, frames the object and turns it into 16×16 (or 32, 64) pixel art with a limited palette; you preview, tweak and apply it, and the previous texture is kept. The key lives in the Windows Credential Manager.
+- **Missing Java? Installed from the app**: Mod Studio lists the JDKs each Minecraft family needs, detects the installed ones and offers to download the missing Eclipse Temurin JDK (Adoptium), checked with SHA-256 and installed after your confirmation — never silently.
+- **Real compilation**: the button runs Gradle, streams its output live, explains errors in plain words (file, line, probable cause, fix) and copies the produced `.jar` to `dist/`.
+- Deterministic generators for items, blocks and recipes, with pixel-art textures, models, loot tables, tags and `en_us` / `fr_fr` translations in the right format for each Minecraft version.
+- AI code generation through your CLIs, auto-fix, in-game testing, snapshots and import come in the next phases (see the module README).
+
 ### 📊 Credits (`usage` module)
 - Remaining subscription limits reported by Claude (5-hour and 7-day windows).
 - Tokens, estimated cost and time spent per CLI and per day.
@@ -90,6 +100,7 @@ ARCHIMED is built to be **infinitely evolutive**:
 | `planner` | Task boards, calendar view, `roadmap.md` sync, Google Calendar / `.ics` |
 | `memory` | Information you give the AIs, per project or global, importable from a file |
 | `jobagent` | Multi-platform job search, review, cover letters and batch applications |
+| `mcstudio` | Minecraft mod projects (Fabric, Forge, NeoForge): creation, real Gradle builds, `.jar` output, AI textures |
 | `usage` | Subscription limits and token usage per CLI |
 | `settings` | Themes, CLI detection, modules, data |
 
@@ -109,6 +120,7 @@ Planned: system file manager, local image generation, agent workflow automations
 | **Rust** (MSVC toolchain) | stable, 1.85 or newer | [rustup.rs](https://rustup.rs) | `rustc -V` |
 | **Visual Studio Build Tools** | 2022 | [Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/), select **"Desktop development with C++"** | — |
 | **WebView2** | — | built into Windows 11 ([installer](https://developer.microsoft.com/microsoft-edge/webview2/) for Windows 10) | — |
+| **JDK** (optional) | 8, 17 and/or 21 | Installed from the `mcstudio` module when missing, or [Eclipse Temurin](https://adoptium.net/temurin/releases/) — only for that module (old Forge needs 8, Minecraft 1.17–1.20.4 needs 17, 1.20.5+ needs 21) | `java -version` |
 | **Python** (optional) | 3.10 or newer | [python.org](https://www.python.org/downloads/) — only for the `jobagent` module, which installs its own environment | `python --version` |
 
 ### 2. Install at least one AI CLI
@@ -200,5 +212,7 @@ Issues and pull requests are welcome. Read [`guidelines.md`](guidelines.md) firs
 The token saver bundles the Caveman skill by Julius Brussee (MIT, see `src/core/engine/prompts/caveman.LICENSE`); ARCHIMED is not affiliated with Caveman.
 
 The `jobagent` module vendors [JobSpy](https://github.com/speedyapply/JobSpy) (MIT, see `src-tauri/src/modules/jobagent/engine/LICENSE.jobspy`) and ships city data from [GeoNames](https://www.geonames.org/) (CC BY 4.0) and country outlines from [Natural Earth](https://www.naturalearthdata.com/) (public domain). Job boards' terms of use apply to the searches you run.
+
+The `mcstudio` module ships the Gradle Wrapper (Apache 2.0) in its project templates. Minecraft is a trademark of Mojang/Microsoft; mods you build are subject to the Minecraft EULA.
 
 Claude, Antigravity and Codex are trademarks of their respective owners. ARCHIMED is an independent project, not affiliated with Anthropic, Google or OpenAI.

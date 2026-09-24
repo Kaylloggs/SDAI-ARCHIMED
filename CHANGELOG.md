@@ -4,6 +4,115 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Mod Studio : test en jeu
+- Bouton **Tester en jeu** (onglet Build) : `gradlew runClient` lance Minecraft avec le mod, journal
+  en direct, « Arrêter le jeu ». Plantages reconnus et expliqués (rapport de plantage, classe ou
+  méthode absente, Mixin non appliqué), et correction proposée à l'assistant IA.
+
+### Ajouté — Mod Studio : assistant IA avec vos CLI (phase G)
+- Onglet **Assistant IA** : conversation avec Claude Code, Antigravity ou Codex (ce qui est
+  installé), qui connaît la version de Minecraft, le loader, les versions exactes, les mappings
+  et reçoit des **exemples de code exacts** de la version.
+- L'IA travaille dans une **copie de travail** du projet : ses modifications sont listées fichier
+  par fichier avec leur diff, les conflits signalés ; **rien n'entre dans le projet sans être
+  appliqué**, chaque application crée un point de restauration et se vérifie aussitôt.
+- **Correction bornée** : après un build en échec, un message d'erreurs expliquées est préparé
+  pour l'IA (trois essais d'affilée au plus).
+
+### Modifié — Moteur (ADR 0006)
+- **Mode Auto plus sûr** : en « Smart », une modification de fichier **hors du dossier de travail**
+  de la conversation (chemin absolu ailleurs, `..`, `~`) n'est plus validée d'office : elle est
+  demandée, pour tous les modules.
+- Les modules peuvent ouvrir leurs propres conversations (origine libre, rouvertes depuis
+  l'accueil dans leur module) et leur passer des consignes : prompt système ajouté (Claude
+  `--append-system-prompt`, sinon en tête du premier message) et outils refusés
+  (`--disallowedTools`).
+
+### Ajouté — Mod Studio : points de restauration (phase F)
+- Tableau de bord → **Points de restauration** : création à la main (tous les fichiers du
+  projet), restauration confirmée et **annulable** (l'état courant est sauvegardé d'abord),
+  fichiers créés depuis remis à la Corbeille, suppression vers la Corbeille.
+
+### Modifié
+- **Vrai diff** dans le core (`core/lib/diff.ts`, algorithme de Myers) : `DiffView` affiche un
+  diff unifié par blocs, avec contexte, numéros de ligne et compteurs. L'ancien diff comparait
+  des ensembles de lignes et ne voyait ni les déplacements ni les lignes répétées.
+
+### Ajouté — Mod Studio : vérification sans compiler (phase E)
+- Panneau **Problèmes** (onglet Fichiers) et résumé sur le tableau de bord : JSON et TOML
+  localisés à la ligne et à la colonne avec une explication, PNG illisibles ou de mauvaise
+  taille, dossiers de données d'une autre époque (`recipes/` contre `recipe/`), recettes au
+  format d'une autre version, textures, modèles et définitions d'objet introuvables, noms
+  affichés manquants. Un clic ouvre le fichier à la ligne, surlignée dans l'éditeur.
+- Chaque projet généré (23 profils) passe cette vérification sans aucun problème.
+
+### Ajouté — Mod Studio : explorateur et éditeur (phase D)
+- **Onglet Fichiers** : arborescence du projet, éditeur à onglets (Java, JSON, TOML, Gradle,
+  `.properties`), aperçu des images, clic droit pour créer, renommer ou mettre à la Corbeille.
+- Brouillons conservés par projet, enregistrement `Ctrl+S`, fermeture d'un fichier modifié
+  confirmée, **aucun écrasement silencieux** d'un fichier changé sur le disque depuis son ouverture.
+- Chemins confinés au projet côté Rust (`..`, absolus, lecteurs, liens symboliques refusés),
+  `.mcstudio/` et `.git/` protégés en écriture, actions auditées ; bandeau sur les scripts Gradle.
+
+### Modifié
+- `CodeEditor` et `FileTree` quittent le module Code pour `src/core/editor/` (génériques : la
+  lecture des dossiers est fournie par le module). Le module Code les utilise sans changement
+  visible ; l'éditeur sait surligner des lignes signalées.
+
+### Ajouté — Mod Studio : textures par IA (OpenRouter)
+- **Onglet Textures** : icône, objets et blocs du mod, avec leur texture actuelle ou manquante ;
+  ajout d'un objet ou d'un bloc (code, modèles, traductions, loot table, outil de minage) sans
+  quitter l'onglet.
+- **Génération par un modèle d'image d'OpenRouter** avec la clé de la personne : clé vérifiée puis
+  rangée dans le Gestionnaire d'identifiants de Windows, jamais renvoyée à l'interface ; modèles
+  lus en direct, gratuits en tête, payants refusés sans accord explicite ; texte envoyé au modèle
+  visible avant l'envoi ; erreurs d'OpenRouter expliquées (clé refusée, crédit, quota 429).
+- **Import d'une image** (PNG, JPEG, WebP) pour qui n'a pas de clé.
+- **Conversion en pixel-art** déterministe : fond retiré, objet cadré, 16, 32 ou 64 px, couleurs
+  franches qui gardent les petits détails, palette limitée ; réglages appliqués en direct.
+- **Aperçu avant application** (image reçue, texture, taille réelle) ; l'ancienne texture est
+  gardée dans `.mcstudio/history/textures/` ; générations, applications et changements de clé
+  inscrits au journal d'audit. Voir ADR 0005.
+- Dépendances : `image` (décodage PNG/JPEG/WebP borné), `base64`, `keyring`.
+
+### Corrigé
+- Interrupteurs de Mod Studio : la pastille sortait du rail (hérité du centrage du bouton).
+
+### Ajouté — Mod Studio : toutes les versions, choix du loader, installation de Java
+- **Minecraft 1.14 à 1.21.x** : 23 profils de version couvrent Fabric 1.14 → 1.21.x, Forge 1.14.4 →
+  1.21.5 et NeoForge 1.20.4 → 1.21.x, avec un template par époque d'API (registres, onglets créatifs,
+  identifiants, `setId` de 1.21.2) et un format de données par version (dossiers au singulier en
+  1.21, ingrédients en texte en 1.21.2, définitions `items/` en 1.21.4). Ce qui reste hors champ
+  (snapshots, avant 1.14, Forge 1.21.6+, NeoForge 1.20.2–1.20.3) est affiché avec la raison.
+  Les profils non encore compilés de bout en bout portent le badge « Non vérifié ».
+- **Choix des versions** : version du loader, de Fabric API et de Yarn (ou de Forge / NeoForge)
+  choisie parmi les versions publiées, recommandée présélectionnée ; modifiable après création
+  (`gradle.properties`, `fabric.mod.json` et `project.json` réécrits).
+- **Java manquant installé depuis l'app** : panneau « Environnement » (un JDK par famille de
+  versions, version exacte pour Forge), et proposition de téléchargement d'Eclipse Temurin
+  (API Adoptium) dans l'assistant, le tableau de bord et le build. Rien ne s'installe sans
+  confirmation ; l'archive est vérifiée par SHA-256, décompressée sans pouvoir sortir de son dossier
+  (`jdks/`), et l'installation est inscrite au journal d'audit. Voir ADR 0004.
+- Test e2e en matrice : `MCSTUDIO_E2E_ALL`, `MCSTUDIO_E2E_PROFILES`, `MCSTUDIO_E2E_INSTALL_JDK`.
+- Dépendances : `zip`, `tar`, `flate2`, `sha2`.
+
+### Ajouté — Module Minecraft Mod Studio (phases A à C)
+- **Projets de mods réels** pour Fabric, Forge et NeoForge : assistant en six étapes (nom, identifiants,
+  version, loader, Java, contenu), projet Gradle complet avec son wrapper, métadonnées, registres,
+  icône pixel-art, fichiers de langue `en_us` / `fr_fr`, licence MIT ou aucune au choix.
+- **Profils de version** (`fabric-1.20`, `fabric-1.21`, `forge-1.20`, `neoforge-1.21`) : Java, Gradle,
+  plugin, mappings et format de données propres à chaque plage de Minecraft. Les versions du loader,
+  des mappings et de Fabric API sont lues dans les métadonnées officielles, gardées en cache pour le
+  hors-ligne. Une version sans profil vérifié est affichée « non prise en charge ».
+- **Compilation réelle** : Gradle lancé avec le JDK du profil, journal en direct filtrable par niveau,
+  arrêt de l'arbre de processus, erreurs expliquées (fichier, ligne, cause probable, solution), jar
+  copié dans `dist/`, historique des 30 dernières compilations.
+- **Générateurs déterministes** : objet, bloc (état, modèles, loot table, tag d'outil) et recettes
+  (façonnée, sans forme, cuisson) au format de la version du projet ; textures générées en PNG.
+- Détection des JDK installés (fichier `release`, sans lancer de processus) et choix par projet.
+- Test de bout en bout `mcstudio::e2e` (ignoré par défaut : réseau et JDK requis) qui crée TestMod et
+  le compile vraiment pour chaque profil.
+
 ## [0.3.0] - 2026-09-24
 
 Première version publiée depuis la 0.2.2 : elle regroupe les compilations locales 0.2.4 à

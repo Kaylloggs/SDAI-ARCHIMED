@@ -1,0 +1,19 @@
+# Forge · 1.14.4 – 1.16.5
+# Versions exactes (loader, mappings, API) : résolues à la création depuis les métadonnées officielles.
+# ForgeGradle 5 et Gradle 7 sur Java 8 exactement. Noms de classes MCP, membres aux noms officiels.
+id = "forge-1.14"
+loader = "forge"
+label = "Forge · 1.14.4 – 1.16.5"
+minecraft_min = "1.14.4"
+minecraft_max = "1.16.5"
+java = 8
+java_max = 8
+gradle = "7.6.4"
+plugin = "5.1.+"
+mappings = "official"
+template = "forge-legacy"
+dialect = "forge-1.14"
+data_format = "1.14"
+pack_format = 6
+verified = false
+notes = "ForgeGradle 5 et Gradle 7 sur Java 8 exactement. Noms de classes MCP, membres aux noms officiels."

@@ -1,0 +1,19 @@
+# Fabric · 1.14 – 1.16.5
+# Versions exactes (loader, mappings, API) : résolues à la création depuis les métadonnées officielles.
+# Code compilé pour Java 8 ; Loom demande un JDK 17 pour lancer Gradle. Onglets créatifs fixés dans les réglages de l'objet.
+id = "fabric-1.14"
+loader = "fabric"
+label = "Fabric · 1.14 – 1.16.5"
+minecraft_min = "1.14"
+minecraft_max = "1.16.5"
+java = 17
+java_release = 8
+gradle = "8.14.3"
+plugin = "1.10-SNAPSHOT"
+mappings = "yarn"
+template = "fabric-legacy"
+dialect = "fabric-yarn-1.14"
+data_format = "1.14"
+pack_format = 6
+verified = false
+notes = "Code compilé pour Java 8 ; Loom demande un JDK 17 pour lancer Gradle. Onglets créatifs fixés dans les réglages de l'objet."

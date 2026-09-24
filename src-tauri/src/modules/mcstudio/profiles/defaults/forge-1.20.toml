@@ -1,0 +1,19 @@
+# Forge · 1.20.1 – 1.20.4
+# Versions exactes (loader, mappings, API) : résolues à la création depuis les métadonnées officielles.
+# Forge 1.20.x demande Java 17 exactement : les JVM plus récentes cassent ses transformations de classes.
+id = "forge-1.20"
+loader = "forge"
+label = "Forge · 1.20.1 – 1.20.4"
+minecraft_min = "1.20.1"
+minecraft_max = "1.20.4"
+java = 17
+java_max = 17
+gradle = "8.8"
+plugin = "[6.0.16,6.2)"
+mappings = "official"
+template = "forge-1.20"
+dialect = "forge-1.20"
+data_format = "1.14"
+pack_format = 15
+verified = false
+notes = "Forge 1.20.x demande Java 17 exactement : les JVM plus récentes cassent ses transformations de classes."

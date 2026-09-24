@@ -1,0 +1,20 @@
+# Forge · 1.18 – 1.19.2
+# Versions exactes (loader, mappings, API) : résolues à la création depuis les métadonnées officielles.
+id = "forge-1.18"
+loader = "forge"
+label = "Forge · 1.18 – 1.19.2"
+minecraft_min = "1.18"
+minecraft_max = "1.19.2"
+java = 17
+java_max = 17
+gradle = "7.6.4"
+plugin = "5.1.+"
+mappings = "official"
+template = "forge-1.17"
+dialect = "forge-1.17"
+data_format = "1.14"
+pack_format = 9
+verified = false
+
+[vars]
+registry_object = "net.minecraftforge.registries.RegistryObject"

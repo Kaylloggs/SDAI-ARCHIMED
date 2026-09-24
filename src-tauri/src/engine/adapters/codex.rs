@@ -214,6 +214,7 @@ mod tests {
         DecodeCtx {
             session_id: "s1",
             auto_mode: AutoMode::Off,
+            cwd: None,
         }
     }
 

@@ -109,7 +109,7 @@ impl CliAdapter for ClaudeAdapter {
     }
 
     fn spawn_args(&self, options: LaunchOptions<'_>) -> Vec<String> {
-        let LaunchOptions { model, resume, tuning, mcp_config, .. } = options;
+        let LaunchOptions { model, resume, tuning, mcp_config, session, .. } = options;
         let mut args: Vec<String> = [
             "-p",
             "--input-format",
@@ -161,7 +161,24 @@ impl CliAdapter for ClaudeAdapter {
             args.push("--mcp-config".to_string());
             args.push(config.to_string());
         }
+        // Consignes du module qui a ouvert la session (Mod Studio…).
+        if let Some(prompt) = session
+            .append_system_prompt
+            .as_deref()
+            .filter(|p| !p.trim().is_empty())
+        {
+            args.push("--append-system-prompt".to_string());
+            args.push(prompt.to_string());
+        }
+        if !session.disallowed_tools.is_empty() {
+            args.push("--disallowedTools".to_string());
+            args.push(session.disallowed_tools.join(","));
+        }
         args
+    }
+
+    fn supports_system_prompt(&self) -> bool {
+        true
     }
 
     fn encode_user_message(&self, text: &str) -> String {
@@ -252,7 +269,12 @@ impl ClaudeAdapter {
             .to_string();
 
         let payload = payload_of(&input);
-        let decision = policy::evaluate(&tool, &payload, ctx.auto_mode);
+        let target = input
+            .get("file_path")
+            .or_else(|| input.get("path"))
+            .or_else(|| input.get("notebook_path"))
+            .and_then(Value::as_str);
+        let decision = policy::evaluate_in(&tool, &payload, target, ctx.cwd, ctx.auto_mode);
 
         let prompt_id = uuid::Uuid::new_v4().to_string();
         self.pending.insert(prompt_id.clone(), request_id.to_string());
@@ -521,6 +543,7 @@ mod tests {
         DecodeCtx {
             session_id: "s1",
             auto_mode: AutoMode::Off,
+            cwd: None,
         }
     }
 
@@ -544,9 +567,30 @@ mod tests {
             cwd: None,
             tuning: &crate::engine::event::DEFAULT_TUNING,
             mcp_config: Some("C:/donnees/mcp/_merged.generated.json"),
+            session: &crate::engine::event::DEFAULT_SESSION_OPTIONS,
         });
         let position = args.iter().position(|arg| arg == "--mcp-config").expect("option absente");
         assert_eq!(args[position + 1], "C:/donnees/mcp/_merged.generated.json");
+    }
+
+    #[test]
+    fn module_instructions_reach_the_cli() {
+        let session = crate::engine::event::SessionOptions {
+            append_system_prompt: Some("Projet Fabric 1.21.1".into()),
+            disallowed_tools: vec!["WebFetch".into(), "WebSearch".into()],
+        };
+        let args = ClaudeAdapter::default().spawn_args(LaunchOptions {
+            session: &session,
+            ..LaunchOptions::new(None, None)
+        });
+        assert!(args
+            .windows(2)
+            .any(|w| w[0] == "--append-system-prompt" && w[1] == "Projet Fabric 1.21.1"));
+        assert!(args
+            .windows(2)
+            .any(|w| w[0] == "--disallowedTools" && w[1] == "WebFetch,WebSearch"));
+        let plain = ClaudeAdapter::default().spawn_args(LaunchOptions::new(None, None));
+        assert!(!plain.iter().any(|a| a == "--append-system-prompt" || a == "--disallowedTools"));
     }
 
     #[test]
@@ -564,6 +608,7 @@ mod tests {
             cwd: None,
             tuning: &tuning,
             mcp_config: None,
+            session: &crate::engine::event::DEFAULT_SESSION_OPTIONS,
         });
         // Le niveau choisi dans la liste des modèles prime sur le réglage global.
         assert!(args.windows(2).any(|w| w[0] == "--model" && w[1] == "opus"));
@@ -579,6 +624,7 @@ mod tests {
             cwd: None,
             tuning: &tuning,
             mcp_config: None,
+            session: &crate::engine::event::DEFAULT_SESSION_OPTIONS,
         });
         assert!(global.windows(2).any(|w| w[0] == "--effort" && w[1] == "low"));
     }

@@ -1,4 +1,5 @@
 import { Channel, invokeCore } from "@/core/ipc";
+import type { SessionOptions } from "./session.store";
 import type {
   AdapterInfo,
   AutoMode,
@@ -24,6 +25,8 @@ export const engineApi = {
     resume: string | null;
     /** Réglages « Économie de tokens » (Réglages) appliqués au lancement. */
     tuning?: EngineTuning;
+    /** Consignes du module (prompt système, outils refusés). */
+    options?: SessionOptions;
     onEvent: Channel<EngineEvent>;
   }) => invokeCore<SessionId>("engine_start_session", params),
 

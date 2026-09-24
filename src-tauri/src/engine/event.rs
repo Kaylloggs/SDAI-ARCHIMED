@@ -243,6 +243,22 @@ pub static DEFAULT_TUNING: EngineTuning = EngineTuning {
     compact_at: None,
 };
 
+/// Consignes d'un module pour une session (Mod Studio : version de Minecraft, règles d'API…).
+#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct SessionOptions {
+    /// Ajouté au prompt système quand la CLI le permet, sinon en tête du premier message.
+    pub append_system_prompt: Option<String>,
+    /// Outils refusés d'office (noms de la CLI), quand elle le permet.
+    pub disallowed_tools: Vec<String>,
+}
+
+/// Aucune consigne : conversations du Chat, appels internes, tests.
+pub static DEFAULT_SESSION_OPTIONS: SessionOptions = SessionOptions {
+    append_system_prompt: None,
+    disallowed_tools: Vec::new(),
+};
+
 /// Options de lancement d'une CLI (voir `CliAdapter::spawn_args`).
 #[derive(Debug, Clone, Copy)]
 pub struct LaunchOptions<'a> {
@@ -255,6 +271,8 @@ pub struct LaunchOptions<'a> {
     pub tuning: &'a EngineTuning,
     /// Fichier de serveurs MCP fournis par les modules (`core::mcp`), quand il y en a.
     pub mcp_config: Option<&'a str>,
+    /// Consignes du module qui a ouvert la session.
+    pub session: &'a SessionOptions,
 }
 
 /// Modèle choisi : `sonnet` ou `sonnet:high` (modèle + effort).
@@ -275,6 +293,7 @@ impl<'a> LaunchOptions<'a> {
             cwd: None,
             tuning: &DEFAULT_TUNING,
             mcp_config: None,
+            session: &DEFAULT_SESSION_OPTIONS,
         }
     }
 }

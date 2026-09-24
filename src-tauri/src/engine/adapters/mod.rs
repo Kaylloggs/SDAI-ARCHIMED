@@ -43,6 +43,8 @@ pub struct PermissionGrant {
 pub struct DecodeCtx<'a> {
     pub session_id: &'a str,
     pub auto_mode: AutoMode,
+    /// Dossier de travail : une modification ailleurs n'est jamais validée d'office en Smart.
+    pub cwd: Option<&'a str>,
 }
 
 /// Contrat d'une CLI encapsulée (guidelines.md §5).
@@ -95,6 +97,12 @@ pub trait CliAdapter: Send + Sync {
     /// Arguments de lancement d'une session (modèle, conversation à reprendre émise
     /// précédemment via `EngineEvent::CliSession`, Mode Auto).
     fn spawn_args(&self, options: LaunchOptions<'_>) -> Vec<String>;
+
+    /// La CLI reçoit `SessionOptions::append_system_prompt` par ses options de lancement.
+    /// Sinon, le moteur place ces consignes en tête du premier message.
+    fn supports_system_prompt(&self) -> bool {
+        false
+    }
 
     /// Encode un message utilisateur (NDJSON pour les transports structurés).
     fn encode_user_message(&self, text: &str) -> String;

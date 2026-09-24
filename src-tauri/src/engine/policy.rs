@@ -101,8 +101,71 @@ pub fn classify(tool: &str, payload: &str) -> (RiskLevel, String) {
     (RiskLevel::Medium, "outil non classé".to_string())
 }
 
-pub fn evaluate(tool: &str, payload: &str, mode: AutoMode) -> Decision {
+/// Le chemin visé sort-il du dossier de travail ? Comparaison lexicale (`..` résolus),
+/// insensible à la casse et aux séparateurs, comme les chemins Windows.
+pub fn outside(target: &str, cwd: &str) -> bool {
+    fn parts(path: &str) -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        for part in path.replace('\\', "/").split('/') {
+            match part {
+                "" | "." => {}
+                ".." => {
+                    out.pop();
+                }
+                other => out.push(other.to_lowercase()),
+            }
+        }
+        out
+    }
+    let target = target.trim().trim_matches('"');
+    if target.starts_with('~') {
+        return true;
+    }
+    let absolute = target.starts_with('/')
+        || target.starts_with('\\')
+        || target.as_bytes().get(1) == Some(&b':');
+    let full = if absolute {
+        target.to_string()
+    } else {
+        format!("{cwd}/{target}")
+    };
+    !parts(&full).starts_with(&parts(cwd))
+}
+
+/// Comme [`classify`], en tenant compte du dossier de travail : une modification de
+/// fichier hors de ce dossier est à risque élevé (jamais validée d'office en Smart).
+pub fn classify_in(
+    tool: &str,
+    payload: &str,
+    target: Option<&str>,
+    cwd: Option<&str>,
+) -> (RiskLevel, String) {
     let (risk, reason) = classify(tool, payload);
+    if risk < RiskLevel::High && EDIT_TOOLS.contains(&tool) {
+        if let (Some(target), Some(cwd)) = (target, cwd) {
+            if outside(target, cwd) {
+                return (
+                    RiskLevel::High,
+                    "modification hors du dossier de travail".to_string(),
+                );
+            }
+        }
+    }
+    (risk, reason)
+}
+
+pub fn evaluate(tool: &str, payload: &str, mode: AutoMode) -> Decision {
+    evaluate_in(tool, payload, None, None, mode)
+}
+
+pub fn evaluate_in(
+    tool: &str,
+    payload: &str,
+    target: Option<&str>,
+    cwd: Option<&str>,
+    mode: AutoMode,
+) -> Decision {
+    let (risk, reason) = classify_in(tool, payload, target, cwd);
 
     let verdict = match (mode, risk) {
         (_, RiskLevel::Critical) => Verdict::Ask,
@@ -151,6 +214,38 @@ mod tests {
             evaluate("Bash", "del build.log", AutoMode::Smart).verdict,
             Verdict::Ask
         );
+    }
+
+    #[test]
+    fn edits_outside_the_working_folder_are_never_auto_allowed_in_smart() {
+        let cwd = Some("C:\\Mods\\work\\t1");
+        let inside = evaluate_in("Write", "", Some("src/Main.java"), cwd, AutoMode::Smart);
+        assert_eq!(inside.verdict, Verdict::Allow);
+        let absolute_inside = evaluate_in(
+            "Edit",
+            "",
+            Some("c:/mods/WORK/t1/build.gradle"),
+            cwd,
+            AutoMode::Smart,
+        );
+        assert_eq!(absolute_inside.verdict, Verdict::Allow);
+        for escape in [
+            "C:\\Mods\\real\\build.gradle",
+            "../real/x.java",
+            "~/x",
+            "D:/x",
+        ] {
+            let decision = evaluate_in("Write", "", Some(escape), cwd, AutoMode::Smart);
+            assert_eq!(decision.verdict, Verdict::Ask, "{escape}");
+            assert_eq!(decision.risk, RiskLevel::High);
+        }
+        // Sans dossier connu, rien ne change.
+        assert_eq!(
+            evaluate_in("Write", "", Some("D:/x"), None, AutoMode::Smart).verdict,
+            Verdict::Allow
+        );
+        assert!(!outside("/home/a/proj/src/x", "/home/a/proj"));
+        assert!(outside("/home/a/projet2/x", "/home/a/proj"));
     }
 
     #[test]
