@@ -154,6 +154,8 @@ pub fn classify_in(
     (risk, reason)
 }
 
+/// Décision sans cible ni dossier de travail (tests des règles de base).
+#[cfg(test)]
 pub fn evaluate(tool: &str, payload: &str, mode: AutoMode) -> Decision {
     evaluate_in(tool, payload, None, None, mode)
 }

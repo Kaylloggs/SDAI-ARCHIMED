@@ -1,8 +1,6 @@
 //! Clés API des services d'image (OpenRouter, Google Gemini) : rangées dans le Gestionnaire
 //! d'identifiants de Windows, jamais dans un fichier ni dans les journaux.
 
-use std::sync::Mutex;
-
 use crate::core::{AppError, AppResult};
 
 /// Où une clé est rangée.
@@ -56,9 +54,11 @@ impl KeyStore for CredentialStore {
 }
 
 /// Rangement en mémoire, pour les tests.
+#[cfg(test)]
 #[derive(Default)]
-pub struct MemoryStore(Mutex<Option<String>>);
+pub struct MemoryStore(std::sync::Mutex<Option<String>>);
 
+#[cfg(test)]
 impl KeyStore for MemoryStore {
     fn load(&self) -> AppResult<Option<String>> {
         Ok(self.0.lock().map(|k| k.clone()).unwrap_or(None))

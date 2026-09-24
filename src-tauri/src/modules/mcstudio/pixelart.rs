@@ -196,6 +196,7 @@ pub struct Converted {
 }
 
 /// Image source → texture de `options.size` pixels de côté (ou `width` × `height`).
+#[cfg(test)]
 pub fn convert(source: &Raster, options: &PixelOptions) -> AppResult<Raster> {
     Ok(convert_full(source, options)?.raster)
 }
