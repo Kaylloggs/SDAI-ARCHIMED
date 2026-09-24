@@ -6,23 +6,53 @@ A modular desktop app that runs **Claude Code**, **Antigravity** and **Codex** w
 
 ARCHIMED drives the CLIs installed on your machine, with your own subscriptions. Terminal output, permission requests and tool calls become interactive cards, governed by a risk policy.
 
+## Why ARCHIMED
+
+- **Your CLIs, your subscriptions.** No API key to buy, no proxy: ARCHIMED talks to the Claude Code, Antigravity or Codex already installed and logged in, with everything they can do (files, shell, MCP, skills).
+- **Agentic power you can read.** Streams become a timeline of messages, tool calls, diffs and question cards. The raw terminal stays one click away.
+- **Safe by default.** Every permission request is scored by a risk policy (low to critical). Auto mode can approve the harmless ones, never the critical ones, and each decision is written to a local audit log.
+- **One app, many tools.** Chat, code, planning, memory, job search and modding share the same engine, sessions and design, instead of seven windows.
+- **Modular.** One feature is one module: enable, disable or delete what you don't use; nothing else breaks.
+- **Local and private.** Data stays in `%APPDATA%`, secrets in the Windows Credential Manager, deletions go to the Recycle Bin.
+- **Frugal.** A built-in token saver (three levels) and a usage panel that shows what each CLI has consumed and what is left of your plan.
+- **Native and light.** Tauri 2 and Rust: a small binary on the system WebView, no bundled browser.
+
 ## Modules
 
-Each feature is a self-contained module. In **Settings → Modules** you can enable, disable or **delete** any of them (its data goes to the Recycle Bin, and you can bring it back later).
+In **Settings → Modules** you can enable, disable or **delete** any module (its data goes to the Recycle Bin, and you can bring it back later). Each one documents itself in `src/modules/<id>/README.md`.
 
-| Module | What it does |
-|---|---|
-| `chat` | Multi-CLI conversations, permission cards, auto mode, attachments, local dictation, token saver |
-| `code` | VS Code-like editor (CodeMirror 6) with an AI panel, drag & drop, live preview |
-| `skills` | Skills library, synced to your CLIs |
-| `planner` | Task boards, calendar, two-way `roadmap.md` sync, Google Calendar / `.ics` |
-| `memory` | What the AIs should know about you, global or per project |
-| `jobagent` | Job search on 7 boards, triage, cover letters, batch applications after confirmation |
-| `mcstudio` | Real Minecraft mods (Fabric, Forge, NeoForge, 1.14 → 1.21.x): Gradle builds, JDK install, AI textures, in-game testing |
-| `usage` | Subscription limits and token usage per CLI |
-| `home` · `settings` | Launchpad and settings (required) |
+### Chat · `chat`
+Conversations with Claude Code, Antigravity or Codex: pick the agent, model and effort; answer permissions and questions on cards; Auto mode (off, smart, full); attachments; local voice dictation (Windows speech recognition, no cloud); raw terminal drawer.
 
-Details in each module's `README.md` under `src/modules/<id>/`.
+### Code · `code`
+A VS Code-like editor (CodeMirror 6, ~35 languages, tabs, `Ctrl+P`) with the AI panel on the side, working in the open folder. Files refresh live while the AI edits them; drag a file into the chat to target it; preview the dev server the agent started, or an HTML page.
+
+### Skills · `skills`
+A local library of skills, switched on per CLI (linked into each CLI's skills folder), imported from any folder, and reachable from the chat with **Use a skill**.
+
+### Planner · `planner`
+Trello-like boards with Markdown cards, subtasks, due dates, labels and a calendar view. A board can follow a `roadmap.md` in both directions, so the plan an AI writes during a project becomes cards you can tick. Export to `.ics` or add a card to Google Calendar.
+
+### Memory · `memory`
+What the AIs should know about you: preferences and conventions you write yourself, global or per project, each with its own switch. Active notes are added to the first message of a conversation, with a preview of the exact block. Nothing is recorded behind your back.
+
+### Job Agent · `jobagent`
+Searches several job titles, countries, cities and contract types across seven boards (Indeed, LinkedIn, Glassdoor, Google, HelloWork, Welcome to the Jungle, ZipRecruiter) in parallel, removes duplicates, then drafts cover letters and emails from your CV. Batch sending only happens after one confirmation that lists every recipient.
+
+### Minecraft Mod Studio · `mcstudio`
+Real mods for Fabric, Forge and NeoForge, Minecraft 1.14 to 1.21.x. Each project is a standard Gradle folder that also builds without ARCHIMED.
+- **Create and build**: guided setup, loader and mapping versions, JDK installed for you (SHA-256 checked), Gradle builds with errors explained in plain words.
+- **Test**: launch the game with your mod, or a local test server (you accept the Minecraft EULA yourself); crashes are explained.
+- **AI assistant**: your CLI works in a copy of the project; you review each file before it lands, with a restore point every time.
+- **Textures**: generate with OpenRouter or Google Gemini (your key) or import an image, converted to real pixel art; a pixel editor with brush sizes; every texture the mod needs is listed, overlays included.
+- **3D studio**, Blockbench-style: block and item models, entities (the Java model class is generated) and armor, painted directly on the model.
+- **Grow the project**: import an existing mod, port it to another Minecraft version (build files and data migrated, Java code handed to the assistant), export the sources as a ZIP.
+
+### Usage · `usage`
+Remaining subscription limits (Claude's 5-hour and weekly windows), plus tokens and estimated cost per CLI, measured on every answer.
+
+### Home and Settings · `home` `settings`
+The launchpad with one tile per active module, and the settings: CLI paths, theme, token saver, modules. Both are required.
 
 ## Install and run
 
