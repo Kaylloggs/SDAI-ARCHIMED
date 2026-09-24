@@ -149,7 +149,17 @@ export function Workspace({ project }: { project: ProjectSummary }) {
             className="h-full"
           >
             {tab === "dashboard" ? (
-              <Dashboard project={project} java={java} javaError={javaError} onJavaChange={setJava} onCompile={compile} />
+              <Dashboard
+                project={project}
+                java={java}
+                javaError={javaError}
+                onJavaChange={setJava}
+                onCompile={compile}
+                onShowProblems={() => {
+                  useEditorStore.getState().showProblems(project.id, true);
+                  setTab("files");
+                }}
+              />
             ) : tab === "files" ? (
               <FilesPanel project={project} />
             ) : tab === "textures" ? (

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ProjectFile } from "@/core/ipc/bindings/ProjectFile";
+import type { ValidationReport } from "@/core/ipc/bindings/ValidationReport";
 import { errorText, mcstudioApi } from "./api";
 import { isUnder, renamed } from "./lib/paths";
 
@@ -13,6 +14,16 @@ const EMPTY: EditorState = { tabs: [], active: null };
 type Store = {
   /** Onglets par projet : ils survivent au changement d'onglet du workspace. */
   editors: Record<string, EditorState>;
+  /** Dernière vérification de chaque projet. */
+  reports: Record<string, ValidationReport>;
+  /** Panneau « Problèmes » ouvert. */
+  problemsOpen: Record<string, boolean>;
+  /** Ligne à montrer dans l'éditeur (clic sur un problème). */
+  reveal: Record<string, { path: string; line: number; nonce: number } | null>;
+  validate: (projectId: string) => Promise<void>;
+  showProblems: (projectId: string, open: boolean) => void;
+  /** Ouvre un fichier et amène l'éditeur sur une ligne. */
+  goTo: (projectId: string, path: string, line: number | null) => Promise<void>;
   open: (projectId: string, path: string) => Promise<void>;
   activate: (projectId: string, path: string) => void;
   close: (projectId: string, path: string) => void;
@@ -41,6 +52,24 @@ function replaceFile(editor: EditorState, file: ProjectFile, draft: string | nul
 
 export const useEditorStore = create<Store>()((set, get) => ({
   editors: {},
+  reports: {},
+  problemsOpen: {},
+  reveal: {},
+
+  validate: async (projectId) => {
+    const report = await mcstudioApi.validate(projectId);
+    set((state) => ({ reports: { ...state.reports, [projectId]: report } }));
+  },
+
+  showProblems: (projectId, open) =>
+    set((state) => ({ problemsOpen: { ...state.problemsOpen, [projectId]: open } })),
+
+  goTo: async (projectId, path, line) => {
+    await get().open(projectId, path);
+    if (line !== null) {
+      set((state) => ({ reveal: { ...state.reveal, [projectId]: { path, line, nonce: Date.now() } } }));
+    }
+  },
 
   open: async (projectId, path) => {
     const editor = get().editors[projectId] ?? EMPTY;

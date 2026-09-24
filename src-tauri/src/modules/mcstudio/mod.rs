@@ -23,6 +23,7 @@ mod service;
 mod templates;
 mod textures;
 pub mod types;
+mod validator;
 
 #[cfg(test)]
 mod e2e;
@@ -75,6 +76,7 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::create_project_file,
             commands::rename_project_file,
             commands::trash_project_file,
+            commands::validate_project,
         ])
         .setup(|app, _api| {
             let paths = crate::core::paths::Paths::resolve(app)?;

@@ -27,6 +27,7 @@ import type { TextureRequest } from "@/core/ipc/bindings/TextureRequest";
 import type { TextureTarget } from "@/core/ipc/bindings/TextureTarget";
 import type { ProjectEntry } from "@/core/ipc/bindings/ProjectEntry";
 import type { ProjectFile } from "@/core/ipc/bindings/ProjectFile";
+import type { ValidationReport } from "@/core/ipc/bindings/ValidationReport";
 
 const PLUGIN = "mcstudio";
 
@@ -115,6 +116,8 @@ export const mcstudioApi = {
     invokeModule<void>(PLUGIN, "rename_project_file", { id, from, to }),
   /** Corbeille (récupérable). */
   trashFile: (id: string, path: string) => invokeModule<void>(PLUGIN, "trash_project_file", { id, path }),
+  /** Problèmes visibles sans compiler : syntaxe, références, format de la version. */
+  validate: (id: string) => invokeModule<ValidationReport>(PLUGIN, "validate_project", { id }),
 };
 
 /** Message lisible d'une erreur renvoyée par le backend. */

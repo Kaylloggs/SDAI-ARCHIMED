@@ -115,7 +115,7 @@ SDAI ARCHIMED/
 │       ├── mcstudio/                    # Minecraft Mod Studio : module.config · index · api · store · README
 │       │   ├── components/              # ProjectList · EnvironmentPanel · JdkInstallCard · OpenRouterKeyCard · VersionPicker
 │       │   │                            # · wizard/ (6 étapes) · workspace/ (Dashboard · VersionsSection · TexturesPanel
-│       │   │                            #   · TextureStudio · BuildPanel · BuildResult)
+│       │   │                            #   · TextureStudio · FilesPanel · ProblemsPanel · BuildPanel · BuildResult)
 │       │   └── lib/                     # naming (Mod ID, package, registre) · logs (niveaux) · format · textures
 │       ├── usage/                       # Crédits : module.config · index · api · lib/format · README
 │       ├── memory/                      # Mémoire : index · api · services/context · README
@@ -158,7 +158,8 @@ SDAI ARCHIMED/
             │                            # templates/ (fichiers embarqués, Gradle Wrapper), content (générateurs),
             │                            # gradle (build réel), diagnostics, java (détection JDK), jdk (installation
             │                            # Adoptium vérifiée SHA-256), projects, textures (PNG), openrouter (clé,
-            │                            # modèles d'image), pixelart (conversion), artwork (brouillons, application)
+            │                            # modèles d'image), pixelart (conversion), artwork (brouillons, application),
+            │                            # files (explorateur confiné), validator (vérification sans compiler)
             ├── jobagent/                # moteur Python embarqué (engine/ : JobSpy + archimed_jobagent),
             │                            # service.rs, letters.rs (Antigravity), secrets.rs (DPAPI), serveur MCP
             └── skills/                  # module.toml · mod.rs · commands.rs

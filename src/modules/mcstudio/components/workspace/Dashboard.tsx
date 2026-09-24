@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { AlertTriangle, FolderOpen, Hammer } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FolderOpen, Hammer, ListChecks, XCircle } from "lucide-react";
 import { engineApi } from "@/core/engine/engine.api";
 import { Button } from "@/design-system/primitives";
 import type { JavaStatus } from "@/core/ipc/bindings/JavaStatus";
@@ -11,7 +11,9 @@ import { ago, LOADER_LABEL } from "../../lib/format";
 import { useMcStudioStore } from "../../store";
 import { Fact } from "../ui";
 import { JdkInstallCard } from "../JdkInstallCard";
+import { useEditorStore } from "../../editor";
 import { BuildResult } from "./BuildResult";
+import { problemsSummary } from "./ProblemsPanel";
 import { VersionsSection } from "./VersionsSection";
 
 const STAT_LABELS: [keyof ProjectStats, string][] = [
@@ -33,18 +35,26 @@ export function Dashboard({
   javaError,
   onJavaChange,
   onCompile,
+  onShowProblems,
 }: {
   project: ProjectSummary;
   java: JavaStatus | null;
   javaError: string | null;
   onJavaChange: (status: JavaStatus) => void;
   onCompile: () => void;
+  onShowProblems: () => void;
 }) {
   const [stats, setStats] = useState<ProjectStats | null>(null);
   const [error, setError] = useState<string | null>(javaError);
   const running = useMcStudioStore((s) => s.builds[project.id]?.running ?? false);
   const record = useMcStudioStore((s) => s.builds[project.id]?.record) ?? project.lastBuild;
   const meta = project.meta;
+  const report = useEditorStore((s) => s.reports[project.id]);
+
+  // Vérification rapide à l'ouverture et après chaque compilation.
+  useEffect(() => {
+    void useEditorStore.getState().validate(project.id).catch(() => undefined);
+  }, [project.id, record?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,6 +128,30 @@ export function Dashboard({
               ))}
             </dl>
             <p className="text-footnote text-text-subtle">Compté sur les fichiers réels du projet, à chaque ouverture.</p>
+          </section>
+
+          <section aria-labelledby="mc-check" className="space-y-3">
+            <h2 id="mc-check" className="text-title-3 font-semibold">
+              Vérification
+            </h2>
+            <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-surface-1 px-4 py-3">
+              {report && report.errors > 0 ? (
+                <XCircle size={16} className="text-danger" />
+              ) : report && report.warnings > 0 ? (
+                <AlertTriangle size={16} className="text-warning" />
+              ) : (
+                <CheckCircle2 size={16} className={report ? "text-success" : "text-text-subtle"} />
+              )}
+              <p className="min-w-0 flex-1 text-body-sm">
+                {problemsSummary(report)}
+                <span className="block text-footnote text-text-subtle">
+                  JSON, TOML, textures, références et format de Minecraft {v.minecraft}, sans compiler.
+                </span>
+              </p>
+              <Button size="sm" onClick={onShowProblems} icon={<ListChecks size={14} />}>
+                Voir les problèmes
+              </Button>
+            </div>
           </section>
 
           <VersionsSection project={project} busy={running} />

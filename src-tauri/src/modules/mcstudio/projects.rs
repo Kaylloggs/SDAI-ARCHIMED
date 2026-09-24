@@ -887,6 +887,19 @@ pub mod tests {
             );
             assert!(root.join("gradle/wrapper/gradle-wrapper.jar").is_file());
             assert!(root.join("LICENSE").is_file());
+
+            // Le projet généré passe sa propre vérification, au format de sa version.
+            let report = crate::modules::mcstudio::validator::validate(
+                &root,
+                "testmod",
+                profile.data_format,
+            );
+            assert!(
+                report.issues.is_empty(),
+                "{} : {:#?}",
+                profile.id,
+                report.issues
+            );
             let props =
                 std::fs::read_to_string(root.join("gradle/wrapper/gradle-wrapper.properties"))
                     .unwrap();

@@ -21,9 +21,10 @@ use super::types::{
     BlockRequest, BuildEvent, BuildRecord, BuildTask, ContentResult, CreateProjectRequest,
     DraftSource, EnvironmentReport, ItemRequest, JavaInstall, JavaStatus, JdkNeed, PixelOptions,
     ProjectEntry, ProjectFile, ProjectMeta, ProjectStats, ProjectSummary, RecipeRequest,
-    ResolvedVersions, TextureDraft, TextureInfo, TextureRequest, TextureTarget, VersionCatalog,
-    VersionOptions, VersionSelection,
+    ResolvedVersions, TextureDraft, TextureInfo, TextureRequest, TextureTarget, ValidationReport,
+    VersionCatalog, VersionOptions, VersionSelection,
 };
+use super::validator;
 
 /// Taille maximale d'un journal renvoyé à l'interface (la fin est gardée).
 const MAX_LOG_BYTES: usize = 4 * 1024 * 1024;
@@ -433,6 +434,16 @@ impl McStudio {
 
     pub fn trash_file(&self, project_id: &str, path: &str) -> AppResult<()> {
         files::trash(&self.projects.root(project_id)?, path)
+    }
+
+    /// Vérifie le projet sans compiler (formats de la version, références, syntaxe).
+    pub fn validate(&self, project_id: &str) -> AppResult<ValidationReport> {
+        let context = self.generator(project_id)?;
+        Ok(validator::validate(
+            &context.root,
+            &context.mod_id,
+            context.data_format,
+        ))
     }
 }
 

@@ -685,3 +685,38 @@ pub struct ProjectFile {
     #[ts(type = "number")]
     pub modified: u64,
 }
+
+// ── Validation du projet ────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub enum Severity {
+    Error,
+    Warning,
+}
+
+/// Problème trouvé sans compiler : fichier illisible, référence cassée, format d'une autre version.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct ValidationIssue {
+    pub severity: Severity,
+    /// Chemin relatif au projet, avec des `/`.
+    pub file: String,
+    pub line: Option<u32>,
+    pub column: Option<u32>,
+    pub message: String,
+    pub hint: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct ValidationReport {
+    pub issues: Vec<ValidationIssue>,
+    /// Fichiers lus.
+    pub files: u32,
+    pub errors: u32,
+    pub warnings: u32,
+}

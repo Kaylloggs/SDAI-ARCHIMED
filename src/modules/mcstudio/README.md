@@ -20,7 +20,7 @@ un dossier Gradle autonome : il se compile aussi sans ARCHIMED (`gradlew build`)
 | B+ | 1.14 → 1.21.x, choix des versions du loader, installation des JDK | ✓ (profils hors `fabric-1.21` à valider par l'e2e) |
 | T | Textures par IA (OpenRouter, clé de la personne), import d'image, conversion pixel-art, ajout d'objets et de blocs | ✓ (testé contre un faux OpenRouter local) |
 | D | Explorateur et éditeur (`CodeEditor`/`FileTree` déplacés dans `core/editor`) | ✓ |
-| E | Validateur (JSON ligne/colonne, références, assets) et page Diagnostics | à venir |
+| E | Validateur (JSON/TOML ligne/colonne, références, format de la version) et panneau Problèmes | ✓ |
 | F | Snapshots, historique, undo/redo, relecture des diffs | à venir |
 | G–I | Agent IA de code via les CLI (plan structuré, copie de travail, auto-fix borné) | à venir |
 | J–M | `runClient`/`runServer`, import de projets, audit/portage, export ZIP | à venir |
@@ -117,6 +117,22 @@ Corbeille. Une image s'affiche pixel pour pixel.
 - **Scripts de build** (`build.gradle`, `settings.gradle`, `gradle.properties`, `gradlew*`,
   `gradle/`) : bandeau d'avertissement, Gradle les exécute à chaque compilation.
 
+## Vérification sans compiler
+
+`validator.rs` lit le projet et signale ce que Gradle laisse passer mais que le jeu refuse ou
+ignore au chargement ; résultat dans le panneau **Problèmes** (onglet Fichiers, un clic ouvre le
+fichier à la ligne, lignes surlignées dans l'éditeur) et sur le tableau de bord.
+
+- JSON et TOML illisibles : ligne, colonne, explication (virgule en trop, accolade non fermée…) ;
+- PNG illisibles, textures qui ne sont pas des carrés de 16, 32, 64… px (sauf animées) ;
+- dossiers de données de la mauvaise époque (`recipes/` en 1.21+, `recipe/` avant) ;
+- recettes au format d'une autre version (ingrédients en objet ou en texte, résultats
+  `{"item"}` / `{"id"}`, résultat de cuisson) ;
+- références du mod : textures des modèles, modèles parents, modèles des états de bloc et des
+  définitions d'objet, définition `items/` manquante en 1.21.4+, nom affiché manquant.
+
+Les 23 profils génèrent des projets qui passent cette vérification sans aucun problème (test).
+
 ## Textures : IA (OpenRouter) ou image importée
 
 Onglet **Textures** d'un projet : l'icône, les objets et les blocs (présents, ou déclarés sans
@@ -197,7 +213,7 @@ Textures : `openrouter_status` · `set_openrouter_key` · `clear_openrouter_key`
 `apply_texture`
 Build : `build_project` · `cancel_build` · `list_builds` · `read_build_log`
 Fichiers : `list_files` · `read_project_file` · `write_project_file` · `create_project_file` ·
-`rename_project_file` · `trash_project_file`
+`rename_project_file` · `trash_project_file` · `validate_project`
 
 ## Tests
 
@@ -206,7 +222,8 @@ Fichiers : `list_files` · `read_project_file` · `write_project_file` · `creat
   NeoForge), exécution réelle d'un processus de build, conversion pixel-art (fond, cadrage, détails
   rares, palette), brouillons et historique des textures, client OpenRouter contre un faux serveur
   local (clé, modèles, image en data URL, erreurs 401/429), fichiers (sortie du projet refusée,
-  liens symboliques, conflit d'écriture, état interne protégé).
+  liens symboliques, conflit d'écriture, état interne protégé), validateur (syntaxe localisée,
+  formats par version, références cassées ; chaque projet généré passe sans problème).
 - `cargo test mcstudio::e2e -- --ignored --nocapture` : crée **TestMod** (1 objet, 1 bloc, recettes)
   pour la version la plus récente de chaque profil et le compile vraiment ; affiche
   `MODULE BASIC PIPELINE = OK (…)` par version et un bilan final. Options :

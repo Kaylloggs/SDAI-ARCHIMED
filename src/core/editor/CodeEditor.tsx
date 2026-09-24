@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { RangeSetBuilder } from "@codemirror/state";
 import { Decoration, EditorView, keymap } from "@codemirror/view";
@@ -49,13 +49,30 @@ type Props = {
   onSave?: () => void;
   readOnly?: boolean;
   markers?: EditorMarker[];
+  /** Amène le curseur sur une ligne ; `nonce` change à chaque demande. */
+  reveal?: { line: number; nonce: number } | null;
 };
 
 /**
  * Éditeur CodeMirror aux couleurs de l'application, partagé par les modules
  * (Code, Mod Studio). Ctrl+S appelle `onSave`.
  */
-export function CodeEditor({ language, value, onChange, onSave, readOnly = true, markers }: Props) {
+export function CodeEditor({ language, value, onChange, onSave, readOnly = true, markers, reveal }: Props) {
+  const view = useRef<EditorView | null>(null);
+
+  useEffect(() => {
+    const current = view.current;
+    if (!current || !reveal) return;
+    const doc = current.state.doc;
+    const line = doc.line(Math.min(Math.max(1, reveal.line), doc.lines));
+    current.dispatch({
+      selection: { anchor: line.from },
+      effects: EditorView.scrollIntoView(line.from, { y: "center" }),
+    });
+    current.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reveal?.nonce]);
+
   const extensions = useMemo(() => {
     const syntax = languageExtension(language);
     return [
@@ -85,6 +102,9 @@ export function CodeEditor({ language, value, onChange, onSave, readOnly = true,
         editable={!readOnly}
         readOnly={readOnly}
         onChange={onChange}
+        onCreateEditor={(created) => {
+          view.current = created;
+        }}
         basicSetup={{
           lineNumbers: true,
           foldGutter: true,

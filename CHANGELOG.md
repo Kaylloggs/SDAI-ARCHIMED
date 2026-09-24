@@ -4,6 +4,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Mod Studio : vérification sans compiler (phase E)
+- Panneau **Problèmes** (onglet Fichiers) et résumé sur le tableau de bord : JSON et TOML
+  localisés à la ligne et à la colonne avec une explication, PNG illisibles ou de mauvaise
+  taille, dossiers de données d'une autre époque (`recipes/` contre `recipe/`), recettes au
+  format d'une autre version, textures, modèles et définitions d'objet introuvables, noms
+  affichés manquants. Un clic ouvre le fichier à la ligne, surlignée dans l'éditeur.
+- Chaque projet généré (23 profils) passe cette vérification sans aucun problème.
+
 ### Ajouté — Mod Studio : explorateur et éditeur (phase D)
 - **Onglet Fichiers** : arborescence du projet, éditeur à onglets (Java, JSON, TOML, Gradle,
   `.properties`), aperçu des images, clic droit pour créer, renommer ou mettre à la Corbeille.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   FileCode2,
@@ -20,6 +20,7 @@ import { useEditorStore, type OpenFile } from "../../editor";
 import { joinPath, megabytes } from "../../lib/format";
 import { isBuildScript, nameOf, newPathProblem, parentOf } from "../../lib/paths";
 import { Checker, focusRing, inputClass, PixelImage } from "../ui";
+import { ProblemsPanel } from "./ProblemsPanel";
 
 type Prompt =
   | { kind: "file" | "folder"; base: string }
@@ -181,6 +182,10 @@ function TabBar({
 export function FilesPanel({ project }: { project: ProjectSummary }) {
   const id = project.id;
   const editor = useEditorStore((s) => s.editors[id]);
+  const report = useEditorStore((s) => s.reports[id]);
+  const problemsOpen = useEditorStore((s) => s.problemsOpen[id] ?? false);
+  const reveal = useEditorStore((s) => s.reveal[id] ?? null);
+  const [checking, setChecking] = useState(false);
   const store = useEditorStore.getState();
   const [changes, setChanges] = useState<TreeChanges>({ dirs: [], revision: 0 });
   const [reloadKey, setReloadKey] = useState(0);
@@ -197,10 +202,23 @@ export function FilesPanel({ project }: { project: ProjectSummary }) {
   const touched = (...paths: string[]) =>
     setChanges((current) => ({ dirs: paths.map(parentOf), revision: current.revision + 1 }));
 
-  // Fichiers changés pendant l'absence (textures, IA, autre éditeur) : relus.
+  const check = useCallback(async () => {
+    setChecking(true);
+    try {
+      await useEditorStore.getState().validate(id);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setChecking(false);
+    }
+  }, [id]);
+
+  // Fichiers changés pendant l'absence (textures, IA, autre éditeur) : relus, et le
+  // projet revérifié.
   useEffect(() => {
     void useEditorStore.getState().refreshClean(id);
-  }, [id]);
+    void check();
+  }, [id, check]);
 
   const attempt = async (work: () => Promise<void>) => {
     setError(null);
@@ -216,6 +234,7 @@ export function FilesPanel({ project }: { project: ProjectSummary }) {
     try {
       await useEditorStore.getState().save(id, path, overwrite);
       setConflict(null);
+      void check();
     } catch (e) {
       const message = errorText(e);
       if (message.includes("modifié en dehors")) setConflict(path);
@@ -249,6 +268,7 @@ export function FilesPanel({ project }: { project: ProjectSummary }) {
         touched(current.entry.path);
         break;
     }
+    void check();
   };
 
   const menuItems = (entry: TreeEntry): ContextMenuItem[] => {
@@ -274,6 +294,14 @@ export function FilesPanel({ project }: { project: ProjectSummary }) {
 
   const file = active?.file ?? null;
   const absolute = file ? joinPath(project.path, ...file.path.split("/")) : "";
+  const filePath = file?.path ?? null;
+  const markers = useMemo(
+    () =>
+      (report?.issues ?? [])
+        .filter((issue) => issue.file === filePath && issue.line !== null)
+        .map((issue) => ({ line: issue.line ?? 1, severity: issue.severity, message: issue.message })),
+    [report, filePath],
+  );
 
   return (
     <div className="flex h-full min-h-0">
@@ -424,6 +452,8 @@ export function FilesPanel({ project }: { project: ProjectSummary }) {
               readOnly={file.truncated}
               onChange={(content) => store.edit(id, file.path, content)}
               onSave={() => void save(file.path)}
+              markers={markers}
+              reveal={reveal && reveal.path === file.path ? reveal : null}
             />
           )}
         </div>
@@ -446,6 +476,18 @@ export function FilesPanel({ project }: { project: ProjectSummary }) {
             </Button>
           </footer>
         )}
+
+        <ProblemsPanel
+          report={report}
+          open={problemsOpen}
+          checking={checking}
+          onToggle={() => store.showProblems(id, !problemsOpen)}
+          onCheck={() => void check()}
+          onSelect={(issue) => {
+            // Un dossier mal nommé n'a pas de contenu à ouvrir.
+            if (nameOf(issue.file).includes(".")) void attempt(() => store.goTo(id, issue.file, issue.line));
+          }}
+        />
       </section>
 
       {menu && (

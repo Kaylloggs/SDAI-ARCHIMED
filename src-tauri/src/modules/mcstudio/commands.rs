@@ -13,7 +13,7 @@ use super::types::{
     EnvironmentReport, ImageModelList, InstallEvent, ItemRequest, JavaInstall, JavaStatus,
     JdkOffer, OpenRouterStatus, PixelOptions, ProjectEntry, ProjectFile, ProjectStats,
     ProjectSummary, RecipeRequest, ResolvedVersions, TextureDraft, TextureInfo, TextureRequest,
-    TextureTarget, VersionCatalog, VersionOptions, VersionSelection,
+    TextureTarget, ValidationReport, VersionCatalog, VersionOptions, VersionSelection,
 };
 
 type Studio<'a> = State<'a, Arc<McStudio>>;
@@ -382,4 +382,10 @@ pub async fn rename_project_file(
 #[tauri::command]
 pub async fn trash_project_file(studio: Studio<'_>, id: String, path: String) -> AppResult<()> {
     blocking(&studio, move |s| s.trash_file(&id, &path)).await
+}
+
+/// Problèmes détectables sans compiler (JSON, références, format de la version).
+#[tauri::command]
+pub async fn validate_project(studio: Studio<'_>, id: String) -> AppResult<ValidationReport> {
+    blocking(&studio, move |s| s.validate(&id)).await
 }
