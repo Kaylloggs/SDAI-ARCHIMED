@@ -4,6 +4,23 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Supprimer un module
+- **Réglages → Modules** : chaque module (sauf Accueil et Réglages) a un interrupteur pour
+  l'activer ou le désactiver (tout est gardé) et une corbeille pour le **supprimer**. La
+  confirmation, dans la carte, dit ce qui partira : taille de ses données (mises à la Corbeille),
+  outils donnés aux agents, clés d'API rangées dans le Gestionnaire d'identifiants. Les fichiers
+  créés ailleurs (projets de mods, exports) restent. Un module supprimé se remet depuis « Modules
+  supprimés ».
+- Un module déclare ses clés dans `module.toml` (`credentials`) pour qu'elles partent avec lui.
+
+### Modifié
+- Atelier des textures plus compact : le canevas et les aperçus s'adaptent à la taille de la
+  fenêtre (320 px au plus), la barre d'outils de retouche passe au-dessus du canevas avec
+  **Grille** et **Cadrer** côte à côte et nommés ; « Retoucher cette texture » est toujours
+  visible. L'aperçu « Répétée » ne déborde plus pour une texture de 64 px.
+- « Tout supprimer » (historique des conversations) confirme dans la carte, sans fenêtre native.
+- README raccourci (l'essentiel, les détails sont dans le README de chaque module).
+
 ### Modifié — Mod Studio : atelier des textures
 - Nouvelle disposition, pensée comme un atelier : le **canevas** au centre, les **outils** en
   colonne à gauche (crayon, gomme, remplissage, pipette, **Cadrer**…), les **aperçus** à droite (en

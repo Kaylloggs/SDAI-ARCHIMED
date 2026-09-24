@@ -268,6 +268,17 @@ fn main() {
 }
 ```
 
+### 5.2.bis Désactiver ou supprimer un module (Réglages → Modules)
+
+Le code d'un module fait partie de l'exécutable. **Désactiver** le cache (`modules.store`,
+`overrides`) en gardant tout. **Supprimer** le cache aussi (liste `removed`, section « Modules
+supprimés » pour le remettre) et efface ses traces : `modules_remove` (`core/modules.rs`) met
+`<données>/modules/<id>/` à la Corbeille (rien d'autre n'est touché si un fichier est encore
+utilisé), retire `mcp/<id>.json` (outils des agents) et les clés déclarées dans `module.toml`
+(`credentials`, table générée par `build.rs`) ; le frontend efface ses clés `archimed.<id>.…` /
+`<id>.…`. `modules_footprint` mesure ce qui partira, affiché avant la confirmation. Action
+inscrite au journal d'audit (`modules.remove`). Les modules `required` ne se suppriment pas.
+
 ### 5.3 Points d'extension officiels
 
 | Type | Nom | Fourni par | Usage |

@@ -225,7 +225,7 @@ libre) dessiné sans IA aux couleurs des écrans du jeu, dans `textures/gui/`.
    restauration (autres réglages du modèle gardés), les faces manquantes partent de la texture
    actuelle ; chaque face a son onglet et sa texture (`<bloc>_<face>.png`, ou celle que le modèle
    référence déjà). Un modèle écrit à la main n'est remplacé par un cube qu'après confirmation.
-6. **Cadrage** : outil « Cadrer » (C) de la retouche. Sur l'image reçue, glisser pour choisir la
+6. **Cadrage** : bouton « Cadrer » (C) de la retouche, à côté de « Grille ». Sur l'image reçue, glisser pour choisir la
    zone qui devient la texture (aux proportions de la texture ; flèches pour la déplacer, Maj +
    flèches pour la redimensionner), « Toute l'image » pour revenir, « Terminé » pour retoucher. La zone (`PixelOptions.crop`, pixels de l'image d'origine) est
    appliquée avant toute la conversion.
@@ -249,8 +249,8 @@ libre) dessiné sans IA aux couleurs des écrans du jeu, dans `textures/gui/`.
    `assets/<modid>/textures/` ou l'icône du mod sont acceptés.
 
 **Disposition** : liste des textures à gauche ; l'atelier au centre avec l'en-tête (texture,
-corbeille, Fermer, Appliquer au projet), les faces du bloc, les outils en colonne (dont Cadrer),
-le canevas, à droite les aperçus (en jeu en 3D, répétée, taille réelle, qualité du raccord), la
+corbeille, Fermer, Appliquer au projet), les faces du bloc, la barre d'outils de retouche (dont
+Grille et Cadrer), le canevas ajusté à la fenêtre (320 px au plus), à droite les aperçus (en jeu en 3D, répétée, taille réelle, qualité du raccord), la
 bande des versions, puis la barre de création en bas, comme le chat : description (Entrée
 génère), service et modèle, style et texte envoyé, Retirer le fond, import d'une image, Générer.
 

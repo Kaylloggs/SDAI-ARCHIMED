@@ -41,8 +41,6 @@ const TOOLS: { value: Tool; label: string; key: string; Icon: typeof Pencil }[] 
   { value: "picker", label: "Pipette", key: "I", Icon: Pipette },
 ];
 
-/** Côté visé du canevas à l'ouverture. */
-const FIT = 384;
 const MAX_ZOOM = 32;
 const HISTORY = 100;
 
@@ -78,6 +76,41 @@ function ToolButton({
   );
 }
 
+/** Interrupteur nommé de la barre (Grille, Cadrer) : visible sans survol. */
+export function ToolToggle({
+  label,
+  title,
+  pressed,
+  onClick,
+  disabled,
+  icon,
+}: {
+  label: string;
+  title: string;
+  pressed: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+  icon: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-pressed={pressed}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "flex h-8 items-center gap-1.5 rounded-sm px-2 text-footnote transition-colors disabled:opacity-40",
+        pressed ? "bg-accent-soft text-accent" : "text-text-muted hover:bg-surface-2 hover:text-text",
+        focusRing,
+      )}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
 /** Décale l'image d'une demi-largeur et d'une demi-hauteur (en boucle) : les bords opposés se
  * retrouvent côte à côte au milieu, où l'on corrige le raccord. Deux décalages = retour. */
 function shiftHalf(pixels: Pixels): Pixels {
@@ -104,6 +137,7 @@ export function PixelEditor({
   onChange,
   disabled = false,
   suspended = false,
+  fit,
   extraTools,
   children,
 }: {
@@ -113,10 +147,12 @@ export function PixelEditor({
   disabled?: boolean;
   /** Un autre outil occupe le canevas (cadrage) : dessin en pause. */
   suspended?: boolean;
-  /** Outils ajoutés dans la barre (cadrage). */
+  /** Côté visé du canevas (px), selon la place disponible ; suivi tant qu'on n'a pas zoomé. */
+  fit: number;
+  /** Outils ajoutés dans la barre, à côté de la grille (cadrage). */
   extraTools?: ReactNode;
   /** Disposition des morceaux de l'éditeur : barre d'outils, canevas, palette. */
-  children: (parts: { rail: ReactNode; canvas: ReactNode; palette: ReactNode }) => ReactNode;
+  children: (parts: { toolbar: ReactNode; canvas: ReactNode; palette: ReactNode }) => ReactNode;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const work = useRef<Pixels>(clonePixels(pixels));
@@ -128,7 +164,17 @@ export function PixelEditor({
   const [hex, setHex] = useState(() => toHex(color));
   const [mirror, setMirror] = useState(false);
   const [grid, setGrid] = useState(true);
-  const [zoom, setZoom] = useState(() => Math.max(1, Math.min(MAX_ZOOM, Math.floor(FIT / Math.max(pixels.width, pixels.height)))));
+  const fitted = Math.max(1, Math.min(MAX_ZOOM, Math.floor(fit / Math.max(pixels.width, pixels.height))));
+  const [zoom, setZoomState] = useState(fitted);
+  // La taille suit la fenêtre jusqu'à ce que la personne zoome elle-même.
+  const zoomedByHand = useRef(false);
+  useEffect(() => {
+    if (!zoomedByHand.current) setZoomState(fitted);
+  }, [fitted]);
+  const setZoom = (update: (zoom: number) => number) => {
+    zoomedByHand.current = true;
+    setZoomState(update);
+  };
   const [cursor, setCursor] = useState<[number, number] | null>(null);
   const [history, setHistory] = useState({ undo: 0, redo: 0 });
   const [palette, setPalette] = useState<Rgba[]>(() => paletteOf(pixels, 24));
@@ -165,7 +211,7 @@ export function PixelEditor({
     context.imageSmoothingEnabled = false;
     context.drawImage(source, 0, 0, width * zoom, height * zoom);
     const styles = getComputedStyle(canvas);
-    if (grid && zoom >= 6) {
+    if (grid && zoom >= 4) {
       context.strokeStyle = styles.getPropertyValue("--color-border").trim() || "rgba(128,128,128,0.35)";
       context.lineWidth = 1;
       context.beginPath();
@@ -325,26 +371,16 @@ export function PixelEditor({
   const colorLabel = color[3] === 0 ? "transparent" : toHex(color);
   const locked = disabled || suspended;
 
-  const separator = <span aria-hidden className="my-1 h-px w-5 bg-border" />;
-  const rail = (
-    <div
-      role="toolbar"
-      aria-label="Outils"
-      aria-orientation="vertical"
-      className="flex flex-col items-center gap-1"
-    >
+  const separator = <span aria-hidden className="mx-1 h-5 w-px bg-border" />;
+  const toolbar = (
+    <div role="toolbar" aria-label="Outils de retouche" className="flex flex-wrap items-center gap-0.5">
       {TOOLS.map(({ value, label, key, Icon }) => (
         <ToolButton key={value} label={`${label} (${key})`} pressed={!suspended && tool === value} disabled={locked} onClick={() => setTool(value)}>
           <Icon size={16} strokeWidth={1.75} />
         </ToolButton>
       ))}
-      {extraTools}
-      {separator}
       <ToolButton label="Miroir gauche-droite (M)" pressed={mirror} disabled={locked} onClick={() => setMirror((v) => !v)}>
         <FlipHorizontal2 size={16} strokeWidth={1.75} />
-      </ToolButton>
-      <ToolButton label="Grille" pressed={grid} disabled={suspended} onClick={() => setGrid((v) => !v)}>
-        <Grid3x3 size={16} strokeWidth={1.75} />
       </ToolButton>
       <ToolButton
         label="Décaler d'une demi-case : les bords se retrouvent au milieu pour corriger le raccord (deux fois pour revenir)"
@@ -354,20 +390,31 @@ export function PixelEditor({
         <Move size={16} strokeWidth={1.75} />
       </ToolButton>
       {separator}
+      <ToolToggle
+        label="Grille"
+        title="Afficher la grille des pixels"
+        pressed={grid}
+        disabled={suspended}
+        onClick={() => setGrid((v) => !v)}
+        icon={<Grid3x3 size={15} strokeWidth={1.75} />}
+      />
+      {extraTools}
+      {separator}
       <ToolButton label="Annuler (Ctrl+Z)" disabled={locked || history.undo === 0} onClick={doUndo}>
         <Undo2 size={16} strokeWidth={1.75} />
       </ToolButton>
       <ToolButton label="Rétablir (Ctrl+Y)" disabled={locked || history.redo === 0} onClick={doRedo}>
         <Redo2 size={16} strokeWidth={1.75} />
       </ToolButton>
-      {separator}
-      <ToolButton label="Agrandir" disabled={suspended || zoom >= MAX_ZOOM} onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + (z >= 8 ? 4 : 1)))}>
-        <ZoomIn size={16} strokeWidth={1.75} />
-      </ToolButton>
-      <span className="text-caption tabular-nums text-text-subtle">×{zoom}</span>
-      <ToolButton label="Réduire" disabled={suspended || zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - (z > 8 ? 4 : 1)))}>
-        <ZoomOut size={16} strokeWidth={1.75} />
-      </ToolButton>
+      <span className="ml-auto flex items-center gap-0.5">
+        <ToolButton label="Réduire" disabled={suspended || zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - (z > 8 ? 4 : 1)))}>
+          <ZoomOut size={16} strokeWidth={1.75} />
+        </ToolButton>
+        <span className="w-8 text-center text-caption tabular-nums text-text-subtle">×{zoom}</span>
+        <ToolButton label="Agrandir" disabled={suspended || zoom >= MAX_ZOOM} onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + (z >= 8 ? 4 : 1)))}>
+          <ZoomIn size={16} strokeWidth={1.75} />
+        </ToolButton>
+      </span>
     </div>
   );
 
@@ -468,5 +515,5 @@ export function PixelEditor({
     </div>
   );
 
-  return <div onKeyDown={onKeyDown} className="contents">{children({ rail, canvas, palette: paletteView })}</div>;
+  return <div onKeyDown={onKeyDown} className="contents">{children({ toolbar, canvas, palette: paletteView })}</div>;
 }

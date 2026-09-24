@@ -36,7 +36,9 @@ export function TilePreview({
   side?: number;
   outline?: boolean;
 }) {
-  const tile = Math.max(1, Math.floor(side / 3 / width)) * width;
+  // Agrandie d'un nombre entier de fois quand c'est possible, sinon réduite pour tenir dans `side`.
+  const scale = Math.floor(side / 3 / width);
+  const tile = scale >= 1 ? scale * width : side / 3;
   const tileHeight = (tile / width) * height;
   return (
     <div

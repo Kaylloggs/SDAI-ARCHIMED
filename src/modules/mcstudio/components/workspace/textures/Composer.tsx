@@ -205,8 +205,8 @@ export function Composer({
   const modelValue = key === false ? "Ajouter une clé" : chosen ? chosen.name : PROVIDER_LABEL[provider];
 
   return (
-    <div className="px-4 pb-4">
-      <div className={cn("glass rounded-xl px-3 pb-2.5 pt-3", tooLong && "ring-1 ring-danger")}>
+    <div className="shrink-0 px-3 pb-3 pt-1">
+      <div className={cn("glass rounded-xl px-3 pb-2 pt-2.5", tooLong && "ring-1 ring-danger")}>
         <textarea
           ref={textareaRef}
           aria-label={shared ? "Description du bloc" : "Description de la texture"}
@@ -223,7 +223,7 @@ export function Composer({
           }}
           className="selectable max-h-36 w-full resize-none bg-transparent px-1 text-message text-text outline-none placeholder:text-text-subtle"
         />
-        <div className="flex flex-wrap items-center gap-1.5 pt-2">
+        <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
           <Popover
             label="Service et modèle d'image"
             title="Qui dessine : service, modèle, facturation"

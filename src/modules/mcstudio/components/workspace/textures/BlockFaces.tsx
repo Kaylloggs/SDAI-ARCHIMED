@@ -51,7 +51,7 @@ export function BlockFaces({
   };
 
   return (
-    <div className="space-y-2 border-b border-border px-5 py-2.5">
+    <div className="space-y-1.5 border-b border-border px-4 py-1.5">
       <div className="flex flex-wrap items-center gap-2">
         {faces.length > 1 ? (
           <div role="tablist" aria-label="Faces du bloc" className="flex flex-wrap gap-1">
@@ -67,12 +67,12 @@ export function BlockFaces({
                   disabled={disabled}
                   onClick={() => onSelect(face.target)}
                   className={cn(
-                    "flex h-8 items-center gap-2 rounded-md pl-1.5 pr-2.5 text-footnote transition-colors disabled:opacity-40",
+                    "flex h-7 items-center gap-1.5 rounded-md pl-1 pr-2 text-footnote transition-colors disabled:opacity-40",
                     selected ? "bg-surface-3 text-text" : "text-text-muted hover:bg-surface-2 hover:text-text",
                     focusRing,
                   )}
                 >
-                  <Checker size={22} className="rounded-xs">
+                  <Checker size={20} className="rounded-xs">
                     {face.exists && <PixelImage path={face.path} version={face.modified ?? 0} size={16} />}
                   </Checker>
                   {label}
@@ -104,7 +104,10 @@ export function BlockFaces({
               </Button>
             )
           ) : (
-            <div className="w-[220px]">
+            <div
+              className="w-[200px]"
+              title={`${LAYOUTS.find((l) => l.value === layout)?.hint ?? ""}. Changer de répartition crée un point de restauration.`}
+            >
               <Select
                 label="Répartition des textures du bloc"
                 value={layout}
@@ -123,11 +126,7 @@ export function BlockFaces({
           Le modèle actuel (dalle, escalier…) sera remplacé par un cube. Un point de restauration est créé avant.
         </p>
       )}
-      {!asking && layout !== "custom" && (
-        <p className="text-caption text-text-subtle first-letter:uppercase">
-          {LAYOUTS.find((l) => l.value === layout)?.hint}. Changer de répartition crée un point de restauration.
-        </p>
-      )}
+
       {error && (
         <p role="alert" className="text-footnote text-danger">
           {error}

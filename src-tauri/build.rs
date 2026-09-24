@@ -18,6 +18,8 @@ struct ModuleDecl {
     /// Identifiant du plugin Tauri (kebab-case : les `_` sont interdits).
     id: String,
     commands: Vec<String>,
+    /// Comptes du Gestionnaire d'identifiants du module (`<id>-…`), effacés s'il est supprimé.
+    credentials: Vec<String>,
 }
 
 fn discover(root: &Path) -> Vec<ModuleDecl> {
@@ -54,11 +56,24 @@ fn discover(root: &Path) -> Vec<ModuleDecl> {
             })
             .unwrap_or_default();
 
+        let credentials: Vec<String> = value
+            .get("credentials")
+            .and_then(|v| v.as_array())
+            .map(|array| {
+                array
+                    .iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default();
         let folder = entry.file_name().to_string_lossy().to_string();
         if id.contains('_') {
             panic!("{}: `id` doit être en kebab-case (Tauri interdit `_`)", manifest.display());
         }
-        modules.push(ModuleDecl { folder, id, commands });
+        if let Some(bad) = credentials.iter().find(|c| !c.starts_with(&format!("{id}-"))) {
+            panic!("{}: l'identifiant `{bad}` doit commencer par `{id}-`", manifest.display());
+        }
+        modules.push(ModuleDecl { folder, id, commands, credentials });
     }
     modules.sort_by(|a, b| a.folder.cmp(&b.folder));
     modules
@@ -92,6 +107,19 @@ fn write_registry(modules: &[ModuleDecl], modules_dir: &Path, path: &Path) {
         ));
     }
     out.push_str("    builder\n}\n");
+    out.push_str(
+        "\n/// Comptes du Gestionnaire d'identifiants déclarés par un module (`credentials`).\npub fn credentials(module: &str) -> &'static [&'static str] {\n    match module {\n",
+    );
+    for module in modules.iter().filter(|m| !m.credentials.is_empty()) {
+        let list = module
+            .credentials
+            .iter()
+            .map(|c| format!("{c:?}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        out.push_str(&format!("        {:?} => &[{list}],\n", module.id));
+    }
+    out.push_str("        _ => &[],\n    }\n}\n");
 
     let current = fs::read_to_string(path).unwrap_or_default();
     if current != out {

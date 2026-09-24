@@ -11,3 +11,4 @@ export {
   type ModuleCategory,
   type SlotContext,
 } from "./types";
+export { moduleFootprint, removeModule, restoreModule } from "./removal";

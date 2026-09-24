@@ -1,218 +1,66 @@
 # SDAI ARCHIMED
 
-An evolutive, modular desktop app uniting **Claude Code**, **Antigravity** and **Codex** with their full agentic capabilities in a single interface. It features a VS Code-like editor, a modern chat, skills management, a task planner, an AI memory and a job-search agent. Its plug-and-play architecture lets you enable, disable or create modules on the fly. Powered by **Tauri 2 & Rust**.
+A modular desktop app that runs **Claude Code**, **Antigravity** and **Codex** with their full agentic capabilities in one interface: chat, code editor, skills, planner, AI memory, job search and a Minecraft mod studio. Built with **Tauri 2 & Rust**.
 
-> Windows 10/11 desktop app · free and open source (MIT) · made by **SearaDesign**
+> Windows 10/11 · free and open source (MIT) · made by **SearaDesign**
 
----
+ARCHIMED drives the CLIs installed on your machine, with your own subscriptions. Terminal output, permission requests and tool calls become interactive cards, governed by a risk policy.
 
-## 🌟 What is ARCHIMED?
+## Modules
 
-Think of it as the **Claude Code desktop app, supercharged to run Claude, Antigravity and Codex under one roof**.
+Each feature is a self-contained module. In **Settings → Modules** you can enable, disable or **delete** any of them (its data goes to the Recycle Bin, and you can bring it back later).
 
-Instead of being locked into a single CLI or wrestling with raw terminal windows, **SDAI ARCHIMED** wraps top-tier AI coding agents in a reactive desktop environment. Terminal output, permission requests and tool executions become interactive cards, governed by an automatic risk policy.
-
-ARCHIMED does not replace the CLIs: it drives the ones installed on your machine, with your own subscriptions and logins.
-
----
-
-## 🚀 Key features
-
-### 🤖 Multi-agent orchestration (Claude + Antigravity + Codex)
-- Run **Claude Code**, **Antigravity CLI (`agy`)** and **Codex** in the same application.
-- Full access to their agentic capabilities: file creation, command execution, refactoring, tool calls.
-- Pick the agent, the model and the working folder for each conversation.
-- Live activity ("Thinking…", "Creating main.rs…", "2 files created · 1 command run"), plus duration and tokens under every answer.
-- File paths mentioned by the AI are clickable: open in the editor, reveal in Explorer, copy the path.
-
-### 💬 Conversational messaging (`chat` module)
-- Multiple conversations with history, date, model and folder.
-- **Intelligent parsing**: permission requests, `[Y/n]` questions and menus become clickable cards.
-- **Auto mode**: a risk policy (`Low` → `Critical`) lets agents work without constant interruptions; critical actions are always confirmed.
-- Attach files, pick a skill, choose the working folder right from the input bar.
-- **Dictation**: a mic button transcribes speech live using Windows' own speech recognition — local, and no tokens at all.
-- Stop the agent at any time; answers cut short are resumed automatically.
-- **Token saver**: a built-in mode powered by the [Caveman](https://github.com/JuliusBrussee/caveman) skill (Settings) makes every answer terse while keeping code and technical terms exact.
-
-### 💻 VS Code-like workspace (`code` module)
-- File tree, tabs, syntax-highlighted editor powered by **CodeMirror 6** (~35 languages), `Ctrl+P` file palette, `Ctrl+S` save.
-- **Drag & drop**: drag files from the tree into the chat to target them for modification; drop files from Windows Explorer to attach them.
-- An AI assistant panel next to your code, with its own conversations per project.
-- **Live preview**: when the agent starts a dev server (`pnpm dev`, `python -m http.server`…) or writes an HTML page, preview it right in the app.
-- Resizable panels, and a file tree that updates by itself when the AI creates files.
-
-### 🧠 Skills management (`skills` module)
-- Import and organize skills in a visual library.
-- Sync active skills to your installed CLIs, and pick one from the chat input bar.
-
-### 📆 Task planner & calendar (`planner` module)
-- Trello-like boards with columns, cards, due dates, labels and subtasks, plus a monthly calendar view.
-- Link a `roadmap.md`: its sections and checkboxes become columns and cards, synced both ways (when the AI ticks a task, the board updates).
-- Add due dates to Google Calendar or export an `.ics` file.
-
-### 🗂️ AI memory (`memory` module)
-- Write what the AIs should know about you and your projects: preferences, conventions, context.
-- Each entry applies everywhere or to one project, and can be switched on or off.
-- Import a `.txt`, `.md` or `.json` file to add many entries at once.
-- Active entries are sent at the start of each new conversation, with an exact preview.
-
-### 💼 Job search (`jobagent` module)
-- Search several jobs, countries and cities at once on Indeed, LinkedIn, Glassdoor, ZipRecruiter, Google Jobs, **HelloWork** and **Welcome to the Jungle** (built on [JobSpy](https://github.com/speedyapply/JobSpy)), with filters for contract type, education level, freshness and remote work.
-- Review hundreds of results quickly: collapsible sections, exclusive tabs (to review, all, favorites, applications), multi-select, keyboard triage (`F` favorite, `Del` delete, undo with `Ctrl+Z`), and a world map with one dot per city.
-- Optionally find a recruiting address on each company's website during the search (reads `robots.txt`, four pages at most per company).
-- Cover letters and emails written by Antigravity from your French or English CV, in a natural style; batch sending over SMTP after a single confirmation that lists every recipient.
-- The chat agents can search too: the module exposes its tools over MCP, switched on from the module, with no command to type.
-
-### ⛏️ Minecraft Mod Studio (`mcstudio` module)
-- Create **real** Minecraft mod projects for **Fabric**, **Forge** or **NeoForge**: a Gradle project with its wrapper, metadata, registries, icon, assets and data files, ready to compile.
-- **Every Minecraft release from 1.14 to 1.21.x**: 23 versioned profiles (Java, Gradle, plugin, mappings, code dialect, data format) cover Fabric 1.14 → 1.21.x, Forge 1.14.4 → 1.21.5 and NeoForge 1.20.4 → 1.21.x. Anything else (snapshots, pre-1.14, Forge 1.21.6+) is shown as unsupported, with the reason.
-- **Pick your loader version**: loader, Fabric API and Yarn (or Forge / NeoForge) versions come from the official metadata (Fabric Meta, Modrinth, Forge promotions, NeoForge Maven), cached for offline use; the recommended one is preselected, any published one can be chosen, at creation or later.
-- **AI textures (OpenRouter)**: describe a texture, an image model on OpenRouter draws it with your own API key (free models are listed first; paid ones need an explicit opt-in), or import any PNG/JPEG/WebP. Mod Studio removes the background, frames the object and turns it into 16×16 (or 32, 64) pixel art with a limited palette; you preview, tweak and apply it, and the previous texture is kept. The key lives in the Windows Credential Manager.
-- **Missing Java? Installed from the app**: Mod Studio lists the JDKs each Minecraft family needs, detects the installed ones and offers to download the missing Eclipse Temurin JDK (Adoptium), checked with SHA-256 and installed after your confirmation — never silently.
-- **Real compilation**: the button runs Gradle, streams its output live, explains errors in plain words (file, line, probable cause, fix) and copies the produced `.jar` to `dist/`.
-- Deterministic generators for items, blocks and recipes, with pixel-art textures, models, loot tables, tags and `en_us` / `fr_fr` translations in the right format for each Minecraft version.
-- AI code generation through your CLIs, auto-fix, in-game testing, snapshots and import come in the next phases (see the module README).
-
-### 📊 Credits (`usage` module)
-- Remaining subscription limits reported by Claude (5-hour and 7-day windows).
-- Tokens, estimated cost and time spent per CLI and per day.
-
----
-
-## 🧩 100% modular "Lego" architecture
-
-ARCHIMED is built to be **infinitely evolutive**:
-
-- **Plug-and-play discovery**: each module is self-contained (`src/modules/<id>/`, plus `src-tauri/src/modules/<id>/` for its Rust side) and discovered automatically. The core never imports a module, and modules never import each other.
-- **Toggle anytime**: enable or disable any module in Settings, with no side effects.
-- **Add modules on demand**: scaffold one with `pnpm new:module <id>`.
-- **Extension points**: slots (UI contributions), services and events let modules cooperate without depending on each other.
-- **Tools for the agents**: a module can declare an MCP server; ARCHIMED merges these declarations and hands them to every Claude session automatically.
-
-### Shipped modules
-
-| Module | Role |
+| Module | What it does |
 |---|---|
-| `home` | Launchpad: recent conversations and one tile per active module |
-| `chat` | Multi-CLI conversations, permission cards, auto mode, attachments |
-| `code` | VS Code-like editor with an AI assistant panel |
-| `skills` | Skills library, activation and sync to the CLIs |
-| `planner` | Task boards, calendar view, `roadmap.md` sync, Google Calendar / `.ics` |
-| `memory` | Information you give the AIs, per project or global, importable from a file |
-| `jobagent` | Multi-platform job search, review, cover letters and batch applications |
-| `mcstudio` | Minecraft mod projects (Fabric, Forge, NeoForge): creation, real Gradle builds, `.jar` output, AI textures |
+| `chat` | Multi-CLI conversations, permission cards, auto mode, attachments, local dictation, token saver |
+| `code` | VS Code-like editor (CodeMirror 6) with an AI panel, drag & drop, live preview |
+| `skills` | Skills library, synced to your CLIs |
+| `planner` | Task boards, calendar, two-way `roadmap.md` sync, Google Calendar / `.ics` |
+| `memory` | What the AIs should know about you, global or per project |
+| `jobagent` | Job search on 7 boards, triage, cover letters, batch applications after confirmation |
+| `mcstudio` | Real Minecraft mods (Fabric, Forge, NeoForge, 1.14 → 1.21.x): Gradle builds, JDK install, AI textures, in-game testing |
 | `usage` | Subscription limits and token usage per CLI |
-| `settings` | Themes, CLI detection, modules, data |
+| `home` · `settings` | Launchpad and settings (required) |
 
-Planned: system file manager, local image generation, agent workflow automations.
+Details in each module's `README.md` under `src/modules/<id>/`.
 
----
+## Install and run
 
-## 📥 Download and run
+**Prerequisites** (Windows 10/11): [Git](https://git-scm.com/download/win), [Node.js](https://nodejs.org) 20+, pnpm 9+ (`npm install -g pnpm`), [Rust](https://rustup.rs) 1.85+ (MSVC), [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with "Desktop development with C++", and WebView2 (built into Windows 11). Optional: a JDK for `mcstudio` (it can install one for you), Python 3.10+ for `jobagent`.
 
-### 1. Install the prerequisites (Windows 10/11)
-
-| Tool | Version | How to install | Check |
-|---|---|---|---|
-| **Git** | any | [git-scm.com](https://git-scm.com/download/win) | `git --version` |
-| **Node.js** | 20 or newer | [nodejs.org](https://nodejs.org) (LTS) | `node -v` |
-| **pnpm** | 9 or newer | `npm install -g pnpm` | `pnpm -v` |
-| **Rust** (MSVC toolchain) | stable, 1.85 or newer | [rustup.rs](https://rustup.rs) | `rustc -V` |
-| **Visual Studio Build Tools** | 2022 | [Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/), select **"Desktop development with C++"** | — |
-| **WebView2** | — | built into Windows 11 ([installer](https://developer.microsoft.com/microsoft-edge/webview2/) for Windows 10) | — |
-| **JDK** (optional) | 8, 17 and/or 21 | Installed from the `mcstudio` module when missing, or [Eclipse Temurin](https://adoptium.net/temurin/releases/) — only for that module (old Forge needs 8, Minecraft 1.17–1.20.4 needs 17, 1.20.5+ needs 21) | `java -version` |
-| **Python** (optional) | 3.10 or newer | [python.org](https://www.python.org/downloads/) — only for the `jobagent` module, which installs its own environment | `python --version` |
-
-### 2. Install at least one AI CLI
-
-ARCHIMED drives the CLIs installed on your machine. Install and **log in** to the ones you want:
-
-| CLI | Install | Log in / check |
-|---|---|---|
-| **Claude Code** | [Install Claude CLI](https://docs.claude.com/en/docs/claude-code) | run `claude` once and log in |
-| **Google Antigravity CLI** (`agy`) | [Install Antigravity CLI](https://antigravity.google/download#antigravity-cli) | run `agy` once and log in |
-| **Codex** (experimental) | `npm install -g @openai/codex` | run `codex` once and log in |
-
-CLIs are detected automatically. If one is installed outside your `PATH`, set its location in **Settings → Engine**.
-
-### 3. Get the code
+**At least one AI CLI**, installed and logged in: [Claude Code](https://docs.claude.com/en/docs/claude-code), [Antigravity CLI](https://antigravity.google/download#antigravity-cli) (`agy`), or Codex (`npm install -g @openai/codex`, experimental). They are detected automatically; set a custom path in **Settings → Engine** if needed.
 
 ```bash
 git clone https://github.com/Kaylloggs/SDAI-ARCHIMED.git
 cd SDAI-ARCHIMED
-pnpm install
+pnpm install        # pnpm 10+: if ERR_PNPM_IGNORED_BUILDS, run `pnpm approve-builds` and allow esbuild
+pnpm tauri dev      # the first launch compiles Rust and takes a few minutes
 ```
 
-> With pnpm 10 or newer, if install stops on `ERR_PNPM_IGNORED_BUILDS`, run `pnpm approve-builds` and allow `esbuild`.
+**Build the `.exe`**: double-click `build.bat`, or `powershell -ExecutionPolicy Bypass -File .\build.ps1` (options: `-Bundles nsis|msi|all|none`, `-Bump patch|minor|major|none`, `-Publish`, `-Clean`…). Output: `release/<version>/`. Each release build bumps the version (`patch` by default).
 
-### 4. Run it
-
-```bash
-pnpm tauri dev
-```
-
-The first launch compiles the Rust side, which takes a few minutes. Later launches are much faster.
-
-### 5. Build the `.exe` (optional)
-
-Double-click **`build.bat`**, or run:
-
-```bash
-powershell -ExecutionPolicy Bypass -File .\build.ps1
-```
-
-Options: `-Bundles nsis|msi|all|none` · `-DebugBuild` · `-SkipInstall` · `-SkipChecks` · `-Clean` · `-Bump patch|minor|major|none` · `-Publish`.
-Output goes to `release/<version>/`: a portable `SDAI-Archimed.exe` plus installers.
-
-**Versioning**: every release build bumps the version automatically (`patch` by default, e.g. 0.2.0 → 0.2.1; `-Bump minor` or `-Bump major` for bigger steps, `-Bump none` to rebuild). The version is updated in `package.json`, `tauri.conf.json`, `Cargo.toml` and `CHANGELOG.md`, and shown in **Settings**. `-Publish` also commits the version, tags `vX.Y.Z`, pushes and creates the GitHub release with the installers (requires the [GitHub CLI](https://cli.github.com)).
-
----
-
-## 🛠️ Developer commands
+## Developers
 
 | Command | Purpose |
 |---|---|
-| `pnpm tauri dev` | run the app in development mode |
-| `pnpm check` | TypeScript types and module rules (every module must be documented) |
+| `pnpm check` | TypeScript types and module rules |
 | `pnpm test` | frontend tests (Vitest) |
 | `cargo test --manifest-path src-tauri/Cargo.toml` | Rust tests |
 | `pnpm new:module <id>` | scaffold a new module |
-| `pnpm version:bump patch\|minor\|major` | bump the version without building |
 
-**Stack**: Tauri 2 · Rust (tokio, portable-pty, vt100) · React 19 · TypeScript · Vite · Tailwind CSS v4 · zustand · motion · CodeMirror 6.
+Stack: Tauri 2 · Rust · React 19 · TypeScript · Vite · Tailwind CSS v4 · zustand · motion · CodeMirror 6.
 
-## 📚 Documentation
+Read [`guidelines.md`](guidelines.md) (rules: one feature = one module), [`architecture.md`](architecture.md) (IPC, CLI engine, parsing, risk policy) and [`design.md`](design.md) (design system). Decisions live in `docs/adr/`, changes in [`CHANGELOG.md`](CHANGELOG.md). Internal docs are in French.
 
-| File | Content |
-|---|---|
-| [`guidelines.md`](guidelines.md) | rules and conventions: creating a module, a CLI adapter, a detection rule |
-| [`architecture.md`](architecture.md) | folder tree, IPC, CLI engine, intelligent parsing, risk policy |
-| [`design.md`](design.md) | design system: tokens, typography, motion, components |
-| [`CHANGELOG.md`](CHANGELOG.md) | what changed, version by version |
-| `CLAUDE.md` / `AGENTS.md` | entry points for AI agents working on this repo |
-| `docs/adr/` | architecture decision records |
+## Privacy and safety
 
-Internal docs (guidelines, architecture, design, changelog) are written in French.
+- Everything stays on your machine, in `%APPDATA%\com.sdai.archimed\`.
+- CLIs never run with `--dangerously-skip-permissions`: every permission goes through ARCHIMED's risk policy, and decisions are logged locally.
+- Software installs and job applications always ask first: JDKs are checked with SHA-256, applications list every recipient.
+- API keys and passwords live in the Windows Credential Manager or are encrypted with DPAPI.
 
-## 🔒 Privacy and safety
+## License
 
-- Everything stays on your machine: conversations, memory, boards and settings live in `%APPDATA%\com.sdai.archimed\`.
-- ARCHIMED never launches a CLI with `--dangerously-skip-permissions`. Permissions go through its own risk policy, and every decision is written to a local audit log.
-- Programs (`.exe`, `.bat`, `.ps1`…) are never launched from a link in the chat.
-- Job applications are never sent without an explicit confirmation listing every recipient. The SMTP password is encrypted with Windows DPAPI and never read back by the interface.
+[MIT](LICENSE) © 2026 SearaDesign.
 
-## 🤝 Contributing
-
-Issues and pull requests are welcome. Read [`guidelines.md`](guidelines.md) first: one feature is one module, and `pnpm check`, `pnpm test` and `cargo clippy` must pass.
-
-## 📄 License
-
-[MIT](LICENSE) © 2026 SearaDesign. Free to use, modify and share, as long as the copyright notice is kept.
-
-The token saver bundles the Caveman skill by Julius Brussee (MIT, see `src/core/engine/prompts/caveman.LICENSE`); ARCHIMED is not affiliated with Caveman.
-
-The `jobagent` module vendors [JobSpy](https://github.com/speedyapply/JobSpy) (MIT, see `src-tauri/src/modules/jobagent/engine/LICENSE.jobspy`) and ships city data from [GeoNames](https://www.geonames.org/) (CC BY 4.0) and country outlines from [Natural Earth](https://www.naturalearthdata.com/) (public domain). Job boards' terms of use apply to the searches you run.
-
-The `mcstudio` module ships the Gradle Wrapper (Apache 2.0) in its project templates. Minecraft is a trademark of Mojang/Microsoft; mods you build are subject to the Minecraft EULA.
-
-Claude, Antigravity and Codex are trademarks of their respective owners. ARCHIMED is an independent project, not affiliated with Anthropic, Google or OpenAI.
+Third-party: the token saver bundles the [Caveman](https://github.com/JuliusBrussee/caveman) skill (MIT); `jobagent` vendors [JobSpy](https://github.com/speedyapply/JobSpy) (MIT) with [GeoNames](https://www.geonames.org/) (CC BY 4.0) and [Natural Earth](https://www.naturalearthdata.com/) data; `mcstudio` templates ship the Gradle Wrapper (Apache 2.0). Minecraft is a trademark of Mojang/Microsoft; mods you build are subject to the Minecraft EULA. Claude, Antigravity and Codex belong to their owners; ARCHIMED is not affiliated with Anthropic, Google or OpenAI.

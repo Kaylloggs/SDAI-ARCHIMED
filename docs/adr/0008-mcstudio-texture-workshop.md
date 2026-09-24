@@ -48,7 +48,8 @@ Les premières textures générées étaient utilisables mais pas « prêtes pou
    limites) : recadrer reconvertit sans réseau. Les brouillons forment l'historique de chaque
    texture (20 par texture, 150 en tout dans le cache) : fermer une proposition ne la perd plus.
 7. **Disposition en atelier** (remplace la scène + inspecteur, jugée trop chargée) : le canevas au
-   centre, les outils de retouche en colonne à gauche (le cadrage en est un, « Cadrer »), les
+   centre (ajusté à la fenêtre, 320 px au plus), la barre d'outils de retouche au-dessus (Grille et
+   Cadrer nommés, côte à côte), les
    aperçus à droite, la bande des versions dessous et une barre de création en bas, sur le modèle
    du composeur du chat. Les réglages rares (service, modèle, style, texte envoyé) s'ouvrent dans
    des panneaux flottants depuis cette barre.

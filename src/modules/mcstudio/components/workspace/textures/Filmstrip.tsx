@@ -28,19 +28,19 @@ function Thumb({ src, active, label, caption, onClick, children }: {
         title={label}
         onClick={onClick}
         className={cn(
-          "flex w-16 flex-col items-center gap-1 rounded-md p-1 transition-colors",
+          "flex w-16 flex-col items-center gap-0.5 rounded-md p-1 transition-colors",
           active ? "bg-accent-soft" : "hover:bg-surface-2",
           focusRing,
         )}
       >
         <span
           className={cn(
-            "flex size-12 items-center justify-center overflow-hidden rounded-sm border",
+            "flex size-10 items-center justify-center overflow-hidden rounded-sm border",
             active ? "border-accent" : "border-border",
             "bg-[repeating-conic-gradient(var(--color-surface-2)_0%_25%,var(--color-surface-1)_0%_50%)] bg-[length:8px_8px]",
           )}
         >
-          {src && <img src={src} alt="" draggable={false} className="size-11 object-contain [image-rendering:pixelated]" />}
+          {src && <img src={src} alt="" draggable={false} className="size-9 object-contain [image-rendering:pixelated]" />}
         </span>
         <span className="flex max-w-full items-center gap-1 truncate text-caption text-text-subtle">{caption}</span>
       </button>
@@ -70,7 +70,7 @@ export function Filmstrip({
 }) {
   const [confirm, setConfirm] = useState<string | null>(null);
   return (
-    <div aria-label="Versions de la texture" role="group" className="flex items-center gap-1 overflow-x-auto px-4 py-2">
+    <div aria-label="Versions de la texture" role="group" className="flex items-center gap-1 overflow-x-auto px-3 py-1">
       <Thumb
         src={texture.exists ? `${convertFileSrc(texture.path)}?v=${texture.modified ?? 0}` : null}
         active={current === null}
@@ -78,7 +78,7 @@ export function Filmstrip({
         caption="Actuelle"
         onClick={onCurrent}
       />
-      {drafts.length > 0 && <span aria-hidden className="mx-2 h-10 w-px shrink-0 bg-border" />}
+      {drafts.length > 0 && <span aria-hidden className="mx-1.5 h-8 w-px shrink-0 bg-border" />}
       <AnimatePresence initial={false}>
         {drafts.map((draft) => {
           const Icon = SOURCE_ICON[draft.source.kind];
@@ -109,14 +109,14 @@ export function Filmstrip({
                   }}
                   onBlur={() => setConfirm((c) => (c === draft.id ? null : c))}
                   className={cn(
-                    "absolute -right-1 -top-1 flex size-6 items-center justify-center rounded-full border transition-opacity",
+                    "absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full border transition-opacity",
                     asking
                       ? "border-transparent bg-danger text-text opacity-100"
                       : "border-border bg-surface-2 text-text-muted opacity-0 hover:text-text group-hover:opacity-100 focus-visible:opacity-100",
                     focusRing,
                   )}
                 >
-                  <Trash2 size={12} />
+                  <Trash2 size={11} />
                 </button>
               </Thumb>
             </motion.div>

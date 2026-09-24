@@ -2,28 +2,7 @@ import type { ReactNode } from "react";
 import { Leaf } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { CAVEMAN_LEVELS, EFFORT_LEVELS, useTokenSaverStore } from "@/core/engine/tokenSaver";
-
-function Switch({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) {
-  return (
-    <button
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors",
-        checked ? "bg-accent" : "bg-surface-3",
-      )}
-    >
-      <span
-        className={cn(
-          "size-4 rounded-full bg-text shadow-sm transition-transform duration-150",
-          checked ? "translate-x-4" : "translate-x-0",
-        )}
-      />
-    </button>
-  );
-}
+import { Switch } from "./Switch";
 
 function Option({
   title,

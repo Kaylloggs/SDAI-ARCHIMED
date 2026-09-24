@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { Brush, Crop, Info, Loader2, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -13,19 +13,46 @@ import { decodePixels, encodePixels, type Pixels } from "../../../lib/pixels";
 import { seamVerdict } from "../../../lib/textures";
 import { Checker, focusRing } from "../../ui";
 import { CropSelector } from "./CropSelector";
-import { PixelEditor } from "./PixelEditor";
+import { PixelEditor, ToolToggle } from "./PixelEditor";
 import { BlockPreview, TilePreview, useDataUrl, type CubeFaces } from "./Previews";
 
 /** Retouches enregistrées dans la proposition un instant après le dernier geste. */
 const SAVE_DELAY = 400;
-/** Côté du canevas quand la texture n'est pas en retouche. */
-const VIEW = 384;
+/** Côté maximal du canevas : au-delà, la texture écrase le reste de l'atelier. */
+const MAX_CANVAS = 320;
+/** Côté maximal de la texture actuelle, hors retouche. */
+const MAX_VIEW = 256;
+
+/** Taille d'une zone, suivie quand la fenêtre change. */
+function useBoxSize(ref: RefObject<HTMLElement | null>): { width: number; height: number } {
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    // Réabonné à chaque rendu : la zone mesurée change entre la vue simple et la retouche.
+    const observer = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (!rect) return;
+      const { width, height } = rect;
+      setSize((s) => (Math.round(width) === s.width && Math.round(height) === s.height ? s : { width: Math.round(width), height: Math.round(height) }));
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  });
+  return size;
+}
+
+/** Côté qui tient dans la zone (marges comprises), entre 96 px et `max`. */
+function fitIn(size: { width: number; height: number }, max: number, margin = 48): number {
+  if (size.width === 0 || size.height === 0) return Math.min(max, 256);
+  return Math.max(96, Math.min(max, size.width - margin, size.height - margin));
+}
 
 export type SaveState = "idle" | "pending" | "saving" | "saved";
 
 /** Colonne de droite : ce que la texture donnera en jeu. */
 function Rail({ children }: { children: ReactNode }) {
-  return <aside aria-label="Aperçus" className="w-[208px] shrink-0 space-y-5 overflow-y-auto border-l border-border p-4">{children}</aside>;
+  return <aside aria-label="Aperçus" className="w-[184px] shrink-0 space-y-4 overflow-y-auto overflow-x-hidden border-l border-border p-3">{children}</aside>;
 }
 
 function RailItem({ title, children }: { title: string; children: ReactNode }) {
@@ -55,7 +82,7 @@ function Previews({
     <>
       {cube && (
         <RailItem title="En jeu">
-          <BlockPreview faces={cube} size={64} />
+          <BlockPreview faces={cube} size={48} />
         </RailItem>
       )}
       {tiled && (
@@ -65,8 +92,8 @@ function Previews({
       )}
       <RailItem title="Taille réelle">
         <div className="flex items-end gap-2">
-          {(side > 64 ? [1] : [1, 2, 4]).map((scale) => {
-            const shown = Math.min(side * scale, 96);
+          {[1, 2, 4].filter((scale) => scale === 1 || side * scale <= 64).map((scale) => {
+            const shown = Math.min(side * scale, 64);
             return (
               <Checker key={scale} size={shown + 6} className="rounded-sm">
                 <img src={src} alt="" draggable={false} className="object-contain [image-rendering:pixelated]" style={{ width: shown, height: shown }} />
@@ -129,6 +156,8 @@ export function Workbench({
   const pending = useRef<{ timer: ReturnType<typeof setTimeout>; pixels: Pixels; id: string } | null>(null);
   const [resetKey, setResetKey] = useState("");
   const canFrame = draft !== null && draft.source.kind !== "project";
+  const area = useRef<HTMLDivElement>(null);
+  const areaSize = useBoxSize(area);
 
   // Nouvelle proposition : on repart de ses pixels.
   useEffect(() => {
@@ -232,36 +261,43 @@ export function Workbench({
 
   // Sans proposition : la texture actuelle, ou une invitation à en créer une.
   if (!draft) {
+    const view = fitIn(areaSize, MAX_VIEW, 32);
     return (
       <div className="flex min-h-0 flex-1">
-        <div className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-5 overflow-auto p-6">
-          {overlay}
-          {src ? (
-            <>
-              <Checker size={VIEW + 8}>
-                <img src={src} alt={`Texture actuelle de ${texture.label}`} draggable={false} className="object-contain [image-rendering:pixelated]" style={{ width: VIEW, height: VIEW }} />
-              </Checker>
+        <div className="flex min-w-0 flex-1 flex-col">
+          {src && (
+            <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
               <Button
                 type="button"
                 size="sm"
+                variant="secondary"
                 disabled={retouchBusy || generating}
                 onClick={onRetouch}
                 icon={retouchBusy ? <Loader2 size={14} className="animate-spin" /> : <Brush size={14} />}
               >
                 Retoucher cette texture
               </Button>
-            </>
-          ) : (
-            <div className="flex max-w-[40ch] flex-col items-center gap-3 text-center">
-              <Checker size={120}>
-                <Sparkles size={20} className="text-text-subtle" aria-hidden />
-              </Checker>
-              <p className="text-body text-text">Pas encore de texture</p>
-              <p className="text-footnote text-text-subtle">
-                Décrivez-la dans la barre du bas, ou importez une image avec le trombone : la proposition s'ouvrira ici.
-              </p>
+              <span className="text-caption text-text-subtle">crayon, gomme, grille, raccord…</span>
             </div>
           )}
+          <div ref={area} className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
+            {overlay}
+            {src ? (
+              <Checker size={view + 8}>
+                <img src={src} alt={`Texture actuelle de ${texture.label}`} draggable={false} className="object-contain [image-rendering:pixelated]" style={{ width: view, height: view }} />
+              </Checker>
+            ) : (
+              <div className="flex max-w-[40ch] flex-col items-center gap-3 text-center">
+                <Checker size={96}>
+                  <Sparkles size={20} className="text-text-subtle" aria-hidden />
+                </Checker>
+                <p className="text-body text-text">Pas encore de texture</p>
+                <p className="text-footnote text-text-subtle">
+                  Décrivez-la dans la barre du bas, ou importez une image avec le trombone : la proposition s'ouvrira ici.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
         {src && (
           <Rail>
@@ -287,32 +323,29 @@ export function Workbench({
     );
   }
 
+  const frameTitle = canFrame
+    ? "Cadrer : choisir la zone de l'image reçue qui devient la texture (C)"
+    : "Le cadrage choisit une zone d'une image générée ou importée";
+
   return (
     <PixelEditor
       initial={pixels}
       resetKey={resetKey}
       onChange={edited}
       suspended={framing}
+      fit={fitIn(areaSize, MAX_CANVAS)}
       extraTools={
-        canFrame && (
-          <button
-            type="button"
-            aria-label="Cadrer : choisir la zone de l'image reçue (C)"
-            title="Cadrer : choisir la zone de l'image reçue (C)"
-            aria-pressed={framing}
-            onClick={() => setFraming((v) => !v)}
-            className={cn(
-              "flex size-8 items-center justify-center rounded-sm transition-colors",
-              framing ? "bg-accent-soft text-accent" : "text-text-muted hover:bg-surface-2 hover:text-text",
-              focusRing,
-            )}
-          >
-            <Crop size={16} strokeWidth={1.75} />
-          </button>
-        )
+        <ToolToggle
+          label="Cadrer"
+          title={frameTitle}
+          pressed={framing}
+          disabled={!canFrame}
+          onClick={() => setFraming((v) => !v)}
+          icon={<Crop size={15} strokeWidth={1.75} />}
+        />
       }
     >
-      {({ rail, canvas, palette }) => (
+      {({ toolbar, canvas, palette }) => (
         <div
           className="flex min-h-0 flex-1"
           onKeyDown={(event) => {
@@ -321,55 +354,57 @@ export function Workbench({
             }
           }}
         >
-          <div className="shrink-0 overflow-y-auto border-r border-border px-2 py-3">{rail}</div>
-          <div className="relative flex min-w-0 flex-1 flex-col overflow-auto">
-            {overlay}
-            <AnimatePresence mode="wait" initial={false}>
-              {framing && canFrame ? (
-                <motion.div key="frame" variants={pageFade} initial="hidden" animate="visible" exit="exit" className="m-auto flex flex-col items-center gap-3 p-6">
-                  <CropSelector
-                    src={convertFileSrc(draft.originalPath)}
-                    imageWidth={draft.originalWidth}
-                    imageHeight={draft.originalHeight}
-                    crop={crop}
-                    aspect={cropAspect}
-                    box={420}
-                    onCommit={onCrop}
-                  />
-                  <div className="flex w-full items-center justify-between gap-3 text-caption text-text-subtle">
-                    <span>
-                      Image reçue {draft.originalWidth}×{draft.originalHeight} · glissez pour choisir la zone{converting ? " · conversion…" : ""}
-                    </span>
-                    <span className="flex items-center gap-2">
-                      {crop && (
-                        <button type="button" onClick={() => onCrop(null)} className={cn("rounded-xs text-text-muted hover:text-text hover:underline", focusRing)}>
-                          Toute l'image
-                        </button>
-                      )}
-                      <Button type="button" size="sm" variant="secondary" onClick={() => setFraming(false)}>
-                        Terminé
-                      </Button>
-                    </span>
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div key="paint" variants={pageFade} initial="hidden" animate="visible" exit="exit" className={cn("m-auto p-6", converting && "opacity-60")}>
-                  {canvas}
-                </motion.div>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="shrink-0 border-b border-border px-2 py-1">{toolbar}</div>
+            <div ref={area} className="relative flex min-h-0 flex-1 flex-col overflow-auto">
+              {overlay}
+              <AnimatePresence mode="wait" initial={false}>
+                {framing && canFrame ? (
+                  <motion.div key="frame" variants={pageFade} initial="hidden" animate="visible" exit="exit" className="m-auto flex flex-col items-center gap-2 p-4">
+                    <CropSelector
+                      src={convertFileSrc(draft.originalPath)}
+                      imageWidth={draft.originalWidth}
+                      imageHeight={draft.originalHeight}
+                      crop={crop}
+                      aspect={cropAspect}
+                      box={fitIn(areaSize, 360, 72)}
+                      onCommit={onCrop}
+                    />
+                    <div className="flex w-full items-center justify-between gap-3 text-caption text-text-subtle">
+                      <span>
+                        Image reçue {draft.originalWidth}×{draft.originalHeight} · glissez pour choisir la zone{converting ? " · conversion…" : ""}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        {crop && (
+                          <button type="button" onClick={() => onCrop(null)} className={cn("rounded-xs text-text-muted hover:text-text hover:underline", focusRing)}>
+                            Toute l'image
+                          </button>
+                        )}
+                        <Button type="button" size="sm" variant="secondary" onClick={() => setFraming(false)}>
+                          Terminé
+                        </Button>
+                      </span>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div key="paint" variants={pageFade} initial="hidden" animate="visible" exit="exit" className={cn("m-auto p-4", converting && "opacity-60")}>
+                    {canvas}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {error && (
+                <p role="alert" className="px-4 pb-3 text-footnote text-danger">
+                  {error}
+                </p>
               )}
-            </AnimatePresence>
-            {error && (
-              <p role="alert" className="px-6 pb-4 text-footnote text-danger">
-                {error}
-              </p>
-            )}
+            </div>
           </div>
           <Rail>
             {framing ? (
               <RailItem title="Résultat">
                 {src && (
-                  <Checker size={152}>
-                    <img src={src} alt="Texture obtenue" draggable={false} className="size-36 object-contain [image-rendering:pixelated]" />
+                  <Checker size={120}>
+                    <img src={src} alt="Texture obtenue" draggable={false} className="size-28 object-contain [image-rendering:pixelated]" />
                   </Checker>
                 )}
               </RailItem>

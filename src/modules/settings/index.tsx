@@ -4,11 +4,11 @@ import packageInfo from "../../../package.json";
 import { allModules, manifestIssues } from "@/core/modules/registry";
 import { isModuleEnabled, useModulesStore } from "@/core/stores/modules.store";
 import { useSessionStore } from "@/core/engine/session.store";
-import { bus } from "@/core/bus/event-bus";
-import { Badge, Button, Card, SectionHeader } from "@/design-system/primitives";
+import { Button, Card, SectionHeader } from "@/design-system/primitives";
 import { ThemeSection } from "./components/ThemeSection";
 import { EngineSection } from "./components/EngineSection";
 import { TokenSaverSection } from "./components/TokenSaverSection";
+import { ModulesSection } from "./components/ModulesSection";
 
 const FALLBACK_VERSION = packageInfo.version;
 
@@ -31,7 +31,8 @@ function Section({
 }
 
 export default function SettingsModule() {
-  const { overrides, setOverride } = useModulesStore();
+  const overrides = useModulesStore((s) => s.overrides);
+  const [confirmClear, setConfirmClear] = useState(false);
   const sessions = useSessionStore((s) => s.sessions);
   const clearAll = useSessionStore((s) => s.clearAll);
   const [version, setVersion] = useState(FALLBACK_VERSION);
@@ -70,41 +71,9 @@ export default function SettingsModule() {
 
       <Section
         title="Modules"
-        description="Activez ou désactivez les blocs. Les modules requis ne sont pas désactivables."
+        description="Désactiver un module le met de côté en gardant tout. Le supprimer le retire de l'application et met ses données à la Corbeille. Les modules requis restent toujours."
       >
-        <ul className="flex flex-col gap-2">
-          {allModules.map((module) => {
-            const Icon = module.icon;
-            const enabled = isModuleEnabled(overrides, module);
-            return (
-              <Card key={module.id} className="flex items-center gap-3 py-3">
-                <Icon size={16} strokeWidth={1.75} className="shrink-0 text-text-muted" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-body font-medium">{module.name}</p>
-                    <Badge tone="neutral">v{module.version}</Badge>
-                    {module.required && <Badge tone="accent">requis</Badge>}
-                    {module.backend && <Badge tone="neutral">backend</Badge>}
-                  </div>
-                  <p className="line-clamp-1 text-footnote text-text-subtle">
-                    {module.description}
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant={enabled ? "primary" : "secondary"}
-                  disabled={module.required}
-                  onClick={() => {
-                    setOverride(module.id, !enabled);
-                    bus.emit("modules.changed", { id: module.id, enabled: !enabled });
-                  }}
-                >
-                  {enabled ? "Activé" : "Désactivé"}
-                </Button>
-              </Card>
-            );
-          })}
-        </ul>
+        <ModulesSection />
       </Section>
 
       <Section
@@ -119,15 +88,22 @@ export default function SettingsModule() {
               {sessions.length > 1 ? "s" : ""}.
             </p>
           </div>
+          {confirmClear && (
+            <Button size="sm" variant="ghost" onClick={() => setConfirmClear(false)}>
+              Annuler
+            </Button>
+          )}
           <Button
             size="sm"
             variant="danger"
             disabled={sessions.length === 0}
             onClick={() => {
-              if (window.confirm("Supprimer définitivement toutes les conversations ?")) clearAll();
+              if (!confirmClear) return setConfirmClear(true);
+              clearAll();
+              setConfirmClear(false);
             }}
           >
-            Tout supprimer
+            {confirmClear ? "Confirmer la suppression" : "Tout supprimer"}
           </Button>
         </Card>
       </Section>

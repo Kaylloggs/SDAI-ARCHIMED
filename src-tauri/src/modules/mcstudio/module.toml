@@ -1,4 +1,6 @@
 id = "mcstudio"
+# Clés des services d'image, effacées si le module est supprimé (Réglages → Modules).
+credentials = ["mcstudio-openrouter", "mcstudio-gemini"]
 commands = [
   "list_projects", "get_project", "create_project", "open_project", "duplicate_project", "remove_project",
   "version_catalog", "resolve_versions", "detect_java", "inspect_java", "environment", "jdk_offer", "install_jdk", "cancel_jdk_install", "version_options", "update_project_versions", "project_java", "set_project_java", "project_stats",

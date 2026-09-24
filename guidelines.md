@@ -189,7 +189,17 @@ src-tauri/src/modules/image_gen/
 ```toml
 id = "image_gen"
 commands = ["generate", "list_history", "delete_item"]
+# Facultatif : comptes du Gestionnaire d'identifiants du module (préfixe `<id>-` obligatoire),
+# effacés si la personne supprime le module (Réglages → Modules).
+credentials = ["image_gen-api"]
 ```
+
+**Suppression par la personne** (Réglages → Modules → Supprimer, `core/modules.rs`) : le module
+disparaît de l'interface et le core efface ses traces, sans connaître le module. Pour que ce soit
+complet, un module range **tout** ce qu'il écrit dans `Paths::module_dir(<id>)` (sauf les
+fichiers que la personne choisit elle-même, projets ou exports), sa déclaration MCP dans
+`mcp/<id>.json`, ses clés dans le Gestionnaire d'identifiants sous des comptes déclarés dans
+`credentials`, et ses réglages du navigateur sous `archimed.<id>.…` ou `<id>.…`.
 
 `mod.rs` :
 ```rust

@@ -57,6 +57,8 @@ pub fn run() {
             engine_commands::engine_dictation_start,
             engine_commands::engine_dictation_stop,
             engine_commands::engine_dictation_device,
+            core::modules::modules_footprint,
+            core::modules::modules_remove,
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de SDAI ARCHIMED");

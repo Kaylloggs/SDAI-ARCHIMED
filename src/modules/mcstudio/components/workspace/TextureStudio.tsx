@@ -346,10 +346,10 @@ export function TextureStudio({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-2">
-        <Checker size={36}>
+      <header className="flex min-h-12 shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-4 py-1.5">
+        <Checker size={30}>
           {texture.exists ? (
-            <PixelImage path={texture.path} version={texture.modified ?? 0} size={28} alt="" />
+            <PixelImage path={texture.path} version={texture.modified ?? 0} size={24} alt="" />
           ) : (
             <span className="text-caption text-text-subtle">?</span>
           )}
