@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Eraser, ExternalLink, Gamepad2, Hammer, Loader2, Server, Square, WifiOff } from "lucide-react";
+import { CornerDownLeft, Eraser, ExternalLink, Gamepad2, Hammer, Loader2, Server, Square, TerminalSquare, WifiOff } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { cn } from "@/core/lib/cn";
 import { Button } from "@/design-system/primitives";
@@ -12,7 +12,7 @@ import { errorText, mcstudioApi } from "../../api";
 import { ago, seconds } from "../../lib/format";
 import { levelOf, visibleAt, type LevelFilter } from "../../lib/logs";
 import { useMcStudioStore, type LogLine } from "../../store";
-import { focusRing, Switch } from "../ui";
+import { focusRing, Segmented, Switch } from "../ui";
 import { JdkInstallCard } from "../JdkInstallCard";
 import { BuildResult } from "./BuildResult";
 
@@ -40,7 +40,7 @@ function Elapsed({ since }: { since: number }) {
   return <span className="tabular-nums">{seconds(now - since)}</span>;
 }
 
-function LogView({ lines, dropped }: { lines: LogLine[]; dropped: number }) {
+function LogView({ lines, dropped, empty }: { lines: LogLine[]; dropped: number; empty: string }) {
   const [filter, setFilter] = useState<LevelFilter>("all");
   const box = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
@@ -85,7 +85,7 @@ function LogView({ lines, dropped }: { lines: LogLine[]; dropped: number }) {
         aria-live="off"
       >
         {shown.length === 0 ? (
-          <p className="text-text-subtle">{lines.length === 0 ? "Le journal de Gradle s'affichera ici." : "Aucune ligne à ce niveau."}</p>
+          <p className="text-text-subtle">{lines.length === 0 ? empty : "Aucune ligne à ce niveau."}</p>
         ) : (
           shown.map((line) => (
             <div key={line.id} className={cn("whitespace-pre-wrap break-all", LINE_TONE[line.level])}>
@@ -145,6 +145,89 @@ function History({
   );
 }
 
+/** Console du serveur de test : une ligne = une commande, ↑ / ↓ pour les précédentes. */
+function ServerConsole({ projectId, disabled }: { projectId: string; disabled: boolean }) {
+  const [command, setCommand] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const past = useRef<string[]>([]);
+  const cursor = useRef(-1);
+
+  const send = async () => {
+    const line = command.trim();
+    if (!line || sending) return;
+    setSending(true);
+    setError(null);
+    try {
+      await useMcStudioStore.getState().sendServerCommand(projectId, line);
+      past.current = [line, ...past.current.filter((p) => p !== line)].slice(0, 50);
+      cursor.current = -1;
+      setCommand("");
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const browse = (step: number) => {
+    const next = Math.min(past.current.length - 1, Math.max(-1, cursor.current + step));
+    cursor.current = next;
+    setCommand(next === -1 ? "" : (past.current[next] ?? ""));
+  };
+
+  return (
+    <div className="shrink-0 space-y-1">
+      <form
+        className="flex items-center gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void send();
+        }}
+      >
+        <label htmlFor="mc-server-command" className="sr-only">
+          Commande du serveur
+        </label>
+        <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md border border-border bg-bg px-3 focus-within:border-accent">
+          <TerminalSquare size={14} className="shrink-0 text-text-subtle" aria-hidden />
+          <input
+            id="mc-server-command"
+            value={command}
+            disabled={disabled}
+            spellCheck={false}
+            autoComplete="off"
+            placeholder="Commande du serveur : op Dev, time set day, gamemode creative @a…"
+            onChange={(event) => {
+              setCommand(event.target.value);
+              cursor.current = -1;
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                browse(1);
+              } else if (event.key === "ArrowDown") {
+                event.preventDefault();
+                browse(-1);
+              }
+            }}
+            className="min-w-0 flex-1 bg-transparent font-mono text-footnote text-text outline-none placeholder:font-sans placeholder:text-text-subtle disabled:opacity-50"
+          />
+        </div>
+        <Button type="submit" size="sm" disabled={disabled || sending || !command.trim()} icon={<CornerDownLeft size={13} />}>
+          Envoyer
+        </Button>
+      </form>
+      {error && (
+        <p role="alert" className="text-footnote text-danger">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+type View = "main" | "server";
+
 export function BuildPanel({
   project,
   java,
@@ -155,12 +238,17 @@ export function BuildPanel({
   onJavaChange: (status: JavaStatus) => void;
 }) {
   const session = useMcStudioStore((s) => s.builds[project.id]);
-  const { startBuild, cancelBuild } = useMcStudioStore.getState();
+  const server = useMcStudioStore((s) => s.servers[project.id]);
+  const { startBuild, cancelBuild, stopServer } = useMcStudioStore.getState();
   const [offline, setOffline] = useState(false);
   const [archived, setArchived] = useState<{ record: BuildRecord; lines: LogLine[] } | null>(null);
   const [archiveError, setArchiveError] = useState<string | null>(null);
+  // Deux journaux : compilation ou partie, et serveur de test qui tourne à côté.
+  const [view, setView] = useState<View>(server?.running ? "server" : "main");
   const running = session?.running ?? false;
-  const record = archived?.record ?? session?.record ?? project.lastBuild;
+  const serving = server?.running ?? false;
+  const shown = view === "server" && server ? server : session;
+  const record = view === "server" ? server?.record : (archived?.record ?? session?.record ?? project.lastBuild);
 
   const openArchived = async (past: BuildRecord) => {
     try {
@@ -168,6 +256,7 @@ export function BuildPanel({
       const lines = text.split("\n").map((raw, index) => ({ id: -1 - index, level: levelOf(raw), text: raw }));
       setArchived({ record: past, lines });
       setArchiveError(null);
+      setView("main");
     } catch (e) {
       setArchiveError(errorText(e));
     }
@@ -175,6 +264,7 @@ export function BuildPanel({
 
   const run = (task: BuildTask) => {
     setArchived(null);
+    setView(task === "runServer" ? "server" : "main");
     void startBuild(project.id, task, offline);
   };
 
@@ -199,15 +289,14 @@ export function BuildPanel({
       setEulaError(errorText(e));
     }
   };
-  const serverReady =
-    session?.running && session.task === "runServer" && session.lines.some((line) => /Done \(\d/.test(line.text));
+  const serverReady = serving && !server?.stopping && server?.lines.some((line) => /Done \(\d/.test(line.text));
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto px-6 py-5">
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         {running ? (
           <Button onClick={() => void cancelBuild(project.id)} icon={<Square size={12} fill="currentColor" />}>
-            {session?.task === "runClient" ? "Arrêter le jeu" : session?.task === "runServer" ? "Arrêter le serveur" : "Arrêter"}
+            {session?.task === "runClient" ? "Arrêter le jeu" : "Arrêter"}
           </Button>
         ) : (
           <Button variant="primary" disabled={!java?.install} onClick={() => run("build")} icon={<Hammer size={14} strokeWidth={1.75} />}>
@@ -222,15 +311,36 @@ export function BuildPanel({
         >
           Tester en jeu
         </Button>
+        {serving ? (
+          <Button
+            variant={server?.stopping ? "danger" : "secondary"}
+            onClick={() => void stopServer(project.id, Boolean(server?.stopping))}
+            icon={<Square size={12} fill="currentColor" />}
+            title={
+              server?.stopping
+                ? "Le serveur enregistre le monde. Forcer l'arrêt peut perdre ses dernières modifications."
+                : "Envoie « stop » au serveur : il enregistre le monde puis s'arrête."
+            }
+          >
+            {server?.stopping ? "Forcer l'arrêt" : "Arrêter le serveur"}
+          </Button>
+        ) : (
+          <Button
+            disabled={!java?.install}
+            onClick={() => void startServer()}
+            icon={<Server size={14} strokeWidth={1.75} />}
+            title="Lance un serveur dédié avec le mod, à côté du jeu : vérifie qu'il démarre sans code réservé au client, et se rejoint depuis « Tester en jeu »."
+          >
+            Serveur de test
+          </Button>
+        )}
         <Button
-          disabled={running || !java?.install}
-          onClick={() => void startServer()}
-          icon={<Server size={14} strokeWidth={1.75} />}
-          title="Lance un serveur dédié avec le mod : vérifie qu'il démarre sans code réservé au client (erreur fréquente)."
+          variant="ghost"
+          disabled={running || serving || !java?.install}
+          onClick={() => run("clean")}
+          icon={<Eraser size={14} />}
+          title={serving ? "Arrêtez d'abord le serveur de test : il utilise les fichiers compilés." : undefined}
         >
-          Serveur de test
-        </Button>
-        <Button variant="ghost" disabled={running || !java?.install} onClick={() => run("clean")} icon={<Eraser size={14} />}>
           Nettoyer
         </Button>
         <Switch checked={offline} onChange={setOffline} disabled={running} className="ml-2">
@@ -268,8 +378,9 @@ export function BuildPanel({
       )}
       {eulaError && <p className="shrink-0 text-footnote text-danger">{eulaError}</p>}
       {serverReady && (
-        <p role="status" className="shrink-0 text-footnote text-success">
-          Serveur démarré : le mod se charge sur un serveur dédié. Arrêtez-le pour terminer le test.
+        <p role="status" className="shrink-0 text-footnote text-text-muted">
+          <span className="font-medium text-success">Serveur prêt.</span> Pour le rejoindre : « Tester en jeu », puis
+          Multijoueur, Connexion directe, adresse <span className="font-mono text-text">localhost</span>.
         </p>
       )}
 
@@ -284,23 +395,40 @@ export function BuildPanel({
         </div>
       )}
 
-      {running && session && (
+      {server && (
+        <Segmented<View>
+          label="Journal affiché"
+          value={view}
+          options={[
+            { value: "main", label: running ? (session?.task === "runClient" ? "Jeu · en cours" : "Compilation · en cours") : "Compilation et jeu" },
+            { value: "server", label: serving ? "Serveur · en marche" : "Serveur" },
+          ]}
+          onChange={(next) => {
+            setView(next);
+            if (next === "server") setArchived(null);
+          }}
+        />
+      )}
+
+      {shown?.running && (
         <div aria-live="polite" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-footnote text-text-muted">
           <Loader2 size={14} className="animate-spin text-info" />
-          <span className="font-mono text-text">{session.currentTask ?? "Démarrage de Gradle…"}</span>
-          <Elapsed since={session.startedAt} />
-          {session.command && <span className="font-mono text-text-subtle">{session.command}</span>}
-          {session.javaVersion && <span className="text-text-subtle">Java {session.javaVersion}</span>}
+          <span className="font-mono text-text">
+            {shown.stopping ? "Arrêt du serveur, enregistrement du monde…" : (shown.currentTask ?? "Démarrage de Gradle…")}
+          </span>
+          <Elapsed since={shown.startedAt} />
+          {shown.command && <span className="font-mono text-text-subtle">{shown.command}</span>}
+          {shown.javaVersion && <span className="text-text-subtle">Java {shown.javaVersion}</span>}
         </div>
       )}
 
-      {!running && record && (
+      {!shown?.running && record && (
         <div className="shrink-0">
           <BuildResult record={record} />
         </div>
       )}
       {archiveError && <p className="text-footnote text-danger">{archiveError}</p>}
-      {archived && (
+      {archived && view === "main" && (
         <p className="text-footnote text-text-subtle">
           Journal d'une compilation passée ({ago(archived.record.startedAt)}).{" "}
           <button type="button" className={cn("rounded-sm underline underline-offset-2 hover:text-text", focusRing)} onClick={() => setArchived(null)}>
@@ -310,10 +438,20 @@ export function BuildPanel({
       )}
 
       <div className="flex min-h-[320px] flex-1 flex-col">
-        <LogView lines={archived?.lines ?? session?.lines ?? []} dropped={archived ? 0 : (session?.dropped ?? 0)} />
+        <LogView
+          key={view}
+          lines={view === "main" && archived ? archived.lines : (shown?.lines ?? [])}
+          dropped={view === "main" && archived ? 0 : (shown?.dropped ?? 0)}
+          empty={view === "server" ? "La console du serveur s'affichera ici." : "Le journal de Gradle s'affichera ici."}
+        />
       </div>
+      {view === "server" && serving && <ServerConsole projectId={project.id} disabled={Boolean(server?.stopping)} />}
 
-      <History projectId={project.id} refreshKey={session?.record?.id} onOpen={(r) => void openArchived(r)} />
+      <History
+        projectId={project.id}
+        refreshKey={`${session?.record?.id ?? ""}|${server?.record?.id ?? ""}`}
+        onOpen={(r) => void openArchived(r)}
+      />
     </div>
   );
 }

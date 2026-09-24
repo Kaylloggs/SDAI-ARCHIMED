@@ -30,6 +30,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 function StatusBar({ project, java }: { project: ProjectSummary; java: JavaStatus | null }) {
   const session = useMcStudioStore((s) => s.builds[project.id]);
+  const serving = useMcStudioStore((s) => s.servers[project.id]?.running ?? false);
   const record = session?.record ?? project.lastBuild;
   const meta = project.meta;
   if (!meta) return null;
@@ -56,6 +57,12 @@ function StatusBar({ project, java }: { project: ProjectSummary; java: JavaStatu
         <CircleDot size={11} className={build.tone} />
         {build.label}
       </span>
+      {serving && (
+        <span className="inline-flex items-center gap-1.5">
+          <CircleDot size={11} className="text-info" />
+          Serveur de test en marche
+        </span>
+      )}
       {items.map((item) => (
         <span key={item} className={cn("tabular-nums", item === "Java manquant" && "text-warning")}>
           {item}

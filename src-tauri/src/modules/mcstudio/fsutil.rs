@@ -10,7 +10,7 @@ pub const HEAVY_DIRS: &[&str] = &[
 ];
 
 /// Sous-dossiers de `.mcstudio` propres à une machine (pas copiés avec le projet).
-pub const LOCAL_STATE: &[&str] = &["builds", "work", "cache"];
+pub const LOCAL_STATE: &[&str] = &["builds", "work", "cache", "gradle"];
 
 /// Écrit via un fichier temporaire puis un renommage : jamais de fichier à moitié écrit.
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> AppResult<()> {

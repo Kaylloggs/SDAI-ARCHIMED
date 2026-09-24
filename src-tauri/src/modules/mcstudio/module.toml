@@ -5,7 +5,7 @@ commands = [
   "list_projects", "get_project", "create_project", "open_project", "duplicate_project", "remove_project", "inspect_import", "import_project", "export_zip", "port_plan", "port_project",
   "version_catalog", "resolve_versions", "detect_java", "inspect_java", "environment", "jdk_offer", "install_jdk", "cancel_jdk_install", "version_options", "update_project_versions", "project_java", "set_project_java", "project_stats",
   "default_parent_dir", "add_item", "add_block", "add_recipe",
-  "build_project", "cancel_build", "server_eula", "accept_server_eula", "list_builds", "read_build_log",
+  "build_project", "cancel_build", "stop_server", "send_server_command", "server_eula", "accept_server_eula", "list_builds", "read_build_log",
   "openrouter_status", "set_openrouter_key", "clear_openrouter_key", "image_models", "texture_prompt",
   "gemini_status", "set_gemini_key", "clear_gemini_key", "gemini_image_models",
   "list_textures", "generate_texture", "import_texture", "reprocess_texture", "apply_texture",

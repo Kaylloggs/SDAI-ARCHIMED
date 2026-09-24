@@ -25,6 +25,8 @@ export type BuildSession = {
   /** Lignes écartées en tête pour tenir sous `MAX_VISIBLE_LINES`. */
   dropped: number;
   record: BuildRecord | null;
+  /** Arrêt demandé (serveur : `stop` envoyé, en attente de l'enregistrement du monde). */
+  stopping: boolean;
 };
 
 type McStudioState = {
@@ -32,7 +34,10 @@ type McStudioState = {
   loaded: boolean;
   error: string | null;
   openId: string | null;
+  /** Compilation ou partie en cours (une à la fois par projet). */
   builds: Record<string, BuildSession>;
+  /** Serveur de test, lancé à côté pour le rejoindre depuis le jeu. */
+  servers: Record<string, BuildSession>;
   /** Augmente quand l'icône d'un projet change : l'aperçu contourne le cache. */
   iconRevision: Record<string, number>;
   /** Corrections d'affilée demandées à l'IA après un build en échec (bornées). */
@@ -48,6 +53,10 @@ type McStudioState = {
   open: (id: string | null) => void;
   startBuild: (id: string, task: BuildTask, offline: boolean) => Promise<void>;
   cancelBuild: (id: string) => Promise<void>;
+  /** `force` : sans attendre que le serveur enregistre le monde. */
+  stopServer: (id: string, force?: boolean) => Promise<void>;
+  /** Commande tapée dans la console du serveur ; l'écho apparaît dans son journal. */
+  sendServerCommand: (id: string, command: string) => Promise<void>;
   bumpIcon: (id: string) => void;
   setFixRounds: (id: string, rounds: number) => void;
   setFocus: (focus: { projectId: string; conversationId: string } | null) => void;
@@ -55,37 +64,40 @@ type McStudioState = {
 };
 
 let nextLine = 0;
-const pending = new Map<string, LogLine[]>();
+type Slot = "builds" | "servers";
+const slotOf = (task: BuildTask): Slot => (task === "runServer" ? "servers" : "builds");
+const pending = new Map<string, { slot: Slot; id: string; lines: LogLine[] }>();
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
 function flush() {
   flushTimer = null;
-  const batches = [...pending.entries()];
+  const batches = [...pending.values()];
   pending.clear();
   useMcStudioStore.setState((state) => {
-    const builds = { ...state.builds };
-    for (const [id, lines] of batches) {
-      const session = builds[id];
+    const next = { builds: { ...state.builds }, servers: { ...state.servers } };
+    for (const { slot, id, lines } of batches) {
+      const session = next[slot][id];
       if (!session) continue;
       const merged = session.lines.concat(lines);
       const overflow = Math.max(0, merged.length - MAX_VISIBLE_LINES);
-      builds[id] = { ...session, lines: overflow ? merged.slice(overflow) : merged, dropped: session.dropped + overflow };
+      next[slot][id] = { ...session, lines: overflow ? merged.slice(overflow) : merged, dropped: session.dropped + overflow };
     }
-    return { builds };
+    return next;
   });
 }
 
-function queueLine(id: string, line: LogLine) {
-  const list = pending.get(id) ?? [];
-  list.push(line);
-  pending.set(id, list);
+function queueLine(slot: Slot, id: string, line: LogLine) {
+  const key = `${slot}|${id}`;
+  const batch = pending.get(key) ?? { slot, id, lines: [] };
+  batch.lines.push(line);
+  pending.set(key, batch);
   flushTimer ??= setTimeout(flush, FLUSH_MS);
 }
 
-function patchSession(id: string, patch: Partial<BuildSession>) {
+function patchSession(slot: Slot, id: string, patch: Partial<BuildSession>) {
   useMcStudioStore.setState((state) => {
-    const session = state.builds[id];
-    return session ? { builds: { ...state.builds, [id]: { ...session, ...patch } } } : {};
+    const session = state[slot][id];
+    return session ? { [slot]: { ...state[slot], [id]: { ...session, ...patch } } } : {};
   });
 }
 
@@ -95,6 +107,7 @@ export const useMcStudioStore = create<McStudioState>()((set, get) => ({
   error: null,
   openId: null,
   builds: {},
+  servers: {},
   iconRevision: {},
   fixRounds: {},
   focus: null,
@@ -123,10 +136,11 @@ export const useMcStudioStore = create<McStudioState>()((set, get) => ({
   open: (id) => set({ openId: id }),
 
   startBuild: async (id, task, offline) => {
-    if (get().builds[id]?.running) return;
+    const slot = slotOf(task);
+    if (get()[slot][id]?.running) return;
     set((state) => ({
-      builds: {
-        ...state.builds,
+      [slot]: {
+        ...state[slot],
         [id]: {
           running: true,
           task,
@@ -137,6 +151,7 @@ export const useMcStudioStore = create<McStudioState>()((set, get) => ({
           lines: [],
           dropped: 0,
           record: null,
+          stopping: false,
         },
       },
     }));
@@ -145,17 +160,17 @@ export const useMcStudioStore = create<McStudioState>()((set, get) => ({
     channel.onmessage = (event) => {
       switch (event.type) {
         case "started":
-          patchSession(id, { command: event.command, javaVersion: event.javaVersion });
+          patchSession(slot, id, { command: event.command, javaVersion: event.javaVersion });
           break;
         case "task":
-          patchSession(id, { currentTask: event.name });
+          patchSession(slot, id, { currentTask: event.name });
           break;
         case "line":
-          queueLine(id, { id: nextLine++, level: event.level, text: event.text });
+          queueLine(slot, id, { id: nextLine++, level: event.level, text: event.text });
           break;
         case "finished":
           flush();
-          patchSession(id, { running: false, currentTask: null, record: event.record });
+          patchSession(slot, id, { running: false, currentTask: null, record: event.record });
           void mcstudioApi.getProject(id).then(get().upsert).catch(() => undefined);
           break;
       }
@@ -165,7 +180,7 @@ export const useMcStudioStore = create<McStudioState>()((set, get) => ({
       await mcstudioApi.build(id, task, offline, channel);
     } catch (error) {
       // Refus avant le lancement (Java absent, wrapper manquant…) : rien n'a tourné.
-      patchSession(id, {
+      patchSession(slot, id, {
         running: false,
         record: {
           id: "",
@@ -195,5 +210,19 @@ export const useMcStudioStore = create<McStudioState>()((set, get) => ({
     } catch (error) {
       set({ error: errorText(error) });
     }
+  },
+
+  stopServer: async (id, force = false) => {
+    patchSession("servers", id, { stopping: true });
+    try {
+      await mcstudioApi.stopServer(id, force);
+    } catch (error) {
+      set({ error: errorText(error) });
+    }
+  },
+
+  sendServerCommand: async (id, command) => {
+    await mcstudioApi.sendServerCommand(id, command);
+    queueLine("servers", id, { id: nextLine++, level: "info", text: `> ${command}` });
   },
 }));

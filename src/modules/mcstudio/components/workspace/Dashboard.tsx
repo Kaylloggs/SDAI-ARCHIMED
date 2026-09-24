@@ -54,6 +54,8 @@ export function Dashboard({
   const [exporting, setExporting] = useState(false);
   const [exported, setExported] = useState<ExportOutcome | null>(null);
   const running = useMcStudioStore((s) => s.builds[project.id]?.running ?? false);
+  // Versions, portage, restauration : rien ne doit tourner, serveur de test compris.
+  const serving = useMcStudioStore((s) => s.servers[project.id]?.running ?? false);
   const record = useMcStudioStore((s) => s.builds[project.id]?.record) ?? project.lastBuild;
   const meta = project.meta;
   const report = useEditorStore((s) => s.reports[project.id]);
@@ -179,12 +181,12 @@ export function Dashboard({
             </div>
           </section>
 
-          <VersionsSection project={project} busy={running} />
+          <VersionsSection project={project} busy={running || serving} />
 
-          <PortSection project={project} busy={running} onAskAssistant={onAskAssistant} />
+          <PortSection project={project} busy={running || serving} onAskAssistant={onAskAssistant} />
 
           {/* Relue après un portage ou une restauration (nouveau point de restauration). */}
-          <HistorySection key={v.minecraft} projectId={project.id} busy={running} />
+          <HistorySection key={v.minecraft} projectId={project.id} busy={running || serving} />
         </div>
 
         <aside className="space-y-6">

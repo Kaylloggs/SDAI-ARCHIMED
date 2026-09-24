@@ -67,6 +67,8 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::add_recipe,
             commands::build_project,
             commands::cancel_build,
+            commands::stop_server,
+            commands::send_server_command,
             commands::list_builds,
             commands::read_build_log,
             commands::openrouter_status,

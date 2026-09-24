@@ -356,7 +356,13 @@ la déclarent). **Serveur de test** lance `gradlew runServer` dans `run/` : la p
 Mod Studio demande d'accepter le CLUF de Minecraft (lien vers le texte, `eula=true` écrit
 seulement après ce clic) et met `online-mode=false` dans `server.properties` s'il n'existe pas,
 pour rejoindre le serveur depuis le client de développement (`localhost`). Un code client chargé
-sur le serveur est expliqué. La première partie télécharge les ressources du jeu. Fermer le jeu termine la
+sur le serveur est expliqué. Le serveur tourne **à côté** de la compilation et du jeu (deux
+emplacements par projet), avec son propre journal et une **console** : chaque ligne tapée est
+envoyée au serveur (↑ / ↓ rappellent les précédentes). Gradle ne transmet pas son entrée aux
+tâches `JavaExec` : Mod Studio passe `--init-script .mcstudio/gradle/server-console.gradle`
+(branche `System.in` sur `runServer`, sans toucher aux fichiers du projet). « Arrêter le
+serveur » envoie `stop` (le monde est enregistré) ; après 20 s, ou avec « Forcer l'arrêt »,
+l'arbre de processus est arrêté. La première partie télécharge les ressources du jeu. Fermer le jeu termine la
 partie ; « Arrêter le jeu » tue l'arbre de processus. Un plantage est reconnu dans le journal
 (« Le jeu a planté », avec le chemin du rapport dans `run/crash-reports/`), de même qu'une classe
 ou méthode absente au lancement et un Mixin non appliqué ; l'assistant IA peut être chargé de
@@ -389,8 +395,8 @@ Textures : `openrouter_status` · `set_openrouter_key` · `clear_openrouter_key`
 
 Modèles 3D : `list_models` · `read_model` · `save_model` · `read_entity_model` · `save_entity_model` ·
 `entity_model_code` · `texture_pixels` · `save_texture_pixels`
-Build : `build_project` · `cancel_build` · `server_eula` · `accept_server_eula` · `list_builds` ·
-`read_build_log`
+Build : `build_project` · `cancel_build` · `server_eula` · `accept_server_eula` · `stop_server` ·
+`send_server_command` · `list_builds` · `read_build_log`
 Fichiers : `list_files` · `read_project_file` · `write_project_file` · `create_project_file` ·
 `rename_project_file` · `trash_project_file` · `validate_project`
 Restauration : `list_snapshots` · `create_snapshot` · `restore_snapshot` · `delete_snapshot`
@@ -413,6 +419,9 @@ Assistant : `agent_prepare` · `agent_instructions` · `agent_changes` · `agent
   dossier inutilisable), portage (Fabric 1.20.1 → 1.21.1 → 1.21.4 : retouches gardées, données
   renommées, définitions d'objet), export ZIP (fichiers exclus, `gradlew` exécutable, secret
   signalé), CLUF du serveur (jamais accepté sans la personne).
+- `JAVA_HOME=… cargo test server_console -- --ignored --nocapture` : vrai Gradle 8.14.3 et vrai
+  Java sur un faux `runServer` ; commandes reçues par la console, partie lancée pendant que le
+  serveur tourne, arrêt propre sur `stop`.
 - `cargo test mcstudio::e2e -- --ignored --nocapture` : crée **TestMod** (1 objet, 1 bloc, recettes)
   pour la version la plus récente de chaque profil et le compile vraiment ; affiche
   `MODULE BASIC PIPELINE = OK (…)` par version et un bilan final. Options :

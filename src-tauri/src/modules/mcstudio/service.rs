@@ -13,7 +13,7 @@ use super::content;
 use super::export;
 use super::files;
 use super::gemini::Gemini;
-use super::gradle::{self, BuildParams, BuildRegistry};
+use super::gradle::{self, BuildParams, BuildRegistry, Slot};
 use super::importer;
 use super::java;
 use super::jdk::JdkInstaller;
@@ -186,11 +186,7 @@ impl McStudio {
     /// de build et de données migrés après un point de restauration ; le code est laissé à
     /// l'assistant IA avec un message prêt.
     pub async fn port_project(&self, project_id: &str, minecraft: &str) -> AppResult<PortOutcome> {
-        if self.builds.is_running(project_id) {
-            return Err(AppError::invalid(
-                "Attendez la fin de la compilation en cours.",
-            ));
-        }
+        self.quiet(project_id)?;
         let (root, old, from) = self.open_context(project_id)?;
         let all = self.profiles();
         let to = porting::target_profile(&all, &old, minecraft)?.clone();
@@ -227,11 +223,7 @@ impl McStudio {
         project_id: &str,
         selection: &VersionSelection,
     ) -> AppResult<ProjectSummary> {
-        if self.builds.is_running(project_id) {
-            return Err(AppError::invalid(
-                "Attendez la fin de la compilation en cours.",
-            ));
-        }
+        self.quiet(project_id)?;
         let (root, mut meta, profile) = self.open_context(project_id)?;
         let versions = self
             .meta
@@ -310,9 +302,16 @@ impl McStudio {
         offline: bool,
     ) -> AppResult<BuildParams> {
         let (root, meta, _) = self.open_context(project_id)?;
-        if self.builds.is_running(project_id) {
+        let slot = Slot::of(task);
+        if self.builds.is_running(project_id, slot) {
+            return Err(AppError::invalid(match slot {
+                Slot::Main => "Une compilation ou une partie est déjà en cours pour ce projet.",
+                Slot::Server => "Le serveur de test de ce projet tourne déjà.",
+            }));
+        }
+        if task == BuildTask::Clean && self.builds.is_running(project_id, Slot::Server) {
             return Err(AppError::invalid(
-                "Une compilation est déjà en cours pour ce projet.",
+                "Arrêtez d'abord le serveur de test : il utilise les fichiers compilés.",
             ));
         }
         if task == BuildTask::RunServer && !gradle::eula_accepted(&root) {
@@ -366,6 +365,30 @@ impl McStudio {
 
     pub fn cancel_build(&self, project_id: &str) -> AppResult<()> {
         self.builds.cancel(project_id)
+    }
+
+    /// Arrête le serveur de test (`stop`, puis arrêt forcé s'il le faut).
+    pub async fn stop_server(&self, project_id: &str, force: bool) -> AppResult<()> {
+        self.builds.stop_server(project_id, force).await
+    }
+
+    /// Commande tapée par la personne dans la console du serveur de test.
+    pub async fn send_server_command(&self, project_id: &str, command: &str) -> AppResult<()> {
+        self.builds.send_server_command(project_id, command).await
+    }
+
+    /// Rien ne tourne (compilation, partie, serveur) : les versions ou tous les fichiers
+    /// peuvent changer.
+    fn quiet(&self, project_id: &str) -> AppResult<()> {
+        if self.builds.is_running(project_id, Slot::Server) {
+            return Err(AppError::invalid("Arrêtez d'abord le serveur de test."));
+        }
+        if self.builds.is_running(project_id, Slot::Main) {
+            return Err(AppError::invalid(
+                "Attendez la fin de la compilation ou de la partie en cours.",
+            ));
+        }
+        Ok(())
     }
 
     pub fn builds(&self, project_id: &str) -> AppResult<Vec<BuildRecord>> {
@@ -541,7 +564,7 @@ impl McStudio {
     }
 
     fn idle(&self, project_id: &str) -> AppResult<()> {
-        if self.builds.is_running(project_id) {
+        if self.builds.is_running(project_id, Slot::Main) {
             return Err(AppError::invalid(
                 "Attendez la fin de la compilation en cours.",
             ));
@@ -731,7 +754,7 @@ impl McStudio {
     }
 
     pub fn agent_apply(&self, project_id: &str, paths: &[String]) -> AppResult<ApplyOutcome> {
-        if self.builds.is_running(project_id) {
+        if self.builds.is_running(project_id, Slot::Main) {
             return Err(AppError::invalid(
                 "Attendez la fin de la compilation en cours.",
             ));
@@ -765,11 +788,7 @@ impl McStudio {
     }
 
     pub fn restore_snapshot(&self, project_id: &str, snapshot_id: &str) -> AppResult<Snapshot> {
-        if self.builds.is_running(project_id) {
-            return Err(AppError::invalid(
-                "Attendez la fin de la compilation en cours.",
-            ));
-        }
+        self.quiet(project_id)?;
         snapshots::restore(&self.projects.root(project_id)?, snapshot_id)
     }
 

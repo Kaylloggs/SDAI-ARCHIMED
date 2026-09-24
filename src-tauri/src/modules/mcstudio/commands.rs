@@ -258,6 +258,18 @@ pub async fn cancel_build(studio: Studio<'_>, id: String) -> AppResult<()> {
     studio.cancel_build(&id)
 }
 
+/// Arrête le serveur de test : `stop` (monde enregistré), ou tout de suite si `force`.
+#[tauri::command]
+pub async fn stop_server(studio: Studio<'_>, id: String, force: bool) -> AppResult<()> {
+    studio.stop_server(&id, force).await
+}
+
+/// Envoie une commande à la console du serveur de test.
+#[tauri::command]
+pub async fn send_server_command(studio: Studio<'_>, id: String, command: String) -> AppResult<()> {
+    studio.send_server_command(&id, &command).await
+}
+
 #[tauri::command]
 pub async fn list_builds(studio: Studio<'_>, id: String) -> AppResult<Vec<BuildRecord>> {
     blocking(&studio, move |s| s.builds(&id)).await

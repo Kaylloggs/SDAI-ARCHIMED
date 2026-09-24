@@ -4,6 +4,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Corrigé — Mod Studio : serveur de test
+- Le jeu se lance pendant que le serveur de test tourne (« Tester en jeu », puis Multijoueur,
+  `localhost`) : le serveur a son propre emplacement et son propre journal.
+- La console du serveur accepte les commandes (`op`, `time set day`…) : Gradle ne transmettait
+  pas l'entrée standard au serveur. Historique avec ↑ / ↓.
+- « Arrêter le serveur » envoie `stop` pour enregistrer le monde, avec « Forcer l'arrêt » en
+  secours.
+
+### Ajouté — Assistant IA : tout cocher
+- **Modifications proposées** : une case « Tout cocher » / « Tout décocher » (état partiel
+  quand une partie seulement est cochée) et le compte des fichiers choisis.
+
 ### Ajouté — Mod Studio : serveur de test, import, portage, export
 - **Serveur de test** (onglet Build) : `runServer` lance un serveur local avec le mod. Le CLUF de
   Minecraft s'accepte d'un clic explicite (jamais en silence) ; `online-mode=false` est réglé

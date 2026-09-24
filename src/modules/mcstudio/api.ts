@@ -107,6 +107,11 @@ export const mcstudioApi = {
   build: (id: string, task: BuildTask, offline: boolean, onEvent: Channel<BuildEvent>) =>
     invokeModule<string>(PLUGIN, "build_project", { id, task, offline, onEvent }),
   cancelBuild: (id: string) => invokeModule<void>(PLUGIN, "cancel_build", { id }),
+  /** Serveur de test : `stop` (monde enregistré), ou arrêt immédiat si `force`. */
+  stopServer: (id: string, force: boolean) => invokeModule<void>(PLUGIN, "stop_server", { id, force }),
+  /** Ligne tapée dans la console du serveur de test. */
+  sendServerCommand: (id: string, command: string) =>
+    invokeModule<void>(PLUGIN, "send_server_command", { id, command }),
   /** CLUF de Minecraft accepté pour le serveur de test (`run/eula.txt`). */
   serverEula: (id: string) => invokeModule<boolean>(PLUGIN, "server_eula", { id }),
   acceptServerEula: (id: string) => invokeModule<void>(PLUGIN, "accept_server_eula", { id }),
