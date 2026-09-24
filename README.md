@@ -67,10 +67,11 @@ ARCHIMED does not replace the CLIs: it drives the ones installed on your machine
 - Create **real** Minecraft mod projects for **Fabric**, **Forge** or **NeoForge**: a Gradle project with its wrapper, metadata, registries, icon, assets and data files, ready to compile.
 - **Every Minecraft release from 1.14 to 1.21.x**: 23 versioned profiles (Java, Gradle, plugin, mappings, code dialect, data format) cover Fabric 1.14 → 1.21.x, Forge 1.14.4 → 1.21.5 and NeoForge 1.20.4 → 1.21.x. Anything else (snapshots, pre-1.14, Forge 1.21.6+) is shown as unsupported, with the reason.
 - **Pick your loader version**: loader, Fabric API and Yarn (or Forge / NeoForge) versions come from the official metadata (Fabric Meta, Modrinth, Forge promotions, NeoForge Maven), cached for offline use; the recommended one is preselected, any published one can be chosen, at creation or later.
+- **AI textures (OpenRouter)**: describe a texture, an image model on OpenRouter draws it with your own API key (free models are listed first; paid ones need an explicit opt-in), or import any PNG/JPEG/WebP. Mod Studio removes the background, frames the object and turns it into 16×16 (or 32, 64) pixel art with a limited palette; you preview, tweak and apply it, and the previous texture is kept. The key lives in the Windows Credential Manager.
 - **Missing Java? Installed from the app**: Mod Studio lists the JDKs each Minecraft family needs, detects the installed ones and offers to download the missing Eclipse Temurin JDK (Adoptium), checked with SHA-256 and installed after your confirmation — never silently.
 - **Real compilation**: the button runs Gradle, streams its output live, explains errors in plain words (file, line, probable cause, fix) and copies the produced `.jar` to `dist/`.
 - Deterministic generators for items, blocks and recipes, with pixel-art textures, models, loot tables, tags and `en_us` / `fr_fr` translations in the right format for each Minecraft version.
-- AI generation, auto-fix, in-game testing, snapshots and import come in the next phases (see the module README).
+- AI code generation through your CLIs, auto-fix, in-game testing, snapshots and import come in the next phases (see the module README).
 
 ### 📊 Credits (`usage` module)
 - Remaining subscription limits reported by Claude (5-hour and 7-day windows).
@@ -99,7 +100,7 @@ ARCHIMED is built to be **infinitely evolutive**:
 | `planner` | Task boards, calendar view, `roadmap.md` sync, Google Calendar / `.ics` |
 | `memory` | Information you give the AIs, per project or global, importable from a file |
 | `jobagent` | Multi-platform job search, review, cover letters and batch applications |
-| `mcstudio` | Minecraft mod projects (Fabric, Forge, NeoForge): creation, real Gradle builds, `.jar` output |
+| `mcstudio` | Minecraft mod projects (Fabric, Forge, NeoForge): creation, real Gradle builds, `.jar` output, AI textures |
 | `usage` | Subscription limits and token usage per CLI |
 | `settings` | Themes, CLI detection, modules, data |
 

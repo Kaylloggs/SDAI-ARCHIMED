@@ -33,6 +33,8 @@ type McStudioState = {
   error: string | null;
   openId: string | null;
   builds: Record<string, BuildSession>;
+  /** Augmente quand l'icône d'un projet change : l'aperçu contourne le cache. */
+  iconRevision: Record<string, number>;
 
   refresh: () => Promise<void>;
   upsert: (project: ProjectSummary) => void;
@@ -40,6 +42,7 @@ type McStudioState = {
   open: (id: string | null) => void;
   startBuild: (id: string, task: BuildTask, offline: boolean) => Promise<void>;
   cancelBuild: (id: string) => Promise<void>;
+  bumpIcon: (id: string) => void;
 };
 
 let nextLine = 0;
@@ -83,6 +86,7 @@ export const useMcStudioStore = create<McStudioState>()((set, get) => ({
   error: null,
   openId: null,
   builds: {},
+  iconRevision: {},
 
   refresh: async () => {
     try {
@@ -167,6 +171,8 @@ export const useMcStudioStore = create<McStudioState>()((set, get) => ({
       });
     }
   },
+
+  bumpIcon: (id) => set((state) => ({ iconRevision: { ...state.iconRevision, [id]: Date.now() } })),
 
   cancelBuild: async (id) => {
     try {

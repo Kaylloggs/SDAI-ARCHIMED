@@ -7,7 +7,8 @@ un dossier Gradle autonome : il se compile aussi sans ARCHIMED (`gradlew build`)
 - **Services / slots / événements** : aucun pour l'instant. Le flux de compilation passe par un
   `Channel<BuildEvent>` propre à chaque build.
 - **Dépendances ajoutées** : `reqwest` (HTTPS), `png` (textures), `trash` (Corbeille, exigée par
-  guidelines §11), `zip`, `tar`, `flate2`, `sha2` (installation vérifiée des JDK).
+  guidelines §11), `zip`, `tar`, `flate2`, `sha2` (installation vérifiée des JDK), `image`,
+  `base64` (images reçues d'OpenRouter), `keyring` (clé API dans le Gestionnaire d'identifiants).
 
 ## État des phases
 
@@ -17,10 +18,11 @@ un dossier Gradle autonome : il se compile aussi sans ARCHIMED (`gradlew build`)
 | B | Profils de version, métadonnées officielles, templates, JDK, création | ✓ |
 | C | Build Gradle réel, diagnostics, jar dans `dist/`, test e2e | ✓ (Fabric 1.21.1 compilé sur Windows) |
 | B+ | 1.14 → 1.21.x, choix des versions du loader, installation des JDK | ✓ (profils hors `fabric-1.21` à valider par l'e2e) |
+| T | Textures par IA (OpenRouter, clé de la personne), import d'image, conversion pixel-art, ajout d'objets et de blocs | ✓ (testé contre un faux OpenRouter local) |
 | D | Explorateur et éditeur (déplacement de `CodeEditor`/`FileTree` vers `core/editor`) | à venir |
 | E | Validateur (JSON ligne/colonne, références, assets) et page Diagnostics | à venir |
 | F | Snapshots, historique, undo/redo, relecture des diffs | à venir |
-| G–I | Agent IA (plan structuré, copie de travail, auto-fix borné), textures décrites par l'IA | à venir |
+| G–I | Agent IA de code via les CLI (plan structuré, copie de travail, auto-fix borné) | à venir |
 | J–M | `runClient`/`runServer`, import de projets, audit/portage, export ZIP | à venir |
 
 Rien n'est simulé : un bouton qui n'a pas encore de moteur n'est pas affiché.
@@ -97,6 +99,36 @@ Source remplaçable (HTTPS uniquement) : `{"adoptiumApi": "https://…"}` dans
 n'ont rien à installer : le wrapper et les plugins les téléchargent à la première compilation.
 Décision détaillée : [ADR 0004](../../../docs/adr/0004-mcstudio-jdk-downloads.md).
 
+## Textures : IA (OpenRouter) ou image importée
+
+Onglet **Textures** d'un projet : l'icône, les objets et les blocs (présents, ou déclarés sans
+texture). « + » ajoute un objet ou un bloc (code, modèles, traductions, loot table, outil de minage)
+avec une texture provisoire.
+
+1. **Source** : une description envoyée à un modèle d'image d'OpenRouter, ou un PNG/JPEG/WebP.
+   Le texte exact envoyé au modèle est visible avant l'envoi (description cadrée pour Minecraft :
+   objet isolé sur fond uni, tuile sans bord pour un bloc).
+2. **Clé** : saisie dans l'app, vérifiée par OpenRouter (`/key`) puis rangée dans le Gestionnaire
+   d'identifiants de Windows (`mcstudio-openrouter.com.sdai.archimed`). Elle ne revient jamais vers
+   l'interface et n'est envoyée qu'à OpenRouter.
+3. **Modèles** : lus en direct (`/models`, sortie « image »), gratuits en tête, gardés en cache.
+   Un modèle payant est grisé tant que « Autoriser les modèles payants » n'est pas activé, et le
+   backend le refuse de même. Les modèles gratuits vont et viennent chez OpenRouter et ont des
+   quotas (erreur 429 expliquée).
+4. **Conversion** (`pixelart.rs`, déterministe) : fond uni ou en dégradé retiré par remplissage
+   depuis les bords, objet cadré, réduction à 16, 32 ou 64 px en gardant par zone une couleur
+   franche (la plus rare de l'image quand elle couvre au moins 12 % de la zone : les éclats d'un
+   minerai ou un contour survivent), palette limitée par coupe médiane. Une icône est agrandie à
+   64 px sans lissage. Changer un réglage reconvertit la même image, sans réseau.
+5. **Application** : rien n'est écrit dans le projet avant « Appliquer au projet ». L'ancienne
+   texture est copiée dans `.mcstudio/history/textures/<date>-<cible>.png`, la nouvelle écrite de
+   façon atomique ; l'action est inscrite au journal d'audit (`mcstudio.texture_apply`), comme
+   chaque génération (`mcstudio.texture_generate`) et chaque changement de clé.
+
+Brouillons : `%APPDATA%\com.sdai.archimed\modules\mcstudio\cache\textures\` (30 derniers).
+Source remplaçable (HTTPS uniquement) : `{"openrouterApi": "https://…"}` dans `env.json`.
+Décision détaillée : [ADR 0005](../../../docs/adr/0005-mcstudio-openrouter-textures.md).
+
 ## Projet généré
 
 ```
@@ -142,20 +174,25 @@ Versions : `version_catalog` · `version_options` · `resolve_versions` · `upda
 Java : `detect_java` · `inspect_java` · `project_java` · `set_project_java` · `environment` ·
 `jdk_offer` · `install_jdk` · `cancel_jdk_install`
 Contenu : `add_item` · `add_block` · `add_recipe`
+Textures : `openrouter_status` · `set_openrouter_key` · `clear_openrouter_key` · `image_models` ·
+`texture_prompt` · `list_textures` · `generate_texture` · `import_texture` · `reprocess_texture` ·
+`apply_texture`
 Build : `build_project` · `cancel_build` · `list_builds` · `read_build_log`
 
 ## Tests
 
 - `cargo test mcstudio` : profils, parseurs de métadonnées, rendu des templates (tous les profils,
   JSON/TOML valides, aucun marqueur oublié), générateurs, JDK, diagnostics (dont un vrai journal
-  NeoForge), exécution réelle d'un processus de build.
+  NeoForge), exécution réelle d'un processus de build, conversion pixel-art (fond, cadrage, détails
+  rares, palette), brouillons et historique des textures, client OpenRouter contre un faux serveur
+  local (clé, modèles, image en data URL, erreurs 401/429).
 - `cargo test mcstudio::e2e -- --ignored --nocapture` : crée **TestMod** (1 objet, 1 bloc, recettes)
   pour la version la plus récente de chaque profil et le compile vraiment ; affiche
   `MODULE BASIC PIPELINE = OK (…)` par version et un bilan final. Options :
   `MCSTUDIO_E2E_PROFILES=fabric-1.21,forge-1.20` (filtre), `MCSTUDIO_E2E_ALL=1` (toutes les
   versions de chaque profil), `MCSTUDIO_E2E_INSTALL_JDK=1` (installe les JDK manquants).
 - `MCSTUDIO_KEEP_TEST_OUTPUT=1 cargo test every_profile_creates` garde les projets générés.
-- `pnpm test` : identifiants, assistant, journal.
+- `pnpm test` : identifiants, assistant, journal, réglages de texture, choix du modèle.
 
 ## Données
 
@@ -164,4 +201,7 @@ Build : `build_project` · `cancel_build` · `list_builds` · `read_build_log`
 | `%APPDATA%\com.sdai.archimed\modules\mcstudio\projects.json` | chemins des projets connus |
 | `…\mcstudio\profiles\*.toml` | profils de l'utilisateur (remplacent ceux livrés) |
 | `…\mcstudio\cache\meta\` | dernières réponses des métadonnées des loaders |
-| `<projet>\.mcstudio\` | identité, historique et journaux de build du projet |
+| `…\mcstudio\cache\openrouter-models.json` · `cache\textures\` | modèles d'image connus, brouillons de textures |
+| `…\mcstudio\jdks\` · `env.json` | JDK installés par Mod Studio, sources remplaçables |
+| Gestionnaire d'identifiants Windows | clé OpenRouter (`mcstudio-openrouter.com.sdai.archimed`) |
+| `<projet>\.mcstudio\` | identité, historique et journaux de build, anciennes textures (`history/textures/`) |

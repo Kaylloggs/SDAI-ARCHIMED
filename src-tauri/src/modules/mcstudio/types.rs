@@ -522,3 +522,130 @@ pub enum RecipeRequest {
         cooking_time: u32,
     },
 }
+
+// ── Textures : OpenRouter, brouillons, application ──────────────────────────
+
+/// Clé OpenRouter : présente ou non, et ce qu'OpenRouter en dit quand on vérifie.
+#[derive(Debug, Clone, Default, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct OpenRouterStatus {
+    pub configured: bool,
+    /// Libellé renvoyé par OpenRouter (clé masquée ou nom donné sur le site).
+    pub label: Option<String>,
+    /// Compte sans crédit acheté : seuls les modèles gratuits répondent.
+    pub free_tier: Option<bool>,
+    /// Crédit restant en dollars, quand la clé a une limite.
+    pub credits_left: Option<f64>,
+    /// Vérification impossible (réseau, clé refusée) : explication.
+    pub problem: Option<String>,
+}
+
+/// Modèle d'OpenRouter capable de produire des images.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct ImageModel {
+    pub id: String,
+    pub name: String,
+    /// Aucun coût annoncé (prix nuls ou suffixe `:free`).
+    pub free: bool,
+    pub description: String,
+    /// Le modèle répond aussi du texte (`modalities: ["image", "text"]`).
+    pub text_output: bool,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct ImageModelList {
+    pub models: Vec<ImageModel>,
+    /// Liste lue dans le cache : OpenRouter injoignable.
+    pub offline: bool,
+}
+
+/// Ce qu'une texture habille : un objet, un bloc ou l'icône du mod.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum TextureTarget {
+    Item { id: String },
+    Block { id: String },
+    Icon,
+}
+
+/// Une texture du projet (existante ou attendue par un objet / bloc déclaré).
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct TextureInfo {
+    pub target: TextureTarget,
+    /// Nom affiché (traduction du jeu si elle existe).
+    pub label: String,
+    /// Chemin absolu du PNG.
+    pub path: String,
+    /// Chemin relatif au projet.
+    pub relative: String,
+    pub exists: bool,
+    pub width: u32,
+    pub height: u32,
+    /// Date de modification (ms), pour rafraîchir l'aperçu.
+    #[ts(type = "number | null")]
+    pub modified: Option<u64>,
+}
+
+/// Réglages de conversion en pixel-art.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct PixelOptions {
+    /// Côté de la texture en pixels : 16, 32 ou 64.
+    pub size: u32,
+    /// Nombre maximal de couleurs (0 : sans limite).
+    pub colors: u32,
+    /// Retirer le fond et cadrer l'objet (objets, icône détourée).
+    pub transparent: bool,
+}
+
+/// Origine d'un brouillon de texture.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum DraftSource {
+    OpenRouter { model: String, prompt: String },
+    File { name: String },
+}
+
+/// Texture proposée, pas encore écrite dans le projet.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct TextureDraft {
+    pub id: String,
+    pub project_id: String,
+    pub target: TextureTarget,
+    pub source: DraftSource,
+    /// Image reçue ou importée, telle quelle.
+    pub original_path: String,
+    pub original_width: u32,
+    pub original_height: u32,
+    /// Texture convertie (PNG), réécrite à chaque réglage.
+    pub pixel_path: String,
+    pub options: PixelOptions,
+    /// Augmente à chaque conversion : contourne le cache de l'aperçu.
+    pub revision: u32,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct TextureRequest {
+    pub target: TextureTarget,
+    /// Ce que la personne décrit (« épée en rubis, garde dorée »).
+    pub description: String,
+    pub model: String,
+    pub options: PixelOptions,
+    /// Accord explicite pour un modèle payant.
+    pub allow_paid: bool,
+}

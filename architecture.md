@@ -61,7 +61,8 @@ SDAI ARCHIMED/
 │   ├── 0001-claude-permissions-via-stdio-control-protocol.md
 │   ├── 0002-modules-as-inline-tauri-plugins.md
 │   ├── 0003-mcstudio-real-builds-and-version-profiles.md
-│   └── 0004-mcstudio-jdk-downloads.md
+│   ├── 0004-mcstudio-jdk-downloads.md
+│   └── 0005-mcstudio-openrouter-textures.md
 ├── scripts/
 │   ├── new-module.mjs                   # pnpm new:module <id> [--category] [--backend]
 │   └── check-modules.mjs                # invariants de modularité (pnpm check)
@@ -110,9 +111,10 @@ SDAI ARCHIMED/
 │       │   ├── components/              # SearchForm · OfferList · OfferPanel · ApplyPanel · BatchPanel · WorldMap
 │       │   └── lib/                     # triage (onglets, sélection) · batch (envois) · cv (langue)
 │       ├── mcstudio/                    # Minecraft Mod Studio : module.config · index · api · store · README
-│       │   ├── components/              # ProjectList · EnvironmentPanel · JdkInstallCard · VersionPicker
-│       │   │                            # · wizard/ (6 étapes) · workspace/ (Dashboard · VersionsSection · BuildPanel · BuildResult)
-│       │   └── lib/                     # naming (Mod ID, package) · logs (niveaux) · format
+│       │   ├── components/              # ProjectList · EnvironmentPanel · JdkInstallCard · OpenRouterKeyCard · VersionPicker
+│       │   │                            # · wizard/ (6 étapes) · workspace/ (Dashboard · VersionsSection · TexturesPanel
+│       │   │                            #   · TextureStudio · BuildPanel · BuildResult)
+│       │   └── lib/                     # naming (Mod ID, package, registre) · logs (niveaux) · format · textures
 │       ├── usage/                       # Crédits : module.config · index · api · lib/format · README
 │       ├── memory/                      # Mémoire : index · api · services/context · README
 │       ├── skills/                      # module.config · index · api · README
@@ -153,7 +155,8 @@ SDAI ARCHIMED/
             ├── mcstudio/                # projets de mods Minecraft : profiles/ (TOML + métadonnées officielles),
             │                            # templates/ (fichiers embarqués, Gradle Wrapper), content (générateurs),
             │                            # gradle (build réel), diagnostics, java (détection JDK), jdk (installation
-            │                            # Adoptium vérifiée SHA-256), projects, textures (PNG)
+            │                            # Adoptium vérifiée SHA-256), projects, textures (PNG), openrouter (clé,
+            │                            # modèles d'image), pixelart (conversion), artwork (brouillons, application)
             ├── jobagent/                # moteur Python embarqué (engine/ : JobSpy + archimed_jobagent),
             │                            # service.rs, letters.rs (Antigravity), secrets.rs (DPAPI), serveur MCP
             └── skills/                  # module.toml · mod.rs · commands.rs
@@ -531,8 +534,10 @@ arrête son processus puis efface son entrée.
 | Adaptateurs déclaratifs | `%APPDATA%\com.sdai.archimed\adapters\*.toml` |
 | Tableaux du Planner | `%APPDATA%\com.sdai.archimed\modules\planner\boards.json` |
 | Projets Mod Studio (liste), profils de version de l'utilisateur, cache des métadonnées | `%APPDATA%\com.sdai.archimed\modules\mcstudio\` (`projects.json`, `profiles/*.toml`, `cache/meta/`) |
-| JDK installés par Mod Studio, source de téléchargement | `%APPDATA%\com.sdai.archimed\modules\mcstudio\` (`jdks/<version>/`, `env.json` : `adoptiumApi`, HTTPS uniquement) |
-| Identité et builds d'un projet de mod | `<projet>/.mcstudio/` (`project.json`, `builds.json`, `builds/<id>.log`) — le projet reste autonome |
+| Clé OpenRouter de Mod Studio | Gestionnaire d'identifiants Windows (`mcstudio-openrouter.com.sdai.archimed`) |
+| Brouillons de textures, modèles d'image connus | `%APPDATA%\com.sdai.archimed\modules\mcstudio\cache\` (`textures/`, `openrouter-models.json`) |
+| JDK installés par Mod Studio, source de téléchargement | `%APPDATA%\com.sdai.archimed\modules\mcstudio\` (`jdks/<version>/`, `env.json` : `adoptiumApi`, `openrouterApi`, HTTPS uniquement) |
+| Identité et builds d'un projet de mod | `<projet>/.mcstudio/` (`project.json`, `builds.json`, `builds/<id>.log`, `history/textures/`) — le projet reste autonome |
 | Offres, profil, CV et compte d'envoi de JobAgent | `%APPDATA%\com.sdai.archimed\modules\jobagent\` (mot de passe SMTP chiffré par DPAPI) |
 | Journal d'audit | `%APPDATA%\com.sdai.archimed\logs\audit.jsonl` (rotation 5 Mo) |
 | Skills | `%APPDATA%\com.sdai.archimed\skills\` |

@@ -7,17 +7,20 @@ use std::sync::Arc;
 
 use crate::core::{AppError, AppResult};
 
+use super::artwork::{self, Drafts};
 use super::content;
 use super::gradle::{self, BuildParams, BuildRegistry};
 use super::java;
 use super::jdk::JdkInstaller;
+use super::openrouter::OpenRouter;
+use super::pixelart;
 use super::profiles::{self, meta::MetaClient, Profile};
 use super::projects::{self, Projects};
 use super::types::{
     BlockRequest, BuildEvent, BuildRecord, BuildTask, ContentResult, CreateProjectRequest,
-    EnvironmentReport, ItemRequest, JavaInstall, JavaStatus, JdkNeed, ProjectMeta, ProjectStats,
-    ProjectSummary, RecipeRequest, ResolvedVersions, VersionCatalog, VersionOptions,
-    VersionSelection,
+    DraftSource, EnvironmentReport, ItemRequest, JavaInstall, JavaStatus, JdkNeed, PixelOptions,
+    ProjectMeta, ProjectStats, ProjectSummary, RecipeRequest, ResolvedVersions, TextureDraft,
+    TextureInfo, TextureRequest, TextureTarget, VersionCatalog, VersionOptions, VersionSelection,
 };
 
 /// Taille maximale d'un journal renvoyé à l'interface (la fin est gardée).
@@ -29,6 +32,8 @@ pub struct McStudio {
     meta: MetaClient,
     builds: Arc<BuildRegistry>,
     pub jdk: JdkInstaller,
+    pub openrouter: OpenRouter,
+    drafts: Drafts,
 }
 
 impl McStudio {
@@ -38,6 +43,8 @@ impl McStudio {
             meta: MetaClient::new(module_dir.join("cache").join("meta")),
             builds: Arc::new(BuildRegistry::default()),
             jdk: JdkInstaller::new(&module_dir),
+            openrouter: OpenRouter::new(&module_dir),
+            drafts: Drafts::new(&module_dir),
             module_dir,
         }
     }
@@ -271,6 +278,117 @@ impl McStudio {
             .map_err(|_| AppError::not_found("Journal de build introuvable."))?;
         let start = bytes.len().saturating_sub(MAX_LOG_BYTES);
         Ok(String::from_utf8_lossy(&bytes[start..]).to_string())
+    }
+}
+
+impl McStudio {
+    /// Textures du projet (icône, objets, blocs), présentes ou attendues.
+    pub fn textures(&self, project_id: &str) -> AppResult<Vec<TextureInfo>> {
+        let (root, meta, _) = self.open_context(project_id)?;
+        Ok(artwork::list(&root, &meta.mod_id))
+    }
+
+    /// Demande une image au modèle choisi, puis la garde en brouillon converti.
+    pub async fn generate_texture(
+        self: &Arc<Self>,
+        project_id: &str,
+        request: TextureRequest,
+    ) -> AppResult<TextureDraft> {
+        self.open_context(project_id)?;
+        artwork::validate_description(&request.description)?;
+        artwork::relative_path("mod", &request.target)?;
+        pixelart::validate(&request.options)?;
+        let model = self
+            .openrouter
+            .models()
+            .await?
+            .models
+            .into_iter()
+            .find(|m| m.id == request.model)
+            .ok_or_else(|| {
+                AppError::not_found(format!(
+                    "« {} » ne produit pas d'images sur OpenRouter : rechargez la liste des modèles.",
+                    request.model
+                ))
+            })?;
+        if !model.free && !request.allow_paid {
+            return Err(AppError::invalid(format!(
+                "{} est payant : autorisez les modèles payants pour l'utiliser.",
+                model.name
+            )));
+        }
+        let prompt = artwork::prompt_for(&request.target, &request.description);
+        let result = self.openrouter.generate(&model, &prompt).await;
+        crate::core::audit::record(
+            "mcstudio.texture_generate",
+            &format!("openrouter:{}", model.id),
+            if result.is_ok() { "received" } else { "failed" },
+            "user",
+        );
+        let bytes = result?;
+        let studio = self.clone();
+        let project_id = project_id.to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            studio.drafts.create(
+                &project_id,
+                request.target,
+                DraftSource::OpenRouter {
+                    model: model.id,
+                    prompt,
+                },
+                &bytes,
+                request.options,
+            )
+        })
+        .await
+        .map_err(|e| AppError::internal(e.to_string()))?
+    }
+
+    /// Image choisie sur le disque → brouillon converti.
+    pub fn import_texture(
+        &self,
+        project_id: &str,
+        target: TextureTarget,
+        path: &Path,
+        options: PixelOptions,
+    ) -> AppResult<TextureDraft> {
+        self.open_context(project_id)?;
+        let size = std::fs::metadata(path)
+            .map_err(|_| AppError::not_found(format!("{} est introuvable.", path.display())))?
+            .len();
+        if size > pixelart::MAX_BYTES as u64 {
+            return Err(AppError::invalid("Image trop lourde (32 Mo au plus)."));
+        }
+        let bytes = std::fs::read(path)?;
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        self.drafts.create(
+            project_id,
+            target,
+            DraftSource::File { name },
+            &bytes,
+            options,
+        )
+    }
+
+    pub fn reprocess_texture(
+        &self,
+        draft_id: &str,
+        options: PixelOptions,
+    ) -> AppResult<TextureDraft> {
+        self.drafts.reprocess(draft_id, options)
+    }
+
+    pub fn apply_texture(&self, project_id: &str, draft_id: &str) -> AppResult<TextureInfo> {
+        if self.builds.is_running(project_id) {
+            return Err(AppError::invalid(
+                "Attendez la fin de la compilation en cours.",
+            ));
+        }
+        let (root, meta, _) = self.open_context(project_id)?;
+        self.drafts.apply(draft_id, project_id, &root, &meta.mod_id)
     }
 }
 

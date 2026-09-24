@@ -4,6 +4,25 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Mod Studio : textures par IA (OpenRouter)
+- **Onglet Textures** : icône, objets et blocs du mod, avec leur texture actuelle ou manquante ;
+  ajout d'un objet ou d'un bloc (code, modèles, traductions, loot table, outil de minage) sans
+  quitter l'onglet.
+- **Génération par un modèle d'image d'OpenRouter** avec la clé de la personne : clé vérifiée puis
+  rangée dans le Gestionnaire d'identifiants de Windows, jamais renvoyée à l'interface ; modèles
+  lus en direct, gratuits en tête, payants refusés sans accord explicite ; texte envoyé au modèle
+  visible avant l'envoi ; erreurs d'OpenRouter expliquées (clé refusée, crédit, quota 429).
+- **Import d'une image** (PNG, JPEG, WebP) pour qui n'a pas de clé.
+- **Conversion en pixel-art** déterministe : fond retiré, objet cadré, 16, 32 ou 64 px, couleurs
+  franches qui gardent les petits détails, palette limitée ; réglages appliqués en direct.
+- **Aperçu avant application** (image reçue, texture, taille réelle) ; l'ancienne texture est
+  gardée dans `.mcstudio/history/textures/` ; générations, applications et changements de clé
+  inscrits au journal d'audit. Voir ADR 0005.
+- Dépendances : `image` (décodage PNG/JPEG/WebP borné), `base64`, `keyring`.
+
+### Corrigé
+- Interrupteurs de Mod Studio : la pastille sortait du rail (hérité du centrage du bouton).
+
 ### Ajouté — Mod Studio : toutes les versions, choix du loader, installation de Java
 - **Minecraft 1.14 à 1.21.x** : 23 profils de version couvrent Fabric 1.14 → 1.21.x, Forge 1.14.4 →
   1.21.5 et NeoForge 1.20.4 → 1.21.x, avec un template par époque d'API (registres, onglets créatifs,

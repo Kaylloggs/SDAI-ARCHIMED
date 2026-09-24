@@ -47,6 +47,10 @@ zip = { version = "2", default-features = false, features = ["deflate"] }
 tar = "0.4"
 flate2 = "1"
 sha2 = "0.10"
+# Mod Studio : textures générées par OpenRouter (décodage, clé dans le Gestionnaire d'identifiants).
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+base64 = "0.22"
+keyring = "3"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_System_Threading"] }
@@ -67,6 +71,7 @@ windows = { version = "0.62", features = [
   "Win32_System_WinRT",
 ] }
 windows-future = "0.3"
+keyring = { version = "3", features = ["windows-native"] }
 
 [profile.release]
 codegen-units = 1

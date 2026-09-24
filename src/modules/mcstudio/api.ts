@@ -18,6 +18,13 @@ import type { ProjectSummary } from "@/core/ipc/bindings/ProjectSummary";
 import type { RecipeRequest } from "@/core/ipc/bindings/RecipeRequest";
 import type { ResolvedVersions } from "@/core/ipc/bindings/ResolvedVersions";
 import type { VersionCatalog } from "@/core/ipc/bindings/VersionCatalog";
+import type { ImageModelList } from "@/core/ipc/bindings/ImageModelList";
+import type { OpenRouterStatus } from "@/core/ipc/bindings/OpenRouterStatus";
+import type { PixelOptions } from "@/core/ipc/bindings/PixelOptions";
+import type { TextureDraft } from "@/core/ipc/bindings/TextureDraft";
+import type { TextureInfo } from "@/core/ipc/bindings/TextureInfo";
+import type { TextureRequest } from "@/core/ipc/bindings/TextureRequest";
+import type { TextureTarget } from "@/core/ipc/bindings/TextureTarget";
 
 const PLUGIN = "mcstudio";
 
@@ -73,6 +80,26 @@ export const mcstudioApi = {
   listBuilds: (id: string) => invokeModule<BuildRecord[]>(PLUGIN, "list_builds", { id }),
   readBuildLog: (id: string, buildId: string) =>
     invokeModule<string>(PLUGIN, "read_build_log", { id, buildId }),
+
+  /** `check` : interroge OpenRouter (compte gratuit, crédit). La clé ne revient jamais. */
+  openrouterStatus: (check: boolean) => invokeModule<OpenRouterStatus>(PLUGIN, "openrouter_status", { check }),
+  /** Vérifiée auprès d'OpenRouter avant d'être rangée dans le Gestionnaire d'identifiants. */
+  setOpenrouterKey: (key: string) => invokeModule<OpenRouterStatus>(PLUGIN, "set_openrouter_key", { key }),
+  clearOpenrouterKey: () => invokeModule<void>(PLUGIN, "clear_openrouter_key"),
+  imageModels: () => invokeModule<ImageModelList>(PLUGIN, "image_models"),
+  /** Texte exact envoyé au modèle pour cette description. */
+  texturePrompt: (target: TextureTarget, description: string) =>
+    invokeModule<string>(PLUGIN, "texture_prompt", { target, description }),
+  listTextures: (id: string) => invokeModule<TextureInfo[]>(PLUGIN, "list_textures", { id }),
+  generateTexture: (id: string, request: TextureRequest) =>
+    invokeModule<TextureDraft>(PLUGIN, "generate_texture", { id, request }),
+  importTexture: (id: string, target: TextureTarget, path: string, options: PixelOptions) =>
+    invokeModule<TextureDraft>(PLUGIN, "import_texture", { id, target, path, options }),
+  reprocessTexture: (draftId: string, options: PixelOptions) =>
+    invokeModule<TextureDraft>(PLUGIN, "reprocess_texture", { draftId, options }),
+  /** Écrit le brouillon dans le projet ; l'ancienne texture part dans `.mcstudio/history/`. */
+  applyTexture: (id: string, draftId: string) =>
+    invokeModule<TextureInfo>(PLUGIN, "apply_texture", { id, draftId }),
 };
 
 /** Message lisible d'une erreur renvoyée par le backend. */

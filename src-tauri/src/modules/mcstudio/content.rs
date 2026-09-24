@@ -122,7 +122,7 @@ impl GenContext {
     }
 }
 
-fn validate_id(id: &str) -> AppResult<()> {
+pub fn validate_id(id: &str) -> AppResult<()> {
     let ok = Regex::new(r"^[a-z][a-z0-9_]{0,63}$")
         .map(|re| re.is_match(id))
         .unwrap_or(false);

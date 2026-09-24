@@ -10,7 +10,7 @@ import { errorText, mcstudioApi } from "../../api";
 import { ago, seconds } from "../../lib/format";
 import { levelOf, visibleAt, type LevelFilter } from "../../lib/logs";
 import { useMcStudioStore, type LogLine } from "../../store";
-import { focusRing } from "../ui";
+import { focusRing, Switch } from "../ui";
 import { JdkInstallCard } from "../JdkInstallCard";
 import { BuildResult } from "./BuildResult";
 
@@ -191,33 +191,9 @@ export function BuildPanel({
         <Button variant="ghost" disabled={running || !java?.install} onClick={() => run("clean")} icon={<Eraser size={14} />}>
           Nettoyer
         </Button>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={offline}
-          disabled={running}
-          onClick={() => setOffline((v) => !v)}
-          className={cn(
-            "ml-2 inline-flex h-7 items-center gap-2 rounded-sm px-2 text-footnote text-text-muted transition-colors hover:text-text disabled:opacity-40",
-            focusRing,
-          )}
-        >
-          <span
-            aria-hidden
-            className={cn(
-              "relative h-4 w-7 rounded-full border transition-colors",
-              offline ? "border-accent bg-accent" : "border-border-strong bg-surface-2",
-            )}
-          >
-            <span
-              className={cn(
-                "absolute top-0.5 size-2.5 rounded-full transition-transform duration-[140ms]",
-                offline ? "translate-x-3.5 bg-accent-fg" : "translate-x-0.5 bg-text-muted",
-              )}
-            />
-          </span>
+        <Switch checked={offline} onChange={setOffline} disabled={running} className="ml-2">
           <WifiOff size={12} /> Hors ligne (cache uniquement)
-        </button>
+        </Switch>
       </div>
 
       {java && !java.install && (

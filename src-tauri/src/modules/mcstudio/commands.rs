@@ -5,13 +5,15 @@ use tauri::State;
 
 use crate::core::{AppError, AppResult};
 
+use super::artwork;
 use super::java;
 use super::service::{self, McStudio};
 use super::types::{
     BlockRequest, BuildEvent, BuildRecord, BuildTask, ContentResult, CreateProjectRequest,
-    EnvironmentReport, InstallEvent, ItemRequest, JavaInstall, JavaStatus, JdkOffer, ProjectStats,
-    ProjectSummary, RecipeRequest, ResolvedVersions, VersionCatalog, VersionOptions,
-    VersionSelection,
+    EnvironmentReport, ImageModelList, InstallEvent, ItemRequest, JavaInstall, JavaStatus,
+    JdkOffer, OpenRouterStatus, PixelOptions, ProjectStats, ProjectSummary, RecipeRequest,
+    ResolvedVersions, TextureDraft, TextureInfo, TextureRequest, TextureTarget, VersionCatalog,
+    VersionOptions, VersionSelection,
 };
 
 type Studio<'a> = State<'a, Arc<McStudio>>;
@@ -241,4 +243,81 @@ pub async fn list_builds(studio: Studio<'_>, id: String) -> AppResult<Vec<BuildR
 #[tauri::command]
 pub async fn read_build_log(studio: Studio<'_>, id: String, build_id: String) -> AppResult<String> {
     blocking(&studio, move |s| s.build_log(&id, &build_id)).await
+}
+
+// ── Textures (OpenRouter) ───────────────────────────────────────────────────
+
+/// Clé présente ? Avec `check`, OpenRouter est interrogé (crédit, compte gratuit).
+#[tauri::command]
+pub async fn openrouter_status(studio: Studio<'_>, check: bool) -> AppResult<OpenRouterStatus> {
+    studio.openrouter.status(check).await
+}
+
+/// Vérifie la clé auprès d'OpenRouter puis la range dans le Gestionnaire d'identifiants.
+#[tauri::command]
+pub async fn set_openrouter_key(studio: Studio<'_>, key: String) -> AppResult<OpenRouterStatus> {
+    studio.openrouter.set_key(&key).await
+}
+
+#[tauri::command]
+pub async fn clear_openrouter_key(studio: Studio<'_>) -> AppResult<()> {
+    studio.openrouter.clear_key()
+}
+
+#[tauri::command]
+pub async fn image_models(studio: Studio<'_>) -> AppResult<ImageModelList> {
+    studio.openrouter.models().await
+}
+
+/// Texte exact envoyé au modèle, montré avant l'envoi.
+#[tauri::command]
+pub async fn texture_prompt(target: TextureTarget, description: String) -> AppResult<String> {
+    Ok(artwork::prompt_for(&target, &description))
+}
+
+#[tauri::command]
+pub async fn list_textures(studio: Studio<'_>, id: String) -> AppResult<Vec<TextureInfo>> {
+    blocking(&studio, move |s| s.textures(&id)).await
+}
+
+#[tauri::command]
+pub async fn generate_texture(
+    studio: Studio<'_>,
+    id: String,
+    request: TextureRequest,
+) -> AppResult<TextureDraft> {
+    studio.inner().generate_texture(&id, request).await
+}
+
+#[tauri::command]
+pub async fn import_texture(
+    studio: Studio<'_>,
+    id: String,
+    target: TextureTarget,
+    path: String,
+    options: PixelOptions,
+) -> AppResult<TextureDraft> {
+    blocking(&studio, move |s| {
+        s.import_texture(&id, target, std::path::Path::new(&path), options)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn reprocess_texture(
+    studio: Studio<'_>,
+    draft_id: String,
+    options: PixelOptions,
+) -> AppResult<TextureDraft> {
+    blocking(&studio, move |s| s.reprocess_texture(&draft_id, options)).await
+}
+
+/// Écrit la texture du brouillon dans le projet (l'ancienne est gardée dans l'historique).
+#[tauri::command]
+pub async fn apply_texture(
+    studio: Studio<'_>,
+    id: String,
+    draft_id: String,
+) -> AppResult<TextureInfo> {
+    blocking(&studio, move |s| s.apply_texture(&id, &draft_id)).await
 }

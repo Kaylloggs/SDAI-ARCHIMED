@@ -12,10 +12,12 @@ import { useMcStudioStore } from "../../store";
 import { focusRing, ModIcon } from "../ui";
 import { BuildPanel } from "./BuildPanel";
 import { Dashboard } from "./Dashboard";
+import { TexturesPanel } from "./TexturesPanel";
 
-type Tab = "dashboard" | "build";
+type Tab = "dashboard" | "textures" | "build";
 const TABS: { id: Tab; label: string }[] = [
   { id: "dashboard", label: "Tableau de bord" },
+  { id: "textures", label: "Textures" },
   { id: "build", label: "Build" },
 ];
 
@@ -56,6 +58,7 @@ export function Workspace({ project }: { project: ProjectSummary }) {
   const [tab, setTab] = useState<Tab>("dashboard");
   const [java, setJava] = useState<JavaStatus | null>(null);
   const [javaError, setJavaError] = useState<string | null>(null);
+  const iconVersion = useMcStudioStore((s) => s.iconRevision[project.id] ?? 0);
   const meta = project.meta;
 
   useEffect(() => {
@@ -90,7 +93,7 @@ export function Workspace({ project }: { project: ProjectSummary }) {
         >
           <ArrowLeft size={16} />
         </button>
-        <ModIcon root={project.path} modId={meta.modId} name={meta.name} />
+        <ModIcon root={project.path} modId={meta.modId} name={meta.name} version={iconVersion} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-title-2 font-semibold tracking-[-0.01em]">{meta.name}</h1>
           <p className="truncate font-mono text-footnote text-text-subtle">
@@ -140,6 +143,8 @@ export function Workspace({ project }: { project: ProjectSummary }) {
           >
             {tab === "dashboard" ? (
               <Dashboard project={project} java={java} javaError={javaError} onJavaChange={setJava} onCompile={compile} />
+            ) : tab === "textures" ? (
+              <TexturesPanel project={project} />
             ) : (
               <BuildPanel project={project} java={java} onJavaChange={setJava} />
             )}

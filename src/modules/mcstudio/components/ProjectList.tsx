@@ -49,6 +49,7 @@ function ProjectRow({
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [confirmTrash, setConfirmTrash] = useState(false);
   const [busy, setBusy] = useState(false);
+  const iconVersion = useMcStudioStore((s) => s.iconRevision[project.id] ?? 0);
   const meta = project.meta;
   const usable = project.health === "ok" && meta;
 
@@ -109,7 +110,7 @@ function ProjectRow({
     >
       <div className="flex items-center gap-4 px-4 py-3">
         {meta ? (
-          <ModIcon root={project.path} modId={meta.modId} name={meta.name} />
+          <ModIcon root={project.path} modId={meta.modId} name={meta.name} version={iconVersion} />
         ) : (
           <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-warning">
             <AlertTriangle size={16} strokeWidth={1.75} />

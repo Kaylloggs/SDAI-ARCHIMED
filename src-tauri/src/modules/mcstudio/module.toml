@@ -4,4 +4,6 @@ commands = [
   "version_catalog", "resolve_versions", "detect_java", "inspect_java", "environment", "jdk_offer", "install_jdk", "cancel_jdk_install", "version_options", "update_project_versions", "project_java", "set_project_java", "project_stats",
   "default_parent_dir", "add_item", "add_block", "add_recipe",
   "build_project", "cancel_build", "list_builds", "read_build_log",
+  "openrouter_status", "set_openrouter_key", "clear_openrouter_key", "image_models", "texture_prompt",
+  "list_textures", "generate_texture", "import_texture", "reprocess_texture", "apply_texture",
 ]

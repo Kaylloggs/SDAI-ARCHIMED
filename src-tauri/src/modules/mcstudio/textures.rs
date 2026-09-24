@@ -1,8 +1,8 @@
 //! Textures pixel-art générées de façon déterministe (même nom → même image).
 //!
 //! C'est le socle sans IA : une gemme pour un objet, une tuile pour un bloc, une icône
-//! pour le mod. Les textures décrites par l'IA (spec de pixels) arriveront par le même
-//! encodeur PNG.
+//! pour le mod. Les textures générées par un modèle d'image passent par `pixelart`, puis
+//! par le même encodeur PNG.
 
 use crate::core::{AppError, AppResult};
 
@@ -18,6 +18,16 @@ impl Image {
             width,
             height,
             rgba: vec![0; (width * height * 4) as usize],
+        }
+    }
+
+    /// Image déjà calculée (`rgba` : 4 octets par pixel, ligne par ligne).
+    pub fn from_rgba(width: u32, height: u32, rgba: Vec<u8>) -> Self {
+        debug_assert_eq!(rgba.len(), (width * height * 4) as usize);
+        Self {
+            width,
+            height,
+            rgba,
         }
     }
 

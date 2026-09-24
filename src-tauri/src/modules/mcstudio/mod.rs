@@ -6,6 +6,7 @@ use std::sync::Arc;
 use tauri::plugin::{Builder, TauriPlugin};
 use tauri::{Manager, Runtime};
 
+mod artwork;
 mod commands;
 mod content;
 mod diagnostics;
@@ -13,6 +14,8 @@ mod fsutil;
 mod gradle;
 mod java;
 mod jdk;
+mod openrouter;
+mod pixelart;
 mod profiles;
 mod projects;
 mod service;
@@ -55,6 +58,16 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::cancel_build,
             commands::list_builds,
             commands::read_build_log,
+            commands::openrouter_status,
+            commands::set_openrouter_key,
+            commands::clear_openrouter_key,
+            commands::image_models,
+            commands::texture_prompt,
+            commands::list_textures,
+            commands::generate_texture,
+            commands::import_texture,
+            commands::reprocess_texture,
+            commands::apply_texture,
         ])
         .setup(|app, _api| {
             let paths = crate::core::paths::Paths::resolve(app)?;

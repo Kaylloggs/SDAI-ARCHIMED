@@ -82,3 +82,19 @@ export function nameProblem(name: string): string | null {
   if ([...trimmed].length > 64) return "64 caractères au plus.";
   return null;
 }
+
+/** « Épée de rubis » → `epee_de_rubis` (nom de registre d'un objet ou d'un bloc). */
+export function suggestRegistryId(name: string): string {
+  const id = words(name).join("_").toLowerCase();
+  const safe = /^[a-z]/.test(id) ? id : id ? `x_${id}` : "";
+  return safe.slice(0, 64);
+}
+
+/** `null` si valide (mêmes règles que le backend). */
+export function registryIdProblem(id: string): string | null {
+  if (!id) return "Le nom de registre est obligatoire.";
+  if (!/^[a-z][a-z0-9_]{0,63}$/.test(id)) {
+    return "Minuscules, chiffres et _ uniquement, en commençant par une lettre.";
+  }
+  return null;
+}

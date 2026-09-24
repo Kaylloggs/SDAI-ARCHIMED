@@ -4,6 +4,7 @@ import { cn } from "@/core/lib/cn";
 import type { EnvironmentReport } from "@/core/ipc/bindings/EnvironmentReport";
 import { errorText, mcstudioApi } from "../api";
 import { JdkInstallCard } from "./JdkInstallCard";
+import { OpenRouterKeyCard } from "./OpenRouterKeyCard";
 import { focusRing } from "./ui";
 
 /**
@@ -78,6 +79,19 @@ export function EnvironmentPanel() {
               </div>
             </div>
           ))}
+          <div className="flex flex-wrap items-start gap-x-4 gap-y-2 border-t border-border pt-3">
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p className="text-body-sm font-medium">
+                Textures par IA <span className="font-normal text-text-subtle">· facultatif</span>
+              </p>
+              <p className="text-caption text-text-subtle">
+                Clé OpenRouter : des modèles d'image, dont certains gratuits, dessinent les textures.
+              </p>
+            </div>
+            <div className="w-full sm:w-auto sm:min-w-[320px] sm:max-w-[420px]">
+              <OpenRouterKeyCard compact />
+            </div>
+          </div>
           <p className="text-caption text-text-subtle">
             Gradle, Minecraft et les loaders se téléchargent seuls à la première compilation de chaque projet (connexion
             Internet nécessaire), puis restent en cache.

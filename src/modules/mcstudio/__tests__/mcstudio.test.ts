@@ -6,10 +6,14 @@ import {
   mainClassProblem,
   modIdProblem,
   packageProblem,
+  registryIdProblem,
   suggestMainClass,
   suggestModId,
   suggestPackage,
+  suggestRegistryId,
 } from "../lib/naming";
+import { defaultOptions, modelOptions, pickModel, targetKey } from "../lib/textures";
+import type { ImageModel } from "@/core/ipc/bindings/ImageModel";
 
 describe("identifiants dérivés du nom", () => {
   it("propose Mod ID, classe et package", () => {
@@ -94,5 +98,40 @@ describe("formats", () => {
     expect(megabytes(191_000_000)).toBe("182 Mo");
     expect(megabytes(5 * 1024 * 1024)).toBe("5,0 Mo");
     expect(megabytes(0)).toBe("—");
+  });
+});
+
+describe("textures", () => {
+  const models: ImageModel[] = [
+    { id: "a/free:free", name: "Libre", free: true, description: "", textOutput: false },
+    { id: "b/paid", name: "Payant", free: false, description: "", textOutput: true },
+  ];
+
+  it("règle la conversion selon la cible", () => {
+    expect(defaultOptions({ kind: "item", id: "ruby" })).toEqual({ size: 16, colors: 16, transparent: true });
+    expect(defaultOptions({ kind: "block", id: "ore" }).transparent).toBe(false);
+    expect(defaultOptions({ kind: "icon" }).size).toBe(32);
+    expect(targetKey({ kind: "block", id: "ore" })).toBe("block:ore");
+    expect(targetKey({ kind: "icon" })).toBe("icon");
+  });
+
+  it("ne propose un modèle payant qu'avec accord", () => {
+    expect(modelOptions(models, false).map((o) => [o.hint, o.disabled])).toEqual([
+      ["gratuit", false],
+      ["payant", true],
+    ]);
+    expect(modelOptions(models, true)[1]?.disabled).toBe(false);
+    expect(pickModel(models, null, false)).toBe("a/free:free");
+    expect(pickModel(models, "b/paid", false)).toBe("a/free:free");
+    expect(pickModel(models, "b/paid", true)).toBe("b/paid");
+    expect(pickModel([models[1]!], null, false)).toBeNull();
+  });
+
+  it("dérive le nom de registre du nom en jeu", () => {
+    expect(suggestRegistryId("Épée de rubis")).toBe("epee_de_rubis");
+    expect(suggestRegistryId("3 Gemmes")).toBe("x_3_gemmes");
+    expect(registryIdProblem("ruby_sword")).toBeNull();
+    expect(registryIdProblem("Ruby")).not.toBeNull();
+    expect(registryIdProblem("")).not.toBeNull();
   });
 });
