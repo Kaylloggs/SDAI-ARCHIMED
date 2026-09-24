@@ -330,6 +330,8 @@ pub struct ProjectStats {
 pub enum BuildTask {
     Build,
     Clean,
+    /// Lance Minecraft avec le mod (configuration de lancement du projet).
+    RunClient,
 }
 
 impl BuildTask {
@@ -337,6 +339,7 @@ impl BuildTask {
         match self {
             Self::Build => "build",
             Self::Clean => "clean",
+            Self::RunClient => "runClient",
         }
     }
 }
@@ -383,6 +386,8 @@ pub enum IssueKind {
     Network,
     JavaVersion,
     Mapping,
+    /// Le jeu a démarré puis s'est arrêté sur une erreur (partie de test).
+    Crash,
     Unknown,
 }
 

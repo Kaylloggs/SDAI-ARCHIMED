@@ -23,7 +23,8 @@ un dossier Gradle autonome : il se compile aussi sans ARCHIMED (`gradlew build`)
 | E | Validateur (JSON/TOML ligne/colonne, références, format de la version) et panneau Problèmes | ✓ |
 | F | Points de restauration (annulables), vrai diff dans `core/lib/diff` | ✓ |
 | G | Assistant IA via les CLI installées : copie de travail, relecture fichier par fichier, application avec point de restauration, correction bornée | ✓ (à essayer avec vos CLI) |
-| J–M | `runClient`/`runServer`, import de projets, audit/portage, export ZIP | à venir |
+| J | Test en jeu (`runClient`), plantages expliqués | ✓ (à essayer sur Windows) |
+| K–M | `runServer`, import de projets existants, audit/portage de version, export ZIP | à venir |
 
 Rien n'est simulé : un bouton qui n'a pas encore de moteur n'est pas affiché.
 
@@ -229,6 +230,14 @@ niveau (erreur, avertissement, info, debug) ; « Arrêter » tue l'arbre de proc
 groupe de processus sous Unix). Le statut vient du code de sortie de Gradle ; le jar est celui écrit
 dans `build/libs/` pendant ce build, copié dans `dist/`. Chaque compilation est inscrite dans le
 journal d'audit (`mcstudio.gradle`).
+
+**Tester en jeu** (onglet Build) lance `gradlew runClient` : Minecraft démarre avec le mod, via
+la configuration de lancement du projet (Fabric Loom l'a d'office, les templates Forge et NeoForge
+la déclarent). La première partie télécharge les ressources du jeu. Fermer le jeu termine la
+partie ; « Arrêter le jeu » tue l'arbre de processus. Un plantage est reconnu dans le journal
+(« Le jeu a planté », avec le chemin du rapport dans `run/crash-reports/`), de même qu'une classe
+ou méthode absente au lancement et un Mixin non appliqué ; l'assistant IA peut être chargé de
+corriger.
 
 `diagnostics.rs` reconnaît : erreurs javac/Kotlin (fichier, ligne), API ou mappings inconnus,
 Java incompatible, réseau (dont refus 403/407 d'un proxy), plugin ou dépendance introuvable, JSON

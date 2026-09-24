@@ -321,7 +321,20 @@ pub async fn run(
         } else {
             Vec::new()
         };
+        let playing = params.task == BuildTask::RunClient;
         let summary = match status {
+            BuildStatus::Success if playing => format!(
+                "Partie de test terminée : Minecraft s'est fermé normalement après {}.",
+                seconds(duration_ms)
+            ),
+            BuildStatus::Cancelled if playing => "Partie de test arrêtée à votre demande.".to_string(),
+            BuildStatus::Failed if playing => match issues.first() {
+                Some(first) => format!(
+                    "Minecraft n'a pas pu démarrer ou s'est arrêté sur une erreur. Cause probable : {}.",
+                    first.title.to_lowercase()
+                ),
+                None => "Minecraft n'a pas pu démarrer ou s'est arrêté sur une erreur.".to_string(),
+            },
             BuildStatus::Success => format!("Compilation réussie en {}.", seconds(duration_ms)),
             BuildStatus::Cancelled => "Compilation interrompue à votre demande.".to_string(),
             BuildStatus::Failed => match issues.first() {

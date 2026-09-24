@@ -4,6 +4,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Mod Studio : test en jeu
+- Bouton **Tester en jeu** (onglet Build) : `gradlew runClient` lance Minecraft avec le mod, journal
+  en direct, « Arrêter le jeu ». Plantages reconnus et expliqués (rapport de plantage, classe ou
+  méthode absente, Mixin non appliqué), et correction proposée à l'assistant IA.
+
 ### Ajouté — Mod Studio : assistant IA avec vos CLI (phase G)
 - Onglet **Assistant IA** : conversation avec Claude Code, Antigravity ou Codex (ce qui est
   installé), qui connaît la version de Minecraft, le loader, les versions exactes, les mappings

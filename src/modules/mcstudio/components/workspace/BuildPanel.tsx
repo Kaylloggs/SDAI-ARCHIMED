@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Eraser, Hammer, Loader2, Square, WifiOff } from "lucide-react";
+import { Eraser, Gamepad2, Hammer, Loader2, Square, WifiOff } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Button } from "@/design-system/primitives";
 import type { BuildRecord } from "@/core/ipc/bindings/BuildRecord";
+import type { BuildTask } from "@/core/ipc/bindings/BuildTask";
 import type { JavaStatus } from "@/core/ipc/bindings/JavaStatus";
 import type { LogLevel } from "@/core/ipc/bindings/LogLevel";
 import type { ProjectSummary } from "@/core/ipc/bindings/ProjectSummary";
@@ -171,7 +172,7 @@ export function BuildPanel({
     }
   };
 
-  const run = (task: "build" | "clean") => {
+  const run = (task: BuildTask) => {
     setArchived(null);
     void startBuild(project.id, task, offline);
   };
@@ -181,13 +182,21 @@ export function BuildPanel({
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         {running ? (
           <Button onClick={() => void cancelBuild(project.id)} icon={<Square size={12} fill="currentColor" />}>
-            Arrêter
+            {session?.task === "runClient" ? "Arrêter le jeu" : "Arrêter"}
           </Button>
         ) : (
           <Button variant="primary" disabled={!java?.install} onClick={() => run("build")} icon={<Hammer size={14} strokeWidth={1.75} />}>
             Compiler le mod
           </Button>
         )}
+        <Button
+          disabled={running || !java?.install}
+          onClick={() => run("runClient")}
+          icon={<Gamepad2 size={14} strokeWidth={1.75} />}
+          title="Lance Minecraft avec le mod (la première fois, le jeu télécharge ses ressources : quelques minutes). Fermez le jeu pour terminer."
+        >
+          Tester en jeu
+        </Button>
         <Button variant="ghost" disabled={running || !java?.install} onClick={() => run("clean")} icon={<Eraser size={14} />}>
           Nettoyer
         </Button>

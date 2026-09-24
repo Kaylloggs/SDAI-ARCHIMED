@@ -32,7 +32,9 @@ function StatusBar({ project, java }: { project: ProjectSummary; java: JavaStatu
   const meta = project.meta;
   if (!meta) return null;
   const build = session?.running
-    ? { tone: "text-info", label: `Compilation${session.currentTask ? ` · ${session.currentTask}` : "…"}` }
+    ? session.task === "runClient"
+      ? { tone: "text-info", label: "Partie de test en cours" }
+      : { tone: "text-info", label: `Compilation${session.currentTask ? ` · ${session.currentTask}` : "…"}` }
     : record?.status === "success"
       ? { tone: "text-success", label: "Dernier build réussi" }
       : record?.status === "failed"

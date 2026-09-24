@@ -15,6 +15,7 @@ const KIND_LABEL: Record<BuildIssue["kind"], string> = {
   network: "Réseau",
   javaVersion: "Version de Java",
   mapping: "API / mappings",
+  crash: "Plantage du jeu",
   unknown: "Erreur",
 };
 
@@ -43,10 +44,11 @@ function IssueItem({ issue }: { issue: BuildIssue }) {
 export function BuildResult({ record }: { record: BuildRecord }) {
   const [copied, setCopied] = useState(false);
   const jar = record.dist ?? record.jar;
+  const playing = record.task === "runClient";
   const look = {
-    success: { Icon: CheckCircle2, tone: "text-success", title: "BUILD SUCCESSFUL", frame: "border-success/35" },
-    failed: { Icon: XCircle, tone: "text-danger", title: "Échec de la compilation", frame: "border-danger/35" },
-    cancelled: { Icon: CircleSlash, tone: "text-text-subtle", title: "Compilation interrompue", frame: "border-border" },
+    success: { Icon: CheckCircle2, tone: "text-success", title: playing ? "Partie de test terminée" : "BUILD SUCCESSFUL", frame: "border-success/35" },
+    failed: { Icon: XCircle, tone: "text-danger", title: playing ? "Le jeu n'a pas pu tourner" : "Échec de la compilation", frame: "border-danger/35" },
+    cancelled: { Icon: CircleSlash, tone: "text-text-subtle", title: playing ? "Partie arrêtée" : "Compilation interrompue", frame: "border-border" },
   }[record.status];
 
   const copy = async () => {

@@ -284,7 +284,7 @@ export function AssistantPanel({ project, onBuild }: { project: ProjectSummary; 
             )}
           </div>
         )}
-        {lastRecord?.status === "success" && build?.record && !build.running && (
+        {lastRecord?.status === "success" && lastRecord.task === "build" && build?.record && !build.running && (
           <p className="flex shrink-0 items-center gap-2 border-t border-border px-3 py-2 text-footnote text-success">
             <CheckCircle2 size={14} /> Compilation réussie : le mod est dans dist/.
           </p>

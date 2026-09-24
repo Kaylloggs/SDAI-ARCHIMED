@@ -242,6 +242,55 @@ pub fn analyze(lines: &[String], root: &Path) -> Vec<BuildIssue> {
             ));
             continue;
         }
+        if text.contains("---- Minecraft Crash Report ----")
+            || text.contains("Crash report saved to")
+            || text.contains("Game crashed!")
+        {
+            let saved = text
+                .split_once("Crash report saved to:")
+                .map(|(_, path)| relative(root, path.trim().trim_start_matches("#@?@#").trim()));
+            // Plusieurs lignes annoncent le même plantage : un seul problème, avec son rapport.
+            if let Some(known) = issues.iter_mut().find(|i| i.title == "Le jeu a planté") {
+                if known.file.is_none() {
+                    known.file = saved;
+                }
+                continue;
+            }
+            let mut found = issue(
+                IssueKind::Crash,
+                "Le jeu a planté",
+                text,
+                Some("Le rapport de plantage (run/crash-reports/) donne la cause dans « Description » et la première ligne « Caused by ». Le plus souvent : un objet ou un bloc mal enregistré, ou un fichier de données invalide. Demandez à l'assistant IA de le lire et de corriger."),
+            );
+            found.file = saved;
+            issues.push(found);
+            continue;
+        }
+        if [
+            "java.lang.NoSuchMethodError",
+            "java.lang.NoSuchFieldError",
+            "java.lang.NoClassDefFoundError",
+        ]
+        .iter()
+        .any(|n| text.contains(n))
+        {
+            issues.push(issue(
+                IssueKind::Crash,
+                "Classe ou méthode absente au lancement",
+                text,
+                Some("Le code a compilé contre une autre version que celle qui tourne : vérifiez les versions du loader et de ses dépendances (onglet Tableau de bord, Versions), puis nettoyez et recompilez."),
+            ));
+            continue;
+        }
+        if text.contains("Mixin apply failed") || text.contains("MixinApplyError") {
+            issues.push(issue(
+                IssueKind::Crash,
+                "Mixin non appliqué",
+                text,
+                Some("Une classe Mixin vise une méthode qui n'existe pas dans cette version : vérifiez les noms (mappings de la version) dans le fichier *.mixins.json et la classe citée."),
+            ));
+            continue;
+        }
         if [
             "JsonSyntaxException",
             "MalformedJsonException",
@@ -312,7 +361,8 @@ fn priority(kind: IssueKind) -> u8 {
         IssueKind::Json => 3,
         IssueKind::Dependency => 4,
         IssueKind::Gradle => 5,
-        IssueKind::Unknown => 6,
+        IssueKind::Crash => 6,
+        IssueKind::Unknown => 7,
     }
 }
 
@@ -322,6 +372,27 @@ mod tests {
 
     fn lines(text: &str) -> Vec<String> {
         text.lines().map(str::to_string).collect()
+    }
+
+    #[test]
+    fn a_game_crash_points_to_its_report() {
+        let root = Path::new("/p");
+        let log = lines(
+            "> Task :runClient\n---- Minecraft Crash Report ----\n#@?@# Game crashed! Crash report saved to: #@?@# /p/run/crash-reports/crash-2026.txt\njava.lang.NoSuchMethodError: 'void net.minecraft.item.Item.<init>()'",
+        );
+        let issues = analyze(&log, root);
+        let crash = issues
+            .iter()
+            .find(|i| i.title == "Le jeu a planté")
+            .unwrap();
+        assert_eq!(crash.kind, IssueKind::Crash);
+        assert_eq!(
+            crash.file.as_deref(),
+            Some("run/crash-reports/crash-2026.txt")
+        );
+        assert!(issues
+            .iter()
+            .any(|i| i.title == "Classe ou méthode absente au lancement"));
     }
 
     #[test]

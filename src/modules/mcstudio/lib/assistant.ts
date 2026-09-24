@@ -6,8 +6,12 @@ export const MAX_FIX_ROUNDS = 3;
 
 /** Message préparé pour l'IA à partir d'un build en échec (la personne le relit et l'envoie). */
 export function fixRequest(record: BuildRecord): string {
+  const what =
+    record.task === "runClient"
+      ? "La partie de test du vrai projet (gradlew runClient) a échoué"
+      : "La compilation du vrai projet a échoué";
   const lines = [
-    `La compilation du vrai projet a échoué (Gradle, code de sortie ${record.exitCode ?? "inconnu"}). ${record.summary}`,
+    `${what} (Gradle, code de sortie ${record.exitCode ?? "inconnu"}). ${record.summary}`,
     "",
     "Erreurs relevées par Mod Studio :",
   ];
