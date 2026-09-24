@@ -41,3 +41,10 @@ export function joinPath(base: string, ...parts: string[]): string {
   const separator = base.includes("\\") ? "\\" : "/";
   return [base.replace(/[\\/]+$/, ""), ...parts].join(separator);
 }
+
+/** 191 000 000 → « 182 Mo ». */
+export function megabytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "—";
+  const mb = bytes / (1024 * 1024);
+  return mb < 10 ? `${mb.toFixed(1).replace(".", ",")} Mo` : `${Math.round(mb)} Mo`;
+}

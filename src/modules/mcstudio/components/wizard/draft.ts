@@ -2,6 +2,7 @@ import type { CreateProjectRequest } from "@/core/ipc/bindings/CreateProjectRequ
 import type { License } from "@/core/ipc/bindings/License";
 import type { LoaderId } from "@/core/ipc/bindings/LoaderId";
 import type { ResolvedVersions } from "@/core/ipc/bindings/ResolvedVersions";
+import type { VersionSelection } from "@/core/ipc/bindings/VersionSelection";
 import {
   mainClassProblem,
   modIdProblem,
@@ -11,6 +12,8 @@ import {
   suggestModId,
   suggestPackage,
 } from "../../lib/naming";
+
+export const EMPTY_SELECTION: VersionSelection = { loaderVersion: null, mappingsVersion: null, apiVersion: null };
 
 /** Saisie de l'assistant, étape après étape. */
 export type Draft = {
@@ -25,6 +28,8 @@ export type Draft = {
   minecraft: string | null;
   loader: LoaderId | null;
   profileId: string | null;
+  /** Versions choisies à la main (loader, Fabric API, Yarn) ; vides = recommandées. */
+  selection: VersionSelection;
   versions: ResolvedVersions | null;
   /** `null` = JDK choisi automatiquement à chaque compilation. */
   javaHome: string | null;
@@ -44,6 +49,7 @@ export const emptyDraft: Draft = {
   minecraft: null,
   loader: null,
   profileId: null,
+  selection: EMPTY_SELECTION,
   versions: null,
   javaHome: null,
   withExample: true,

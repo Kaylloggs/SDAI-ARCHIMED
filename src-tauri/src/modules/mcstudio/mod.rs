@@ -12,6 +12,7 @@ mod diagnostics;
 mod fsutil;
 mod gradle;
 mod java;
+mod jdk;
 mod profiles;
 mod projects;
 mod service;
@@ -37,6 +38,12 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::resolve_versions,
             commands::detect_java,
             commands::inspect_java,
+            commands::environment,
+            commands::jdk_offer,
+            commands::install_jdk,
+            commands::cancel_jdk_install,
+            commands::version_options,
+            commands::update_project_versions,
             commands::project_java,
             commands::set_project_java,
             commands::project_stats,

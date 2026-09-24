@@ -11,6 +11,7 @@ import { ago, seconds } from "../../lib/format";
 import { levelOf, visibleAt, type LevelFilter } from "../../lib/logs";
 import { useMcStudioStore, type LogLine } from "../../store";
 import { focusRing } from "../ui";
+import { JdkInstallCard } from "../JdkInstallCard";
 import { BuildResult } from "./BuildResult";
 
 const FILTERS: { id: LevelFilter; label: string }[] = [
@@ -142,7 +143,15 @@ function History({
   );
 }
 
-export function BuildPanel({ project, java }: { project: ProjectSummary; java: JavaStatus | null }) {
+export function BuildPanel({
+  project,
+  java,
+  onJavaChange,
+}: {
+  project: ProjectSummary;
+  java: JavaStatus | null;
+  onJavaChange: (status: JavaStatus) => void;
+}) {
   const session = useMcStudioStore((s) => s.builds[project.id]);
   const { startBuild, cancelBuild } = useMcStudioStore.getState();
   const [offline, setOffline] = useState(false);
@@ -209,8 +218,18 @@ export function BuildPanel({ project, java }: { project: ProjectSummary; java: J
           </span>
           <WifiOff size={12} /> Hors ligne (cache uniquement)
         </button>
-        {java && !java.install && <span className="text-footnote text-warning">{java.problem}</span>}
       </div>
+
+      {java && !java.install && (
+        <div role="alert" className="shrink-0 space-y-2 rounded-md border border-warning/40 bg-warning-soft px-3 py-3">
+          <p className="text-footnote text-text-muted">{java.problem}</p>
+          <JdkInstallCard
+            major={java.min}
+            exact={java.max === java.min}
+            onInstalled={() => void mcstudioApi.projectJava(project.id).then(onJavaChange).catch(() => undefined)}
+          />
+        </div>
+      )}
 
       {running && session && (
         <div aria-live="polite" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-footnote text-text-muted">

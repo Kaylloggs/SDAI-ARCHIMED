@@ -20,7 +20,7 @@ use super::templates::{self, Content, Value, Vars};
 use super::textures;
 use super::types::{
     BlockRequest, BlockSound, BuildRecord, CreateProjectRequest, ItemRequest, License, LoaderId,
-    ProjectHealth, ProjectMeta, ProjectStats, ProjectSummary, RecipeRequest,
+    ProjectHealth, ProjectMeta, ProjectStats, ProjectSummary, RecipeRequest, ResolvedVersions,
 };
 
 pub const META_FORMAT: u32 = 1;
@@ -392,6 +392,79 @@ pub fn gen_context(profile: &Profile, meta: &ProjectMeta, root: &Path) -> GenCon
     }
 }
 
+/// Remplace la valeur d'une clé `clé=valeur` d'un fichier `.properties`.
+fn set_property(source: &str, key: &str, value: &str) -> AppResult<String> {
+    let mut found = false;
+    let out: Vec<String> = source
+        .lines()
+        .map(|line| match line.split_once('=') {
+            Some((name, _)) if name.trim() == key => {
+                found = true;
+                format!("{key}={value}")
+            }
+            _ => line.to_string(),
+        })
+        .collect();
+    if !found {
+        return Err(AppError::invalid(format!(
+            "La clé « {key} » est absente de gradle.properties : changez la version à la main dans ce fichier."
+        )));
+    }
+    Ok(out.join("\n") + "\n")
+}
+
+/// Change les versions du loader, des mappings ou de l'API d'un projet existant
+/// (même Minecraft, même profil). Tout est vérifié avant la première écriture.
+pub fn apply_versions(
+    root: &Path,
+    meta: &mut ProjectMeta,
+    versions: ResolvedVersions,
+) -> AppResult<()> {
+    if versions.profile_id != meta.versions.profile_id
+        || versions.minecraft != meta.versions.minecraft
+    {
+        return Err(AppError::invalid(
+            "Changer de version de Minecraft ou de loader est un portage : il n'est pas encore géré ici.",
+        ));
+    }
+    let properties_path = root.join("gradle.properties");
+    let mut properties = std::fs::read_to_string(&properties_path)?;
+    let mut writes: Vec<(PathBuf, String)> = Vec::new();
+    match versions.loader {
+        LoaderId::Fabric => {
+            properties = set_property(&properties, "loader_version", &versions.loader_version)?;
+            if let Some(yarn) = &versions.mappings_version {
+                properties = set_property(&properties, "yarn_mappings", yarn)?;
+            }
+            if let Some(api) = &versions.api_version {
+                properties = set_property(&properties, "fabric_version", api)?;
+            }
+            let mod_json = root.join("src/main/resources/fabric.mod.json");
+            if let Ok(source) = std::fs::read_to_string(&mod_json) {
+                let re = Regex::new(r#""fabricloader"\s*:\s*">=[^"]*""#)
+                    .map_err(|e| AppError::internal(e.to_string()))?;
+                let updated = re.replace(
+                    &source,
+                    format!(r#""fabricloader": ">={}""#, versions.loader_version).as_str(),
+                );
+                writes.push((mod_json, updated.into_owned()));
+            }
+        }
+        LoaderId::Forge => {
+            properties = set_property(&properties, "forge_version", &versions.loader_version)?
+        }
+        LoaderId::Neoforge => {
+            properties = set_property(&properties, "neo_version", &versions.loader_version)?
+        }
+    }
+    writes.push((properties_path, properties));
+    for (path, body) in writes {
+        write_atomic(&path, body.as_bytes())?;
+    }
+    meta.versions = versions;
+    write_meta(root, meta)
+}
+
 /// Un objet, un bloc, et les recettes qui passent de l'un à l'autre.
 pub fn add_example_content(ctx: &GenContext) -> AppResult<()> {
     let gem = format!("{}:example_gem", ctx.mod_id);
@@ -456,9 +529,10 @@ pub fn template_vars(profile: &Profile, meta: &ProjectMeta) -> Vars {
         LoaderId::Fabric => versions.loader_version.clone(),
     };
     let identifier_expr = match profile.dialect {
-        Dialect::FabricYarn120 => "new Identifier(MOD_ID, path)",
-        Dialect::FabricYarn121 => "Identifier.of(MOD_ID, path)",
-        Dialect::Forge120 | Dialect::NeoForge121 => "",
+        Dialect::FabricYarn1193 | Dialect::FabricYarn120 => "new Identifier(MOD_ID, path)",
+        // 1.21 : le constructeur d'`Identifier` devient privé.
+        Dialect::FabricYarn121 | Dialect::FabricYarn1212 => "Identifier.of(MOD_ID, path)",
+        _ => "",
     };
     let raw = |v: &str| Value::Raw(v.to_string());
     let mut vars = Vars::new();
@@ -485,12 +559,32 @@ pub fn template_vars(profile: &Profile, meta: &ProjectMeta) -> Vars {
         raw(versions.api_version.as_deref().unwrap_or("")),
     );
     vars.insert("java_version", raw(&versions.java.to_string()));
+    // Bytecode visé (`--release`) et constante Gradle (`JavaVersion.VERSION_1_8`, `VERSION_17`).
+    let release = profile.release();
+    vars.insert("java_release", raw(&release.to_string()));
+    vars.insert(
+        "java_enum",
+        raw(&if release <= 8 {
+            format!("1_{release}")
+        } else {
+            release.to_string()
+        }),
+    );
     vars.insert("gradle_version", raw(&versions.gradle));
     vars.insert("plugin_version", raw(&versions.plugin));
     vars.insert("identifier_expr", raw(identifier_expr));
     vars.insert("pack_format", raw(&profile.pack_format.to_string()));
+    // Valeurs propres au profil (chemins d'import qui changent d'une version à l'autre).
+    for (key, value) in &profile.vars {
+        if let Some(known) = PROFILE_VARS.iter().find(|k| **k == key.as_str()) {
+            vars.insert(known, raw(value));
+        }
+    }
     vars
 }
+
+/// Marqueurs qu'un profil peut définir dans sa table `[vars]`.
+const PROFILE_VARS: &[&str] = &["registry_object"];
 
 /// Fichiers du template rendus : (chemin relatif, contenu, exécutable).
 pub fn render_project(
@@ -786,7 +880,6 @@ pub mod tests {
             assert!(java.join("TestMod.java").is_file());
             let items = std::fs::read_to_string(java.join("registry/ModItems.java")).unwrap();
             assert!(items.contains("EXAMPLE_GEM"));
-            assert!(items.contains("ModBlocks.EXAMPLE_BLOCK"));
             assert!(
                 std::fs::read_to_string(java.join("registry/ModBlocks.java"))
                     .unwrap()
@@ -800,20 +893,56 @@ pub mod tests {
             assert!(props.contains(&format!("gradle-{}-bin.zip", profile.gradle)));
 
             let data = root.join("src/main/resources/data/testmod");
-            let (recipe_dir, loot_dir) = match profile.data_format {
-                profiles::DataFormat::V1_20 => ("recipes", "loot_tables"),
-                profiles::DataFormat::V1_21 => ("recipe", "loot_table"),
+            use profiles::DataFormat;
+            let (recipe_dir, loot_dir) = if profile.data_format < DataFormat::V1_21 {
+                ("recipes", "loot_tables")
+            } else {
+                ("recipe", "loot_table")
             };
             let recipe: serde_json::Value = serde_json::from_str(
                 &std::fs::read_to_string(data.join(recipe_dir).join("example_block.json")).unwrap(),
             )
             .unwrap();
-            let result_key = if profile.data_format == profiles::DataFormat::V1_20 {
+            let result_key = if profile.data_format == DataFormat::Legacy {
                 "item"
             } else {
                 "id"
             };
-            assert_eq!(recipe["result"][result_key], "testmod:example_block");
+            assert_eq!(
+                recipe["result"][result_key], "testmod:example_block",
+                "{}",
+                profile.id
+            );
+            // Ingrédients en texte à partir de 1.21.2.
+            let ingredient = &recipe["key"]["#"];
+            if profile.data_format >= DataFormat::V1_21_2 {
+                assert_eq!(ingredient, "testmod:example_gem", "{}", profile.id);
+            } else {
+                assert_eq!(ingredient["item"], "testmod:example_gem", "{}", profile.id);
+            }
+            let definition = root.join("src/main/resources/assets/testmod/items/example_gem.json");
+            assert_eq!(
+                definition.is_file(),
+                profile.data_format >= DataFormat::V1_21_4,
+                "{}",
+                profile.id
+            );
+            // Onglet créatif : dans les réglages avant 1.19.3, par événement ensuite.
+            let items_src = std::fs::read_to_string(java.join("registry/ModItems.java")).unwrap();
+            let blocks_src = std::fs::read_to_string(java.join("registry/ModBlocks.java")).unwrap();
+            let in_settings =
+                items_src.contains(".group(ItemGroup.MISC)") || items_src.contains(".tab(");
+            assert_eq!(
+                !items_src.contains("ModBlocks.EXAMPLE_BLOCK"),
+                in_settings,
+                "{}",
+                profile.id
+            );
+            // Les marqueurs restent en place pour les ajouts suivants.
+            assert!(
+                items_src.contains("// @mcstudio:items")
+                    && blocks_src.contains("// @mcstudio:blocks")
+            );
             assert!(data
                 .join(loot_dir)
                 .join("blocks/example_block.json")
@@ -865,6 +994,47 @@ pub mod tests {
         assert!(Path::new(&copy.path).exists());
         assert_eq!(projects.open(Path::new(&copy.path)).unwrap().id, copy.id);
         assert!(projects.open(&base).is_err());
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn loader_versions_can_be_changed_after_creation() {
+        let profiles = profiles::load_all(&temp("no-profiles-4"));
+        let base = temp("versions");
+        let projects = Projects::new(&base.join("module"));
+        for id in ["fabric-1.21", "forge-1.20"] {
+            let profile = profiles::find(&profiles, id).unwrap();
+            let mut req = request(profile, &base.join(id));
+            req.with_example = false;
+            let summary = projects.create(&profiles, &req).unwrap();
+            let root = PathBuf::from(&summary.path);
+            let mut meta = read_meta(&root).unwrap();
+            let mut next = meta.versions.clone();
+            next.loader_version = "9.9.9".into();
+            if profile.loader == LoaderId::Fabric {
+                next.api_version = Some("0.200.0+1.21.1".into());
+            }
+            apply_versions(&root, &mut meta, next.clone()).unwrap();
+            let props = std::fs::read_to_string(root.join("gradle.properties")).unwrap();
+            let key = if profile.loader == LoaderId::Fabric {
+                "loader_version=9.9.9"
+            } else {
+                "forge_version=9.9.9"
+            };
+            assert!(props.contains(key), "{id}");
+            assert_eq!(read_meta(&root).unwrap().versions.loader_version, "9.9.9");
+            if profile.loader == LoaderId::Fabric {
+                assert!(props.contains("fabric_version=0.200.0+1.21.1"));
+                let mod_json =
+                    std::fs::read_to_string(root.join("src/main/resources/fabric.mod.json"))
+                        .unwrap();
+                assert!(mod_json.contains(r#""fabricloader": ">=9.9.9""#));
+            }
+            // Autre Minecraft : refusé (c'est un portage).
+            let mut other = next.clone();
+            other.minecraft = "1.20.1".into();
+            assert!(apply_versions(&root, &mut meta, other).is_err());
+        }
         let _ = std::fs::remove_dir_all(&base);
     }
 

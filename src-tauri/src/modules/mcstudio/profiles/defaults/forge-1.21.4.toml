@@ -1,0 +1,16 @@
+# Forge · 1.21.4 – 1.21.5
+# Versions exactes (loader, mappings, API) : résolues à la création depuis les métadonnées officielles.
+id = "forge-1.21.4"
+loader = "forge"
+label = "Forge · 1.21.4 – 1.21.5"
+minecraft_min = "1.21.4"
+minecraft_max = "1.21.5"
+java = 21
+gradle = "8.8"
+plugin = "[6.0.16,6.2)"
+mappings = "official"
+template = "forge-1.21.3"
+dialect = "forge-1.21.3"
+data_format = "1.21.4"
+pack_format = 46
+verified = false

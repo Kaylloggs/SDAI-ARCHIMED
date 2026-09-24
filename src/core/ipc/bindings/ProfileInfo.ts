@@ -4,4 +4,8 @@ import type { LoaderId } from "./LoaderId";
 /**
  * Profil de version : ce qu'il faut pour construire un mod pour une plage de versions.
  */
-export type ProfileInfo = { id: string, loader: LoaderId, label: string, minecraftMin: string, minecraftMax: string, java: number, javaMax: number | null, gradle: string, mappings: string, };
+export type ProfileInfo = { id: string, loader: LoaderId, label: string, minecraftMin: string, minecraftMax: string, java: number, javaMax: number | null, gradle: string, mappings: string, 
+/**
+ * Une vraie compilation a déjà réussi avec ce profil.
+ */
+verified: boolean, notes: string | null, };

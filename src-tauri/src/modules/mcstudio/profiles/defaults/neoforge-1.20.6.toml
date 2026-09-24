@@ -1,0 +1,16 @@
+# NeoForge · 1.20.5 – 1.20.6
+# Versions exactes (loader, mappings, API) : résolues à la création depuis les métadonnées officielles.
+id = "neoforge-1.20.6"
+loader = "neoforge"
+label = "NeoForge · 1.20.5 – 1.20.6"
+minecraft_min = "1.20.5"
+minecraft_max = "1.20.6"
+java = 21
+gradle = "8.14.3"
+plugin = "[2.0.0,2.1)"
+mappings = "official"
+template = "neoforge-1.21"
+dialect = "neoforge-1.21"
+data_format = "1.20.5"
+pack_format = 32
+verified = false

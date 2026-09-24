@@ -30,10 +30,10 @@ processResources {
 
 tasks.withType(JavaCompile).configureEach {
 	it.options.encoding = "UTF-8"
-	it.options.release = {{java_version}}
+	it.options.release = {{java_release}}
 }
 
 java {
-	sourceCompatibility = JavaVersion.VERSION_{{java_version}}
-	targetCompatibility = JavaVersion.VERSION_{{java_version}}
+	sourceCompatibility = JavaVersion.VERSION_{{java_enum}}
+	targetCompatibility = JavaVersion.VERSION_{{java_enum}}
 }

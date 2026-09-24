@@ -9,8 +9,9 @@ use super::java;
 use super::service::{self, McStudio};
 use super::types::{
     BlockRequest, BuildEvent, BuildRecord, BuildTask, ContentResult, CreateProjectRequest,
-    ItemRequest, JavaInstall, JavaStatus, ProjectStats, ProjectSummary, RecipeRequest,
-    ResolvedVersions, VersionCatalog,
+    EnvironmentReport, InstallEvent, ItemRequest, JavaInstall, JavaStatus, JdkOffer, ProjectStats,
+    ProjectSummary, RecipeRequest, ResolvedVersions, VersionCatalog, VersionOptions,
+    VersionSelection,
 };
 
 type Studio<'a> = State<'a, Arc<McStudio>>;
@@ -67,20 +68,72 @@ pub async fn version_catalog(studio: Studio<'_>) -> AppResult<VersionCatalog> {
     Ok(studio.catalog().await)
 }
 
+/// Versions exactes ; `selection` = choix de la personne (sinon versions recommandées).
 #[tauri::command]
 pub async fn resolve_versions(
     studio: Studio<'_>,
     profile_id: String,
     minecraft: String,
+    selection: Option<VersionSelection>,
 ) -> AppResult<ResolvedVersions> {
-    studio.resolve(&profile_id, &minecraft).await
+    studio
+        .resolve(&profile_id, &minecraft, &selection.unwrap_or_default())
+        .await
+}
+
+/// Toutes les versions du loader, des mappings et de l'API publiées pour ce Minecraft.
+#[tauri::command]
+pub async fn version_options(
+    studio: Studio<'_>,
+    profile_id: String,
+    minecraft: String,
+) -> AppResult<VersionOptions> {
+    studio.version_options(&profile_id, &minecraft).await
 }
 
 #[tauri::command]
-pub async fn detect_java() -> AppResult<Vec<JavaInstall>> {
-    tauri::async_runtime::spawn_blocking(java::detect)
-        .await
-        .map_err(|e| AppError::internal(e.to_string()))
+pub async fn detect_java(studio: Studio<'_>) -> AppResult<Vec<JavaInstall>> {
+    blocking(&studio, |s| Ok(s.detect_java())).await
+}
+
+/// Java demandé par chaque profil, et ce qui est déjà installé.
+#[tauri::command]
+pub async fn environment(studio: Studio<'_>) -> AppResult<EnvironmentReport> {
+    blocking(&studio, |s| Ok(s.environment())).await
+}
+
+/// Ce qui serait téléchargé pour installer Java `major` (rien n'est encore téléchargé).
+#[tauri::command]
+pub async fn jdk_offer(studio: Studio<'_>, major: u32) -> AppResult<JdkOffer> {
+    studio.jdk.offer(major).await
+}
+
+/// Télécharge et installe le JDK confirmé par la personne ; l'avancement arrive par `on_event`.
+#[tauri::command]
+pub async fn install_jdk(
+    studio: Studio<'_>,
+    offer: JdkOffer,
+    on_event: Channel<InstallEvent>,
+) -> AppResult<()> {
+    let studio = studio.inner().clone();
+    tauri::async_runtime::spawn(async move {
+        let emit = |event: InstallEvent| {
+            let _ = on_event.send(event);
+        };
+        match studio.jdk.install(&offer, &emit).await {
+            Ok(install) => emit(InstallEvent::Done { install }),
+            Err(error) => emit(InstallEvent::Failed {
+                message: error.message,
+            }),
+        }
+    });
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn cancel_jdk_install(studio: Studio<'_>, major: u32) -> AppResult<()> {
+    studio.jdk.cancel(major);
+    Ok(())
 }
 
 /// Lit un dossier choisi à la main : `None` si ce n'est pas un JDK.
@@ -103,6 +156,16 @@ pub async fn set_project_java(
     java_home: Option<String>,
 ) -> AppResult<JavaStatus> {
     blocking(&studio, move |s| s.set_java_home(&id, java_home)).await
+}
+
+/// Change les versions du loader, de Yarn ou de Fabric API d'un projet existant.
+#[tauri::command]
+pub async fn update_project_versions(
+    studio: Studio<'_>,
+    id: String,
+    selection: VersionSelection,
+) -> AppResult<ProjectSummary> {
+    studio.update_versions(&id, &selection).await
 }
 
 #[tauri::command]

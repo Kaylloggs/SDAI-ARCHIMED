@@ -12,4 +12,8 @@ available: boolean,
 /**
  * Profil Mod Studio qui sait construire ce couple ; `None` = non supporté.
  */
-profileId: string | null, };
+profileId: string | null, 
+/**
+ * Pourquoi ce couple n'est pas pris en charge (quand `profile_id` est `None`).
+ */
+reason: string | null, };

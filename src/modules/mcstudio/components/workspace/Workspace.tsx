@@ -141,7 +141,7 @@ export function Workspace({ project }: { project: ProjectSummary }) {
             {tab === "dashboard" ? (
               <Dashboard project={project} java={java} javaError={javaError} onJavaChange={setJava} onCompile={compile} />
             ) : (
-              <BuildPanel project={project} java={java} />
+              <BuildPanel project={project} java={java} onJavaChange={setJava} />
             )}
           </motion.div>
         </AnimatePresence>

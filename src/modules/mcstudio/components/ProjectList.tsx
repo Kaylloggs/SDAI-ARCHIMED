@@ -20,6 +20,7 @@ import type { ProjectSummary } from "@/core/ipc/bindings/ProjectSummary";
 import { errorText, mcstudioApi } from "../api";
 import { ago, LOADER_LABEL } from "../lib/format";
 import { useMcStudioStore } from "../store";
+import { EnvironmentPanel } from "./EnvironmentPanel";
 import { focusRing, ModIcon } from "./ui";
 
 function BuildBadge({ record }: { record: BuildRecord | null }) {
@@ -220,6 +221,8 @@ export function ProjectList({ onCreate }: { onCreate: () => void }) {
           </>
         }
       />
+
+      <EnvironmentPanel />
 
       {shownError && (
         <p role="alert" className="mb-4 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-footnote">

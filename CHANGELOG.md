@@ -4,6 +4,24 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Mod Studio : toutes les versions, choix du loader, installation de Java
+- **Minecraft 1.14 à 1.21.x** : 23 profils de version couvrent Fabric 1.14 → 1.21.x, Forge 1.14.4 →
+  1.21.5 et NeoForge 1.20.4 → 1.21.x, avec un template par époque d'API (registres, onglets créatifs,
+  identifiants, `setId` de 1.21.2) et un format de données par version (dossiers au singulier en
+  1.21, ingrédients en texte en 1.21.2, définitions `items/` en 1.21.4). Ce qui reste hors champ
+  (snapshots, avant 1.14, Forge 1.21.6+, NeoForge 1.20.2–1.20.3) est affiché avec la raison.
+  Les profils non encore compilés de bout en bout portent le badge « Non vérifié ».
+- **Choix des versions** : version du loader, de Fabric API et de Yarn (ou de Forge / NeoForge)
+  choisie parmi les versions publiées, recommandée présélectionnée ; modifiable après création
+  (`gradle.properties`, `fabric.mod.json` et `project.json` réécrits).
+- **Java manquant installé depuis l'app** : panneau « Environnement » (un JDK par famille de
+  versions, version exacte pour Forge), et proposition de téléchargement d'Eclipse Temurin
+  (API Adoptium) dans l'assistant, le tableau de bord et le build. Rien ne s'installe sans
+  confirmation ; l'archive est vérifiée par SHA-256, décompressée sans pouvoir sortir de son dossier
+  (`jdks/`), et l'installation est inscrite au journal d'audit. Voir ADR 0004.
+- Test e2e en matrice : `MCSTUDIO_E2E_ALL`, `MCSTUDIO_E2E_PROFILES`, `MCSTUDIO_E2E_INSTALL_JDK`.
+- Dépendances : `zip`, `tar`, `flate2`, `sha2`.
+
 ### Ajouté — Module Minecraft Mod Studio (phases A à C)
 - **Projets de mods réels** pour Fabric, Forge et NeoForge : assistant en six étapes (nom, identifiants,
   version, loader, Java, contenu), projet Gradle complet avec son wrapper, métadonnées, registres,

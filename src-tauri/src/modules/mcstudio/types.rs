@@ -37,6 +37,9 @@ pub struct ProfileInfo {
     pub java_max: Option<u32>,
     pub gradle: String,
     pub mappings: String,
+    /// Une vraie compilation a déjà réussi avec ce profil.
+    pub verified: bool,
+    pub notes: Option<String>,
 }
 
 /// Prise en charge d'une version de Minecraft par un loader.
@@ -49,6 +52,8 @@ pub struct LoaderSupport {
     pub available: bool,
     /// Profil Mod Studio qui sait construire ce couple ; `None` = non supporté.
     pub profile_id: Option<String>,
+    /// Pourquoi ce couple n'est pas pris en charge (quand `profile_id` est `None`).
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, TS)]
@@ -93,6 +98,41 @@ pub struct ResolvedVersions {
     pub offline: bool,
 }
 
+/// Une version proposée dans une liste (loader, mappings, API).
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct VersionChoice {
+    pub value: String,
+    /// Stable (par opposition à bêta) selon la source officielle.
+    pub stable: bool,
+    /// Version recommandée par le loader (Forge) ou la plus récente stable.
+    pub recommended: bool,
+}
+
+/// Versions choisies à la main ; `None` = celle proposée par défaut.
+#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct VersionSelection {
+    pub loader_version: Option<String>,
+    pub mappings_version: Option<String>,
+    pub api_version: Option<String>,
+}
+
+/// Versions disponibles pour un couple Minecraft × loader, les plus récentes d'abord.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct VersionOptions {
+    pub loader: Vec<VersionChoice>,
+    /// Yarn (Fabric) ; vide pour les mappings officiels.
+    pub mappings: Vec<VersionChoice>,
+    /// Fabric API ; vide pour Forge et NeoForge.
+    pub api: Vec<VersionChoice>,
+    pub offline: bool,
+}
+
 /// JDK installé sur la machine.
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../../src/core/ipc/bindings/")]
@@ -114,6 +154,73 @@ pub struct JavaStatus {
     pub max: Option<u32>,
     /// Ce qu'il faut installer quand aucun JDK ne convient.
     pub problem: Option<String>,
+}
+
+/// JDK prêt à être téléchargé, tel que la source officielle le décrit.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct JdkOffer {
+    pub major: u32,
+    /// `jdk-21.0.4+7`
+    pub release_name: String,
+    pub vendor: String,
+    pub url: String,
+    pub file_name: String,
+    #[ts(type = "number")]
+    pub size: u64,
+    pub sha256: String,
+    /// Dossier où il sera installé (données d'ARCHIMED, rien dans le système).
+    pub target_dir: String,
+}
+
+/// Besoin en Java de l'ensemble des profils : quelle version, et qui la satisfait.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct JdkNeed {
+    pub major: u32,
+    /// Cette version exactement (Forge 1.14 – 1.20 : les JVM plus récentes échouent).
+    pub exact: bool,
+    /// JDK compatible déjà présent (le plus proche du besoin).
+    pub installed: Option<JavaInstall>,
+    /// Plages de Minecraft concernées (« Fabric · 1.14 – 1.16.5 »…).
+    pub used_by: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct EnvironmentReport {
+    pub jdks: Vec<JavaInstall>,
+    pub needs: Vec<JdkNeed>,
+    /// Dossier des JDK installés par Mod Studio.
+    pub managed_dir: String,
+}
+
+/// Déroulé d'une installation de JDK, transmis par `Channel`.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum InstallEvent {
+    Downloading {
+        #[ts(type = "number")]
+        received: u64,
+        #[ts(type = "number")]
+        total: u64,
+    },
+    Verifying,
+    Extracting,
+    Done {
+        install: JavaInstall,
+    },
+    Failed {
+        message: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

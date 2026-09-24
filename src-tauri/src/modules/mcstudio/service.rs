@@ -1,6 +1,7 @@
 //! Façade du module : relie projets, profils, Java, générateurs et compilation.
 //! Testable sans Tauri (aucun `AppHandle` ici).
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -9,12 +10,14 @@ use crate::core::{AppError, AppResult};
 use super::content;
 use super::gradle::{self, BuildParams, BuildRegistry};
 use super::java;
+use super::jdk::JdkInstaller;
 use super::profiles::{self, meta::MetaClient, Profile};
 use super::projects::{self, Projects};
 use super::types::{
     BlockRequest, BuildEvent, BuildRecord, BuildTask, ContentResult, CreateProjectRequest,
-    ItemRequest, JavaInstall, JavaStatus, ProjectMeta, ProjectStats, ProjectSummary, RecipeRequest,
-    ResolvedVersions, VersionCatalog,
+    EnvironmentReport, ItemRequest, JavaInstall, JavaStatus, JdkNeed, ProjectMeta, ProjectStats,
+    ProjectSummary, RecipeRequest, ResolvedVersions, VersionCatalog, VersionOptions,
+    VersionSelection,
 };
 
 /// Taille maximale d'un journal renvoyé à l'interface (la fin est gardée).
@@ -25,6 +28,7 @@ pub struct McStudio {
     pub projects: Projects,
     meta: MetaClient,
     builds: Arc<BuildRegistry>,
+    pub jdk: JdkInstaller,
 }
 
 impl McStudio {
@@ -33,7 +37,38 @@ impl McStudio {
             projects: Projects::new(&module_dir),
             meta: MetaClient::new(module_dir.join("cache").join("meta")),
             builds: Arc::new(BuildRegistry::default()),
+            jdk: JdkInstaller::new(&module_dir),
             module_dir,
+        }
+    }
+
+    /// JDK de la machine, ceux installés par Mod Studio compris.
+    pub fn detect_java(&self) -> Vec<JavaInstall> {
+        java::detect(&[self.jdk.dir()])
+    }
+
+    /// Versions de Java dont les profils ont besoin, et celles déjà présentes. Une ligne
+    /// par version majeure : un seul JDK 17 couvre « 17 ou plus » comme « 17 exactement ».
+    pub fn environment(&self) -> EnvironmentReport {
+        let installs = self.detect_java();
+        let mut needs: BTreeMap<u32, (bool, Vec<String>)> = BTreeMap::new();
+        for profile in self.profiles() {
+            let entry = needs.entry(profile.java).or_default();
+            entry.0 |= profile.java_max == Some(profile.java);
+            entry.1.push(profile.label.clone());
+        }
+        EnvironmentReport {
+            needs: needs
+                .into_iter()
+                .map(|(major, (exact, used_by))| JdkNeed {
+                    major,
+                    exact,
+                    installed: java::choose(&installs, None, major, exact.then_some(major)),
+                    used_by,
+                })
+                .collect(),
+            jdks: installs,
+            managed_dir: self.jdk.dir().display().to_string(),
         }
     }
 
@@ -45,10 +80,25 @@ impl McStudio {
         self.meta.catalog(&self.profiles()).await
     }
 
-    pub async fn resolve(&self, profile_id: &str, minecraft: &str) -> AppResult<ResolvedVersions> {
+    pub async fn resolve(
+        &self,
+        profile_id: &str,
+        minecraft: &str,
+        selection: &VersionSelection,
+    ) -> AppResult<ResolvedVersions> {
         let profiles = self.profiles();
         let profile = profiles::find(&profiles, profile_id)?;
-        self.meta.resolve(profile, minecraft).await
+        self.meta.resolve(profile, minecraft, selection).await
+    }
+
+    pub async fn version_options(
+        &self,
+        profile_id: &str,
+        minecraft: &str,
+    ) -> AppResult<VersionOptions> {
+        let profiles = self.profiles();
+        let profile = profiles::find(&profiles, profile_id)?;
+        self.meta.options(profile, minecraft).await
     }
 
     pub fn create(&self, request: &CreateProjectRequest) -> AppResult<ProjectSummary> {
@@ -71,6 +121,26 @@ impl McStudio {
         Ok((root, meta, profile))
     }
 
+    /// Change les versions du loader (même Minecraft) d'un projet existant.
+    pub async fn update_versions(
+        &self,
+        project_id: &str,
+        selection: &VersionSelection,
+    ) -> AppResult<ProjectSummary> {
+        if self.builds.is_running(project_id) {
+            return Err(AppError::invalid(
+                "Attendez la fin de la compilation en cours.",
+            ));
+        }
+        let (root, mut meta, profile) = self.open_context(project_id)?;
+        let versions = self
+            .meta
+            .resolve(&profile, &meta.versions.minecraft, selection)
+            .await?;
+        projects::apply_versions(&root, &mut meta, versions)?;
+        self.projects.summary(project_id)
+    }
+
     pub fn stats(&self, project_id: &str) -> AppResult<ProjectStats> {
         let (root, meta, _) = self.open_context(project_id)?;
         Ok(projects::stats(&root, &meta.mod_id))
@@ -78,7 +148,7 @@ impl McStudio {
 
     pub fn java_status(&self, project_id: &str) -> AppResult<JavaStatus> {
         let (_, meta, _) = self.open_context(project_id)?;
-        Ok(java_status_for(&meta, &java::detect()))
+        Ok(java_status_for(&meta, &self.detect_java()))
     }
 
     /// Mémorise le JDK d'un projet (`None` = détection automatique).
@@ -108,7 +178,7 @@ impl McStudio {
         let mut body = serde_json::to_string_pretty(&meta)?;
         body.push('\n');
         super::fsutil::write_atomic(&projects::meta_path(&root), body.as_bytes())?;
-        Ok(java_status_for(&meta, &java::detect()))
+        Ok(java_status_for(&meta, &self.detect_java()))
     }
 
     fn generator(&self, project_id: &str) -> AppResult<content::GenContext> {
@@ -146,7 +216,7 @@ impl McStudio {
             ));
         }
         gradle::check_wrapper(&root)?;
-        let status = java_status_for(&meta, &java::detect());
+        let status = java_status_for(&meta, &self.detect_java());
         let java = status
             .install
             .ok_or_else(|| AppError::not_found(status.problem.unwrap_or_default()))?;

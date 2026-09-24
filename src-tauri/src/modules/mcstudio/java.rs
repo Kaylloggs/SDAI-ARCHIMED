@@ -109,9 +109,15 @@ pub fn inspect(path: &Path) -> Option<JavaInstall> {
     })
 }
 
-/// Tous les JDK trouvés, du plus récent au plus ancien.
-pub fn detect() -> Vec<JavaInstall> {
+/// Tous les JDK trouvés, du plus récent au plus ancien. `managed` : dossiers de JDK
+/// installés par ARCHIMED (un JDK par sous-dossier).
+pub fn detect(managed: &[&Path]) -> Vec<JavaInstall> {
     let mut candidates: Vec<PathBuf> = Vec::new();
+    for dir in managed {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            candidates.extend(entries.flatten().map(|entry| entry.path()));
+        }
+    }
     if let Some(home) = std::env::var_os("JAVA_HOME") {
         candidates.push(PathBuf::from(home));
     }

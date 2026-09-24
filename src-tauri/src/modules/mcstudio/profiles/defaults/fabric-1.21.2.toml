@@ -1,0 +1,18 @@
+# Fabric · 1.21.2 – 1.21.3
+# Versions exactes (loader, mappings, API) : résolues à la création depuis les métadonnées officielles.
+# Objets et blocs reçoivent leur clé de registre dans leurs réglages ; ingrédients de recette en texte.
+id = "fabric-1.21.2"
+loader = "fabric"
+label = "Fabric · 1.21.2 – 1.21.3"
+minecraft_min = "1.21.2"
+minecraft_max = "1.21.3"
+java = 21
+gradle = "8.14.3"
+plugin = "1.10-SNAPSHOT"
+mappings = "yarn"
+template = "fabric-1.21.2"
+dialect = "fabric-yarn-1.21.2"
+data_format = "1.21.2"
+pack_format = 42
+verified = false
+notes = "Objets et blocs reçoivent leur clé de registre dans leurs réglages ; ingrédients de recette en texte."

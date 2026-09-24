@@ -5,10 +5,12 @@ import { Badge, Button } from "@/design-system/primitives";
 import type { LoaderId } from "@/core/ipc/bindings/LoaderId";
 import type { VersionCatalog } from "@/core/ipc/bindings/VersionCatalog";
 import type { VersionOption } from "@/core/ipc/bindings/VersionOption";
+import type { VersionSelection } from "@/core/ipc/bindings/VersionSelection";
 import { errorText, mcstudioApi } from "../../api";
 import { LOADER_LABEL } from "../../lib/format";
 import { Fact, focusRing } from "../ui";
-import type { Draft } from "./draft";
+import { VersionPicker } from "../VersionPicker";
+import { EMPTY_SELECTION, type Draft } from "./draft";
 
 type CatalogState = { catalog: VersionCatalog | null; error: string | null; loading: boolean; reload: () => void };
 
@@ -143,7 +145,14 @@ export function VersionStep({
               selected={draft.minecraft === option.minecraft}
               disabled={!ok}
               onSelect={() =>
-                update({ minecraft: option.minecraft, loader: null, profileId: null, versions: null, javaHome: null })
+                update({
+                  minecraft: option.minecraft,
+                  loader: null,
+                  profileId: null,
+                  selection: EMPTY_SELECTION,
+                  versions: null,
+                  javaHome: null,
+                })
               }
             >
               <span className="w-20 shrink-0 font-mono text-body-sm tabular-nums">{option.minecraft}</span>
@@ -155,11 +164,11 @@ export function VersionStep({
                   ))}
                 {!ok && (
                   <span className="text-footnote text-text-subtle">
-                    Publiée pour {option.loaders.filter((l) => l.available).map((l) => LOADER_LABEL[l.loader]).join(", ")}
+                    {option.loaders.find((l) => l.reason)?.reason ?? "Pas encore de profil pour cette version."}
                   </span>
                 )}
               </span>
-              {!ok && <span className="text-caption text-text-subtle">Non prise en charge</span>}
+
             </OptionRow>
           );
         })}
@@ -203,14 +212,15 @@ export function LoaderStep({
   const request = useRef(0);
   const option = catalog?.versions.find((v) => v.minecraft === draft.minecraft);
 
-  const resolve = (loader: LoaderId, profileId: string) => {
+  /** Versions exactes pour ce loader ; `selection` vide = versions recommandées. */
+  const resolve = (loader: LoaderId, profileId: string, selection: VersionSelection) => {
     if (!draft.minecraft) return;
     const ticket = ++request.current;
-    update({ loader, profileId, versions: null, javaHome: null });
+    update({ loader, profileId, selection, versions: null, javaHome: null });
     setResolving(true);
     setError(null);
     mcstudioApi
-      .resolveVersions(profileId, draft.minecraft)
+      .resolveVersions(profileId, draft.minecraft, selection)
       .then((versions) => {
         if (ticket === request.current) update({ versions });
       })
@@ -231,26 +241,52 @@ export function LoaderStep({
         {LOADER_ORDER.map((loader) => {
           const support = option?.loaders.find((l) => l.loader === loader);
           const profileId = support?.profileId ?? null;
+          const rowProfile = catalog?.profiles.find((p) => p.id === profileId);
           const reason = !support?.available
             ? `${LOADER_LABEL[loader]} ne publie pas de version pour Minecraft ${draft.minecraft}.`
             : !profileId
-              ? "Pas encore de modèle vérifié pour cette version."
+              ? (support.reason ?? "Pas encore de profil pour cette version.")
               : LOADER_HINT[loader];
           return (
             <OptionRow
               key={loader}
               selected={draft.loader === loader}
               disabled={!profileId}
-              onSelect={() => profileId && resolve(loader, profileId)}
+              onSelect={() => profileId && resolve(loader, profileId, EMPTY_SELECTION)}
             >
-              <span className="flex-1">
-                <span className="block text-body-sm font-medium">{LOADER_LABEL[loader]}</span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2 text-body-sm font-medium">
+                  {LOADER_LABEL[loader]}
+                  {rowProfile && !rowProfile.verified && <Badge tone="warning">Non vérifié</Badge>}
+                </span>
                 <span className="block text-footnote text-text-subtle">{reason}</span>
               </span>
             </OptionRow>
           );
         })}
       </div>
+
+      {profile && !profile.verified && (
+        <p className="rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-footnote text-text-muted">
+          Ce profil n'a pas encore été validé par une compilation réelle. Le projet est généré pour l'API de cette
+          version ; si la compilation échoue, le journal dira quoi ajuster.
+          {profile.notes && <span className="mt-1 block text-text-subtle">{profile.notes}</span>}
+        </p>
+      )}
+
+      {draft.loader && draft.profileId && draft.minecraft && (
+        <section aria-label="Versions" className="space-y-2">
+          <p className="text-footnote font-medium text-text">Versions</p>
+          <VersionPicker
+            profileId={draft.profileId}
+            minecraft={draft.minecraft}
+            loader={draft.loader}
+            selection={draft.selection}
+            disabled={resolving}
+            onChange={(selection) => resolve(draft.loader as LoaderId, draft.profileId as string, selection)}
+          />
+        </section>
+      )}
 
       {resolving && (
         <p className="flex items-center gap-2 text-footnote text-text-muted">
@@ -261,7 +297,12 @@ export function LoaderStep({
         <div role="alert" className="space-y-2">
           <p className="text-footnote text-danger">{error}</p>
           {draft.loader && draft.profileId && (
-            <Button type="button" size="sm" onClick={() => resolve(draft.loader as LoaderId, draft.profileId as string)} icon={<RefreshCw size={12} />}>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => resolve(draft.loader as LoaderId, draft.profileId as string, draft.selection)}
+              icon={<RefreshCw size={12} />}
+            >
               Réessayer
             </Button>
           )}
@@ -269,14 +310,11 @@ export function LoaderStep({
       )}
       {v && profile && (
         <dl className="divide-y divide-border rounded-md border border-border bg-surface-1 px-3">
-          <Fact label="Loader" mono>
-            {LOADER_LABEL[v.loader]} {v.loaderVersion}
-          </Fact>
-          {v.mappingsVersion && <Fact label="Mappings Yarn" mono>{v.mappingsVersion}</Fact>}
-          {!v.mappingsVersion && <Fact label="Mappings">Officiels (Mojang)</Fact>}
-          {v.apiVersion && <Fact label="Fabric API" mono>{v.apiVersion}</Fact>}
+          <Fact label="Mappings">{v.mappingsVersion ? "Yarn" : "Officiels (Mojang)"}</Fact>
           <Fact label="Java requis">{v.javaMax === v.java ? `Java ${v.java} exactement` : `Java ${v.java} ou plus`}</Fact>
-          <Fact label="Gradle" mono>{v.gradle}</Fact>
+          <Fact label="Gradle" mono>
+            {v.gradle}
+          </Fact>
           {v.offline && <Fact label="Source">Cache (hors ligne)</Fact>}
         </dl>
       )}

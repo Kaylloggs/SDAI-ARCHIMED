@@ -1,0 +1,16 @@
+# Forge · 1.21 – 1.21.1
+# Versions exactes (loader, mappings, API) : résolues à la création depuis les métadonnées officielles.
+id = "forge-1.21"
+loader = "forge"
+label = "Forge · 1.21 – 1.21.1"
+minecraft_min = "1.21"
+minecraft_max = "1.21.1"
+java = 21
+gradle = "8.8"
+plugin = "[6.0.16,6.2)"
+mappings = "official"
+template = "forge-1.20"
+dialect = "forge-1.20"
+data_format = "1.21"
+pack_format = 34
+verified = false

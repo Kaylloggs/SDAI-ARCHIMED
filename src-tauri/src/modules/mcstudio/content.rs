@@ -58,33 +58,63 @@ impl GenContext {
         self.root.join(relative)
     }
 
+    /// Dossiers de données au pluriel jusqu'à 1.20.6, au singulier ensuite.
+    fn plural_dirs(&self) -> bool {
+        self.data_format < DataFormat::V1_21
+    }
+
     fn recipe_dir(&self) -> &'static str {
-        match self.data_format {
-            DataFormat::V1_20 => "recipes",
-            DataFormat::V1_21 => "recipe",
+        if self.plural_dirs() {
+            "recipes"
+        } else {
+            "recipe"
         }
     }
 
     fn loot_dir(&self) -> &'static str {
-        match self.data_format {
-            DataFormat::V1_20 => "loot_tables",
-            DataFormat::V1_21 => "loot_table",
+        if self.plural_dirs() {
+            "loot_tables"
+        } else {
+            "loot_table"
         }
     }
 
     fn block_tag_dir(&self) -> &'static str {
-        match self.data_format {
-            DataFormat::V1_20 => "blocks",
-            DataFormat::V1_21 => "block",
+        if self.plural_dirs() {
+            "blocks"
+        } else {
+            "block"
         }
     }
 
     /// Pile d'objets en résultat de recette.
     fn stack(&self, item: &str, count: u32) -> Value {
         match self.data_format {
-            DataFormat::V1_20 => json!({ "item": item, "count": count }),
-            DataFormat::V1_21 => json!({ "id": item, "count": count }),
+            DataFormat::Legacy => json!({ "item": item, "count": count }),
+            _ => json!({ "id": item, "count": count }),
         }
+    }
+
+    /// Ingrédient : objet `{"item": …}` jusqu'à 1.21.1, simple texte ensuite.
+    fn ingredient(&self, item: &str) -> Value {
+        if self.data_format >= DataFormat::V1_21_2 {
+            Value::String(item.to_string())
+        } else {
+            json!({ "item": item })
+        }
+    }
+
+    /// Résultat de cuisson : texte jusqu'à 1.20.4, pile `{"id": …}` ensuite.
+    fn smelting_result(&self, item: &str) -> Value {
+        match self.data_format {
+            DataFormat::Legacy => Value::String(item.to_string()),
+            _ => json!({ "id": item }),
+        }
+    }
+
+    /// Depuis 1.21.4, chaque objet a une définition dans `assets/<modid>/items/`.
+    fn item_definitions(&self) -> bool {
+        self.data_format >= DataFormat::V1_21_4
     }
 
     fn namespaced(&self, id: &str) -> String {
@@ -144,15 +174,38 @@ mod java {
 
     pub fn item_field(dialect: Dialect, konst: &str, id: &str) -> String {
         match dialect {
-            Dialect::FabricYarn120 | Dialect::FabricYarn121 => {
+            Dialect::FabricYarn114 => format!(
+                "public static final Item {konst} = register(\"{id}\", new Item(new Item.Settings().group(ItemGroup.MISC)));"
+            ),
+            Dialect::FabricYarn1193 | Dialect::FabricYarn120 | Dialect::FabricYarn121 => {
                 format!("public static final Item {konst} = register(\"{id}\", new Item(new Item.Settings()));")
             }
-            Dialect::Forge120 => format!(
+            Dialect::FabricYarn1212 => {
+                format!("public static final Item {konst} = register(\"{id}\", Item::new, new Item.Settings());")
+            }
+            Dialect::Forge114 => format!(
+                "public static final RegistryObject<Item> {konst} = ITEMS.register(\"{id}\", () -> new Item(new Item.Properties().tab(ItemGroup.TAB_MISC)));"
+            ),
+            Dialect::Forge117 => format!(
+                "public static final RegistryObject<Item> {konst} = ITEMS.register(\"{id}\", () -> new Item(new Item.Properties().tab(CreativeModeTab.TAB_MISC)));"
+            ),
+            Dialect::Forge1193 | Dialect::Forge120 => format!(
                 "public static final RegistryObject<Item> {konst} = ITEMS.register(\"{id}\", () -> new Item(new Item.Properties()));"
             ),
+            Dialect::Forge1213 => format!("public static final RegistryObject<Item> {konst} = registerItem(\"{id}\");"),
             Dialect::NeoForge121 => format!(
                 "public static final DeferredItem<Item> {konst} = ITEMS.register(\"{id}\", () -> new Item(new Item.Properties()));"
             ),
+            Dialect::NeoForge1212 => format!("public static final DeferredItem<Item> {konst} = registerItem(\"{id}\");"),
+        }
+    }
+
+    /// Bloc vanilla dont on copie les réglages (le son et l'outil suivent).
+    fn vanilla_model(sound: BlockSound) -> &'static str {
+        match sound {
+            BlockSound::Stone => "STONE",
+            BlockSound::Metal => "IRON_BLOCK",
+            BlockSound::Wood => "OAK_PLANKS",
         }
     }
 
@@ -164,29 +217,64 @@ mod java {
         resistance: &str,
         sound: BlockSound,
     ) -> String {
+        let model = vanilla_model(sound);
         let sound = match sound {
             BlockSound::Stone => "STONE",
             BlockSound::Metal => "METAL",
             BlockSound::Wood => "WOOD",
         };
+        let strength = format!("strength({hardness}, {resistance})");
         match dialect {
+            // Avant 1.20, pas de `Settings.create()` et les sons sont protégés en 1.14 :
+            // on copie les réglages d'un bloc vanilla puis on règle la solidité.
+            Dialect::FabricYarn114 => format!(
+                "public static final Block {konst} = register(\"{id}\", new Block(Block.Settings.copy(Blocks.{model}).{strength}));"
+            ),
+            Dialect::FabricYarn1193 => format!(
+                "public static final Block {konst} = register(\"{id}\", new Block(AbstractBlock.Settings.copy(Blocks.{model}).{strength}));"
+            ),
             Dialect::FabricYarn120 | Dialect::FabricYarn121 => format!(
-                "public static final Block {konst} = register(\"{id}\", new Block(AbstractBlock.Settings.create().strength({hardness}, {resistance}).sounds(BlockSoundGroup.{sound})));"
+                "public static final Block {konst} = register(\"{id}\", new Block(AbstractBlock.Settings.create().{strength}.sounds(BlockSoundGroup.{sound})));"
+            ),
+            Dialect::FabricYarn1212 => format!(
+                "public static final Block {konst} = register(\"{id}\", Block::new, AbstractBlock.Settings.create().{strength}.sounds(BlockSoundGroup.{sound}));"
+            ),
+            // Noms de classes MCP (`Block.Properties`), membres aux noms officiels.
+            Dialect::Forge114 => format!(
+                "public static final RegistryObject<Block> {konst} = registerBlock(\"{id}\", () -> new Block(Block.Properties.of(Material.{sound}).{strength}.sound(SoundType.{sound})));"
+            ),
+            Dialect::Forge117 | Dialect::Forge1193 => format!(
+                "public static final RegistryObject<Block> {konst} = registerBlock(\"{id}\", () -> new Block(BlockBehaviour.Properties.of(Material.{sound}).{strength}.sound(SoundType.{sound})));"
             ),
             Dialect::Forge120 => format!(
-                "public static final RegistryObject<Block> {konst} = registerBlock(\"{id}\", () -> new Block(BlockBehaviour.Properties.of().strength({hardness}, {resistance}).sound(SoundType.{sound})));"
+                "public static final RegistryObject<Block> {konst} = registerBlock(\"{id}\", () -> new Block(BlockBehaviour.Properties.of().{strength}.sound(SoundType.{sound})));"
+            ),
+            Dialect::Forge1213 => format!(
+                "public static final RegistryObject<Block> {konst} = registerBlock(\"{id}\", BlockBehaviour.Properties.of().{strength}.sound(SoundType.{sound}));"
             ),
             Dialect::NeoForge121 => format!(
-                "public static final DeferredBlock<Block> {konst} = registerBlock(\"{id}\", () -> new Block(BlockBehaviour.Properties.of().strength({hardness}, {resistance}).sound(SoundType.{sound})));"
+                "public static final DeferredBlock<Block> {konst} = registerBlock(\"{id}\", () -> new Block(BlockBehaviour.Properties.of().{strength}.sound(SoundType.{sound})));"
+            ),
+            Dialect::NeoForge1212 => format!(
+                "public static final DeferredBlock<Block> {konst} = registerBlock(\"{id}\", BlockBehaviour.Properties.of().{strength}.sound(SoundType.{sound}));"
             ),
         }
     }
 
-    /// Entrée de l'onglet créatif (le marqueur vit dans `ModItems`).
-    pub fn creative_entry(dialect: Dialect, reference: &str) -> String {
+    /// Entrée de l'onglet créatif (le marqueur vit dans `ModItems`) ; `None` quand
+    /// l'onglet est fixé dans les réglages de l'objet (avant 1.19.3).
+    pub fn creative_entry(dialect: Dialect, reference: &str) -> Option<String> {
         match dialect {
-            Dialect::FabricYarn120 | Dialect::FabricYarn121 => format!("entries.add({reference});"),
-            Dialect::Forge120 | Dialect::NeoForge121 => format!("event.accept({reference});"),
+            Dialect::FabricYarn114 | Dialect::Forge114 | Dialect::Forge117 => None,
+            Dialect::FabricYarn1193
+            | Dialect::FabricYarn120
+            | Dialect::FabricYarn121
+            | Dialect::FabricYarn1212 => Some(format!("entries.add({reference});")),
+            Dialect::Forge1193
+            | Dialect::Forge120
+            | Dialect::Forge1213
+            | Dialect::NeoForge121
+            | Dialect::NeoForge1212 => Some(format!("event.accept({reference});")),
         }
     }
 }
@@ -323,11 +411,17 @@ fn lang_updates(ctx: &GenContext, key: &str, en: &str, fr: &str) -> AppResult<Ve
     Ok(out)
 }
 
+/// `assets/<modid>/items/<id>.json` (1.21.4+) : quel modèle affiche l'objet.
+fn item_definition(model: &str) -> Vec<u8> {
+    pretty(&json!({ "model": { "type": "minecraft:model", "model": model } }))
+}
+
 pub fn add_item(ctx: &GenContext, request: &ItemRequest) -> AppResult<ContentResult> {
     validate_id(&request.id)?;
     let id = &request.id;
     let konst = constant(id);
     let model = ctx.assets(&format!("models/item/{id}.json"));
+    let definition = ctx.assets(&format!("items/{id}.json"));
     let texture = ctx.assets(&format!("textures/item/{id}.png"));
     ensure_absent(ctx, &model)?;
 
@@ -344,12 +438,10 @@ pub fn add_item(ctx: &GenContext, request: &ItemRequest) -> AppResult<ContentRes
         &java::item_field(ctx.dialect, &konst, id),
         &items_file,
     )?;
-    let items = insert_before_marker(
-        &items,
-        MARKER_TAB,
-        &java::creative_entry(ctx.dialect, &konst),
-        &items_file,
-    )?;
+    let items = match java::creative_entry(ctx.dialect, &konst) {
+        Some(entry) => insert_before_marker(&items, MARKER_TAB, &entry, &items_file)?,
+        None => items,
+    };
 
     let mut plan = vec![planned(ctx, items_file, items.into_bytes())];
     plan.extend(lang_updates(
@@ -363,6 +455,13 @@ pub fn add_item(ctx: &GenContext, request: &ItemRequest) -> AppResult<ContentRes
         model,
         pretty(&json!({ "parent": "minecraft:item/generated", "textures": { "layer0": format!("{}:item/{id}", ctx.mod_id) } })),
     ));
+    if ctx.item_definitions() {
+        plan.push(planned(
+            ctx,
+            definition,
+            item_definition(&format!("{}:item/{id}", ctx.mod_id)),
+        ));
+    }
     if !ctx.abs(&texture).exists() {
         plan.push(planned(ctx, texture, textures::gem(id).png()?));
     }
@@ -403,8 +502,16 @@ pub fn add_block(ctx: &GenContext, request: &BlockRequest) -> AppResult<ContentR
 
     let items_file = ctx.registry_file("ModItems");
     let items = read(ctx, &items_file)?;
-    let entry = java::creative_entry(ctx.dialect, &format!("ModBlocks.{konst}"));
-    let items = insert_before_marker(&items, MARKER_TAB, &entry, &items_file)?;
+    let items = match java::creative_entry(ctx.dialect, &format!("ModBlocks.{konst}")) {
+        Some(entry) => Some(insert_before_marker(
+            &items,
+            MARKER_TAB,
+            &entry,
+            &items_file,
+        )?),
+        // Onglet fixé dans les réglages de l'objet du bloc : `ModItems` ne change pas.
+        None => None,
+    };
 
     let tool = match request.sound {
         BlockSound::Wood => "axe",
@@ -422,10 +529,10 @@ pub fn add_block(ctx: &GenContext, request: &BlockRequest) -> AppResult<ContentR
     let tag_bytes = add_tag_value(existing_tag.as_deref(), &ctx.namespaced(id), &tag)?;
 
     let reference = format!("{}:block/{id}", ctx.mod_id);
-    let mut plan = vec![
-        planned(ctx, blocks_file, blocks.into_bytes()),
-        planned(ctx, items_file, items.into_bytes()),
-    ];
+    let mut plan = vec![planned(ctx, blocks_file, blocks.into_bytes())];
+    if let Some(items) = items {
+        plan.push(planned(ctx, items_file, items.into_bytes()));
+    }
     plan.extend(lang_updates(
         ctx,
         &format!("block.{}.{id}", ctx.mod_id),
@@ -447,6 +554,10 @@ pub fn add_block(ctx: &GenContext, request: &BlockRequest) -> AppResult<ContentR
         item_model,
         pretty(&json!({ "parent": reference })),
     ));
+    if ctx.item_definitions() {
+        let definition = ctx.assets(&format!("items/{id}.json"));
+        plan.push(planned(ctx, definition, item_definition(&reference)));
+    }
     plan.push(planned(
         ctx,
         loot,
@@ -507,7 +618,7 @@ pub fn add_recipe(ctx: &GenContext, request: &RecipeRequest) -> AppResult<Conten
                     )));
                 }
                 validate_ref(item)?;
-                keys.insert(symbol.clone(), json!({ "item": item }));
+                keys.insert(symbol.clone(), ctx.ingredient(item));
             }
             (
                 id,
@@ -538,7 +649,7 @@ pub fn add_recipe(ctx: &GenContext, request: &RecipeRequest) -> AppResult<Conten
             }
             let ingredients: Vec<Value> = ingredients
                 .iter()
-                .map(|item| json!({ "item": item }))
+                .map(|item| ctx.ingredient(item))
                 .collect();
             (
                 id,
@@ -560,16 +671,13 @@ pub fn add_recipe(ctx: &GenContext, request: &RecipeRequest) -> AppResult<Conten
             validate_id(id)?;
             validate_ref(ingredient)?;
             validate_ref(result)?;
-            let result_value = match ctx.data_format {
-                DataFormat::V1_20 => Value::String(result.clone()),
-                DataFormat::V1_21 => json!({ "id": result }),
-            };
+            let result_value = ctx.smelting_result(result);
             (
                 id,
                 json!({
                     "type": "minecraft:smelting",
                     "category": "misc",
-                    "ingredient": { "item": ingredient },
+                    "ingredient": ctx.ingredient(ingredient),
                     "result": result_value,
                     "experience": experience,
                     "cookingtime": (*cooking_time).max(1),
@@ -632,6 +740,24 @@ mod tests {
 
     #[test]
     fn java_snippets_follow_the_loader_api() {
+        assert!(
+            java::item_field(Dialect::Forge114, "RUBY", "ruby").contains("tab(ItemGroup.TAB_MISC)")
+        );
+        assert!(java::item_field(Dialect::FabricYarn1212, "RUBY", "ruby").contains("Item::new"));
+        assert!(java::block_field(
+            Dialect::FabricYarn114,
+            "X",
+            "x",
+            "1.0f",
+            "1.0f",
+            BlockSound::Wood
+        )
+        .contains("copy(Blocks.OAK_PLANKS)"));
+        assert!(java::creative_entry(Dialect::Forge117, "X").is_none());
+        assert_eq!(
+            java::creative_entry(Dialect::NeoForge1212, "X").as_deref(),
+            Some("event.accept(X);")
+        );
         assert!(
             java::item_field(Dialect::Forge120, "RUBY", "ruby").contains("RegistryObject<Item>")
         );

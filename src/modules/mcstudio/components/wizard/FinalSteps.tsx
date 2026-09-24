@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { AlertTriangle, Check, ExternalLink, FolderOpen, Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, Check, FolderOpen, Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Badge, Button, Select } from "@/design-system/primitives";
 import type { JavaInstall } from "@/core/ipc/bindings/JavaInstall";
 import type { License } from "@/core/ipc/bindings/License";
 import { errorText, mcstudioApi } from "../../api";
 import { joinPath } from "../../lib/format";
+import { JdkInstallCard } from "../JdkInstallCard";
 import { Field, focusRing, inputClass } from "../ui";
 import type { Draft } from "./draft";
 
@@ -106,21 +106,15 @@ export function JavaStep({ draft, update }: StepProps) {
       )}
 
       {installs !== null && !automatic && !draft.javaHome && (
-        <div role="alert" className="space-y-2 rounded-md border border-warning/40 bg-warning-soft px-3 py-2">
+        <div role="alert" className="space-y-3 rounded-md border border-warning/40 bg-warning-soft px-3 py-3">
           <p className="flex items-center gap-2 text-footnote font-medium">
-            <AlertTriangle size={14} className="text-warning" /> Aucun JDK compatible
+            <AlertTriangle size={14} className="text-warning" /> Aucun JDK compatible sur cet ordinateur
           </p>
           <p className="text-footnote text-text-muted">
-            Installez Eclipse Temurin {min} (JDK), puis relancez la recherche. Vous pouvez créer le projet maintenant : la
-            compilation attendra le bon JDK.
+            Mod Studio peut installer Eclipse Temurin {min} pour vous. Vous pouvez aussi créer le projet maintenant et
+            l'installer plus tard : la compilation attendra le bon JDK.
           </p>
-          <Button type="button"
-            size="sm"
-            icon={<ExternalLink size={12} />}
-            onClick={() => void openUrl(`https://adoptium.net/temurin/releases/?version=${min}`)}
-          >
-            Télécharger Temurin {min}
-          </Button>
+          <JdkInstallCard major={min} exact={max === min} onInstalled={() => detect()} />
         </div>
       )}
       {error && (

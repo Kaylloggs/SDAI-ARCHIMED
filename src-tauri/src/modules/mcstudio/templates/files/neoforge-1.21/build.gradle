@@ -12,8 +12,8 @@ base {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_{{java_version}}
-    targetCompatibility = JavaVersion.VERSION_{{java_version}}
+    sourceCompatibility = JavaVersion.VERSION_{{java_enum}}
+    targetCompatibility = JavaVersion.VERSION_{{java_enum}}
 }
 
 neoForge {
@@ -42,5 +42,5 @@ repositories {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    options.release = {{java_version}}
+    options.release = {{java_release}}
 }

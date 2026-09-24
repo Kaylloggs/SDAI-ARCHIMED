@@ -1,0 +1,18 @@
+# Fabric · 1.19.3 – 1.19.4
+# Versions exactes (loader, mappings, API) : résolues à la création depuis les métadonnées officielles.
+# Registres déplacés dans net.minecraft.registry ; onglets créatifs par événement.
+id = "fabric-1.19.3"
+loader = "fabric"
+label = "Fabric · 1.19.3 – 1.19.4"
+minecraft_min = "1.19.3"
+minecraft_max = "1.19.4"
+java = 17
+gradle = "8.14.3"
+plugin = "1.10-SNAPSHOT"
+mappings = "yarn"
+template = "fabric"
+dialect = "fabric-yarn-1.19.3"
+data_format = "1.14"
+pack_format = 13
+verified = false
+notes = "Registres déplacés dans net.minecraft.registry ; onglets créatifs par événement."

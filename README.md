@@ -65,8 +65,9 @@ ARCHIMED does not replace the CLIs: it drives the ones installed on your machine
 
 ### ⛏️ Minecraft Mod Studio (`mcstudio` module)
 - Create **real** Minecraft mod projects for **Fabric**, **Forge** or **NeoForge**: a Gradle project with its wrapper, metadata, registries, icon, assets and data files, ready to compile.
-- Versions come from the loaders' official metadata (Fabric Meta, Forge promotions, NeoForge Maven), cached for offline use. Each supported Minecraft × loader pair has a versioned profile (Java, Gradle, plugin, mappings, data format); anything else is shown as unsupported.
-- Detects installed JDKs and picks the one each profile needs (Forge 1.20.1 needs exactly Java 17).
+- **Every Minecraft release from 1.14 to 1.21.x**: 23 versioned profiles (Java, Gradle, plugin, mappings, code dialect, data format) cover Fabric 1.14 → 1.21.x, Forge 1.14.4 → 1.21.5 and NeoForge 1.20.4 → 1.21.x. Anything else (snapshots, pre-1.14, Forge 1.21.6+) is shown as unsupported, with the reason.
+- **Pick your loader version**: loader, Fabric API and Yarn (or Forge / NeoForge) versions come from the official metadata (Fabric Meta, Modrinth, Forge promotions, NeoForge Maven), cached for offline use; the recommended one is preselected, any published one can be chosen, at creation or later.
+- **Missing Java? Installed from the app**: Mod Studio lists the JDKs each Minecraft family needs, detects the installed ones and offers to download the missing Eclipse Temurin JDK (Adoptium), checked with SHA-256 and installed after your confirmation — never silently.
 - **Real compilation**: the button runs Gradle, streams its output live, explains errors in plain words (file, line, probable cause, fix) and copies the produced `.jar` to `dist/`.
 - Deterministic generators for items, blocks and recipes, with pixel-art textures, models, loot tables, tags and `en_us` / `fr_fr` translations in the right format for each Minecraft version.
 - AI generation, auto-fix, in-game testing, snapshots and import come in the next phases (see the module README).
@@ -118,7 +119,7 @@ Planned: system file manager, local image generation, agent workflow automations
 | **Rust** (MSVC toolchain) | stable, 1.85 or newer | [rustup.rs](https://rustup.rs) | `rustc -V` |
 | **Visual Studio Build Tools** | 2022 | [Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/), select **"Desktop development with C++"** | — |
 | **WebView2** | — | built into Windows 11 ([installer](https://developer.microsoft.com/microsoft-edge/webview2/) for Windows 10) | — |
-| **JDK** (optional) | 17 and/or 21 | [Eclipse Temurin](https://adoptium.net/temurin/releases/) — only for the `mcstudio` module (Forge 1.20.1 needs 17, Minecraft 1.20.5+ needs 21) | `java -version` |
+| **JDK** (optional) | 8, 17 and/or 21 | Installed from the `mcstudio` module when missing, or [Eclipse Temurin](https://adoptium.net/temurin/releases/) — only for that module (old Forge needs 8, Minecraft 1.17–1.20.4 needs 17, 1.20.5+ needs 21) | `java -version` |
 | **Python** (optional) | 3.10 or newer | [python.org](https://www.python.org/downloads/) — only for the `jobagent` module, which installs its own environment | `python --version` |
 
 ### 2. Install at least one AI CLI

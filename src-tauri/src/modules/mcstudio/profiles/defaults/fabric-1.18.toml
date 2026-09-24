@@ -1,0 +1,16 @@
+# Fabric · 1.18 – 1.19.2
+# Versions exactes (loader, mappings, API) : résolues à la création depuis les métadonnées officielles.
+id = "fabric-1.18"
+loader = "fabric"
+label = "Fabric · 1.18 – 1.19.2"
+minecraft_min = "1.18"
+minecraft_max = "1.19.2"
+java = 17
+gradle = "8.14.3"
+plugin = "1.10-SNAPSHOT"
+mappings = "yarn"
+template = "fabric-legacy"
+dialect = "fabric-yarn-1.14"
+data_format = "1.14"
+pack_format = 9
+verified = false

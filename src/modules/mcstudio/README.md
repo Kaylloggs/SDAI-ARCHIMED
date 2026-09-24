@@ -6,8 +6,8 @@ un dossier Gradle autonome : il se compile aussi sans ARCHIMED (`gradlew build`)
 - **Backend** : plugin `mcstudio` (`src-tauri/src/modules/mcstudio/`).
 - **Services / slots / événements** : aucun pour l'instant. Le flux de compilation passe par un
   `Channel<BuildEvent>` propre à chaque build.
-- **Dépendances ajoutées** : `reqwest` (métadonnées HTTPS des loaders), `png` (textures),
-  `trash` (Corbeille, exigée par guidelines §11).
+- **Dépendances ajoutées** : `reqwest` (HTTPS), `png` (textures), `trash` (Corbeille, exigée par
+  guidelines §11), `zip`, `tar`, `flate2`, `sha2` (installation vérifiée des JDK).
 
 ## État des phases
 
@@ -15,7 +15,8 @@ un dossier Gradle autonome : il se compile aussi sans ARCHIMED (`gradlew build`)
 |---|---|---|
 | A | Squelette, types ts-rs, registre des projets | ✓ |
 | B | Profils de version, métadonnées officielles, templates, JDK, création | ✓ |
-| C | Build Gradle réel, diagnostics, jar dans `dist/`, test e2e | ✓ (e2e à lancer sur une machine avec accès aux dépôts des loaders) |
+| C | Build Gradle réel, diagnostics, jar dans `dist/`, test e2e | ✓ (Fabric 1.21.1 compilé sur Windows) |
+| B+ | 1.14 → 1.21.x, choix des versions du loader, installation des JDK | ✓ (profils hors `fabric-1.21` à valider par l'e2e) |
 | D | Explorateur et éditeur (déplacement de `CodeEditor`/`FileTree` vers `core/editor`) | à venir |
 | E | Validateur (JSON ligne/colonne, références, assets) et page Diagnostics | à venir |
 | F | Snapshots, historique, undo/redo, relecture des diffs | à venir |
@@ -24,28 +25,77 @@ un dossier Gradle autonome : il se compile aussi sans ARCHIMED (`gradlew build`)
 
 Rien n'est simulé : un bouton qui n'a pas encore de moteur n'est pas affiché.
 
-## Profils de version
+## Versions prises en charge
 
-`src-tauri/src/modules/mcstudio/profiles/defaults/*.toml` — un profil par couple loader × plage de
-Minecraft :
+Un **profil** par époque d'API (`src-tauri/src/modules/mcstudio/profiles/defaults/*.toml`) : Java,
+Gradle, plugin, mappings, template, dialecte de code et format de données. **1.14 → 1.21.11** pour
+Fabric, **1.14.4 → 1.21.5** pour Forge, **1.20.4 → 1.21.11** pour NeoForge.
 
-| Profil | Minecraft | Java | Gradle | Plugin | Mappings | Données |
+| Loader | Profil | Minecraft | JDK (build) | Bytecode | Gradle · plugin | Particularités |
 |---|---|---|---|---|---|---|
-| `fabric-1.20` | 1.20 – 1.20.1 | 17+ | 8.14.3 | Loom 1.10-SNAPSHOT | Yarn | `recipes/`, `loot_tables/` |
-| `fabric-1.21` | 1.21 – 1.21.1 | 21+ | 8.14.3 | Loom 1.10-SNAPSHOT | Yarn | `recipe/`, `loot_table/` |
-| `forge-1.20` | 1.20.1 | **17 exactement** | 8.8 | ForgeGradle `[6.0.16,6.2)` | officiels | `recipes/`, `loot_tables/` |
-| `neoforge-1.21` | 1.21.1 | 21+ | 8.14.3 | ModDevGradle `[2.0.0,2.1)` | officiels | `recipe/`, `loot_table/` |
+| Fabric | `fabric-1.14` | 1.14 – 1.16.5 | 17+ | 8 | 8.14.3 · Loom 1.10 | `Registry.ITEM`, onglet dans les réglages |
+| Fabric | `fabric-1.17` | 1.17 – 1.17.1 | 17+ | 16 | idem | idem |
+| Fabric | `fabric-1.18` | 1.18 – 1.19.2 | 17+ | 17 | idem | idem |
+| Fabric | `fabric-1.19.3` | 1.19.3 – 1.19.4 | 17+ | 17 | idem | `Registries`, onglets par événement |
+| Fabric | `fabric-1.20` | 1.20 – 1.20.4 | 17+ | 17 | idem | `Settings.create()` |
+| Fabric | `fabric-1.20.5` | 1.20.5 – 1.20.6 | 21+ | 21 | idem | recettes `{"id": …}` |
+| Fabric | `fabric-1.21` ✓ | 1.21 – 1.21.1 | 21+ | 21 | idem | `Identifier.of`, dossiers au singulier |
+| Fabric | `fabric-1.21.2` | 1.21.2 – 1.21.3 | 21+ | 21 | idem | clés de registre, ingrédients en texte |
+| Fabric | `fabric-1.21.4` | 1.21.4 – 1.21.11 | 21+ | 21 | idem | + `assets/<modid>/items/` |
+| Forge | `forge-1.14` | 1.14.4 – 1.16.5 | **8** | 8 | 7.6.4 · FG 5.1 | noms MCP, `Material`, onglet dans les propriétés |
+| Forge | `forge-1.17` | 1.17.1 | **17** | 16 | 7.6.4 · FG 5.1 | noms Mojang, `fmllegacy.RegistryObject` |
+| Forge | `forge-1.18` | 1.18 – 1.19.2 | **17** | 17 | 7.6.4 · FG 5.1 | noms Mojang |
+| Forge | `forge-1.19.3` | 1.19.3 – 1.19.4 | **17** | 17 | 7.6.4 · FG 5.1 | `CreativeModeTabEvent` |
+| Forge | `forge-1.20` | 1.20.1 – 1.20.4 | **17** | 17 | 8.8 · FG 6 | `BuildCreativeModeTabContentsEvent` |
+| Forge | `forge-1.20.6` | 1.20.6 | 21+ | 21 | 8.8 · FG 6 | recettes `{"id": …}` |
+| Forge | `forge-1.21` | 1.21 – 1.21.1 | 21+ | 21 | 8.8 · FG 6 | dossiers au singulier |
+| Forge | `forge-1.21.3` | 1.21.3 | 21+ | 21 | 8.8 · FG 6 | `setId`, contexte injecté |
+| Forge | `forge-1.21.4` | 1.21.4 – 1.21.5 | 21+ | 21 | 8.8 · FG 6 | + `assets/<modid>/items/` |
+| NeoForge | `neoforge-1.20.4` | 1.20.4 | 17+ | 17 | 8.14.3 · MDG 2.0 | `mods.toml` |
+| NeoForge | `neoforge-1.20.6` | 1.20.5 – 1.20.6 | 21+ | 21 | idem | `neoforge.mods.toml` |
+| NeoForge | `neoforge-1.21` | 1.21 – 1.21.1 | 21+ | 21 | idem | |
+| NeoForge | `neoforge-1.21.2` | 1.21.2 – 1.21.3 | 21+ | 21 | idem | `setId` |
+| NeoForge | `neoforge-1.21.4` | 1.21.4 – 1.21.11 | 21+ | 21 | idem | + `assets/<modid>/items/` |
 
-- Les versions exactes du loader, de Yarn et de Fabric API sont **résolues à la création** depuis
-  `meta.fabricmc.net`, `maven.fabricmc.net`, `files.minecraftforge.net` et `maven.neoforged.net`,
-  puis écrites dans `gradle.properties`. Chaque réponse est gardée dans `cache/meta/` : sans
-  réseau, la dernière réponse sert et l'interface l'indique.
-- Fabric s'arrête à 1.21.1 : à partir de 1.21.2, objets et blocs exigent une clé de registre et les
-  recettes changent de format. Il faut un profil et un template dédiés, vérifiés par une compilation.
+**JDK en gras** : version exacte (les JVM plus récentes cassent Forge). ✓ = validé par une vraie
+compilation ; les autres sont marqués « Non vérifié » dans l'assistant jusqu'à leur premier build
+réussi (`verified = true` dans le profil). `profiles_cover_every_release_once` garantit qu'aucune
+version n'est couverte deux fois et que Fabric les couvre toutes.
+
+**Pas encore pris en charge**, avec la raison affichée dans l'assistant : avant 1.14 (ForgeGradle 1
+à 3, Gradle 2 à 4, formats de données différents), Forge 1.21.6+ (EventBus 7), les premières
+versions de NeoForge (1.20.2 – 1.20.3), la numérotation 26.x (jeu non obfusqué, chaînes d'outils
+refondues) et les snapshots.
+
+- **Choix des versions** : l'assistant (étape Loader) et le tableau de bord (« Changer les
+  versions ») listent toutes les versions publiées du loader, de Fabric API (Modrinth, repli sur
+  Maven) et de Yarn, la recommandée par défaut. Changer de version réécrit `gradle.properties`,
+  `fabric.mod.json` et `project.json` ; changer de Minecraft est un portage, pas encore géré.
+- **Hors ligne** : chaque réponse de métadonnées est gardée dans `cache/meta/`.
 - **Corriger un profil sans recompiler** : déposer un `.toml` de même `id` dans
   `%APPDATA%\com.sdai.archimed\modules\mcstudio\profiles\`.
-- Ajouter un loader (Quilt…) : une variante de `LoaderId`, un `Dialect` (snippets Java), un
-  template dans `templates/files/`, un profil.
+- **Ajouter une époque** : un `Dialect` (snippets Java de `content.rs`), un template dans
+  `templates/files/`, un profil ; `every_profile_creates_a_complete_project` le vérifie.
+
+## Java manquant : installation depuis l'app
+
+Le panneau **Environnement** (liste des projets), l'étape Java de l'assistant, le tableau de bord
+et la console de build proposent d'installer le JDK qui manque :
+
+1. l'offre est lue sur l'API d'Adoptium (Eclipse Temurin) et **affichée avant tout
+   téléchargement** : source, version, fichier, taille, dossier ;
+2. après confirmation, le backend relit l'offre auprès de la source (une adresse reçue par IPC
+   n'est jamais téléchargée telle quelle), puis l'archive est téléchargée (progression,
+   annulable), son **SHA-256** comparé
+   à celui publié par Adoptium, puis décompressée (chemins sortants refusés) dans
+   `%APPDATA%\com.sdai.archimed\modules\mcstudio\jdks\` ;
+3. aucune élévation, aucune variable d'environnement modifiée ; la détection inclut ce dossier.
+   Chaque installation est inscrite au journal d'audit (`mcstudio.jdk_install`).
+
+Source remplaçable (HTTPS uniquement) : `{"adoptiumApi": "https://…"}` dans
+`%APPDATA%\com.sdai.archimed\modules\mcstudio\env.json`. Gradle, Minecraft et les loaders
+n'ont rien à installer : le wrapper et les plugins les téléchargent à la première compilation.
+Décision détaillée : [ADR 0004](../../../docs/adr/0004-mcstudio-jdk-downloads.md).
 
 ## Projet généré
 
@@ -86,11 +136,13 @@ amont passe en premier (sans réseau, les dépendances « introuvables » n'en s
 
 ## Commandes Rust
 
-`list_projects` · `get_project` · `create_project` · `open_project` · `duplicate_project` ·
-`remove_project` (retrait de la liste, ou Corbeille) · `version_catalog` · `resolve_versions` ·
-`detect_java` · `inspect_java` · `project_java` · `set_project_java` · `project_stats` ·
-`default_parent_dir` · `add_item` · `add_block` · `add_recipe` · `build_project` · `cancel_build` ·
-`list_builds` · `read_build_log`
+Projets : `list_projects` · `get_project` · `create_project` · `open_project` · `duplicate_project` ·
+`remove_project` (retrait de la liste, ou Corbeille) · `project_stats` · `default_parent_dir`
+Versions : `version_catalog` · `version_options` · `resolve_versions` · `update_project_versions`
+Java : `detect_java` · `inspect_java` · `project_java` · `set_project_java` · `environment` ·
+`jdk_offer` · `install_jdk` · `cancel_jdk_install`
+Contenu : `add_item` · `add_block` · `add_recipe`
+Build : `build_project` · `cancel_build` · `list_builds` · `read_build_log`
 
 ## Tests
 
@@ -98,9 +150,10 @@ amont passe en premier (sans réseau, les dépendances « introuvables » n'en s
   JSON/TOML valides, aucun marqueur oublié), générateurs, JDK, diagnostics (dont un vrai journal
   NeoForge), exécution réelle d'un processus de build.
 - `cargo test mcstudio::e2e -- --ignored --nocapture` : crée **TestMod** (1 objet, 1 bloc, recettes)
-  pour chaque profil et le compile vraiment. Affiche `MODULE BASIC PIPELINE = OK` par profil.
-  Demande le réseau (Gradle, Minecraft, loader) et les JDK 17 et 21. Filtrer avec
-  `MCSTUDIO_E2E_PROFILES=fabric-1.21`.
+  pour la version la plus récente de chaque profil et le compile vraiment ; affiche
+  `MODULE BASIC PIPELINE = OK (…)` par version et un bilan final. Options :
+  `MCSTUDIO_E2E_PROFILES=fabric-1.21,forge-1.20` (filtre), `MCSTUDIO_E2E_ALL=1` (toutes les
+  versions de chaque profil), `MCSTUDIO_E2E_INSTALL_JDK=1` (installe les JDK manquants).
 - `MCSTUDIO_KEEP_TEST_OUTPUT=1 cargo test every_profile_creates` garde les projets générés.
 - `pnpm test` : identifiants, assistant, journal.
 

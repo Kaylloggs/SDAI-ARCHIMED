@@ -58,7 +58,12 @@ const COMMON: &[TemplateFile] = &[
     ),
 ];
 
-const FABRIC: &[TemplateFile] = &[
+const MAIN: &str = "src/main/java/{{package_path}}/{{main_class}}.java";
+const ITEMS: &str = "src/main/java/{{package_path}}/registry/ModItems.java";
+const BLOCKS: &str = "src/main/java/{{package_path}}/registry/ModBlocks.java";
+
+// ── Fabric (Loom) ────────────────────────────────────────────────────────────
+const FABRIC_BUILD: &[TemplateFile] = &[
     text(
         "settings.gradle",
         include_str!("files/fabric/settings.gradle"),
@@ -72,28 +77,31 @@ const FABRIC: &[TemplateFile] = &[
         "src/main/resources/fabric.mod.json",
         include_str!("files/fabric/fabric.mod.json"),
     ),
-    text(
-        "src/main/java/{{package_path}}/{{main_class}}.java",
-        include_str!("files/fabric/Main.java"),
-    ),
-    text(
-        "src/main/java/{{package_path}}/registry/ModItems.java",
-        include_str!("files/fabric/ModItems.java"),
-    ),
-    text(
-        "src/main/java/{{package_path}}/registry/ModBlocks.java",
-        include_str!("files/fabric/ModBlocks.java"),
-    ),
+];
+/// 1.14 – 1.19.2 : `Registry.ITEM`, onglet créatif dans les réglages.
+const FABRIC_LEGACY: &[TemplateFile] = &[
+    text(MAIN, include_str!("files/fabric-legacy/Main.java")),
+    text(ITEMS, include_str!("files/fabric-legacy/ModItems.java")),
+    text(BLOCKS, include_str!("files/fabric-legacy/ModBlocks.java")),
+];
+/// 1.19.3 – 1.21.1 : `Registries`, onglets par événement.
+const FABRIC: &[TemplateFile] = &[
+    text(MAIN, include_str!("files/fabric/Main.java")),
+    text(ITEMS, include_str!("files/fabric/ModItems.java")),
+    text(BLOCKS, include_str!("files/fabric/ModBlocks.java")),
+];
+/// 1.21.2+ : clés de registre dans les réglages.
+const FABRIC_1_21_2: &[TemplateFile] = &[
+    text(MAIN, include_str!("files/fabric/Main.java")),
+    text(ITEMS, include_str!("files/fabric-1.21.2/ModItems.java")),
+    text(BLOCKS, include_str!("files/fabric-1.21.2/ModBlocks.java")),
 ];
 
-const FORGE_1_20: &[TemplateFile] = &[
+// ── Forge (ForgeGradle) ──────────────────────────────────────────────────────
+const FORGE_META: &[TemplateFile] = &[
     text(
         "settings.gradle",
         include_str!("files/forge-1.20/settings.gradle"),
-    ),
-    text(
-        "build.gradle",
-        include_str!("files/forge-1.20/build.gradle"),
     ),
     text(
         "gradle.properties",
@@ -107,21 +115,53 @@ const FORGE_1_20: &[TemplateFile] = &[
         "src/main/resources/pack.mcmeta",
         include_str!("files/forge-1.20/pack.mcmeta"),
     ),
-    text(
-        "src/main/java/{{package_path}}/{{main_class}}.java",
-        include_str!("files/forge-1.20/Main.java"),
-    ),
-    text(
-        "src/main/java/{{package_path}}/registry/ModItems.java",
-        include_str!("files/forge-1.20/ModItems.java"),
-    ),
-    text(
-        "src/main/java/{{package_path}}/registry/ModBlocks.java",
-        include_str!("files/forge-1.20/ModBlocks.java"),
-    ),
+];
+/// ForgeGradle 5 sur Java 8 : pas d'option `--release`.
+const FORGE_BUILD_FG5_JAVA8: &[TemplateFile] = &[text(
+    "build.gradle",
+    include_str!("files/forge-legacy/build.gradle"),
+)];
+const FORGE_BUILD_FG5: &[TemplateFile] = &[text(
+    "build.gradle",
+    include_str!("files/forge-1.17/build.gradle"),
+)];
+const FORGE_BUILD_FG6: &[TemplateFile] = &[text(
+    "build.gradle",
+    include_str!("files/forge-1.20/build.gradle"),
+)];
+/// 1.14.4 – 1.16.5 : noms de classes MCP.
+const FORGE_LEGACY: &[TemplateFile] = &[
+    text(MAIN, include_str!("files/forge-legacy/Main.java")),
+    text(ITEMS, include_str!("files/forge-legacy/ModItems.java")),
+    text(BLOCKS, include_str!("files/forge-legacy/ModBlocks.java")),
+];
+/// 1.17.1 – 1.19.2 : noms Mojang, onglet dans les propriétés.
+const FORGE_1_17: &[TemplateFile] = &[
+    text(MAIN, include_str!("files/forge-1.17/Main.java")),
+    text(ITEMS, include_str!("files/forge-1.17/ModItems.java")),
+    text(BLOCKS, include_str!("files/forge-1.17/ModBlocks.java")),
+];
+/// 1.19.3 – 1.19.4 : `CreativeModeTabEvent`.
+const FORGE_1_19_3: &[TemplateFile] = &[
+    text(MAIN, include_str!("files/forge-1.19.3/Main.java")),
+    text(ITEMS, include_str!("files/forge-1.19.3/ModItems.java")),
+    text(BLOCKS, include_str!("files/forge-1.19.3/ModBlocks.java")),
+];
+/// 1.20.1 – 1.21.1 : `BuildCreativeModeTabContentsEvent`.
+const FORGE_1_20: &[TemplateFile] = &[
+    text(MAIN, include_str!("files/forge-1.20/Main.java")),
+    text(ITEMS, include_str!("files/forge-1.20/ModItems.java")),
+    text(BLOCKS, include_str!("files/forge-1.20/ModBlocks.java")),
+];
+/// 1.21.3+ : `setId`.
+const FORGE_1_21_3: &[TemplateFile] = &[
+    text(MAIN, include_str!("files/forge-1.21.3/Main.java")),
+    text(ITEMS, include_str!("files/forge-1.21.3/ModItems.java")),
+    text(BLOCKS, include_str!("files/forge-1.21.3/ModBlocks.java")),
 ];
 
-const NEOFORGE_1_21: &[TemplateFile] = &[
+// ── NeoForge (ModDevGradle) ──────────────────────────────────────────────────
+const NEOFORGE_BUILD: &[TemplateFile] = &[
     text(
         "settings.gradle",
         include_str!("files/neoforge-1.21/settings.gradle"),
@@ -134,37 +174,70 @@ const NEOFORGE_1_21: &[TemplateFile] = &[
         "gradle.properties",
         include_str!("files/neoforge-1.21/gradle.properties"),
     ),
+];
+const NEOFORGE_TOML: &[TemplateFile] = &[text(
+    "src/main/resources/META-INF/neoforge.mods.toml",
+    include_str!("files/neoforge-1.21/neoforge.mods.toml"),
+)];
+/// 1.20.4 : `mods.toml`, constructeur sans `ModContainer`.
+const NEOFORGE_1_20_4: &[TemplateFile] = &[
     text(
-        "src/main/resources/META-INF/neoforge.mods.toml",
-        include_str!("files/neoforge-1.21/neoforge.mods.toml"),
+        "src/main/resources/META-INF/mods.toml",
+        include_str!("files/neoforge-1.20.4/mods.toml"),
     ),
-    text(
-        "src/main/java/{{package_path}}/{{main_class}}.java",
-        include_str!("files/neoforge-1.21/Main.java"),
-    ),
-    text(
-        "src/main/java/{{package_path}}/registry/ModItems.java",
-        include_str!("files/neoforge-1.21/ModItems.java"),
-    ),
-    text(
-        "src/main/java/{{package_path}}/registry/ModBlocks.java",
-        include_str!("files/neoforge-1.21/ModBlocks.java"),
-    ),
+    text(MAIN, include_str!("files/neoforge-1.20.4/Main.java")),
+    text(ITEMS, include_str!("files/neoforge-1.21/ModItems.java")),
+    text(BLOCKS, include_str!("files/neoforge-1.21/ModBlocks.java")),
+];
+/// 1.20.5 – 1.21.1.
+const NEOFORGE_1_21: &[TemplateFile] = &[
+    text(MAIN, include_str!("files/neoforge-1.21/Main.java")),
+    text(ITEMS, include_str!("files/neoforge-1.21/ModItems.java")),
+    text(BLOCKS, include_str!("files/neoforge-1.21/ModBlocks.java")),
+];
+/// 1.21.2+ : `setId`.
+const NEOFORGE_1_21_2: &[TemplateFile] = &[
+    text(MAIN, include_str!("files/neoforge-1.21/Main.java")),
+    text(ITEMS, include_str!("files/neoforge-1.21.2/ModItems.java")),
+    text(BLOCKS, include_str!("files/neoforge-1.21.2/ModBlocks.java")),
 ];
 
 /// Ids de template connus (référencés par les profils).
 #[cfg(test)]
-pub const TEMPLATE_IDS: &[&str] = &["fabric", "forge-1.20", "neoforge-1.21"];
+pub const TEMPLATE_IDS: &[&str] = &[
+    "fabric-legacy",
+    "fabric",
+    "fabric-1.21.2",
+    "forge-legacy",
+    "forge-1.17",
+    "forge-1.19.3",
+    "forge-1.20",
+    "forge-1.21.3",
+    "neoforge-1.20.4",
+    "neoforge-1.21",
+    "neoforge-1.21.2",
+];
 
 /// Fichiers d'un template, fichiers communs compris.
 pub fn files(template: &str) -> AppResult<Vec<&'static TemplateFile>> {
-    let specific = match template {
-        "fabric" => FABRIC,
-        "forge-1.20" => FORGE_1_20,
-        "neoforge-1.21" => NEOFORGE_1_21,
+    let parts: &[&[TemplateFile]] = match template {
+        "fabric-legacy" => &[FABRIC_BUILD, FABRIC_LEGACY],
+        "fabric" => &[FABRIC_BUILD, FABRIC],
+        "fabric-1.21.2" => &[FABRIC_BUILD, FABRIC_1_21_2],
+        "forge-legacy" => &[FORGE_META, FORGE_BUILD_FG5_JAVA8, FORGE_LEGACY],
+        "forge-1.17" => &[FORGE_META, FORGE_BUILD_FG5, FORGE_1_17],
+        "forge-1.19.3" => &[FORGE_META, FORGE_BUILD_FG5, FORGE_1_19_3],
+        "forge-1.20" => &[FORGE_META, FORGE_BUILD_FG6, FORGE_1_20],
+        "forge-1.21.3" => &[FORGE_META, FORGE_BUILD_FG6, FORGE_1_21_3],
+        "neoforge-1.20.4" => &[NEOFORGE_BUILD, NEOFORGE_1_20_4],
+        "neoforge-1.21" => &[NEOFORGE_BUILD, NEOFORGE_TOML, NEOFORGE_1_21],
+        "neoforge-1.21.2" => &[NEOFORGE_BUILD, NEOFORGE_TOML, NEOFORGE_1_21_2],
         other => return Err(AppError::not_found(format!("template inconnu : {other}"))),
     };
-    Ok(COMMON.iter().chain(specific.iter()).collect())
+    Ok(COMMON
+        .iter()
+        .chain(parts.iter().flat_map(|part| part.iter()))
+        .collect())
 }
 
 /// Valeur d'un marqueur.

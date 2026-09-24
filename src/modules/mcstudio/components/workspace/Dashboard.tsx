@@ -10,7 +10,9 @@ import { errorText, mcstudioApi } from "../../api";
 import { ago, LOADER_LABEL } from "../../lib/format";
 import { useMcStudioStore } from "../../store";
 import { Fact } from "../ui";
+import { JdkInstallCard } from "../JdkInstallCard";
 import { BuildResult } from "./BuildResult";
+import { VersionsSection } from "./VersionsSection";
 
 const STAT_LABELS: [keyof ProjectStats, string][] = [
   ["javaClasses", "Classes Java"],
@@ -117,6 +119,8 @@ export function Dashboard({
             </dl>
             <p className="text-footnote text-text-subtle">Compté sur les fichiers réels du projet, à chaque ouverture.</p>
           </section>
+
+          <VersionsSection project={project} busy={running} />
         </div>
 
         <aside className="space-y-6">
@@ -126,17 +130,7 @@ export function Dashboard({
             </h2>
             <dl className="divide-y divide-border rounded-md border border-border bg-surface-1 px-3">
               <Fact label="Minecraft">{v.minecraft}</Fact>
-              <Fact label="Loader" mono>
-                {LOADER_LABEL[v.loader]} {v.loaderVersion}
-              </Fact>
-              <Fact label="Mappings" mono>
-                {v.mappingsVersion ?? "officiels"}
-              </Fact>
-              {v.apiVersion && (
-                <Fact label="Fabric API" mono>
-                  {v.apiVersion}
-                </Fact>
-              )}
+              <Fact label="Loader">{LOADER_LABEL[v.loader]}</Fact>
               <Fact label="Gradle" mono>
                 {v.gradle}
               </Fact>
@@ -169,6 +163,11 @@ export function Dashboard({
                   <AlertTriangle size={14} className="text-warning" /> Aucun JDK compatible
                 </p>
                 <p className="text-footnote text-text-muted">{java.problem}</p>
+                <JdkInstallCard
+                  major={java.min}
+                  exact={java.max === java.min}
+                  onInstalled={() => void mcstudioApi.projectJava(project.id).then(applyJava).catch(() => undefined)}
+                />
               </div>
             ) : (
               <div className="h-24 rounded-md border border-border bg-surface-1" aria-busy />

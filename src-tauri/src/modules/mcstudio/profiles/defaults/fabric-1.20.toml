@@ -1,16 +1,16 @@
-# Fabric, Minecraft 1.20 – 1.20.1 (Yarn mappings, Fabric Loom).
-# Loader, Yarn and Fabric API versions are resolved at creation time from
-# meta.fabricmc.net and maven.fabricmc.net; only the build tooling is pinned here.
+# Fabric · 1.20 – 1.20.4
+# Versions exactes (loader, mappings, API) : résolues à la création depuis les métadonnées officielles.
 id = "fabric-1.20"
 loader = "fabric"
-label = "Fabric · 1.20 – 1.20.1"
+label = "Fabric · 1.20 – 1.20.4"
 minecraft_min = "1.20"
-minecraft_max = "1.20.1"
+minecraft_max = "1.20.4"
 java = 17
 gradle = "8.14.3"
 plugin = "1.10-SNAPSHOT"
 mappings = "yarn"
 template = "fabric"
 dialect = "fabric-yarn-1.20"
-data_format = "1.20"
+data_format = "1.14"
 pack_format = 15
+verified = false

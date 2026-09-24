@@ -5,6 +5,11 @@ import type { BuildRecord } from "@/core/ipc/bindings/BuildRecord";
 import type { BuildTask } from "@/core/ipc/bindings/BuildTask";
 import type { ContentResult } from "@/core/ipc/bindings/ContentResult";
 import type { CreateProjectRequest } from "@/core/ipc/bindings/CreateProjectRequest";
+import type { EnvironmentReport } from "@/core/ipc/bindings/EnvironmentReport";
+import type { InstallEvent } from "@/core/ipc/bindings/InstallEvent";
+import type { JdkOffer } from "@/core/ipc/bindings/JdkOffer";
+import type { VersionOptions } from "@/core/ipc/bindings/VersionOptions";
+import type { VersionSelection } from "@/core/ipc/bindings/VersionSelection";
 import type { ItemRequest } from "@/core/ipc/bindings/ItemRequest";
 import type { JavaInstall } from "@/core/ipc/bindings/JavaInstall";
 import type { JavaStatus } from "@/core/ipc/bindings/JavaStatus";
@@ -29,12 +34,26 @@ export const mcstudioApi = {
     invokeModule<void>(PLUGIN, "remove_project", { id, deleteFiles }),
 
   versionCatalog: () => invokeModule<VersionCatalog>(PLUGIN, "version_catalog"),
-  resolveVersions: (profileId: string, minecraft: string) =>
-    invokeModule<ResolvedVersions>(PLUGIN, "resolve_versions", { profileId, minecraft }),
+  /** Versions exactes ; `selection` = choix de la personne (sinon versions recommandées). */
+  resolveVersions: (profileId: string, minecraft: string, selection: VersionSelection | null = null) =>
+    invokeModule<ResolvedVersions>(PLUGIN, "resolve_versions", { profileId, minecraft, selection }),
+  /** Toutes les versions du loader, de Yarn et de Fabric API publiées pour ce Minecraft. */
+  versionOptions: (profileId: string, minecraft: string) =>
+    invokeModule<VersionOptions>(PLUGIN, "version_options", { profileId, minecraft }),
+  updateProjectVersions: (id: string, selection: VersionSelection) =>
+    invokeModule<ProjectSummary>(PLUGIN, "update_project_versions", { id, selection }),
 
   detectJava: () => invokeModule<JavaInstall[]>(PLUGIN, "detect_java"),
   /** `null` si le dossier n'est pas un JDK. */
   inspectJava: (path: string) => invokeModule<JavaInstall | null>(PLUGIN, "inspect_java", { path }),
+  /** Java demandé par les profils et JDK déjà présents. */
+  environment: () => invokeModule<EnvironmentReport>(PLUGIN, "environment"),
+  /** Ce qui serait téléchargé (source, taille, dossier) : rien n'est encore installé. */
+  jdkOffer: (major: number) => invokeModule<JdkOffer>(PLUGIN, "jdk_offer", { major }),
+  /** Installe l'offre confirmée ; l'avancement et le résultat arrivent par `onEvent`. */
+  installJdk: (offer: JdkOffer, onEvent: Channel<InstallEvent>) =>
+    invokeModule<void>(PLUGIN, "install_jdk", { offer, onEvent }),
+  cancelJdkInstall: (major: number) => invokeModule<void>(PLUGIN, "cancel_jdk_install", { major }),
   projectJava: (id: string) => invokeModule<JavaStatus>(PLUGIN, "project_java", { id }),
   setProjectJava: (id: string, javaHome: string | null) =>
     invokeModule<JavaStatus>(PLUGIN, "set_project_java", { id, javaHome }),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { emptyDraft, stepProblem, toRequest, withDerived } from "../components/wizard/draft";
-import { ago, basename, joinPath, seconds } from "../lib/format";
+import { EMPTY_SELECTION, emptyDraft, stepProblem, toRequest, withDerived } from "../components/wizard/draft";
+import { ago, basename, joinPath, megabytes, seconds } from "../lib/format";
 import { levelOf, visibleAt } from "../lib/logs";
 import {
   mainClassProblem,
@@ -63,6 +63,11 @@ describe("assistant de création", () => {
     expect(stepProblem(5, draft)).not.toBeNull();
     expect(toRequest(draft)).toBeNull();
   });
+
+  it("part des versions recommandées", () => {
+    expect(emptyDraft.selection).toEqual(EMPTY_SELECTION);
+    expect(Object.values(EMPTY_SELECTION).every((v) => v === null)).toBe(true);
+  });
 });
 
 describe("journal de build", () => {
@@ -86,5 +91,8 @@ describe("formats", () => {
     expect(basename("C:\\mods\\dragonrealms")).toBe("dragonrealms");
     expect(joinPath("C:\\mods\\", "a", "b.png")).toBe("C:\\mods\\a\\b.png");
     expect(joinPath("/home/x", "a")).toBe("/home/x/a");
+    expect(megabytes(191_000_000)).toBe("182 Mo");
+    expect(megabytes(5 * 1024 * 1024)).toBe("5,0 Mo");
+    expect(megabytes(0)).toBe("—");
   });
 });
