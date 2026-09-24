@@ -63,6 +63,14 @@ ARCHIMED does not replace the CLIs: it drives the ones installed on your machine
 - Cover letters and emails written by Antigravity from your French or English CV, in a natural style; batch sending over SMTP after a single confirmation that lists every recipient.
 - The chat agents can search too: the module exposes its tools over MCP, switched on from the module, with no command to type.
 
+### ⛏️ Minecraft Mod Studio (`mcstudio` module)
+- Create **real** Minecraft mod projects for **Fabric**, **Forge** or **NeoForge**: a Gradle project with its wrapper, metadata, registries, icon, assets and data files, ready to compile.
+- Versions come from the loaders' official metadata (Fabric Meta, Forge promotions, NeoForge Maven), cached for offline use. Each supported Minecraft × loader pair has a versioned profile (Java, Gradle, plugin, mappings, data format); anything else is shown as unsupported.
+- Detects installed JDKs and picks the one each profile needs (Forge 1.20.1 needs exactly Java 17).
+- **Real compilation**: the button runs Gradle, streams its output live, explains errors in plain words (file, line, probable cause, fix) and copies the produced `.jar` to `dist/`.
+- Deterministic generators for items, blocks and recipes, with pixel-art textures, models, loot tables, tags and `en_us` / `fr_fr` translations in the right format for each Minecraft version.
+- AI generation, auto-fix, in-game testing, snapshots and import come in the next phases (see the module README).
+
 ### 📊 Credits (`usage` module)
 - Remaining subscription limits reported by Claude (5-hour and 7-day windows).
 - Tokens, estimated cost and time spent per CLI and per day.
@@ -90,6 +98,7 @@ ARCHIMED is built to be **infinitely evolutive**:
 | `planner` | Task boards, calendar view, `roadmap.md` sync, Google Calendar / `.ics` |
 | `memory` | Information you give the AIs, per project or global, importable from a file |
 | `jobagent` | Multi-platform job search, review, cover letters and batch applications |
+| `mcstudio` | Minecraft mod projects (Fabric, Forge, NeoForge): creation, real Gradle builds, `.jar` output |
 | `usage` | Subscription limits and token usage per CLI |
 | `settings` | Themes, CLI detection, modules, data |
 
@@ -109,6 +118,7 @@ Planned: system file manager, local image generation, agent workflow automations
 | **Rust** (MSVC toolchain) | stable, 1.85 or newer | [rustup.rs](https://rustup.rs) | `rustc -V` |
 | **Visual Studio Build Tools** | 2022 | [Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/), select **"Desktop development with C++"** | — |
 | **WebView2** | — | built into Windows 11 ([installer](https://developer.microsoft.com/microsoft-edge/webview2/) for Windows 10) | — |
+| **JDK** (optional) | 17 and/or 21 | [Eclipse Temurin](https://adoptium.net/temurin/releases/) — only for the `mcstudio` module (Forge 1.20.1 needs 17, Minecraft 1.20.5+ needs 21) | `java -version` |
 | **Python** (optional) | 3.10 or newer | [python.org](https://www.python.org/downloads/) — only for the `jobagent` module, which installs its own environment | `python --version` |
 
 ### 2. Install at least one AI CLI
@@ -200,5 +210,7 @@ Issues and pull requests are welcome. Read [`guidelines.md`](guidelines.md) firs
 The token saver bundles the Caveman skill by Julius Brussee (MIT, see `src/core/engine/prompts/caveman.LICENSE`); ARCHIMED is not affiliated with Caveman.
 
 The `jobagent` module vendors [JobSpy](https://github.com/speedyapply/JobSpy) (MIT, see `src-tauri/src/modules/jobagent/engine/LICENSE.jobspy`) and ships city data from [GeoNames](https://www.geonames.org/) (CC BY 4.0) and country outlines from [Natural Earth](https://www.naturalearthdata.com/) (public domain). Job boards' terms of use apply to the searches you run.
+
+The `mcstudio` module ships the Gradle Wrapper (Apache 2.0) in its project templates. Minecraft is a trademark of Mojang/Microsoft; mods you build are subject to the Minecraft EULA.
 
 Claude, Antigravity and Codex are trademarks of their respective owners. ARCHIMED is an independent project, not affiliated with Anthropic, Google or OpenAI.

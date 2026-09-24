@@ -1,0 +1,7 @@
+id = "mcstudio"
+commands = [
+  "list_projects", "get_project", "create_project", "open_project", "duplicate_project", "remove_project",
+  "version_catalog", "resolve_versions", "detect_java", "inspect_java", "project_java", "set_project_java", "project_stats",
+  "default_parent_dir", "add_item", "add_block", "add_recipe",
+  "build_project", "cancel_build", "list_builds", "read_build_log",
+]

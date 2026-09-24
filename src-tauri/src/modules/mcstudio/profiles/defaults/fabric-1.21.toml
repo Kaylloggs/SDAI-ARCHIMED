@@ -1,0 +1,16 @@
+# Fabric, Minecraft 1.21 – 1.21.1 (Yarn mappings, Fabric Loom).
+# Stops at 1.21.1: from 1.21.2 items and blocks need a registry key in their settings
+# and recipes use a new ingredient format — that needs its own profile and template.
+id = "fabric-1.21"
+loader = "fabric"
+label = "Fabric · 1.21 – 1.21.1"
+minecraft_min = "1.21"
+minecraft_max = "1.21.1"
+java = 21
+gradle = "8.14.3"
+plugin = "1.10-SNAPSHOT"
+mappings = "yarn"
+template = "fabric"
+dialect = "fabric-yarn-1.21"
+data_format = "1.21"
+pack_format = 34

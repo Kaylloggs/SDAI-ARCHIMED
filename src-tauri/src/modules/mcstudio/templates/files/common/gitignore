@@ -1,0 +1,24 @@
+# Gradle
+.gradle/
+build/
+out/
+
+# Minecraft run directories
+run/
+run-data/
+runs/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+bin/
+classes/
+
+# Mod Studio: builds, working copies and caches stay local
+dist/
+.mcstudio/builds/
+.mcstudio/work/
+.mcstudio/cache/

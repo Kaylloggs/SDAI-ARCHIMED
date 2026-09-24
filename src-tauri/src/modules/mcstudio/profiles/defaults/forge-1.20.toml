@@ -1,0 +1,16 @@
+# Forge 47.x, Minecraft 1.20.1 (official mappings, ForgeGradle 6).
+# Forge 1.20.1 needs exactly Java 17: newer JVMs break its class transformers.
+id = "forge-1.20"
+loader = "forge"
+label = "Forge · 1.20.1"
+minecraft_min = "1.20.1"
+minecraft_max = "1.20.1"
+java = 17
+java_max = 17
+gradle = "8.8"
+plugin = "[6.0.16,6.2)"
+mappings = "official"
+template = "forge-1.20"
+dialect = "forge-1.20"
+data_format = "1.20"
+pack_format = 15

@@ -4,6 +4,23 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Module Minecraft Mod Studio (phases A à C)
+- **Projets de mods réels** pour Fabric, Forge et NeoForge : assistant en six étapes (nom, identifiants,
+  version, loader, Java, contenu), projet Gradle complet avec son wrapper, métadonnées, registres,
+  icône pixel-art, fichiers de langue `en_us` / `fr_fr`, licence MIT ou aucune au choix.
+- **Profils de version** (`fabric-1.20`, `fabric-1.21`, `forge-1.20`, `neoforge-1.21`) : Java, Gradle,
+  plugin, mappings et format de données propres à chaque plage de Minecraft. Les versions du loader,
+  des mappings et de Fabric API sont lues dans les métadonnées officielles, gardées en cache pour le
+  hors-ligne. Une version sans profil vérifié est affichée « non prise en charge ».
+- **Compilation réelle** : Gradle lancé avec le JDK du profil, journal en direct filtrable par niveau,
+  arrêt de l'arbre de processus, erreurs expliquées (fichier, ligne, cause probable, solution), jar
+  copié dans `dist/`, historique des 30 dernières compilations.
+- **Générateurs déterministes** : objet, bloc (état, modèles, loot table, tag d'outil) et recettes
+  (façonnée, sans forme, cuisson) au format de la version du projet ; textures générées en PNG.
+- Détection des JDK installés (fichier `release`, sans lancer de processus) et choix par projet.
+- Test de bout en bout `mcstudio::e2e` (ignoré par défaut : réseau et JDK requis) qui crée TestMod et
+  le compile vraiment pour chaque profil.
+
 ## [0.3.0] - 2026-09-24
 
 Première version publiée depuis la 0.2.2 : elle regroupe les compilations locales 0.2.4 à

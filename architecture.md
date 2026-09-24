@@ -59,7 +59,8 @@ SDAI ARCHIMED/
 ├── tsconfig.json · tsconfig.node.json · index.html
 ├── docs/adr/                            # décisions d'architecture
 │   ├── 0001-claude-permissions-via-stdio-control-protocol.md
-│   └── 0002-modules-as-inline-tauri-plugins.md
+│   ├── 0002-modules-as-inline-tauri-plugins.md
+│   └── 0003-mcstudio-real-builds-and-version-profiles.md
 ├── scripts/
 │   ├── new-module.mjs                   # pnpm new:module <id> [--category] [--backend]
 │   └── check-modules.mjs                # invariants de modularité (pnpm check)
@@ -107,6 +108,9 @@ SDAI ARCHIMED/
 │       ├── jobagent/                    # Recherche d'emploi : module.config · index · api · store · types · README
 │       │   ├── components/              # SearchForm · OfferList · OfferPanel · ApplyPanel · BatchPanel · WorldMap
 │       │   └── lib/                     # triage (onglets, sélection) · batch (envois) · cv (langue)
+│       ├── mcstudio/                    # Minecraft Mod Studio : module.config · index · api · store · README
+│       │   ├── components/              # ProjectList · wizard/ (6 étapes) · workspace/ (Dashboard · BuildPanel · BuildResult)
+│       │   └── lib/                     # naming (Mod ID, package) · logs (niveaux) · format
 │       ├── usage/                       # Crédits : module.config · index · api · lib/format · README
 │       ├── memory/                      # Mémoire : index · api · services/context · README
 │       ├── skills/                      # module.config · index · api · README
@@ -144,6 +148,9 @@ SDAI ARCHIMED/
             ├── usage/                   # résumé du registre, compte et limites Claude
             ├── memory/                  # notes.json (activables, par projet), bloc de contexte injecté
             ├── planner/                 # boards.json, roadmap.rs (parse/réécriture), ics.rs, watcher notify
+            ├── mcstudio/                # projets de mods Minecraft : profiles/ (TOML + métadonnées officielles),
+            │                            # templates/ (fichiers embarqués, Gradle Wrapper), content (générateurs),
+            │                            # gradle (build réel), diagnostics, java (JDK), projects, textures (PNG)
             ├── jobagent/                # moteur Python embarqué (engine/ : JobSpy + archimed_jobagent),
             │                            # service.rs, letters.rs (Antigravity), secrets.rs (DPAPI), serveur MCP
             └── skills/                  # module.toml · mod.rs · commands.rs
@@ -520,6 +527,8 @@ arrête son processus puis efface son entrée.
 | Chemins de CLI forcés | `%APPDATA%\com.sdai.archimed\engine.json` |
 | Adaptateurs déclaratifs | `%APPDATA%\com.sdai.archimed\adapters\*.toml` |
 | Tableaux du Planner | `%APPDATA%\com.sdai.archimed\modules\planner\boards.json` |
+| Projets Mod Studio (liste), profils de version de l'utilisateur, cache des métadonnées | `%APPDATA%\com.sdai.archimed\modules\mcstudio\` (`projects.json`, `profiles/*.toml`, `cache/meta/`) |
+| Identité et builds d'un projet de mod | `<projet>/.mcstudio/` (`project.json`, `builds.json`, `builds/<id>.log`) — le projet reste autonome |
 | Offres, profil, CV et compte d'envoi de JobAgent | `%APPDATA%\com.sdai.archimed\modules\jobagent\` (mot de passe SMTP chiffré par DPAPI) |
 | Journal d'audit | `%APPDATA%\com.sdai.archimed\logs\audit.jsonl` (rotation 5 Mo) |
 | Skills | `%APPDATA%\com.sdai.archimed\skills\` |
