@@ -3,10 +3,12 @@ import {
   Eraser,
   FlipHorizontal2,
   Grid3x3,
+  Minus,
   Move,
   PaintBucket,
   Pencil,
   Pipette,
+  Plus,
   Redo2,
   Undo2,
   ZoomIn,
@@ -15,6 +17,8 @@ import {
 import { cn } from "@/core/lib/cn";
 import { Kbd } from "@/design-system/primitives";
 import {
+  BRUSH_SIZES,
+  brushCells,
   clonePixels,
   floodFill,
   fromHex,
@@ -23,8 +27,8 @@ import {
   line,
   mirrored,
   paletteOf,
-  setPixel,
   shade,
+  stamp,
   toHex,
   TRANSPARENT,
   type Pixels,
@@ -42,6 +46,7 @@ const TOOLS: { value: Tool; label: string; key: string; Icon: typeof Pencil }[] 
 ];
 
 const MAX_ZOOM = 32;
+const MAX_BRUSH = BRUSH_SIZES[BRUSH_SIZES.length - 1] ?? 16;
 const HISTORY = 100;
 
 function ToolButton({
@@ -125,9 +130,10 @@ function shiftHalf(pixels: Pixels): Pixels {
 }
 
 /**
- * Éditeur de pixels : crayon, gomme, remplissage, pipette, miroir, grille, décalage pour
- * travailler le raccord, annuler/rétablir. Au clavier : flèches pour se déplacer, Espace pour
- * appliquer l'outil, B/E/G/I pour changer d'outil, Ctrl+Z / Ctrl+Y.
+ * Éditeur de pixels : crayon, gomme (pinceau de 1 à 16 px), remplissage, pipette, miroir,
+ * grille, décalage pour travailler le raccord, annuler/rétablir. Au clavier : flèches pour se
+ * déplacer, Espace pour appliquer l'outil, B/E/G/I pour changer d'outil, [ et ] pour la taille
+ * du pinceau, Ctrl+Z / Ctrl+Y.
  * `onChange` reçoit l'image à la fin de chaque geste ; l'éditeur repart de `initial` (et vide
  * son historique) seulement quand `resetKey` change.
  */
@@ -176,6 +182,9 @@ export function PixelEditor({
     setZoomState(update);
   };
   const [cursor, setCursor] = useState<[number, number] | null>(null);
+  /** Case sous la souris : l'empreinte du pinceau s'y dessine. */
+  const [hover, setHover] = useState<[number, number] | null>(null);
+  const [brush, setBrush] = useState(1);
   const [history, setHistory] = useState({ undo: 0, redo: 0 });
   const [palette, setPalette] = useState<Rgba[]>(() => paletteOf(pixels, 24));
 
@@ -225,12 +234,17 @@ export function PixelEditor({
       }
       context.stroke();
     }
-    if (cursor) {
+    // Empreinte du pinceau (crayon, gomme) sous la souris ou le curseur clavier.
+    const spot = hover ?? cursor;
+    if (spot) {
       context.strokeStyle = styles.getPropertyValue("--color-accent").trim() || "orange";
       context.lineWidth = 2;
-      context.strokeRect(cursor[0] * zoom + 1, cursor[1] * zoom + 1, zoom - 2, zoom - 2);
+      const size = tool === "pencil" || tool === "eraser" ? brush : 1;
+      for (const [x, y] of brushCells(spot[0], spot[1], size)) {
+        context.strokeRect(x * zoom + 1, y * zoom + 1, zoom - 2, zoom - 2);
+      }
     }
-  }, [zoom, grid, cursor]);
+  }, [zoom, grid, cursor, hover, brush, tool]);
 
   useEffect(() => draw(), [draw]);
 
@@ -245,13 +259,19 @@ export function PixelEditor({
     onChange(clonePixels(work.current));
   };
 
-  /** Applique le crayon ou la gomme en `(x, y)`, et au symétrique en mode miroir. */
+  /** Applique le crayon ou la gomme (à la taille du pinceau) en `(x, y)`, et au symétrique en
+   * mode miroir. */
   const paint = (x: number, y: number): boolean => {
     const ink = tool === "eraser" ? TRANSPARENT : color;
-    let changed = setPixel(work.current, x, y, ink);
-    if (mirror) changed = setPixel(work.current, mirrored(work.current, x), y, ink) || changed;
+    let changed = stamp(work.current, x, y, brush, ink);
+    if (mirror) changed = stamp(work.current, mirrored(work.current, x), y, brush, ink) || changed;
     return changed;
   };
+  const resize = (step: number) =>
+    setBrush((current) => {
+      const index = BRUSH_SIZES.indexOf(current as (typeof BRUSH_SIZES)[number]);
+      return BRUSH_SIZES[Math.max(0, Math.min(BRUSH_SIZES.length - 1, index + step))] ?? current;
+    });
 
   /** Premier contact d'un geste : `true` s'il faut suivre le glisser. */
   const begin = (x: number, y: number): boolean => {
@@ -346,6 +366,11 @@ export function PixelEditor({
       setMirror((v) => !v);
       return;
     }
+    if (key === "[" || key === "]") {
+      event.preventDefault();
+      resize(key === "]" ? 1 : -1);
+      return;
+    }
     const moves: Record<string, [number, number]> = {
       arrowleft: [-1, 0],
       arrowright: [1, 0],
@@ -379,6 +404,26 @@ export function PixelEditor({
           <Icon size={16} strokeWidth={1.75} />
         </ToolButton>
       ))}
+      <span
+        role="group"
+        aria-label="Taille du pinceau"
+        title="Taille du pinceau du crayon et de la gomme ([ et ])"
+        className="flex items-center"
+      >
+        <ToolButton label="Pinceau plus petit ([)" disabled={locked || brush <= BRUSH_SIZES[0]} onClick={() => resize(-1)}>
+          <Minus size={14} strokeWidth={1.75} />
+        </ToolButton>
+        <span aria-live="polite" className="min-w-10 text-center text-caption tabular-nums text-text-muted">
+          {brush} px
+        </span>
+        <ToolButton
+          label="Pinceau plus grand (])"
+          disabled={locked || brush >= MAX_BRUSH}
+          onClick={() => resize(1)}
+        >
+          <Plus size={14} strokeWidth={1.75} />
+        </ToolButton>
+      </span>
       <ToolButton label="Miroir gauche-droite (M)" pressed={mirror} disabled={locked} onClick={() => setMirror((v) => !v)}>
         <FlipHorizontal2 size={16} strokeWidth={1.75} />
       </ToolButton>
@@ -433,8 +478,11 @@ export function PixelEditor({
         if (begin(x, y)) event.currentTarget.setPointerCapture(event.pointerId);
       }}
       onPointerMove={(event) => {
-        if (stroke.current) extend(...cellAt(event));
+        const cell = cellAt(event);
+        setHover((h) => (h && h[0] === cell[0] && h[1] === cell[1] ? h : cell));
+        if (stroke.current) extend(...cell);
       }}
+      onPointerLeave={() => setHover(null)}
       onPointerUp={end}
       onPointerCancel={end}
       onBlur={() => setCursor(null)}

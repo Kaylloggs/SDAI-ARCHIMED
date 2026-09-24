@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  brushCells,
+  stamp,
   decodePixels,
   encodePixels,
   floodFill,
@@ -69,5 +71,25 @@ describe("éditeur de pixels", () => {
     expect(fromHex("#12")).toBeNull();
     expect(shade([100, 100, 100, 255], -0.5)).toEqual([50, 50, 50, 255]);
     expect(shade([100, 100, 100, 255], 0.5)[0]).toBe(178);
+  });
+});
+
+describe("pinceau", () => {
+  it("couvre un carré jusqu'à 3 pixels, un disque au-delà", () => {
+    expect(brushCells(5, 5, 1)).toEqual([[5, 5]]);
+    expect(brushCells(5, 5, 2)).toHaveLength(4);
+    expect(brushCells(5, 5, 3)).toHaveLength(9);
+    const round = brushCells(5, 5, 4);
+    expect(round).toHaveLength(12);
+    expect(round).not.toContainEqual([4, 4]);
+    expect(round).toContainEqual([5, 5]);
+  });
+
+  it("gomme une zone d'un seul geste, sans sortir de l'image", () => {
+    const image = { width: 4, height: 4, data: new Uint8ClampedArray(4 * 4 * 4).fill(255) };
+    expect(stamp(image, 0, 0, 3, [0, 0, 0, 0])).toBe(true);
+    const cleared = [...Array(16).keys()].filter((i) => image.data[i * 4 + 3] === 0).length;
+    expect(cleared).toBe(4);
+    expect(stamp(image, 0, 0, 3, [0, 0, 0, 0])).toBe(false);
   });
 });

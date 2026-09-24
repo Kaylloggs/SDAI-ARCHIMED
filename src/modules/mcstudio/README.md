@@ -242,7 +242,7 @@ libre) dessiné sans IA aux couleurs des écrans du jeu, dans `textures/gui/`.
    **Propositions** : chaque image générée, importée ou retouchée reste dans l'historique de sa
    texture (`texture_history`, 20 par texture, 150 en tout), même fermée : bande des versions sous
    le canevas, on la rouvre avec ses réglages, ou on la retire (`delete_draft`).
-7. **Retouche au pixel** : crayon, gomme, remplissage, pipette, miroir, grille, décalage d'une
+7. **Retouche au pixel** : crayon, gomme (pinceau de 1 à 16 px, touches [ et ]), remplissage, pipette, miroir, grille, décalage d'une
    demi-case (les bords opposés se retrouvent au milieu pour corriger un raccord), annuler /
    rétablir, zoom, palette de la texture, couleur hexadécimale ; au clavier : flèches + Espace,
    B/E/G/I/M, Ctrl+Z / Ctrl+Y. Les retouches s'enregistrent dans la proposition au fil de l'eau ;

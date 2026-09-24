@@ -51,6 +51,36 @@ export function setPixel(pixels: Pixels, x: number, y: number, color: Rgba): boo
   return true;
 }
 
+/** Tailles de pinceau proposées (pixels de côté). */
+export const BRUSH_SIZES = [1, 2, 3, 4, 6, 8, 12, 16] as const;
+
+/**
+ * Pixels couverts par un pinceau de `size` pixels centré sur `(x, y)` : carré jusqu'à 3,
+ * rond au-delà (comme les pinceaux des éditeurs de pixel art).
+ */
+export function brushCells(x: number, y: number, size: number): [number, number][] {
+  const side = Math.max(1, Math.round(size));
+  const start = -Math.floor((side - 1) / 2);
+  const radius = side / 2;
+  const cells: [number, number][] = [];
+  for (let dy = 0; dy < side; dy += 1) {
+    for (let dx = 0; dx < side; dx += 1) {
+      const cx = dx + 0.5 - radius;
+      const cy = dy + 0.5 - radius;
+      if (side > 3 && cx * cx + cy * cy > radius * radius) continue;
+      cells.push([x + start + dx, y + start + dy]);
+    }
+  }
+  return cells;
+}
+
+/** Applique le pinceau en `(x, y)` ; `true` si au moins un pixel a changé. */
+export function stamp(pixels: Pixels, x: number, y: number, size: number, color: Rgba): boolean {
+  let changed = false;
+  for (const [px, py] of brushCells(x, y, size)) changed = setPixel(pixels, px, py, color) || changed;
+  return changed;
+}
+
 /** Remplit la zone de même couleur (voisins haut, bas, gauche, droite) ; pixels changés. */
 export function floodFill(pixels: Pixels, x: number, y: number, color: Rgba): number {
   if (!inside(pixels, x, y)) return 0;

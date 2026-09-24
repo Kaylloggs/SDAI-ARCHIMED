@@ -4,6 +4,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Taille du pinceau
+- Retouche au pixel : le crayon et la gomme ont une taille de 1 à 16 px (boutons − / + ou
+  touches [ et ]), carrée jusqu'à 3 px, ronde au-delà ; l'empreinte s'affiche sous la souris.
+  Pratique pour vider d'un geste une superposition générée pleine.
+
 ### Ajouté — Toutes les textures du mod dans l'onglet Textures
 - Les textures qui ne sont ni un objet, ni un bloc, ni l'icône apparaissent aussi, classées :
   **Superpositions** (lunettes, casque, longue-vue…), **Entités**, **Armures**, **Particules**,
