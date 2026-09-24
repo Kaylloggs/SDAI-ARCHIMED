@@ -9,7 +9,9 @@ export function fixRequest(record: BuildRecord): string {
   const what =
     record.task === "runClient"
       ? "La partie de test du vrai projet (gradlew runClient) a échoué"
-      : "La compilation du vrai projet a échoué";
+      : record.task === "runServer"
+        ? "Le serveur dédié de test du vrai projet (gradlew runServer) a échoué : cherche du code réservé au client chargé côté serveur"
+        : "La compilation du vrai projet a échoué";
   const lines = [
     `${what} (Gradle, code de sortie ${record.exitCode ?? "inconnu"}). ${record.summary}`,
     "",

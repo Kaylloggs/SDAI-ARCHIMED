@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { AlertTriangle, CheckCircle2, FolderOpen, Hammer, ListChecks, XCircle } from "lucide-react";
+import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
+import { AlertTriangle, Archive, CheckCircle2, FolderOpen, Hammer, ListChecks, Loader2, XCircle } from "lucide-react";
 import { engineApi } from "@/core/engine/engine.api";
 import { Button } from "@/design-system/primitives";
+import type { ExportOutcome } from "@/core/ipc/bindings/ExportOutcome";
 import type { JavaStatus } from "@/core/ipc/bindings/JavaStatus";
 import type { ProjectStats } from "@/core/ipc/bindings/ProjectStats";
 import type { ProjectSummary } from "@/core/ipc/bindings/ProjectSummary";
 import { errorText, mcstudioApi } from "../../api";
-import { ago, LOADER_LABEL } from "../../lib/format";
+import { ago, basename, LOADER_LABEL, megabytes } from "../../lib/format";
 import { useMcStudioStore } from "../../store";
 import { Fact } from "../ui";
 import { JdkInstallCard } from "../JdkInstallCard";
@@ -15,6 +16,7 @@ import { useEditorStore } from "../../editor";
 import { BuildResult } from "./BuildResult";
 import { problemsSummary } from "./ProblemsPanel";
 import { HistorySection } from "./HistorySection";
+import { PortSection } from "./PortSection";
 import { VersionsSection } from "./VersionsSection";
 
 const STAT_LABELS: [keyof ProjectStats, string][] = [
@@ -37,6 +39,7 @@ export function Dashboard({
   onJavaChange,
   onCompile,
   onShowProblems,
+  onAskAssistant,
 }: {
   project: ProjectSummary;
   java: JavaStatus | null;
@@ -44,9 +47,12 @@ export function Dashboard({
   onJavaChange: (status: JavaStatus) => void;
   onCompile: () => void;
   onShowProblems: () => void;
+  onAskAssistant: (text: string) => void;
 }) {
   const [stats, setStats] = useState<ProjectStats | null>(null);
   const [error, setError] = useState<string | null>(javaError);
+  const [exporting, setExporting] = useState(false);
+  const [exported, setExported] = useState<ExportOutcome | null>(null);
   const running = useMcStudioStore((s) => s.builds[project.id]?.running ?? false);
   const record = useMcStudioStore((s) => s.builds[project.id]?.record) ?? project.lastBuild;
   const meta = project.meta;
@@ -85,6 +91,24 @@ export function Dashboard({
       applyJava(await mcstudioApi.setProjectJava(project.id, folder));
     } catch (e) {
       setError(errorText(e));
+    }
+  };
+
+  const exportZip = async () => {
+    const destination = await saveDialog({
+      title: `Exporter les sources de ${meta.name}`,
+      defaultPath: `${meta.modId}-${meta.modVersion}-sources.zip`,
+      filters: [{ name: "Archive ZIP", extensions: ["zip"] }],
+    });
+    if (!destination) return;
+    setExporting(true);
+    setError(null);
+    try {
+      setExported(await mcstudioApi.exportZip(project.id, destination));
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -157,7 +181,10 @@ export function Dashboard({
 
           <VersionsSection project={project} busy={running} />
 
-          <HistorySection projectId={project.id} busy={running} />
+          <PortSection project={project} busy={running} onAskAssistant={onAskAssistant} />
+
+          {/* Relue après un portage ou une restauration (nouveau point de restauration). */}
+          <HistorySection key={v.minecraft} projectId={project.id} busy={running} />
         </div>
 
         <aside className="space-y-6">
@@ -177,9 +204,41 @@ export function Dashboard({
               <Fact label="Licence">{meta.license === "mit" ? "MIT" : "Tous droits réservés"}</Fact>
               <Fact label="Créé">{ago(meta.createdAt)}</Fact>
             </dl>
-            <Button size="sm" variant="ghost" icon={<FolderOpen size={12} />} onClick={() => void engineApi.revealPath(project.path)}>
-              Afficher le dossier
-            </Button>
+            <div className="flex flex-wrap gap-1">
+              <Button size="sm" variant="ghost" icon={<FolderOpen size={12} />} onClick={() => void engineApi.revealPath(project.path)}>
+                Afficher le dossier
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={exporting}
+                icon={exporting ? <Loader2 size={12} className="animate-spin" /> : <Archive size={12} />}
+                onClick={() => void exportZip()}
+              >
+                Exporter les sources
+              </Button>
+            </div>
+            {exported && (
+              <div role="status" className="space-y-1.5 rounded-md border border-border bg-surface-1 px-3 py-2">
+                <p className="text-footnote">
+                  <span className="font-medium">{basename(exported.path)}</span>
+                  <span className="text-text-subtle">
+                    {" "}
+                    · {exported.files} fichiers · {megabytes(exported.bytes)}
+                  </span>
+                </p>
+                <p className="text-caption text-text-subtle">Sans builds, caches ni réglages de cette machine.</p>
+                {exported.warnings.map((line) => (
+                  <p key={line} className="flex gap-1.5 text-caption text-text">
+                    <AlertTriangle size={12} className="mt-0.5 shrink-0 text-warning" />
+                    {line}
+                  </p>
+                ))}
+                <Button size="sm" variant="ghost" onClick={() => void engineApi.revealPath(exported.path)}>
+                  Afficher l'archive
+                </Button>
+              </div>
+            )}
           </section>
 
           <section aria-labelledby="mc-java" className="space-y-2">

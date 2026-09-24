@@ -4,6 +4,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Mod Studio : serveur de test, import, portage, export
+- **Serveur de test** (onglet Build) : `runServer` lance un serveur local avec le mod. Le CLUF de
+  Minecraft s'accepte d'un clic explicite (jamais en silence) ; `online-mode=false` est réglé
+  pour rejoindre le serveur depuis le client de développement.
+- **Importer un projet existant** : un dossier Fabric, Forge ou NeoForge est examiné, résumé,
+  puis ajouté sans modifier ses fichiers (seul `.mcstudio/project.json` est écrit).
+- **Porter vers une autre version de Minecraft** : plan affiché avant de confirmer, point de
+  restauration, versions et fichiers de build mis à jour (retouches gardées), dossiers de données
+  renommés, puis message prêt pour que l'assistant IA adapte le code Java.
+- **Exporter les sources** en ZIP : sans builds ni caches, `gradlew` exécutable, secrets
+  possibles signalés avant le partage.
+
 ### Ajouté — Mod Studio : atelier 3D (ADR 0009)
 - Nouvel onglet **Modèles 3D**, à la manière de Blockbench : vue 3D des modèles de blocs et
   d'objets, des entités et des armures, avec la texture peinte directement sur le modèle (crayon,

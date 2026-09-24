@@ -26,7 +26,9 @@ un dossier Gradle autonome : il se compile aussi sans ARCHIMED (`gradlew build`)
 | G | Assistant IA via les CLI installées : copie de travail, relecture fichier par fichier, application avec point de restauration, correction bornée | ✓ (à essayer avec vos CLI) |
 | J | Test en jeu (`runClient`), plantages expliqués | ✓ (à essayer sur Windows) |
 | 3D | Atelier 3D : modèles de blocs, d'objets, d'entités (code Java généré) et armures, peinture sur le modèle | ✓ |
-| K–M | `runServer`, import de projets existants, audit/portage de version, export ZIP | à venir |
+| K | Serveur de test (`runServer`), CLUF de Minecraft accepté par la personne | ✓ (à essayer sur Windows) |
+| L | Import d'un projet Fabric, Forge ou NeoForge existant | ✓ |
+| M | Portage vers une autre version de Minecraft, export des sources en ZIP | ✓ (code Java adapté par l'assistant IA) |
 
 Rien n'est simulé : un bouton qui n'a pas encore de moteur n'est pas affiché.
 
@@ -299,6 +301,27 @@ seul historique pour le modèle et les textures). Suppr, Ctrl+D (dupliquer), Ctr
 Tout enregistrement de modèle crée d'abord un point de restauration ; une texture remplacée est
 copiée dans `.mcstudio/history/textures/`.
 
+## Importer, porter, exporter
+
+- **Importer** (« Ouvrir ou importer » dans la liste des projets) : un dossier Gradle Fabric,
+  Forge ou NeoForge fait ailleurs est examiné (`gradle.properties`, `build.gradle`,
+  `fabric.mod.json` / `mods.toml`, classe principale, licence) et un aperçu montre ce qui a été
+  compris. Importer écrit seulement `.mcstudio/project.json` : aucun autre fichier n'est touché.
+  Une version sans profil ou un projet illisible est refusé avec la raison.
+- **Porter** (tableau de bord, « Porter vers une autre version ») : même loader, autre version de
+  Minecraft. Le plan s'affiche avant de confirmer (étapes automatiques, changements d'API connus).
+  Après un point de restauration, Mod Studio résout les versions (loader, mappings, API), met à
+  jour les lignes de version de `gradle.properties`, `build.gradle`, du wrapper Gradle et du
+  descripteur du mod (vos retouches restent), renomme les dossiers de données (`recipes` →
+  `recipe`, `tags/blocks` → `tags/block`… en 1.21) et ajoute les définitions de modèle d'objet
+  (1.21.4). Le code Java est confié à l'assistant IA avec un message prêt (versions, changements
+  d'API, classes de référence de la version cible), à relire avant l'envoi.
+- **Exporter** (tableau de bord, « Exporter les sources ») : archive ZIP `<modid>-<version>/`
+  avec les sources, le wrapper (`gradlew` reste exécutable), `.mcstudio/project.json` et les
+  modèles d'entités ; sans builds, caches, `run/`, `.git`, ni `local.properties`. Une clé qui
+  ressemble à un secret dans un fichier `.properties` (`*_token`, `password`…) est signalée
+  avant le partage. L'archive se réimporte telle quelle.
+
 ## Projet généré
 
 ```
@@ -329,7 +352,11 @@ journal d'audit (`mcstudio.gradle`).
 
 **Tester en jeu** (onglet Build) lance `gradlew runClient` : Minecraft démarre avec le mod, via
 la configuration de lancement du projet (Fabric Loom l'a d'office, les templates Forge et NeoForge
-la déclarent). La première partie télécharge les ressources du jeu. Fermer le jeu termine la
+la déclarent). **Serveur de test** lance `gradlew runServer` dans `run/` : la première fois,
+Mod Studio demande d'accepter le CLUF de Minecraft (lien vers le texte, `eula=true` écrit
+seulement après ce clic) et met `online-mode=false` dans `server.properties` s'il n'existe pas,
+pour rejoindre le serveur depuis le client de développement (`localhost`). Un code client chargé
+sur le serveur est expliqué. La première partie télécharge les ressources du jeu. Fermer le jeu termine la
 partie ; « Arrêter le jeu » tue l'arbre de processus. Un plantage est reconnu dans le journal
 (« Le jeu a planté », avec le chemin du rapport dans `run/crash-reports/`), de même qu'une classe
 ou méthode absente au lancement et un Mixin non appliqué ; l'assistant IA peut être chargé de
@@ -347,7 +374,8 @@ amont passe en premier (sans réseau, les dépendances « introuvables » n'en s
 ## Commandes Rust
 
 Projets : `list_projects` · `get_project` · `create_project` · `open_project` · `duplicate_project` ·
-`remove_project` (retrait de la liste, ou Corbeille) · `project_stats` · `default_parent_dir`
+`remove_project` (retrait de la liste, ou Corbeille) · `project_stats` · `default_parent_dir` ·
+`inspect_import` · `import_project` · `export_zip` · `port_plan` · `port_project`
 Versions : `version_catalog` · `version_options` · `resolve_versions` · `update_project_versions`
 Java : `detect_java` · `inspect_java` · `project_java` · `set_project_java` · `environment` ·
 `jdk_offer` · `install_jdk` · `cancel_jdk_install`
@@ -361,7 +389,8 @@ Textures : `openrouter_status` · `set_openrouter_key` · `clear_openrouter_key`
 
 Modèles 3D : `list_models` · `read_model` · `save_model` · `read_entity_model` · `save_entity_model` ·
 `entity_model_code` · `texture_pixels` · `save_texture_pixels`
-Build : `build_project` · `cancel_build` · `list_builds` · `read_build_log`
+Build : `build_project` · `cancel_build` · `server_eula` · `accept_server_eula` · `list_builds` ·
+`read_build_log`
 Fichiers : `list_files` · `read_project_file` · `write_project_file` · `create_project_file` ·
 `rename_project_file` · `trash_project_file` · `validate_project`
 Restauration : `list_snapshots` · `create_snapshot` · `restore_snapshot` · `delete_snapshot`
@@ -380,7 +409,10 @@ Assistant : `agent_prepare` · `agent_instructions` · `agent_changes` · `agent
   formats par version, références cassées ; chaque projet généré passe sans problème), points de
   restauration (fichiers remis, fichiers créés retirés, restauration elle-même annulable), agent
   (copie sans builds, modifications de l'agent distinguées de celles de la personne, conflits,
-  application annulable, consignes exactes pour les 23 profils).
+  application annulable, consignes exactes pour les 23 profils), import (Fabric, Forge, NeoForge,
+  dossier inutilisable), portage (Fabric 1.20.1 → 1.21.1 → 1.21.4 : retouches gardées, données
+  renommées, définitions d'objet), export ZIP (fichiers exclus, `gradlew` exécutable, secret
+  signalé), CLUF du serveur (jamais accepté sans la personne).
 - `cargo test mcstudio::e2e -- --ignored --nocapture` : crée **TestMod** (1 objet, 1 bloc, recettes)
   pour la version la plus récente de chaque profil et le compile vraiment ; affiche
   `MODULE BASIC PIPELINE = OK (…)` par version et un bilan final. Options :

@@ -261,6 +261,75 @@ pub struct CreateProjectRequest {
     pub java_home: Option<String>,
 }
 
+/// Étape d'un portage vers une autre version de Minecraft.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct PortStep {
+    pub title: String,
+    pub detail: String,
+    /// Faite par Mod Studio ; sinon à faire dans le code (assistant IA).
+    pub automatic: bool,
+}
+
+/// Ce qu'un portage fera, montré avant de confirmer.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct PortPlan {
+    pub from_minecraft: String,
+    pub to_minecraft: String,
+    pub from_profile: String,
+    pub to_profile: String,
+    pub steps: Vec<PortStep>,
+    /// Changements d'API connus entre les deux versions.
+    pub notes: Vec<String>,
+}
+
+/// Résultat d'un portage.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct PortOutcome {
+    pub summary: ProjectSummary,
+    /// Point de restauration créé avant (pour annuler).
+    pub snapshot: String,
+    pub done: Vec<String>,
+    pub warnings: Vec<String>,
+    /// Message prêt pour l'assistant IA (code Java à adapter).
+    pub prompt: String,
+}
+
+/// Ce que l'examen d'un projet existant (Fabric, Forge, NeoForge) a trouvé, avant l'import.
+#[derive(Debug, Clone, Default, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct ImportPreview {
+    pub path: String,
+    /// Déjà un projet Mod Studio : il suffit de l'ouvrir.
+    pub existing: bool,
+    pub loader: Option<LoaderId>,
+    pub minecraft: String,
+    pub loader_version: String,
+    pub mappings_version: Option<String>,
+    pub api_version: Option<String>,
+    pub mod_id: String,
+    pub name: String,
+    pub package: String,
+    pub main_class: String,
+    pub mod_version: String,
+    pub author: String,
+    pub description: String,
+    /// Version de Gradle du wrapper du projet.
+    pub gradle: Option<String>,
+    /// Profil Mod Studio qui sait construire ce projet.
+    pub profile_id: Option<String>,
+    /// Pourquoi le projet ne peut pas être importé.
+    pub problem: Option<String>,
+    /// Remarques (mappings, paquet déduit…).
+    pub notes: Vec<String>,
+}
+
 /// `.mcstudio/project.json` : identité et contexte de version d'un projet.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../src/core/ipc/bindings/")]
@@ -332,6 +401,8 @@ pub enum BuildTask {
     Clean,
     /// Lance Minecraft avec le mod (configuration de lancement du projet).
     RunClient,
+    /// Lance un serveur dédié avec le mod (vérifie qu'il n'appelle pas de code client).
+    RunServer,
 }
 
 impl BuildTask {
@@ -340,6 +411,7 @@ impl BuildTask {
             Self::Build => "build",
             Self::Clean => "clean",
             Self::RunClient => "runClient",
+            Self::RunServer => "runServer",
         }
     }
 }
@@ -1179,4 +1251,17 @@ pub struct ApplyOutcome {
     /// Point de restauration pris juste avant.
     pub snapshot: Snapshot,
     pub applied: Vec<String>,
+}
+
+/// Archive des sources d'un projet, prête à partager ou à sauvegarder.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct ExportOutcome {
+    pub path: String,
+    pub files: u32,
+    #[ts(type = "number")]
+    pub bytes: u64,
+    /// Points à vérifier avant de partager (jeton possible dans un fichier…).
+    pub warnings: Vec<String>,
 }

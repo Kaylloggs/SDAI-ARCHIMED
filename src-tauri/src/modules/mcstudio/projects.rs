@@ -124,6 +124,11 @@ pub fn read_meta(root: &Path) -> AppResult<ProjectMeta> {
     })
 }
 
+/// Réécrit `.mcstudio/project.json` (portage).
+pub fn save_meta(root: &Path, meta: &ProjectMeta) -> AppResult<()> {
+    write_meta(root, meta)
+}
+
 fn write_meta(root: &Path, meta: &ProjectMeta) -> AppResult<()> {
     let mut body = serde_json::to_string_pretty(meta)?;
     body.push('\n');
@@ -302,13 +307,30 @@ impl Projects {
     pub fn open(&self, path: &Path) -> AppResult<ProjectSummary> {
         if !meta_path(path).is_file() {
             return Err(AppError::invalid(
-                "Ce dossier n'est pas un projet Mod Studio (pas de .mcstudio/project.json). \
-L'import de projets Fabric/Forge existants arrive dans une prochaine version.",
+                "Ce dossier n'est pas un projet Mod Studio (pas de .mcstudio/project.json) : importez-le.",
             ));
         }
         let meta = read_meta(path)?;
         self.register(&meta, path)?;
         Ok(summarize(&meta.id, path))
+    }
+
+    /// Adopte un projet existant : seul `.mcstudio/project.json` est écrit.
+    pub fn adopt(&self, root: &Path, meta: &ProjectMeta) -> AppResult<ProjectSummary> {
+        if meta_path(root).exists() {
+            return Err(AppError::invalid(
+                "Ce dossier est déjà un projet Mod Studio.",
+            ));
+        }
+        write_meta(root, meta)?;
+        self.register(meta, root)?;
+        crate::core::audit::record(
+            "mcstudio.project_import",
+            &display(root),
+            "imported",
+            "user",
+        );
+        Ok(summarize(&meta.id, root))
     }
 
     /// Copie le projet à côté de l'original, sans builds ni caches.

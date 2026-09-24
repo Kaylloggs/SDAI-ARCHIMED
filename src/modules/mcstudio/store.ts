@@ -39,6 +39,8 @@ type McStudioState = {
   fixRounds: Record<string, number>;
   /** Conversation de l'assistant à afficher (ouverte depuis l'accueil). */
   focus: { projectId: string; conversationId: string } | null;
+  /** Message préparé ailleurs (portage…) à déposer dans la saisie de l'assistant. */
+  handoff: { projectId: string; text: string } | null;
 
   refresh: () => Promise<void>;
   upsert: (project: ProjectSummary) => void;
@@ -49,6 +51,7 @@ type McStudioState = {
   bumpIcon: (id: string) => void;
   setFixRounds: (id: string, rounds: number) => void;
   setFocus: (focus: { projectId: string; conversationId: string } | null) => void;
+  setHandoff: (handoff: { projectId: string; text: string } | null) => void;
 };
 
 let nextLine = 0;
@@ -95,6 +98,7 @@ export const useMcStudioStore = create<McStudioState>()((set, get) => ({
   iconRevision: {},
   fixRounds: {},
   focus: null,
+  handoff: null,
 
   refresh: async () => {
     try {
@@ -183,6 +187,7 @@ export const useMcStudioStore = create<McStudioState>()((set, get) => ({
   bumpIcon: (id) => set((state) => ({ iconRevision: { ...state.iconRevision, [id]: Date.now() } })),
   setFixRounds: (id, rounds) => set((state) => ({ fixRounds: { ...state.fixRounds, [id]: rounds } })),
   setFocus: (focus) => set({ focus }),
+  setHandoff: (handoff) => set({ handoff }),
 
   cancelBuild: async (id) => {
     try {

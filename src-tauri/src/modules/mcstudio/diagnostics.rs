@@ -266,6 +266,24 @@ pub fn analyze(lines: &[String], root: &Path) -> Vec<BuildIssue> {
             issues.push(found);
             continue;
         }
+        // Serveur dédié : une classe réservée au client (rendu, écran, clavier) chargée.
+        if text.contains("for invalid dist DEDICATED_SERVER")
+            || text.contains("in environment type SERVER")
+            || (text.contains("NoClassDefFoundError") && text.contains("net/minecraft/client/"))
+        {
+            if !issues
+                .iter()
+                .any(|i| i.title == "Code client chargé sur le serveur")
+            {
+                issues.push(issue(
+                    IssueKind::Crash,
+                    "Code client chargé sur le serveur",
+                    text,
+                    Some("Le serveur dédié n'a ni écran ni rendu : déplacez ce code dans l'initialiseur client (ClientModInitializer pour Fabric, FMLClientSetupEvent ou une classe @EventBusSubscriber(value = Dist.CLIENT) pour Forge et NeoForge), et ne l'appelez pas depuis les classes communes."),
+                ));
+            }
+            continue;
+        }
         if [
             "java.lang.NoSuchMethodError",
             "java.lang.NoSuchFieldError",
@@ -476,5 +494,17 @@ mod tests {
     fn duplicates_are_collapsed() {
         let log = lines("Could not GET 'x'\nCould not GET 'x'");
         assert_eq!(analyze(&log, Path::new("/p")).len(), 1);
+    }
+
+    #[test]
+    fn client_code_on_a_dedicated_server_is_explained() {
+        for line in [
+            "java.lang.RuntimeException: Attempted to load class net/minecraft/client/Minecraft for invalid dist DEDICATED_SERVER",
+            "java.lang.RuntimeException: Cannot load class net.minecraft.client.MinecraftClient in environment type SERVER",
+            "Caused by: java.lang.NoClassDefFoundError: net/minecraft/client/gui/screens/Screen",
+        ] {
+            let issues = analyze(&[line.to_string()], Path::new("/p"));
+            assert_eq!(issues[0].title, "Code client chargé sur le serveur", "{line}");
+        }
     }
 }

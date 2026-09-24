@@ -36,6 +36,8 @@ function StatusBar({ project, java }: { project: ProjectSummary; java: JavaStatu
   const build = session?.running
     ? session.task === "runClient"
       ? { tone: "text-info", label: "Partie de test en cours" }
+      : session.task === "runServer"
+        ? { tone: "text-info", label: "Serveur de test en cours" }
       : { tone: "text-info", label: `Compilation${session.currentTask ? ` · ${session.currentTask}` : "…"}` }
     : record?.status === "success"
       ? { tone: "text-success", label: "Dernier build réussi" }
@@ -167,6 +169,10 @@ export function Workspace({ project }: { project: ProjectSummary }) {
                 onShowProblems={() => {
                   useEditorStore.getState().showProblems(project.id, true);
                   setTab("files");
+                }}
+                onAskAssistant={(text) => {
+                  useMcStudioStore.getState().setHandoff({ projectId: project.id, text });
+                  setTab("assistant");
                 }}
               />
             ) : tab === "assistant" ? (

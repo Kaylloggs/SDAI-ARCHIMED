@@ -243,6 +243,44 @@ fn builds_file(root: &Path) -> PathBuf {
     root.join(".mcstudio").join("builds.json")
 }
 
+/// Le CLUF de Minecraft est accepté pour le serveur de test (`run/eula.txt`).
+pub fn eula_accepted(root: &Path) -> bool {
+    std::fs::read_to_string(root.join("run/eula.txt"))
+        .map(|text| text.lines().any(|line| line.trim() == "eula=true"))
+        .unwrap_or(false)
+}
+
+/// Accepte le CLUF de Minecraft (geste explicite de la personne, jamais par défaut). Un
+/// `server.properties` neuf met le serveur de test hors ligne (`online-mode=false`) pour
+/// accueillir le compte de développement de « Tester en jeu ».
+pub fn accept_eula(root: &Path) -> AppResult<()> {
+    let run = root.join("run");
+    std::fs::create_dir_all(&run)?;
+    let stamp = chrono::Utc::now().format("%Y-%m-%d %H:%M UTC");
+    write_atomic(
+        &run.join("eula.txt"),
+        format!(
+            "# CLUF de Minecraft (https://aka.ms/MinecraftEULA) accepté dans Mod Studio le {stamp}.\neula=true\n"
+        )
+        .as_bytes(),
+    )?;
+    let properties = run.join("server.properties");
+    if !properties.exists() {
+        write_atomic(
+            &properties,
+            "# Serveur de test de Mod Studio : hors ligne pour le compte de développement.\nonline-mode=false\n"
+                .as_bytes(),
+        )?;
+    }
+    crate::core::audit::record(
+        "mcstudio.server_eula",
+        &run.display().to_string(),
+        "accepted",
+        "user",
+    );
+    Ok(())
+}
+
 pub fn history(root: &Path) -> Vec<BuildRecord> {
     std::fs::read_to_string(builds_file(root))
         .ok()
@@ -322,7 +360,20 @@ pub async fn run(
             Vec::new()
         };
         let playing = params.task == BuildTask::RunClient;
+        let serving = params.task == BuildTask::RunServer;
         let summary = match status {
+            BuildStatus::Success if serving => format!(
+                "Serveur de test arrêté normalement après {}.",
+                seconds(duration_ms)
+            ),
+            BuildStatus::Cancelled if serving => "Serveur de test arrêté à votre demande.".to_string(),
+            BuildStatus::Failed if serving => match issues.first() {
+                Some(first) => format!(
+                    "Le serveur dédié n'a pas pu démarrer ou s'est arrêté sur une erreur. Cause probable : {}.",
+                    first.title.to_lowercase()
+                ),
+                None => "Le serveur dédié n'a pas pu démarrer ou s'est arrêté sur une erreur.".to_string(),
+            },
             BuildStatus::Success if playing => format!(
                 "Partie de test terminée : Minecraft s'est fermé normalement après {}.",
                 seconds(duration_ms)
@@ -505,6 +556,27 @@ fn copy_to_dist(params: &BuildParams, jar: &Path) -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_eula_is_accepted_only_on_request_and_keeps_server_settings() {
+        let root = std::env::temp_dir().join(format!("mcstudio-eula-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("run")).unwrap();
+        assert!(!eula_accepted(&root));
+        std::fs::write(root.join("run/eula.txt"), "eula=false\n").unwrap();
+        assert!(!eula_accepted(&root));
+        accept_eula(&root).unwrap();
+        assert!(eula_accepted(&root));
+        let properties = std::fs::read_to_string(root.join("run/server.properties")).unwrap();
+        assert!(properties.contains("online-mode=false"));
+        // Réglages existants gardés.
+        std::fs::write(root.join("run/server.properties"), "online-mode=true\n").unwrap();
+        accept_eula(&root).unwrap();
+        let properties = std::fs::read_to_string(root.join("run/server.properties")).unwrap();
+        assert_eq!(properties, "online-mode=true\n");
+        assert_eq!(BuildTask::RunServer.gradle_task(), "runServer");
+        let _ = std::fs::remove_dir_all(&root);
+    }
 
     #[test]
     fn log_levels_are_classified() {

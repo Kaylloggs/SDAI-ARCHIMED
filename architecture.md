@@ -167,7 +167,9 @@ SDAI ARCHIMED/
             │                            # files (explorateur confiné), validator (vérification sans compiler),
             │                            # snapshots (points de restauration), agent (copie de travail, consignes,
             │                            # comparaison, application), texture_refs (textures citées par le mod),
-            │                            # models (atelier 3D : modèles JSON, entités + code Java, armures)
+            │                            # models (atelier 3D : modèles JSON, entités + code Java, armures),
+            │                            # importer (projets existants), porting (changement de version),
+            │                            # export (sources en ZIP)
             ├── jobagent/                # moteur Python embarqué (engine/ : JobSpy + archimed_jobagent),
             │                            # service.rs, letters.rs (Antigravity), secrets.rs (DPAPI), serveur MCP
             └── skills/                  # module.toml · mod.rs · commands.rs

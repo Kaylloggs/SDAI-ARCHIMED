@@ -11,15 +11,18 @@ mod artwork;
 mod commands;
 mod content;
 mod diagnostics;
+mod export;
 mod files;
 mod fsutil;
 mod gemini;
 mod gradle;
+mod importer;
 mod java;
 mod jdk;
 mod models;
 mod openrouter;
 mod pixelart;
+mod porting;
 mod profiles;
 mod projects;
 mod secrets;
@@ -83,6 +86,13 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::set_block_layout,
             commands::create_gui_texture,
             commands::delete_textures,
+            commands::inspect_import,
+            commands::port_plan,
+            commands::port_project,
+            commands::import_project,
+            commands::export_zip,
+            commands::server_eula,
+            commands::accept_server_eula,
             commands::list_models,
             commands::read_model,
             commands::save_model,

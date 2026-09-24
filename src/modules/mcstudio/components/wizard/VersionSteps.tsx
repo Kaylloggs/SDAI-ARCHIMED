@@ -14,14 +14,15 @@ import { EMPTY_SELECTION, type Draft } from "./draft";
 
 type CatalogState = { catalog: VersionCatalog | null; error: string | null; loading: boolean; reload: () => void };
 
-/** Catalogue lu une fois par ouverture de l'assistant. */
-export function useCatalog(): CatalogState {
+/** Catalogue lu une fois par ouverture de l'assistant (ou dès que `enabled` passe à vrai). */
+export function useCatalog(enabled = true): CatalogState {
   const [catalog, setCatalog] = useState<VersionCatalog | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     setLoading(true);
     mcstudioApi
@@ -40,7 +41,7 @@ export function useCatalog(): CatalogState {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, enabled]);
 
   return { catalog, error, loading, reload: () => setAttempt((n) => n + 1) };
 }

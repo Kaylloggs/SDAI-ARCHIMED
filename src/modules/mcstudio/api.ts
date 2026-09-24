@@ -41,6 +41,10 @@ import type { EntityModel } from "@/core/ipc/bindings/EntityModel";
 import type { EntitySaved } from "@/core/ipc/bindings/EntitySaved";
 import type { ModelFile } from "@/core/ipc/bindings/ModelFile";
 import type { ModelInfo } from "@/core/ipc/bindings/ModelInfo";
+import type { ExportOutcome } from "@/core/ipc/bindings/ExportOutcome";
+import type { ImportPreview } from "@/core/ipc/bindings/ImportPreview";
+import type { PortOutcome } from "@/core/ipc/bindings/PortOutcome";
+import type { PortPlan } from "@/core/ipc/bindings/PortPlan";
 
 const PLUGIN = "mcstudio";
 
@@ -51,6 +55,10 @@ export const mcstudioApi = {
   createProject: (request: CreateProjectRequest) =>
     invokeModule<ProjectSummary>(PLUGIN, "create_project", { request }),
   openProject: (path: string) => invokeModule<ProjectSummary>(PLUGIN, "open_project", { path }),
+  /** Examine un projet de mod existant (Fabric, Forge, NeoForge), sans rien écrire. */
+  inspectImport: (path: string) => invokeModule<ImportPreview>(PLUGIN, "inspect_import", { path }),
+  /** Importe un projet existant : seul `.mcstudio/project.json` est écrit. */
+  importProject: (path: string) => invokeModule<ProjectSummary>(PLUGIN, "import_project", { path }),
   duplicateProject: (id: string) => invokeModule<ProjectSummary>(PLUGIN, "duplicate_project", { id }),
   /** `deleteFiles` : le dossier part à la Corbeille, sinon il est seulement retiré de la liste. */
   removeProject: (id: string, deleteFiles: boolean) =>
@@ -81,6 +89,12 @@ export const mcstudioApi = {
   setProjectJava: (id: string, javaHome: string | null) =>
     invokeModule<JavaStatus>(PLUGIN, "set_project_java", { id, javaHome }),
 
+  /** Sources du projet en archive ZIP (sans builds ni état local). */
+  exportZip: (id: string, destination: string) => invokeModule<ExportOutcome>(PLUGIN, "export_zip", { id, destination }),
+  /** Ce que fera le portage vers une autre version de Minecraft. */
+  portPlan: (id: string, minecraft: string) => invokeModule<PortPlan>(PLUGIN, "port_plan", { id, minecraft }),
+  /** Porte le projet (point de restauration avant) ; le code reste à adapter avec l'assistant. */
+  portProject: (id: string, minecraft: string) => invokeModule<PortOutcome>(PLUGIN, "port_project", { id, minecraft }),
   projectStats: (id: string) => invokeModule<ProjectStats>(PLUGIN, "project_stats", { id }),
   defaultParentDir: () => invokeModule<string>(PLUGIN, "default_parent_dir"),
 
@@ -93,6 +107,9 @@ export const mcstudioApi = {
   build: (id: string, task: BuildTask, offline: boolean, onEvent: Channel<BuildEvent>) =>
     invokeModule<string>(PLUGIN, "build_project", { id, task, offline, onEvent }),
   cancelBuild: (id: string) => invokeModule<void>(PLUGIN, "cancel_build", { id }),
+  /** CLUF de Minecraft accepté pour le serveur de test (`run/eula.txt`). */
+  serverEula: (id: string) => invokeModule<boolean>(PLUGIN, "server_eula", { id }),
+  acceptServerEula: (id: string) => invokeModule<void>(PLUGIN, "accept_server_eula", { id }),
   listBuilds: (id: string) => invokeModule<BuildRecord[]>(PLUGIN, "list_builds", { id }),
   readBuildLog: (id: string, buildId: string) =>
     invokeModule<string>(PLUGIN, "read_build_log", { id, buildId }),

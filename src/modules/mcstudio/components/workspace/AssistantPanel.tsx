@@ -118,6 +118,14 @@ export function AssistantPanel({ project, onBuild }: { project: ProjectSummary; 
     return () => clearTimeout(timer);
   }, [deleteArmed]);
 
+  // Message préparé depuis un autre onglet (portage) : déposé dans la saisie, jamais envoyé seul.
+  const handoff = useMcStudioStore((s) => (s.handoff?.projectId === project.id ? s.handoff.text : null));
+  useEffect(() => {
+    if (!handoff) return;
+    setPrefill(handoff);
+    useMcStudioStore.getState().setHandoff(null);
+  }, [handoff]);
+
   // Build réussi : le compteur de corrections repart de zéro.
   useEffect(() => {
     if (lastRecord?.status === "success" && fixRounds > 0) useMcStudioStore.getState().setFixRounds(project.id, 0);

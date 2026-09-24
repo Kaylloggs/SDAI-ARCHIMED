@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Eraser, Gamepad2, Hammer, Loader2, Square, WifiOff } from "lucide-react";
+import { Eraser, ExternalLink, Gamepad2, Hammer, Loader2, Server, Square, WifiOff } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { cn } from "@/core/lib/cn";
 import { Button } from "@/design-system/primitives";
 import type { BuildRecord } from "@/core/ipc/bindings/BuildRecord";
@@ -177,12 +178,36 @@ export function BuildPanel({
     void startBuild(project.id, task, offline);
   };
 
+  // Serveur de test : le CLUF de Minecraft s'accepte une fois, par la personne.
+  const [askEula, setAskEula] = useState(false);
+  const [eulaError, setEulaError] = useState<string | null>(null);
+  const startServer = async () => {
+    setEulaError(null);
+    try {
+      if (await mcstudioApi.serverEula(project.id)) run("runServer");
+      else setAskEula(true);
+    } catch (e) {
+      setEulaError(errorText(e));
+    }
+  };
+  const acceptAndStart = async () => {
+    try {
+      await mcstudioApi.acceptServerEula(project.id);
+      setAskEula(false);
+      run("runServer");
+    } catch (e) {
+      setEulaError(errorText(e));
+    }
+  };
+  const serverReady =
+    session?.running && session.task === "runServer" && session.lines.some((line) => /Done \(\d/.test(line.text));
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto px-6 py-5">
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         {running ? (
           <Button onClick={() => void cancelBuild(project.id)} icon={<Square size={12} fill="currentColor" />}>
-            {session?.task === "runClient" ? "Arrêter le jeu" : "Arrêter"}
+            {session?.task === "runClient" ? "Arrêter le jeu" : session?.task === "runServer" ? "Arrêter le serveur" : "Arrêter"}
           </Button>
         ) : (
           <Button variant="primary" disabled={!java?.install} onClick={() => run("build")} icon={<Hammer size={14} strokeWidth={1.75} />}>
@@ -197,6 +222,14 @@ export function BuildPanel({
         >
           Tester en jeu
         </Button>
+        <Button
+          disabled={running || !java?.install}
+          onClick={() => void startServer()}
+          icon={<Server size={14} strokeWidth={1.75} />}
+          title="Lance un serveur dédié avec le mod : vérifie qu'il démarre sans code réservé au client (erreur fréquente)."
+        >
+          Serveur de test
+        </Button>
         <Button variant="ghost" disabled={running || !java?.install} onClick={() => run("clean")} icon={<Eraser size={14} />}>
           Nettoyer
         </Button>
@@ -204,6 +237,41 @@ export function BuildPanel({
           <WifiOff size={12} /> Hors ligne (cache uniquement)
         </Switch>
       </div>
+
+      {askEula && (
+        <div role="group" aria-label="Accepter le CLUF de Minecraft" className="shrink-0 space-y-2 rounded-md border border-border bg-surface-1 px-4 py-3">
+          <p className="text-body-sm font-medium">Accepter le CLUF de Minecraft ?</p>
+          <p className="text-footnote text-text-muted">
+            Un serveur Minecraft ne démarre qu'après l'acceptation du contrat de licence de Mojang. Mod Studio l'inscrit
+            dans <span className="font-mono">run/eula.txt</span>, et règle le serveur de test hors ligne
+            (<span className="font-mono">online-mode=false</span>) s'il n'a pas encore de réglages.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<ExternalLink size={13} />}
+              onClick={() => void openUrl("https://aka.ms/MinecraftEULA").catch(() => undefined)}
+            >
+              Lire le CLUF
+            </Button>
+            <span className="ml-auto flex gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setAskEula(false)}>
+                Annuler
+              </Button>
+              <Button size="sm" variant="primary" onClick={() => void acceptAndStart()}>
+                J'accepte, lancer le serveur
+              </Button>
+            </span>
+          </div>
+        </div>
+      )}
+      {eulaError && <p className="shrink-0 text-footnote text-danger">{eulaError}</p>}
+      {serverReady && (
+        <p role="status" className="shrink-0 text-footnote text-success">
+          Serveur démarré : le mod se charge sur un serveur dédié. Arrêtez-le pour terminer le test.
+        </p>
+      )}
 
       {java && !java.install && (
         <div role="alert" className="shrink-0 space-y-2 rounded-md border border-warning/40 bg-warning-soft px-3 py-3">

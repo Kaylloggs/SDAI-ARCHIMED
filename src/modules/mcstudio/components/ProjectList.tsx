@@ -16,6 +16,7 @@ import {
 import { cn } from "@/core/lib/cn";
 import { Badge, Button, ContextMenu, EmptyState, SectionHeader, type ContextMenuItem } from "@/design-system/primitives";
 import type { BuildRecord } from "@/core/ipc/bindings/BuildRecord";
+import type { ImportPreview } from "@/core/ipc/bindings/ImportPreview";
 import type { ProjectSummary } from "@/core/ipc/bindings/ProjectSummary";
 import { errorText, mcstudioApi } from "../api";
 import { ago, LOADER_LABEL } from "../lib/format";
@@ -186,21 +187,112 @@ function ProjectRow({
   );
 }
 
+/** Ce que l'examen d'un projet existant a trouvé, à confirmer avant l'import. */
+function ImportCard({
+  preview,
+  busy,
+  onCancel,
+  onImport,
+}: {
+  preview: ImportPreview;
+  busy: boolean;
+  onCancel: () => void;
+  onImport: () => void;
+}) {
+  const rows: [string, string][] = preview.problem
+    ? []
+    : [
+        ["Mod", `${preview.name} (${preview.modId}) · ${preview.modVersion}`],
+        ["Minecraft", `${preview.minecraft} · ${preview.loader ? LOADER_LABEL[preview.loader] : "?"} ${preview.loaderVersion}`],
+        ["Paquet", preview.mainClass ? `${preview.package}.${preview.mainClass}` : preview.package],
+        ...(preview.mappingsVersion ? ([["Yarn", preview.mappingsVersion]] as [string, string][]) : []),
+        ...(preview.gradle ? ([["Gradle", preview.gradle]] as [string, string][]) : []),
+      ];
+  return (
+    <section
+      aria-label="Importer un projet existant"
+      className={cn("mb-4 space-y-3 rounded-lg border bg-surface-1 px-4 py-3", preview.problem ? "border-danger/40" : "border-border")}
+    >
+      <div>
+        <p className="text-body-sm font-medium">{preview.problem ? "Import impossible" : "Importer ce projet ?"}</p>
+        <p className="selectable truncate font-mono text-caption text-text-subtle" title={preview.path}>
+          {preview.path}
+        </p>
+      </div>
+      {preview.problem ? (
+        <p className="text-footnote text-danger">{preview.problem}</p>
+      ) : (
+        <dl className="grid grid-cols-[96px_1fr] gap-x-3 gap-y-1 text-footnote">
+          {rows.map(([label, value]) => (
+            <div key={label} className="contents">
+              <dt className="text-text-subtle">{label}</dt>
+              <dd className="selectable truncate font-mono text-text-muted">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {preview.notes.map((note) => (
+        <p key={note} className="text-caption text-warning">
+          {note}
+        </p>
+      ))}
+      {!preview.problem && (
+        <p className="text-caption text-text-subtle">
+          Seul <span className="font-mono">.mcstudio/project.json</span> est ajouté ; les fichiers du projet ne sont pas
+          modifiés.
+        </p>
+      )}
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="ghost" onClick={onCancel}>
+          {preview.problem ? "Fermer" : "Annuler"}
+        </Button>
+        {!preview.problem && (
+          <Button size="sm" variant="primary" disabled={busy} onClick={onImport}>
+            Importer
+          </Button>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function ProjectList({ onCreate }: { onCreate: () => void }) {
   const projects = useMcStudioStore((s) => s.projects);
   const loaded = useMcStudioStore((s) => s.loaded);
   const loadError = useMcStudioStore((s) => s.error);
   const [error, setError] = useState<string | null>(null);
 
+  const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  /** Un projet Mod Studio s'ouvre ; un autre projet de mod est d'abord examiné. */
   const openExisting = async () => {
-    const folder = await openDialog({ directory: true, title: "Ouvrir un projet Mod Studio" });
+    const folder = await openDialog({ directory: true, title: "Ouvrir ou importer un projet de mod" });
     if (typeof folder !== "string") return;
+    setError(null);
+    setPreview(null);
     try {
-      const project = await mcstudioApi.openProject(folder);
-      useMcStudioStore.getState().upsert(project);
-      setError(null);
+      const found = await mcstudioApi.inspectImport(folder);
+      if (found.existing) {
+        useMcStudioStore.getState().upsert(await mcstudioApi.openProject(folder));
+      } else {
+        setPreview(found);
+      }
     } catch (e) {
       setError(errorText(e));
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!preview) return;
+    setImporting(true);
+    try {
+      useMcStudioStore.getState().upsert(await mcstudioApi.importProject(preview.path));
+      setPreview(null);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -213,8 +305,12 @@ export function ProjectList({ onCreate }: { onCreate: () => void }) {
         description="De vrais projets Fabric, Forge et NeoForge : générés, compilés par Gradle, prêts à tester."
         actions={
           <>
-            <Button onClick={() => void openExisting()} icon={<FolderOpen size={14} strokeWidth={1.75} />}>
-              Ouvrir un projet
+            <Button
+              onClick={() => void openExisting()}
+              icon={<FolderOpen size={14} strokeWidth={1.75} />}
+              title="Un projet Mod Studio, ou un projet Fabric, Forge ou NeoForge existant à importer"
+            >
+              Ouvrir ou importer
             </Button>
             <Button variant="primary" onClick={onCreate} icon={<Plus size={14} strokeWidth={2} />}>
               Nouveau projet
@@ -224,6 +320,10 @@ export function ProjectList({ onCreate }: { onCreate: () => void }) {
       />
 
       <EnvironmentPanel />
+
+      {preview && (
+        <ImportCard preview={preview} busy={importing} onCancel={() => setPreview(null)} onImport={() => void confirmImport()} />
+      )}
 
       {shownError && (
         <p role="alert" className="mb-4 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-footnote">

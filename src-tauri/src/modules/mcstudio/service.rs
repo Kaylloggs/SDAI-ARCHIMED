@@ -10,25 +10,29 @@ use crate::core::{AppError, AppResult};
 use super::agent::{self, Workspaces};
 use super::artwork::{self, Drafts};
 use super::content;
+use super::export;
 use super::files;
 use super::gemini::Gemini;
 use super::gradle::{self, BuildParams, BuildRegistry};
+use super::importer;
 use super::java;
 use super::jdk::JdkInstaller;
 use super::models;
 use super::openrouter::OpenRouter;
 use super::pixelart;
+use super::porting;
 use super::profiles::{self, meta::MetaClient, Profile};
 use super::projects::{self, Projects};
 use super::snapshots;
 use super::types::{ApplyOutcome, Snapshot, WorkChange, WorkInfo};
 use super::types::{
     BlockLayout, BlockRequest, BuildEvent, BuildRecord, BuildTask, ContentResult,
-    CreateProjectRequest, DraftSource, EntityModel, EntitySaved, EnvironmentReport, GuiRequest,
-    ImageModel, ImageProvider, ItemRequest, JavaInstall, JavaStatus, JdkNeed, ModelFile, ModelInfo,
-    PixelData, PixelOptions, ProjectEntry, ProjectFile, ProjectMeta, ProjectStats, ProjectSummary,
-    RecipeRequest, ResolvedVersions, TextureDraft, TextureInfo, TextureRequest, TextureTarget,
-    ValidationReport, VersionCatalog, VersionOptions, VersionSelection,
+    CreateProjectRequest, DraftSource, EntityModel, EntitySaved, EnvironmentReport, ExportOutcome,
+    GuiRequest, ImageModel, ImageProvider, ImportPreview, ItemRequest, JavaInstall, JavaStatus,
+    JdkNeed, ModelFile, ModelInfo, PixelData, PixelOptions, PortOutcome, PortPlan, ProjectEntry,
+    ProjectFile, ProjectMeta, ProjectStats, ProjectSummary, RecipeRequest, ResolvedVersions,
+    TextureDraft, TextureInfo, TextureRequest, TextureTarget, ValidationReport, VersionCatalog,
+    VersionOptions, VersionSelection,
 };
 use super::validator;
 
@@ -141,6 +145,82 @@ impl McStudio {
         Ok((root, meta, profile))
     }
 
+    /// Examine un projet de mod existant, sans rien écrire.
+    pub fn inspect_import(&self, path: &str) -> AppResult<ImportPreview> {
+        let root = PathBuf::from(path);
+        if !root.is_dir() {
+            return Err(AppError::not_found(format!("Dossier introuvable : {path}")));
+        }
+        Ok(importer::inspect(&root, &self.profiles()))
+    }
+
+    /// Importe un projet existant : `.mcstudio/project.json` est écrit, rien d'autre.
+    pub fn import_project(&self, path: &str) -> AppResult<ProjectSummary> {
+        let root = PathBuf::from(path);
+        let all = self.profiles();
+        let preview = importer::inspect(&root, &all);
+        if let Some(problem) = preview.problem {
+            return Err(AppError::invalid(problem));
+        }
+        let profile = profiles::find(&all, preview.profile_id.as_deref().unwrap_or_default())?;
+        let meta = importer::meta_from(&preview, profile, importer::license_of(&root))?;
+        self.projects.adopt(&root, &meta)
+    }
+
+    /// Exporte les sources du projet dans l'archive `destination` (choisie par la personne).
+    pub fn export_zip(&self, project_id: &str, destination: &str) -> AppResult<ExportOutcome> {
+        let root = self.projects.root(project_id)?;
+        let meta = projects::read_meta(&root)?;
+        export::export(&root, &meta, Path::new(destination))
+    }
+
+    /// Ce que le portage vers `minecraft` fera (même loader), sans rien écrire.
+    pub fn port_plan(&self, project_id: &str, minecraft: &str) -> AppResult<PortPlan> {
+        let (_, meta, from) = self.open_context(project_id)?;
+        let all = self.profiles();
+        let to = porting::target_profile(&all, &meta, minecraft)?;
+        Ok(porting::plan(&meta, &from, to, minecraft))
+    }
+
+    /// Porte le projet vers `minecraft` : versions résolues (loader, mappings, API), fichiers
+    /// de build et de données migrés après un point de restauration ; le code est laissé à
+    /// l'assistant IA avec un message prêt.
+    pub async fn port_project(&self, project_id: &str, minecraft: &str) -> AppResult<PortOutcome> {
+        if self.builds.is_running(project_id) {
+            return Err(AppError::invalid(
+                "Attendez la fin de la compilation en cours.",
+            ));
+        }
+        let (root, old, from) = self.open_context(project_id)?;
+        let all = self.profiles();
+        let to = porting::target_profile(&all, &old, minecraft)?.clone();
+        let versions = self
+            .meta
+            .resolve(&to, minecraft, &VersionSelection::default())
+            .await?;
+        let mut new = old.clone();
+        new.versions = versions;
+        let plan = porting::plan(&old, &from, &to, minecraft);
+        let changes = porting::changes(&root, &old, &from, &new, &to)?;
+        let prompt = porting::assistant_prompt(&old, &new, &to, &plan, &changes)?;
+        let snapshot = porting::apply(
+            &root,
+            &new,
+            &changes,
+            &format!(
+                "Avant le portage de {} vers {minecraft}",
+                old.versions.minecraft
+            ),
+        )?;
+        Ok(PortOutcome {
+            summary: self.projects.summary(project_id)?,
+            snapshot,
+            done: changes.done,
+            warnings: changes.warnings,
+            prompt,
+        })
+    }
+
     /// Change les versions du loader (même Minecraft) d'un projet existant.
     pub async fn update_versions(
         &self,
@@ -235,6 +315,11 @@ impl McStudio {
                 "Une compilation est déjà en cours pour ce projet.",
             ));
         }
+        if task == BuildTask::RunServer && !gradle::eula_accepted(&root) {
+            return Err(AppError::invalid(
+                "Le serveur de Minecraft demande d'accepter son CLUF : faites-le depuis « Serveur de test ».",
+            ));
+        }
         gradle::check_wrapper(&root)?;
         let status = java_status_for(&meta, &self.detect_java());
         let java = status
@@ -269,6 +354,14 @@ impl McStudio {
             "user",
         );
         record
+    }
+
+    pub fn server_eula(&self, project_id: &str) -> AppResult<bool> {
+        Ok(gradle::eula_accepted(&self.projects.root(project_id)?))
+    }
+
+    pub fn accept_server_eula(&self, project_id: &str) -> AppResult<()> {
+        gradle::accept_eula(&self.projects.root(project_id)?)
     }
 
     pub fn cancel_build(&self, project_id: &str) -> AppResult<()> {

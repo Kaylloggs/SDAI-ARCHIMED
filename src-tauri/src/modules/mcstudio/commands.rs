@@ -18,7 +18,10 @@ use super::types::{
 
 use super::types::{ApplyOutcome, Snapshot, WorkChange, WorkInfo};
 use super::types::{BlockLayout, GuiRequest, PixelData, PromptSettings};
-use super::types::{EntityModel, EntitySaved, ModelFile, ModelInfo};
+use super::types::{
+    EntityModel, EntitySaved, ExportOutcome, ImportPreview, ModelFile, ModelInfo, PortOutcome,
+    PortPlan,
+};
 
 type Studio<'a> = State<'a, Arc<McStudio>>;
 
@@ -172,6 +175,22 @@ pub async fn update_project_versions(
     selection: VersionSelection,
 ) -> AppResult<ProjectSummary> {
     studio.update_versions(&id, &selection).await
+}
+
+/// Ce que le portage vers une autre version de Minecraft fera.
+#[tauri::command]
+pub async fn port_plan(studio: Studio<'_>, id: String, minecraft: String) -> AppResult<PortPlan> {
+    blocking(&studio, move |s| s.port_plan(&id, &minecraft)).await
+}
+
+/// Porte le projet (point de restauration avant) ; renvoie le message pour l'assistant IA.
+#[tauri::command]
+pub async fn port_project(
+    studio: Studio<'_>,
+    id: String,
+    minecraft: String,
+) -> AppResult<PortOutcome> {
+    studio.port_project(&id, &minecraft).await
 }
 
 #[tauri::command]
@@ -371,6 +390,40 @@ pub async fn delete_textures(
     paths: Vec<String>,
 ) -> AppResult<usize> {
     blocking(&studio, move |s| s.delete_textures(&id, &paths)).await
+}
+
+/// Examine un projet de mod existant (Fabric, Forge, NeoForge) avant de l'importer.
+#[tauri::command]
+pub async fn inspect_import(studio: Studio<'_>, path: String) -> AppResult<ImportPreview> {
+    blocking(&studio, move |s| s.inspect_import(&path)).await
+}
+
+/// Importe un projet existant (n'écrit que `.mcstudio/project.json`).
+#[tauri::command]
+pub async fn import_project(studio: Studio<'_>, path: String) -> AppResult<ProjectSummary> {
+    blocking(&studio, move |s| s.import_project(&path)).await
+}
+
+/// Exporte les sources du projet en archive ZIP (destination choisie dans le dialogue).
+#[tauri::command]
+pub async fn export_zip(
+    studio: Studio<'_>,
+    id: String,
+    destination: String,
+) -> AppResult<ExportOutcome> {
+    blocking(&studio, move |s| s.export_zip(&id, &destination)).await
+}
+
+/// Le CLUF de Minecraft est-il accepté pour le serveur de test ?
+#[tauri::command]
+pub async fn server_eula(studio: Studio<'_>, id: String) -> AppResult<bool> {
+    blocking(&studio, move |s| s.server_eula(&id)).await
+}
+
+/// Accepte le CLUF de Minecraft pour le serveur de test (geste de la personne).
+#[tauri::command]
+pub async fn accept_server_eula(studio: Studio<'_>, id: String) -> AppResult<()> {
+    blocking(&studio, move |s| s.accept_server_eula(&id)).await
 }
 
 #[tauri::command]
