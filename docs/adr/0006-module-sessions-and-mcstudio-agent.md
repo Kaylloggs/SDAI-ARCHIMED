@@ -1,7 +1,7 @@
 # ADR 0006 — Sessions d'agent ouvertes aux modules ; agent de Mod Studio sur copie de travail
 
 - **Date** : 2026-09-24
-- **Statut** : accepté (volet core livré ; volet Mod Studio livré avec la phase G)
+- **Statut** : accepté (volets core et Mod Studio livrés)
 
 ## Contexte
 
@@ -21,7 +21,8 @@ deux origines de conversation (`chat`, `code`) et aucune consigne par session, e
    (`openModule(origine, { conversationId })`).
 2. **`SessionOptions`** (`engine_start_session`, champ `options`, conservé par la conversation) :
    `appendSystemPrompt` et `disallowedTools`. Claude reçoit `--append-system-prompt` et
-   `--disallowedTools` ; une CLI sans option équivalente reçoit les consignes en tête du premier
+   `--disallowedTools` ; une CLI sans option équivalente, ou lancée par un script `.cmd` (Claude
+   installé par npm : Windows ne transmet pas d'argument multiligne), reçoit les consignes en tête du premier
    message d'une nouvelle conversation (de chaque message pour une CLI sans mémoire). Les
    adaptateurs PTY déclaratifs ne les reçoivent pas.
 3. **Politique sensible au dossier de travail** : une modification de fichier hors du `cwd` de la

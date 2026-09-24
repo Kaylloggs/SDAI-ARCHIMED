@@ -757,3 +757,53 @@ pub struct Snapshot {
     #[ts(type = "number")]
     pub size: u64,
 }
+
+// ── Agent IA : copie de travail ─────────────────────────────────────────────
+
+/// Copie de travail de l'agent (son dossier de travail).
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct WorkInfo {
+    /// Chemin absolu : `cwd` de la conversation.
+    pub path: String,
+    pub files: u32,
+    /// Modifications de l'agent pas encore appliquées ni rejetées.
+    pub pending: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub enum ChangeKind {
+    Added,
+    Modified,
+    Deleted,
+}
+
+/// Fichier que l'agent a créé, modifié ou supprimé dans sa copie.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct WorkChange {
+    pub path: String,
+    pub kind: ChangeKind,
+    /// Le fichier du projet a aussi changé depuis la copie : appliquer écraserait ce changement.
+    pub conflict: bool,
+    pub binary: bool,
+    /// Texte actuel dans le projet (`null` : absent, binaire ou trop gros).
+    pub before: Option<String>,
+    /// Texte proposé par l'agent.
+    pub after: Option<String>,
+    /// Chemin absolu de la version de l'agent (aperçu d'image).
+    pub work_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct ApplyOutcome {
+    /// Point de restauration pris juste avant.
+    pub snapshot: Snapshot,
+    pub applied: Vec<String>,
+}

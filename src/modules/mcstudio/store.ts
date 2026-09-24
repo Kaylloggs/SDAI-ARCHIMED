@@ -35,6 +35,10 @@ type McStudioState = {
   builds: Record<string, BuildSession>;
   /** Augmente quand l'icône d'un projet change : l'aperçu contourne le cache. */
   iconRevision: Record<string, number>;
+  /** Corrections d'affilée demandées à l'IA après un build en échec (bornées). */
+  fixRounds: Record<string, number>;
+  /** Conversation de l'assistant à afficher (ouverte depuis l'accueil). */
+  focus: { projectId: string; conversationId: string } | null;
 
   refresh: () => Promise<void>;
   upsert: (project: ProjectSummary) => void;
@@ -43,6 +47,8 @@ type McStudioState = {
   startBuild: (id: string, task: BuildTask, offline: boolean) => Promise<void>;
   cancelBuild: (id: string) => Promise<void>;
   bumpIcon: (id: string) => void;
+  setFixRounds: (id: string, rounds: number) => void;
+  setFocus: (focus: { projectId: string; conversationId: string } | null) => void;
 };
 
 let nextLine = 0;
@@ -87,6 +93,8 @@ export const useMcStudioStore = create<McStudioState>()((set, get) => ({
   openId: null,
   builds: {},
   iconRevision: {},
+  fixRounds: {},
+  focus: null,
 
   refresh: async () => {
     try {
@@ -173,6 +181,8 @@ export const useMcStudioStore = create<McStudioState>()((set, get) => ({
   },
 
   bumpIcon: (id) => set((state) => ({ iconRevision: { ...state.iconRevision, [id]: Date.now() } })),
+  setFixRounds: (id, rounds) => set((state) => ({ fixRounds: { ...state.fixRounds, [id]: rounds } })),
+  setFocus: (focus) => set({ focus }),
 
   cancelBuild: async (id) => {
     try {

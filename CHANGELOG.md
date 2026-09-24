@@ -4,6 +4,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Mod Studio : assistant IA avec vos CLI (phase G)
+- Onglet **Assistant IA** : conversation avec Claude Code, Antigravity ou Codex (ce qui est
+  installé), qui connaît la version de Minecraft, le loader, les versions exactes, les mappings
+  et reçoit des **exemples de code exacts** de la version.
+- L'IA travaille dans une **copie de travail** du projet : ses modifications sont listées fichier
+  par fichier avec leur diff, les conflits signalés ; **rien n'entre dans le projet sans être
+  appliqué**, chaque application crée un point de restauration et se vérifie aussitôt.
+- **Correction bornée** : après un build en échec, un message d'erreurs expliquées est préparé
+  pour l'IA (trois essais d'affilée au plus).
+
 ### Modifié — Moteur (ADR 0006)
 - **Mode Auto plus sûr** : en « Smart », une modification de fichier **hors du dossier de travail**
   de la conversation (chemin absolu ailleurs, `..`, `~`) n'est plus validée d'office : elle est

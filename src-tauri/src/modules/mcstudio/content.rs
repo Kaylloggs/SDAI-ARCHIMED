@@ -168,7 +168,7 @@ fn java_float(value: f32) -> AppResult<String> {
 }
 
 /// Ligne(s) Java insérées dans les registres, selon l'API du loader et de la version.
-mod java {
+pub(super) mod java {
     use super::super::profiles::Dialect;
     use super::super::types::BlockSound;
 

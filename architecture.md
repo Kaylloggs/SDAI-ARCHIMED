@@ -116,8 +116,10 @@ SDAI ARCHIMED/
 │       ├── mcstudio/                    # Minecraft Mod Studio : module.config · index · api · store · README
 │       │   ├── components/              # ProjectList · EnvironmentPanel · JdkInstallCard · OpenRouterKeyCard · VersionPicker
 │       │   │                            # · wizard/ (6 étapes) · workspace/ (Dashboard · VersionsSection · TexturesPanel
-│       │   │                            #   · TextureStudio · FilesPanel · ProblemsPanel · BuildPanel · BuildResult)
+│       │   │                            #   · TextureStudio · FilesPanel · ProblemsPanel · HistorySection · AssistantPanel
+│       │   │                            #   · ChangesPanel · BuildPanel · BuildResult)
 │       │   └── lib/                     # naming (Mod ID, package, registre) · logs (niveaux) · format · textures
+│       │                                # · paths · assistant (correction bornée) ; editor.ts (onglets, vérification)
 │       ├── usage/                       # Crédits : module.config · index · api · lib/format · README
 │       ├── memory/                      # Mémoire : index · api · services/context · README
 │       ├── skills/                      # module.config · index · api · README
@@ -161,7 +163,8 @@ SDAI ARCHIMED/
             │                            # Adoptium vérifiée SHA-256), projects, textures (PNG), openrouter (clé,
             │                            # modèles d'image), pixelart (conversion), artwork (brouillons, application),
             │                            # files (explorateur confiné), validator (vérification sans compiler),
-            │                            # snapshots (points de restauration)
+            │                            # snapshots (points de restauration), agent (copie de travail, consignes,
+            │                            # comparaison, application)
             ├── jobagent/                # moteur Python embarqué (engine/ : JobSpy + archimed_jobagent),
             │                            # service.rs, letters.rs (Antigravity), secrets.rs (DPAPI), serveur MCP
             └── skills/                  # module.toml · mod.rs · commands.rs
@@ -225,7 +228,8 @@ const { sessionId } = await invokeCore("engine_start_session", {
 ```
 
 `SessionOptions` (ADR 0006) : Claude reçoit `--append-system-prompt` et `--disallowedTools` ;
-les CLI sans option équivalente (`supports_system_prompt() == false`) reçoivent les consignes en
+les CLI sans option équivalente (`supports_system_prompt() == false`), ou lancées par un script
+`.cmd`/`.bat` (Windows ne transmet pas d'argument multiligne à un script), reçoivent les consignes en
 tête du premier message d'une nouvelle conversation (de chaque message pour une CLI sans
 mémoire, comme `codex exec`). Les adaptateurs PTY déclaratifs ne les reçoivent pas.
 
@@ -550,6 +554,7 @@ arrête son processus puis efface son entrée.
 | Projets Mod Studio (liste), profils de version de l'utilisateur, cache des métadonnées | `%APPDATA%\com.sdai.archimed\modules\mcstudio\` (`projects.json`, `profiles/*.toml`, `cache/meta/`) |
 | Clé OpenRouter de Mod Studio | Gestionnaire d'identifiants Windows (`mcstudio-openrouter.com.sdai.archimed`) |
 | Brouillons de textures, modèles d'image connus | `%APPDATA%\com.sdai.archimed\modules\mcstudio\cache\` (`textures/`, `openrouter-models.json`) |
+| Copie de travail de l'assistant IA de Mod Studio | `%APPDATA%\com.sdai.archimed\modules\mcstudio\work\` (`<projet>/`, `<projet>.base.json`) |
 | JDK installés par Mod Studio, source de téléchargement | `%APPDATA%\com.sdai.archimed\modules\mcstudio\` (`jdks/<version>/`, `env.json` : `adoptiumApi`, `openrouterApi`, HTTPS uniquement) |
 | Identité et builds d'un projet de mod | `<projet>/.mcstudio/` (`project.json`, `builds.json`, `builds/<id>.log`, `history/textures/`, `snapshots/<id>/`) — le projet reste autonome |
 | Offres, profil, CV et compte d'envoi de JobAgent | `%APPDATA%\com.sdai.archimed\modules\jobagent\` (mot de passe SMTP chiffré par DPAPI) |

@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use crate::core::{AppError, AppResult};
 
+use super::agent::{self, Workspaces};
 use super::artwork::{self, Drafts};
 use super::content;
 use super::files;
@@ -18,7 +19,7 @@ use super::pixelart;
 use super::profiles::{self, meta::MetaClient, Profile};
 use super::projects::{self, Projects};
 use super::snapshots;
-use super::types::Snapshot;
+use super::types::{ApplyOutcome, Snapshot, WorkChange, WorkInfo};
 use super::types::{
     BlockRequest, BuildEvent, BuildRecord, BuildTask, ContentResult, CreateProjectRequest,
     DraftSource, EnvironmentReport, ItemRequest, JavaInstall, JavaStatus, JdkNeed, PixelOptions,
@@ -39,6 +40,7 @@ pub struct McStudio {
     pub jdk: JdkInstaller,
     pub openrouter: OpenRouter,
     drafts: Drafts,
+    workspaces: Workspaces,
 }
 
 impl McStudio {
@@ -50,6 +52,7 @@ impl McStudio {
             jdk: JdkInstaller::new(&module_dir),
             openrouter: OpenRouter::new(&module_dir),
             drafts: Drafts::new(&module_dir),
+            workspaces: Workspaces::new(&module_dir),
             module_dir,
         }
     }
@@ -436,6 +439,43 @@ impl McStudio {
 
     pub fn trash_file(&self, project_id: &str, path: &str) -> AppResult<()> {
         files::trash(&self.projects.root(project_id)?, path)
+    }
+
+    /// Copie de travail de l'agent, à jour des fichiers qu'il n'a pas touchés.
+    pub fn agent_prepare(&self, project_id: &str) -> AppResult<WorkInfo> {
+        self.workspaces
+            .prepare(&self.projects.root(project_id)?, project_id)
+    }
+
+    /// Consignes de l'agent pour ce projet (version, loader, règles d'API et de données).
+    pub fn agent_instructions(&self, project_id: &str) -> AppResult<String> {
+        let (root, meta, profile) = self.open_context(project_id)?;
+        Ok(agent::instructions(&profile, &meta, &root))
+    }
+
+    pub fn agent_changes(&self, project_id: &str) -> AppResult<Vec<WorkChange>> {
+        self.workspaces
+            .changes(&self.projects.root(project_id)?, project_id)
+    }
+
+    pub fn agent_apply(&self, project_id: &str, paths: &[String]) -> AppResult<ApplyOutcome> {
+        if self.builds.is_running(project_id) {
+            return Err(AppError::invalid(
+                "Attendez la fin de la compilation en cours.",
+            ));
+        }
+        self.workspaces
+            .apply(&self.projects.root(project_id)?, project_id, paths)
+    }
+
+    pub fn agent_discard(&self, project_id: &str, paths: &[String]) -> AppResult<()> {
+        self.workspaces
+            .discard(&self.projects.root(project_id)?, project_id, paths)
+    }
+
+    pub fn agent_reset(&self, project_id: &str) -> AppResult<WorkInfo> {
+        self.workspaces
+            .reset(&self.projects.root(project_id)?, project_id)
     }
 
     pub fn snapshots(&self, project_id: &str) -> AppResult<Vec<Snapshot>> {

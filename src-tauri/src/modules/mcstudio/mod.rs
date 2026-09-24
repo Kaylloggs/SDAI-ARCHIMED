@@ -6,6 +6,7 @@ use std::sync::Arc;
 use tauri::plugin::{Builder, TauriPlugin};
 use tauri::{Manager, Runtime};
 
+mod agent;
 mod artwork;
 mod commands;
 mod content;
@@ -82,6 +83,12 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::create_snapshot,
             commands::restore_snapshot,
             commands::delete_snapshot,
+            commands::agent_prepare,
+            commands::agent_instructions,
+            commands::agent_changes,
+            commands::agent_apply,
+            commands::agent_discard,
+            commands::agent_reset,
         ])
         .setup(|app, _api| {
             let paths = crate::core::paths::Paths::resolve(app)?;

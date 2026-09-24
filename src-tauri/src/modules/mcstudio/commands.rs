@@ -16,7 +16,7 @@ use super::types::{
     TextureTarget, ValidationReport, VersionCatalog, VersionOptions, VersionSelection,
 };
 
-use super::types::Snapshot;
+use super::types::{ApplyOutcome, Snapshot, WorkChange, WorkInfo};
 
 type Studio<'a> = State<'a, Arc<McStudio>>;
 
@@ -417,4 +417,42 @@ pub async fn restore_snapshot(
 #[tauri::command]
 pub async fn delete_snapshot(studio: Studio<'_>, id: String, snapshot_id: String) -> AppResult<()> {
     blocking(&studio, move |s| s.delete_snapshot(&id, &snapshot_id)).await
+}
+
+// ── Agent IA (copie de travail) ─────────────────────────────────────────────
+
+/// Crée ou met à jour la copie de travail de l'agent ; son chemin est le `cwd` de la conversation.
+#[tauri::command]
+pub async fn agent_prepare(studio: Studio<'_>, id: String) -> AppResult<WorkInfo> {
+    blocking(&studio, move |s| s.agent_prepare(&id)).await
+}
+
+#[tauri::command]
+pub async fn agent_instructions(studio: Studio<'_>, id: String) -> AppResult<String> {
+    blocking(&studio, move |s| s.agent_instructions(&id)).await
+}
+
+#[tauri::command]
+pub async fn agent_changes(studio: Studio<'_>, id: String) -> AppResult<Vec<WorkChange>> {
+    blocking(&studio, move |s| s.agent_changes(&id)).await
+}
+
+/// Applique les fichiers choisis au projet, après un point de restauration.
+#[tauri::command]
+pub async fn agent_apply(
+    studio: Studio<'_>,
+    id: String,
+    paths: Vec<String>,
+) -> AppResult<ApplyOutcome> {
+    blocking(&studio, move |s| s.agent_apply(&id, &paths)).await
+}
+
+#[tauri::command]
+pub async fn agent_discard(studio: Studio<'_>, id: String, paths: Vec<String>) -> AppResult<()> {
+    blocking(&studio, move |s| s.agent_discard(&id, &paths)).await
+}
+
+#[tauri::command]
+pub async fn agent_reset(studio: Studio<'_>, id: String) -> AppResult<WorkInfo> {
+    blocking(&studio, move |s| s.agent_reset(&id)).await
 }

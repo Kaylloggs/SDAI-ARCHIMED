@@ -154,3 +154,47 @@ describe("chemins du projet", () => {
     }
   });
 });
+
+describe("assistant IA", () => {
+  it("prépare la demande de correction à partir d'un build en échec", async () => {
+    const { fixRequest, defaultSelection, MAX_FIX_ROUNDS } = await import("../lib/assistant");
+    const message = fixRequest({
+      id: "b1",
+      task: "build",
+      status: "failed",
+      startedAt: "2026-09-24T10:00:00Z",
+      durationMs: 1000,
+      exitCode: 1,
+      command: "gradlew build",
+      jar: null,
+      dist: null,
+      summary: "Gradle n'a pas réussi à compiler le projet.",
+      issues: [
+        {
+          kind: "mapping",
+          title: "Classe, méthode ou variable inconnue",
+          file: "src/main/java/A.java",
+          line: 14,
+          column: null,
+          message: "cannot find symbol\n  symbol: method maxCount(int)",
+          hint: "Vérifiez l'orthographe et l'import.",
+        },
+      ],
+    });
+    expect(message).toContain("code de sortie 1");
+    expect(message).toContain("- src/main/java/A.java:14 — Classe, méthode ou variable inconnue : cannot find symbol (piste : Vérifiez l'orthographe et l'import.)");
+    expect(message).toContain("relance la compilation");
+    expect(MAX_FIX_ROUNDS).toBe(3);
+
+    const change = (path: string, conflict: boolean) => ({
+      path,
+      kind: "modified" as const,
+      conflict,
+      binary: false,
+      before: "a",
+      after: "b",
+      workPath: path,
+    });
+    expect([...defaultSelection([change("a", false), change("b", true)])]).toEqual(["a"]);
+  });
+});

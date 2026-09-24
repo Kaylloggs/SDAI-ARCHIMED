@@ -9,4 +9,5 @@ commands = [
   "list_files", "read_project_file", "write_project_file", "create_project_file", "rename_project_file",
   "trash_project_file", "validate_project",
   "list_snapshots", "create_snapshot", "restore_snapshot", "delete_snapshot",
+  "agent_prepare", "agent_instructions", "agent_changes", "agent_apply", "agent_discard", "agent_reset",
 ]

@@ -29,6 +29,9 @@ import type { ProjectEntry } from "@/core/ipc/bindings/ProjectEntry";
 import type { ProjectFile } from "@/core/ipc/bindings/ProjectFile";
 import type { ValidationReport } from "@/core/ipc/bindings/ValidationReport";
 import type { Snapshot } from "@/core/ipc/bindings/Snapshot";
+import type { ApplyOutcome } from "@/core/ipc/bindings/ApplyOutcome";
+import type { WorkChange } from "@/core/ipc/bindings/WorkChange";
+import type { WorkInfo } from "@/core/ipc/bindings/WorkInfo";
 
 const PLUGIN = "mcstudio";
 
@@ -128,6 +131,16 @@ export const mcstudioApi = {
     invokeModule<Snapshot>(PLUGIN, "restore_snapshot", { id, snapshotId }),
   deleteSnapshot: (id: string, snapshotId: string) =>
     invokeModule<void>(PLUGIN, "delete_snapshot", { id, snapshotId }),
+
+  /** Copie de travail de l'agent (créée ou mise à jour) : son `path` est le `cwd` de la conversation. */
+  agentPrepare: (id: string) => invokeModule<WorkInfo>(PLUGIN, "agent_prepare", { id }),
+  /** Consignes de l'agent pour ce projet (version, loader, règles d'API et de données). */
+  agentInstructions: (id: string) => invokeModule<string>(PLUGIN, "agent_instructions", { id }),
+  agentChanges: (id: string) => invokeModule<WorkChange[]>(PLUGIN, "agent_changes", { id }),
+  /** Applique au projet, après un point de restauration. */
+  agentApply: (id: string, paths: string[]) => invokeModule<ApplyOutcome>(PLUGIN, "agent_apply", { id, paths }),
+  agentDiscard: (id: string, paths: string[]) => invokeModule<void>(PLUGIN, "agent_discard", { id, paths }),
+  agentReset: (id: string) => invokeModule<WorkInfo>(PLUGIN, "agent_reset", { id }),
 };
 
 /** Message lisible d'une erreur renvoyée par le backend. */

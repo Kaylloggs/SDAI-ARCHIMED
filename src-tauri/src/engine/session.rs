@@ -92,13 +92,19 @@ pub fn spawn(
         });
     }
 
-    // Consignes en tête du message, pour les CLI sans option de prompt système : au premier
-    // message d'une nouvelle conversation, ou à chaque message pour une CLI sans mémoire.
+    // Consignes en tête du message, pour les CLI sans option de prompt système (ou lancées par
+    // un .cmd) : au premier message d'une nouvelle conversation, ou à chaque message pour une
+    // CLI sans mémoire.
+    let mut options = options;
+    let prompt_flag = uses_prompt_flag(adapter.supports_system_prompt(), &binary);
     let mut preface = options
         .append_system_prompt
         .clone()
-        .filter(|text| !text.trim().is_empty() && !adapter.supports_system_prompt())
+        .filter(|text| !text.trim().is_empty() && !prompt_flag)
         .filter(|_| resume.is_none() || adapter.closes_stdin_after_message());
+    if !prompt_flag {
+        options.append_system_prompt = None;
+    }
     let launch = Launch {
         session_id: id.clone(),
         binary,
@@ -290,6 +296,17 @@ pub fn spawn(
     });
 
     Ok(handle)
+}
+
+/// Le prompt système peut-il passer en option de lancement ? Pas par un script `.cmd`/`.bat`
+/// (installation npm de Claude sous Windows) : Windows ne sait pas y transmettre un argument
+/// multiligne, et Rust refuse de le lancer. Les consignes passent alors par le message.
+fn uses_prompt_flag(supported: bool, binary: &std::path::Path) -> bool {
+    let batch = binary
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("cmd") || e.eq_ignore_ascii_case("bat"));
+    supported && !batch
 }
 
 /// Processus CLI en cours et son flux de lignes.
@@ -503,4 +520,18 @@ async fn write_line(stdin: &mut ChildStdin, payload: &str) -> AppResult<()> {
     stdin.write_all(b"\n").await?;
     stdin.flush().await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn system_prompt_never_goes_through_a_batch_script() {
+        assert!(uses_prompt_flag(true, std::path::Path::new("C:/bin/claude.exe")));
+        assert!(!uses_prompt_flag(true, std::path::Path::new("C:/npm/claude.cmd")));
+        assert!(!uses_prompt_flag(true, std::path::Path::new("C:/npm/CLAUDE.BAT")));
+        assert!(uses_prompt_flag(true, std::path::Path::new("/usr/local/bin/claude")));
+        assert!(!uses_prompt_flag(false, std::path::Path::new("C:/bin/agy.exe")));
+    }
 }

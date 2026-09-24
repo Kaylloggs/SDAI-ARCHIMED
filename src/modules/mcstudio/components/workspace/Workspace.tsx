@@ -12,13 +12,15 @@ import { useMcStudioStore } from "../../store";
 import { focusRing, ModIcon } from "../ui";
 import { BuildPanel } from "./BuildPanel";
 import { unsavedCount, useEditorStore } from "../../editor";
+import { AssistantPanel } from "./AssistantPanel";
 import { Dashboard } from "./Dashboard";
 import { FilesPanel } from "./FilesPanel";
 import { TexturesPanel } from "./TexturesPanel";
 
-type Tab = "dashboard" | "files" | "textures" | "build";
+type Tab = "dashboard" | "assistant" | "files" | "textures" | "build";
 const TABS: { id: Tab; label: string }[] = [
   { id: "dashboard", label: "Tableau de bord" },
+  { id: "assistant", label: "Assistant IA" },
   { id: "files", label: "Fichiers" },
   { id: "textures", label: "Textures" },
   { id: "build", label: "Build" },
@@ -58,7 +60,10 @@ function StatusBar({ project, java }: { project: ProjectSummary; java: JavaStatu
 }
 
 export function Workspace({ project }: { project: ProjectSummary }) {
-  const [tab, setTab] = useState<Tab>("dashboard");
+  // Conversation rouverte depuis l'accueil : directement sur l'assistant.
+  const [tab, setTab] = useState<Tab>(() =>
+    useMcStudioStore.getState().focus?.projectId === project.id ? "assistant" : "dashboard",
+  );
   const [java, setJava] = useState<JavaStatus | null>(null);
   const [javaError, setJavaError] = useState<string | null>(null);
   const iconVersion = useMcStudioStore((s) => s.iconRevision[project.id] ?? 0);
@@ -159,6 +164,11 @@ export function Workspace({ project }: { project: ProjectSummary }) {
                   useEditorStore.getState().showProblems(project.id, true);
                   setTab("files");
                 }}
+              />
+            ) : tab === "assistant" ? (
+              <AssistantPanel
+                project={project}
+                onBuild={() => void useMcStudioStore.getState().startBuild(project.id, "build", false)}
               />
             ) : tab === "files" ? (
               <FilesPanel project={project} />

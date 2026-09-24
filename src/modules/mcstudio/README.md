@@ -22,7 +22,7 @@ un dossier Gradle autonome : il se compile aussi sans ARCHIMED (`gradlew build`)
 | D | Explorateur et éditeur (`CodeEditor`/`FileTree` déplacés dans `core/editor`) | ✓ |
 | E | Validateur (JSON/TOML ligne/colonne, références, format de la version) et panneau Problèmes | ✓ |
 | F | Points de restauration (annulables), vrai diff dans `core/lib/diff` | ✓ |
-| G–I | Agent IA de code via les CLI (plan structuré, copie de travail, auto-fix borné) | à venir |
+| G | Assistant IA via les CLI installées : copie de travail, relecture fichier par fichier, application avec point de restauration, correction bornée | ✓ (à essayer avec vos CLI) |
 | J–M | `runClient`/`runServer`, import de projets, audit/portage, export ZIP | à venir |
 
 Rien n'est simulé : un bouton qui n'a pas encore de moteur n'est pas affiché.
@@ -98,6 +98,35 @@ Source remplaçable (HTTPS uniquement) : `{"adoptiumApi": "https://…"}` dans
 `%APPDATA%\com.sdai.archimed\modules\mcstudio\env.json`. Gradle, Minecraft et les loaders
 n'ont rien à installer : le wrapper et les plugins les téléchargent à la première compilation.
 Décision détaillée : [ADR 0004](../../../docs/adr/0004-mcstudio-jdk-downloads.md).
+
+## Assistant IA (vos CLI)
+
+Onglet **Assistant IA** : une conversation avec une CLI installée sur la machine (Claude Code,
+Antigravity, Codex… celles que détecte le moteur d'ARCHIMED), avec le même composeur que le Chat
+(agent, modèle, Mode Auto, pièces jointes, dictée). ADR 0006.
+
+1. **Copie de travail** : l'IA travaille dans `%APPDATA%\com.sdai.archimed\modules\mcstudio\work\<projet>\`,
+   une copie du projet sans builds ni caches, qui est le dossier de travail de sa conversation.
+   Elle peut y lire, écrire et compiler (`gradlew build`) ; le Mode Auto « Smart » la laisse
+   écrire dans sa copie et demande pour le reste (écriture ailleurs comprise). Avant chaque
+   message, les fichiers modifiés entre-temps dans le projet (éditeur, textures) rejoignent la
+   copie, sans toucher à ceux que l'IA a changés.
+2. **Consignes** : chaque nouvelle conversation reçoit les consignes du projet (prompt système
+   pour Claude, tête du premier message sinon) : Mod ID, package, Minecraft, loader et versions
+   exactes, mappings, Java, **exemples de code exacts de la version** (produits par les mêmes
+   générateurs que les boutons « Nouvel objet / bloc »), dossiers et format des recettes de la
+   version, marqueurs des registres, prudence sur les scripts Gradle, réponse en français.
+3. **Relecture** : après chaque réponse, le panneau **Modifications proposées** liste les
+   fichiers créés, modifiés et supprimés, avec leur diff (numéroté, par blocs). Tout est coché
+   sauf les **conflits** (fichier aussi modifié dans le projet depuis la copie). Appliquer crée un
+   point de restauration puis copie les fichiers ; les suppressions vont à la Corbeille ; le
+   projet est revérifié. Rejeter remet la copie à l'état du projet ; « Nouvelle copie » repart de
+   zéro.
+4. **Correction bornée** : après un build en échec, « Corriger avec l'IA (1/3) » prépare dans le
+   composeur un message avec les erreurs expliquées (fichier, ligne, cause, piste), à relire
+   puis envoyer. Trois fois d'affilée au plus ; un build réussi remet le compteur à zéro.
+
+Les conversations de Mod Studio n'apparaissent pas dans le Chat ; l'accueil les rouvre ici.
 
 ## Fichiers : explorateur et éditeur
 
@@ -225,6 +254,8 @@ Build : `build_project` · `cancel_build` · `list_builds` · `read_build_log`
 Fichiers : `list_files` · `read_project_file` · `write_project_file` · `create_project_file` ·
 `rename_project_file` · `trash_project_file` · `validate_project`
 Restauration : `list_snapshots` · `create_snapshot` · `restore_snapshot` · `delete_snapshot`
+Assistant : `agent_prepare` · `agent_instructions` · `agent_changes` · `agent_apply` · `agent_discard` ·
+`agent_reset`
 
 ## Tests
 
@@ -235,14 +266,17 @@ Restauration : `list_snapshots` · `create_snapshot` · `restore_snapshot` · `d
   local (clé, modèles, image en data URL, erreurs 401/429), fichiers (sortie du projet refusée,
   liens symboliques, conflit d'écriture, état interne protégé), validateur (syntaxe localisée,
   formats par version, références cassées ; chaque projet généré passe sans problème), points de
-  restauration (fichiers remis, fichiers créés retirés, restauration elle-même annulable).
+  restauration (fichiers remis, fichiers créés retirés, restauration elle-même annulable), agent
+  (copie sans builds, modifications de l'agent distinguées de celles de la personne, conflits,
+  application annulable, consignes exactes pour les 23 profils).
 - `cargo test mcstudio::e2e -- --ignored --nocapture` : crée **TestMod** (1 objet, 1 bloc, recettes)
   pour la version la plus récente de chaque profil et le compile vraiment ; affiche
   `MODULE BASIC PIPELINE = OK (…)` par version et un bilan final. Options :
   `MCSTUDIO_E2E_PROFILES=fabric-1.21,forge-1.20` (filtre), `MCSTUDIO_E2E_ALL=1` (toutes les
   versions de chaque profil), `MCSTUDIO_E2E_INSTALL_JDK=1` (installe les JDK manquants).
 - `MCSTUDIO_KEEP_TEST_OUTPUT=1 cargo test every_profile_creates` garde les projets générés.
-- `pnpm test` : identifiants, assistant, journal, réglages de texture, choix du modèle, chemins.
+- `pnpm test` : identifiants, assistant de création, journal, réglages de texture, choix du modèle,
+  chemins, message de correction et sélection par défaut de l'assistant IA.
 
 ## Données
 
@@ -253,5 +287,6 @@ Restauration : `list_snapshots` · `create_snapshot` · `restore_snapshot` · `d
 | `…\mcstudio\cache\meta\` | dernières réponses des métadonnées des loaders |
 | `…\mcstudio\cache\openrouter-models.json` · `cache\textures\` | modèles d'image connus, brouillons de textures |
 | `…\mcstudio\jdks\` · `env.json` | JDK installés par Mod Studio, sources remplaçables |
+| `…\mcstudio\work\<projet>\` · `work\<projet>.base.json` | copie de travail de l'assistant IA, empreintes de base |
 | Gestionnaire d'identifiants Windows | clé OpenRouter (`mcstudio-openrouter.com.sdai.archimed`) |
 | `<projet>\.mcstudio\` | identité, historique et journaux de build, anciennes textures (`history/textures/`) |
