@@ -270,6 +270,18 @@ accent avec l'icône de l'étape et pointeur) ; le voile glisse d'une zone à l'
 fondu seul si mouvement réduit). Clavier : `←` `→` étapes, `↑` `↓` tutoriels, `Entrée` dans la
 recherche ouvre le premier résultat. Espaces insécables du français appliqués au rendu.
 
+**Image Maker** (studio d'images) : barre du haut 48 px (retour aux projets, nom modifiable,
+sélecteur fournisseur / modèle ou « Auto », Connexions, Exporter, **Générer** en primaire), rail
+d'outils à gauche 48 px (icônes 16 px, infobulles avec la touche), barre d'options de l'outil
+au-dessus du canevas (44 px), panneau de droite `clamp(288px, 27%, 368px)` (Créer · Retoucher ·
+Image) dont le pied dit **ce qui part et chez qui** avant le bouton primaire, bas repliable
+(Historique en arbre · Générations · File) de `clamp(112px, 24vh, 176px)`. Le canevas est une
+surface neutre : l'image sur damier, la sélection teintée `--accent` à 45 %, les formes en cours
+en tirets accent, le cadre de recadrage assombrit l'extérieur (`--bg` à 60 %) avec la grille des
+tiers. Les actions rapides flottent en bas du canevas (couche L3, pilule) et changent selon qu'une
+zone est sélectionnée. Comparaison : curseur vertical avec poignée ronde (flèches au clavier) ou
+côte à côte, étiquettes « Avant » / « Après » en bas.
+
 **Menus déroulants** : toujours la primitive `Select` (`design-system/primitives/Select.tsx`), jamais un `<select>` natif — ses options sont dessinées par le système et ignorent le thème. La liste est rendue dans un portail, en couche L3 (glass), navigable au clavier (`↑` `↓` `Entrée` `Échap`).
 
 ---

@@ -53,6 +53,7 @@ pub struct ImageNode {
     pub width: u32,
     pub height: u32,
     pub mime: String,
+    #[ts(type = "number")]
     pub created_at: i64,
     pub prompt: Option<String>,
     pub negative_prompt: Option<String>,
@@ -78,7 +79,9 @@ pub struct ImageNode {
 pub struct Project {
     pub id: String,
     pub name: String,
+    #[ts(type = "number")]
     pub created_at: i64,
+    #[ts(type = "number")]
     pub updated_at: i64,
     pub nodes: Vec<ImageNode>,
     /// Version affichée.
@@ -97,6 +100,7 @@ pub struct Project {
 pub struct ProjectSummary {
     pub id: String,
     pub name: String,
+    #[ts(type = "number")]
     pub updated_at: i64,
     pub images: u32,
     pub cover: Option<String>,
@@ -237,8 +241,11 @@ pub struct Job {
     pub status: JobStatus,
     pub provider: ProviderId,
     pub model: String,
+    #[ts(type = "number")]
     pub created_at: i64,
+    #[ts(type = "number | null")]
     pub started_at: Option<i64>,
+    #[ts(type = "number | null")]
     pub finished_at: Option<i64>,
     /// Versions créées.
     pub results: Vec<String>,
@@ -427,6 +434,8 @@ pub struct BatchOutcome {
 pub struct DownloadedImage {
     pub path: String,
     pub name: String,
+    #[ts(type = "number")]
     pub modified: i64,
+    #[ts(type = "number")]
     pub bytes: u64,
 }

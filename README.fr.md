@@ -91,6 +91,7 @@ Une recherche d'emploi et un mod de jeu vidéo, difficile de trouver deux projet
 | 🧩 | **Skills** · `skills` | Une bibliothèque de skills (consignes réutilisables) à activer pour chaque assistant. |
 | 💼 | **Job Agent** · `jobagent` | Recherche d'emploi sur sept sites, carte du monde, lettres de motivation et candidatures par lot après confirmation. |
 | ⛏️ | **Mod Studio** · `mcstudio` | Mods Minecraft : modèles 3D, textures par IA, assistant de code, compilation en un clic, test en jeu et sur serveur, portage de version. |
+| 🎨 | **Image Maker** · `image-maker` | Un studio d'images par IA : créer à partir d'une description, changer seulement la zone sélectionnée, étendre en 16:9, affiner, faire des variantes, retirer le fond, exporter. Avec OpenRouter, Google AI Studio et Higgsfield ; l'original n'est jamais perdu. |
 | 📊 | **Crédits** · `usage` | Ce qu'il reste de votre forfait IA, et combien de tokens chaque assistant a utilisés. |
 
 > **Gardez seulement ce qui vous sert.** Chaque module de ce tableau se désactive ou se supprime dans **Réglages → Modules**. Désactivé, il disparaît du menu et garde tout. Supprimé, il quitte l'application et ses données partent à la Corbeille ; vous le remettez quand vous voulez depuis **Modules supprimés**.
@@ -118,6 +119,10 @@ Vous n'êtes pas seul : ouvrez le dossier du projet dans le module **Code** et d
 <tr>
 <td width="50%"><img src="docs/images/jobagent.png" alt="Liste des offres de Job Agent regroupées par métier avec salaire, contrat et source" /><p align="center"><sub>Job Agent : les offres triées, prêtes à passer en revue</sub></p></td>
 <td width="50%"><img src="docs/images/mcstudio-dashboard.png" alt="Tableau de bord de Mod Studio avec une compilation réussie et le contenu du mod" /><p align="center"><sub>Mod Studio : compiler, vérifier et publier votre mod</sub></p></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/images/image-maker.png" alt="Image Maker : un dragon sélectionné au lasso sur une scène de rue, le panneau Retoucher prêt à remplacer seulement cette zone" /><p align="center"><sub>Image Maker : changer une zone, garder chaque autre pixel</sub></p></td>
+<td width="50%"><img src="docs/images/image-maker-compare.png" alt="Image Maker compare l'original et la version étendue en 16:9 avec un curseur" /><p align="center"><sub>Image Maker : chaque étape est une version à comparer</sub></p></td>
 </tr>
 <tr>
 <td width="50%"><img src="docs/images/tutorial.png" alt="Tutoriel : une étape montrée sur une miniature de la fenêtre, barre de recherche allumée et touches Ctrl K" /><p align="center"><sub>Tutoriel : chaque étape montre où regarder</sub></p></td>
@@ -231,13 +236,15 @@ ARCHIMED trouve votre assistant tout seul. Cliquez sur **Chat**, écrivez un mes
 <summary><b>En option : clés API pour certains modules</b></summary>
 <br />
 
-Certaines fonctions appellent directement un service d'IA avec **votre propre clé**. Collez-la une fois dans le module : elle est rangée dans le Gestionnaire d'identifiants de Windows.
+Certaines fonctions appellent directement un service d'IA avec **votre propre clé**. Collez-la une fois dans le module : elle est vérifiée auprès du fournisseur, puis rangée dans le Gestionnaire d'identifiants de Windows. Une clé déjà donnée à un module sert aux autres pour le même fournisseur, sans être recopiée.
 
 | Fournisseur | Sert à | Obtenir une clé |
 |---|---|---|
-| **Google** (AI Studio, Gemini) | Images et textures | [aistudio.google.com](https://aistudio.google.com/apikey) |
+| **Google** (AI Studio, Gemini) | Images (Image Maker), textures (Mod Studio) | [aistudio.google.com](https://aistudio.google.com/apikey) |
 | **OpenRouter** | Images et textures, de nombreux modèles avec un seul compte | [openrouter.ai/keys](https://openrouter.ai/keys) |
-| **Higgsfield** | Images et vidéos | [higgsfield.ai](https://higgsfield.ai) |
+| **Higgsfield** | Images (Image Maker) | [cloud.higgsfield.ai](https://cloud.higgsfield.ai/) |
+
+Pas de clé ? Image Maker peut ouvrir le site du fournisseur : créez l'image là-bas avec votre compte, le fichier téléchargé revient dans l'application en un clic. ARCHIMED ne demande jamais votre mot de passe.
 
 </details>
 

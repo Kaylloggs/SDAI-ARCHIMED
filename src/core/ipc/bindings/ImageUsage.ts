@@ -3,7 +3,7 @@
 /**
  * Consommation rapportée par le fournisseur ; `None` = non communiqué.
  */
-export type ImageUsage = { costUsd: number | null, inputTokens: bigint | null, outputTokens: bigint | null, 
+export type ImageUsage = { costUsd: number | null, inputTokens: number | null, outputTokens: number | null, 
 /**
  * Remarque lisible (« coût non communiqué par le fournisseur »…).
  */

@@ -215,7 +215,9 @@ pub struct GeneratedImage {
 #[serde(rename_all = "camelCase")]
 pub struct ImageUsage {
     pub cost_usd: Option<f64>,
+    #[ts(type = "number | null")]
     pub input_tokens: Option<u64>,
+    #[ts(type = "number | null")]
     pub output_tokens: Option<u64>,
     /// Remarque lisible (« coût non communiqué par le fournisseur »…).
     pub note: Option<String>,

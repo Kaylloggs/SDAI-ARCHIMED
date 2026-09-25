@@ -13,7 +13,7 @@ export type ImageJob = { id: string,
 /**
  * Tâches nées d'une même demande (plusieurs résultats découpés en demandes).
  */
-group: string, projectId: string, label: string, status: ImageJobStatus, provider: ProviderId, model: string, createdAt: bigint, startedAt: bigint | null, finishedAt: bigint | null, 
+group: string, projectId: string, label: string, status: ImageJobStatus, provider: ProviderId, model: string, createdAt: number, startedAt: number | null, finishedAt: number | null, 
 /**
  * Versions créées.
  */

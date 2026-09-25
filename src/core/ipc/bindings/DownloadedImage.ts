@@ -3,4 +3,4 @@
 /**
  * Image trouvée dans le dossier Téléchargements (mode compte : site officiel, puis import).
  */
-export type DownloadedImage = { path: string, name: string, modified: bigint, bytes: bigint, };
+export type DownloadedImage = { path: string, name: string, modified: number, bytes: number, };

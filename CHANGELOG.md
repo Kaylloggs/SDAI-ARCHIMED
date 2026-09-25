@@ -4,6 +4,39 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Module Image Maker (catégorie Création)
+- **Studio d'images par IA** : créer à partir d'une description (consigne libre ou structurée :
+  sujet, décor, composition, lumière, appareil, matières, couleurs, ambiance, style, détail),
+  améliorer la consigne avec un modèle de texte, images de référence avec leur rôle.
+- **Retoucher** : une zone sélectionnée (remplacer, effacer, ajouter, modifier), toute l'image,
+  étendre la toile (16:9, 21:9, 4:3…, place de l'original au choix), variantes (ce qu'il faut
+  garder), style, fond (retirer ou remplacer), améliorer, restaurer. Hors de la zone, chaque
+  pixel d'origine est gardé ; l'original est replacé au pixel près après une extension.
+- **Outils** : main, zoom, rectangle, ellipse, lasso, pinceau, gomme (sélection ou image),
+  déplacer une sélection, recadrer (formats 1:1 à 21:9, libre, formats de réseaux sociaux
+  modifiables). Annuler / rétablir, comparaison avant / après (curseur ou côte à côte).
+- **Sur la machine, sans envoi** : redimensionner, agrandir (×1,5 à ×4), tourner, miroir,
+  luminosité, contraste, teinte, flou du fond, fond uni rendu transparent, export PNG, JPEG,
+  WebP, TIFF, GIF, BMP (qualité, taille, nom des fichiers, préréglages).
+- **Historique en arbre** : chaque opération crée une version ; générations, favoris, références,
+  traitements par lot (export, agrandissement, détourage).
+- **Fournisseurs** : OpenRouter, Google AI Studio, Higgsfield. Capacités lues chez le fournisseur
+  (ou dans sa documentation officielle, signalé), options non prises en charge masquées, mode
+  Auto qui choisit un modèle compatible et dit pourquoi. File de demandes (en attente, en cours,
+  terminée, échec, annulée) avec annulation, relance et correction proposée selon l'erreur.
+- **Connexions** : clés vérifiées puis rangées dans le Gestionnaire d'identifiants, jamais
+  affichées en entier ; une clé déjà donnée à Mod Studio est relue sans être copiée. Mode compte :
+  ouvrir le site officiel, puis importer l'image téléchargée (aucun mot de passe demandé).
+- **Confidentialité et coûts** : avant chaque envoi, ce qui part et chez qui ; coût affiché
+  seulement quand le fournisseur le donne. Glisser-déposer, Ctrl+V, copie d'image.
+- **Service `image.maker`** pour les autres modules : générer, modifier, détourer, agrandir,
+  varier (ADR 0010).
+
+### Technique
+- Couche de fournisseurs d'images partagée dans le core (`core/imaging`, trait `ImageProvider`),
+  relecture en lecture seule des clés d'un autre module (`all_credentials()` généré par
+  `build.rs`), décodeurs TIFF, GIF et BMP ajoutés à `image`.
+
 ## [0.5.0] - 2026-09-25
 
 ### Ajouté — Module Tutoriel

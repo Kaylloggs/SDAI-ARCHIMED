@@ -91,6 +91,7 @@ A job hunt and a game mod are about as far apart as two projects can be. If ARCH
 | 🧩 | **Skills** · `skills` | A library of skills (reusable instructions) you can switch on for each assistant. |
 | 💼 | **Job Agent** · `jobagent` | Job search on seven boards, world map, cover letters and batch applications after confirmation. |
 | ⛏️ | **Mod Studio** · `mcstudio` | Minecraft mods: 3D models, AI textures, AI coding assistant, one-click build, game and server testing, version porting. |
+| 🎨 | **Image Maker** · `image-maker` | An AI image studio: create from a description, change only the area you select, extend to 16:9, sharpen, make variations, remove the background, export. Works with OpenRouter, Google AI Studio and Higgsfield; the original is never lost. |
 | 📊 | **Usage** · `usage` | How much of your AI plan is left, and how many tokens each assistant used. |
 
 > **Keep only what you use.** Every module in this table can be switched off or removed in **Settings → Modules**. Switched off, it hides and keeps everything. Removed, it leaves the app and its data goes to the Recycle Bin; you can bring it back any time from **Removed modules**.
@@ -118,6 +119,10 @@ You don't have to write it alone: open the project folder in the **Code** module
 <tr>
 <td width="50%"><img src="docs/images/jobagent.png" alt="Job Agent list of offers grouped by job title with salary, contract and source" /><p align="center"><sub>Job Agent: offers sorted and ready to review</sub></p></td>
 <td width="50%"><img src="docs/images/mcstudio-dashboard.png" alt="Mod Studio dashboard with a successful build and the content of the mod" /><p align="center"><sub>Mod Studio: build, check and ship your mod</sub></p></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/images/image-maker.png" alt="Image Maker: a dragon selected with the lasso on a street scene, the Retouch panel ready to replace only that area" /><p align="center"><sub>Image Maker: change one area, keep every other pixel</sub></p></td>
+<td width="50%"><img src="docs/images/image-maker-compare.png" alt="Image Maker comparing the original and the extended 16:9 version with a slider" /><p align="center"><sub>Image Maker: every step is a version you can compare</sub></p></td>
 </tr>
 <tr>
 <td width="50%"><img src="docs/images/tutorial.png" alt="Tutorial showing a step on a miniature of the window, with the search bar highlighted and the Ctrl K keys" /><p align="center"><sub>Tutorial: each step shows where to look</sub></p></td>
@@ -231,13 +236,15 @@ ARCHIMED finds your assistant on its own. Click **Chat**, type a message, and yo
 <summary><b>Optional: API keys for some modules</b></summary>
 <br />
 
-Some features call an AI service directly with **your own key**. Paste it once in the module: it is stored in the Windows Credential Manager.
+Some features call an AI service directly with **your own key**. Paste it once in the module: it is checked with the provider, then stored in the Windows Credential Manager. A key you already gave to one module is reused by the others for the same provider, without being copied.
 
 | Provider | Used for | Get a key |
 |---|---|---|
-| **Google** (AI Studio, Gemini) | Images and textures | [aistudio.google.com](https://aistudio.google.com/apikey) |
+| **Google** (AI Studio, Gemini) | Images (Image Maker), textures (Mod Studio) | [aistudio.google.com](https://aistudio.google.com/apikey) |
 | **OpenRouter** | Images and textures, many models in one account | [openrouter.ai/keys](https://openrouter.ai/keys) |
-| **Higgsfield** | Images and videos | [higgsfield.ai](https://higgsfield.ai) |
+| **Higgsfield** | Images (Image Maker) | [cloud.higgsfield.ai](https://cloud.higgsfield.ai/) |
+
+No key? Image Maker can open the provider's website: create the image there with your own account, and the downloaded file comes back into the app in one click. ARCHIMED never asks for your password.
 
 </details>
 

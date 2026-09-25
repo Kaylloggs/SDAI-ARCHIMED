@@ -15,7 +15,7 @@ file: string,
 /**
  * Vignette (320 px), chemin absolu.
  */
-thumb: string, width: number, height: number, mime: string, createdAt: bigint, prompt: string | null, negativePrompt: string | null, provider: ProviderId | null, model: string | null, 
+thumb: string, width: number, height: number, mime: string, createdAt: number, prompt: string | null, negativePrompt: string | null, provider: ProviderId | null, model: string | null, 
 /**
  * Réglages utilisés (format, résolution, graine, rectangle de recadrage…).
  */

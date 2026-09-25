@@ -65,7 +65,9 @@ SDAI ARCHIMED/
 │   ├── 0005-mcstudio-openrouter-textures.md
 │   ├── 0006-module-sessions-and-mcstudio-agent.md
 │   ├── 0007-mcstudio-gemini-textures.md
-│   └── 0008-mcstudio-texture-workshop.md
+│   ├── 0008-mcstudio-texture-workshop.md
+│   ├── 0009-mcstudio-3d-models.md
+│   └── 0010-image-maker-and-core-imaging.md
 ├── scripts/
 │   ├── new-module.mjs                   # pnpm new:module <id> [--category] [--backend]
 │   └── check-modules.mjs                # invariants de modularité (pnpm check)
@@ -122,6 +124,13 @@ SDAI ARCHIMED/
 │       │   │                            #   · ChangesPanel · BuildPanel · BuildResult)
 │       │   └── lib/                     # naming (Mod ID, package, registre) · logs (niveaux) · format · textures
 │       │                                # · paths · assistant (correction bornée) ; editor.ts (onglets, vérification)
+│       ├── image-maker/                 # Image Maker : module.config · index · api · store · actions · clipboard · README
+│       │   ├── components/              # ProjectList · Studio (barre du haut, actions rapides) · Canvas · Tools
+│       │   │                            # · AiPanel (Créer, Retoucher) · ImagePanel (sur la machine) · Dock (historique,
+│       │   │                            #   générations, file) · ModelPicker · ConnectionsDialog · ExportDialog
+│       │   ├── lib/                     # capabilities (besoins, mode Auto) · history (arbre) · mask (+ mask-layer)
+│       │   │                            # · paint-layer · prompt (consigne structurée) · ratio · format
+│       │   └── services/image.ts        # service `image.maker` (générer, modifier, détourer, agrandir, varier)
 │       ├── usage/                       # Crédits : module.config · index · api · lib/format · README
 │       ├── memory/                      # Mémoire : index · api · services/context · README
 │       ├── skills/                      # module.config · index · api · README
@@ -132,8 +141,7 @@ SDAI ARCHIMED/
 │       │   ├── lib/topics.ts            # liste, recherche, sujet suivant (lit `manifest.tutorial`)
 │       │   └── services/open.ts         # service `tutorial.open` (bouton d'aide de la barre de titre)
 │       ├── files/                       # (prévu) explorateur et actions système
-│       ├── voice/                       # (prévu)
-│       └── image-gen/                   # (prévu)
+│       └── voice/                       # (prévu)
 │
 └── src-tauri/                           # ═════════ BACKEND ═════════
     ├── Cargo.toml · build.rs · tauri.conf.json
@@ -148,6 +156,8 @@ SDAI ARCHIMED/
         │                                # · dictation.rs (reconnaissance vocale Windows, locale + vumètre)
         │                                # · mcp.rs (serveurs MCP déclarés par les modules)
         │                                # · audit.rs (audit.jsonl) · usage.rs (registre de consommation) · mod.rs
+        │                                # · imaging/ (fournisseurs d'images partagés, ADR 0010 : trait ImageProvider,
+        │                                #   openrouter · gemini · higgsfield · keys (relecture entre modules) · http)
         ├── engine/
         │   ├── mod.rs · commands.rs     # engine_* exposées au frontend
         │   ├── manager.rs · session.rs  # SessionManager, boucle de session tokio
@@ -175,6 +185,9 @@ SDAI ARCHIMED/
             │                            # models (atelier 3D : modèles JSON, entités + code Java, armures),
             │                            # importer (projets existants), porting (changement de version),
             │                            # export (sources en ZIP)
+            ├── image_maker/             # projets et arbre de versions (store), traitements locaux (local),
+            │                            # opérations IA et recollage hors zone (pipeline), file de tâches (jobs),
+            │                            # service, commandes ; clés image-maker-<fournisseur>
             ├── jobagent/                # moteur Python embarqué (engine/ : JobSpy + archimed_jobagent),
             │                            # service.rs, letters.rs (Antigravity), secrets.rs (DPAPI), serveur MCP
             └── skills/                  # module.toml · mod.rs · commands.rs
@@ -303,6 +316,7 @@ inscrite au journal d'audit (`modules.remove`). Les modules `required` ne se sup
 | Service | `code.open` | code | ouvrir un fichier ou dossier cité par l'IA dans l'éditeur (consommé par `core/chat/FileLink`) |
 | Réglage | `EngineTuning` | core (Réglages › Économie de tokens) | effort, skills, cache, compactage transmis à `engine_start_session` puis aux `spawn_args` des adaptateurs |
 | Service | `memory.context` | memory | informations actives de l'utilisateur ajoutées au premier message (consommé par `useChat`) |
+| Service | `image.maker` | image-maker | `generateImage`, `editImage`, `removeBackground`, `upscaleImage`, `createVariation` : chemins des images produites (projet « Demandes des autres modules ») |
 | Service | `tutorial.open` | tutorial | `open(moduleId)` ouvre le tutoriel d'un module (ou « Premiers pas ») ; consommé par le bouton d'aide de `core/shell/TitleBar` |
 | Manifest | `tutorial` | chaque module | tutoriel d'utilisation (`ModuleTutorial`, voir §5.5), lu par le module Tutoriel |
 | Service | `engine.session` | core | démarrer/envoyer/écouter une session |
@@ -310,6 +324,7 @@ inscrite au journal d'audit (`modules.remove`). Les modules `required` ne se sup
 | Service | `notify.toast` | core | notifications UI |
 | Événement backend | `planner:roadmap-changed` | planner | un roadmap.md surveillé a changé sur disque |
 | Événement backend | `jobagent:progress`, `jobagent:install` | jobagent | avancement d'une recherche, journal d'installation du moteur |
+| Événement backend | `image-maker:job`, `image-maker:project` | image-maker | tâche IA qui change d'état ; projet qui reçoit une version |
 | Événement backend | `code:fs-changed` | code | fichiers du projet ouvert créés, modifiés ou supprimés (`{ root, dirs, files }`, regroupés sur 250 ms) |
 | Événement | `engine.turn.completed` | core (session.store) | fin d'un tour d'agent : demande, réponse, outils utilisés |
 | Événement | `skills.changed`, `settings.changed`, `modules.changed`, `engine.cli_detected` | core/modules | |
@@ -604,6 +619,8 @@ arrête son processus puis efface son entrée.
 | Copie de travail de l'assistant IA de Mod Studio | `%APPDATA%\com.sdai.archimed\modules\mcstudio\work\` (`<projet>/`, `<projet>.base.json`) |
 | JDK installés par Mod Studio, source de téléchargement | `%APPDATA%\com.sdai.archimed\modules\mcstudio\` (`jdks/<version>/`, `env.json` : `adoptiumApi`, `openrouterApi`, HTTPS uniquement) |
 | Identité et builds d'un projet de mod | `<projet>/.mcstudio/` (`project.json`, `builds.json`, `builds/<id>.log`, `history/textures/`, `snapshots/<id>/`) — le projet reste autonome |
+| Projets Image Maker (arbre de versions, images, vignettes, masques), réglages, listes de modèles | `%APPDATA%\com.sdai.archimed\modules\image-maker\` (`projects/<id>/`, `settings.json`, `cache/`) |
+| Clés des fournisseurs d'images d'Image Maker | Gestionnaire d'identifiants Windows (`image-maker-openrouter`, `image-maker-gemini`, `image-maker-higgsfield`) ; une clé d'un autre module pour le même fournisseur est relue sur place |
 | Offres, profil, CV et compte d'envoi de JobAgent | `%APPDATA%\com.sdai.archimed\modules\jobagent\` (mot de passe SMTP chiffré par DPAPI) |
 | Journal d'audit | `%APPDATA%\com.sdai.archimed\logs\audit.jsonl` (rotation 5 Mo) |
 | Skills | `%APPDATA%\com.sdai.archimed\skills\` |
