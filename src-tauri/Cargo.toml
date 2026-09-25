@@ -47,8 +47,9 @@ zip = { version = "2", default-features = false, features = ["deflate"] }
 tar = "0.4"
 flate2 = "1"
 sha2 = "0.10"
-# Mod Studio : textures générées par OpenRouter (décodage, clé dans le Gestionnaire d'identifiants).
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+# Mod Studio, Image Maker : décodage et encodage des images (clés dans le Gestionnaire
+# d'identifiants). Image Maker exporte aussi en TIFF, GIF et BMP.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp", "tiff"] }
 base64 = "0.22"
 keyring = "3"
 

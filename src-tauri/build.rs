@@ -120,6 +120,15 @@ fn write_registry(modules: &[ModuleDecl], modules_dir: &Path, path: &Path) {
         out.push_str(&format!("        {:?} => &[{list}],\n", module.id));
     }
     out.push_str("        _ => &[],\n    }\n}\n");
+    out.push_str(
+        "\n/// Tous les comptes déclarés, `(module, compte)` : relecture d'une clé partagée.\n#[allow(dead_code)]\npub fn all_credentials() -> &'static [(&'static str, &'static str)] {\n    &[\n",
+    );
+    for module in modules {
+        for account in &module.credentials {
+            out.push_str(&format!("        ({:?}, {account:?}),\n", module.id));
+        }
+    }
+    out.push_str("    ]\n}\n");
 
     let current = fs::read_to_string(path).unwrap_or_default();
     if current != out {
