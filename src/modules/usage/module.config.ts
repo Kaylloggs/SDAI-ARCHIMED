@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { Gauge } from "lucide-react";
 import { defineModule } from "@/core/modules";
+import tutorial from "./tutorial";
 
 export default defineModule({
   id: "usage",
@@ -15,4 +16,5 @@ export default defineModule({
   launchpad: { size: "sm" },
   backend: { plugin: "usage" },
   commands: [{ id: "usage.open", title: "Voir les crédits restants", run: "navigate" }],
+  tutorial,
 });

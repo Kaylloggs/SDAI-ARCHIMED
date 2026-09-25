@@ -4,7 +4,11 @@
  * - chaque module frontend a module.config.ts + index.tsx + README.md
  * - aucun import croisé entre modules, ni du core vers un module
  * - chaque module backend (module.toml) expose bien un plugin
- * - chaque module public est documenté (README.md + architecture.md)
+ * - chaque module public est documenté (README.md + architecture.md) ; les modules requis
+ *   (socle de l'application : accueil, réglages, tutoriel) ne figurent pas dans le tableau du
+ *   README, puisqu'on ne peut ni les désactiver ni les supprimer
+ * - chaque module non requis a un tutoriel (`tutorial` dans module.config.ts), affiché par le
+ *   module Tutoriel
  *
  * Les modules privés (dossier ignoré par git) échappent au contrôle de documentation :
  * ils ne doivent laisser aucune trace dans les fichiers publiés.
@@ -24,6 +28,8 @@ const errors = [];
 const warn = [];
 
 const modulesDir = join(root, "src", "modules");
+/** Modules du socle (`required: true`) : toujours là, absents du tableau du README. */
+const requiredModules = new Set();
 const frontModules = readdirSync(modulesDir).filter(
   (name) => !name.startsWith("_") && statSync(join(modulesDir, name)).isDirectory(),
 );
@@ -43,6 +49,13 @@ for (const id of frontModules) {
   const declaredId = config.match(/id:\s*"([^"]+)"/)?.[1];
   if (declaredId !== id) {
     errors.push(`modules/${id}: id du manifest ("${declaredId}") différent du dossier`);
+  }
+  if (/required:\s*true/.test(config)) {
+    requiredModules.add(id);
+  } else if (!/^\s*tutorial\b/m.test(config)) {
+    errors.push(
+      `modules/${id}: tutoriel manquant → créer tutorial.ts (modèle : src/modules/_template) et l'ajouter au manifest (\`tutorial\`)`,
+    );
   }
 
   for (const file of walk(dir)) {
@@ -70,7 +83,7 @@ const readme = readFileSync(join(root, "README.md"), "utf8");
 const architecture = readFileSync(join(root, "architecture.md"), "utf8");
 for (const id of frontModules) {
   if (isPrivate(join("src", "modules", id))) continue;
-  if (!readme.includes("`" + id + "`")) {
+  if (!requiredModules.has(id) && !readme.includes("`" + id + "`")) {
     errors.push(`README.md: module "${id}" absent du tableau « Shipped modules »`);
   }
   if (!architecture.includes(`${id}/`)) {

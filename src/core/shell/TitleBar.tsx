@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Minus, Square, X, Copy, Search } from "lucide-react";
+import { CircleHelp, Minus, Square, X, Copy, Search } from "lucide-react";
 import { cn } from "@/core/lib/cn";
-import { Slot } from "@/core/modules";
+import { Slot, useService } from "@/core/modules";
 import { useEnabledModules } from "@/core/modules/useModules";
 import { useUiStore } from "@/core/stores/ui.store";
-import { Kbd } from "@/design-system/primitives";
+import { Kbd, Tooltip } from "@/design-system/primitives";
+
+/** Service `tutorial.open` : fourni par le module de tutoriel s'il est présent. */
+type TutorialService = { open: (moduleId: string) => void };
 
 /** Résolu à l'usage : hors Tauri (preview navigateur), l'API n'existe pas. */
 function appWindow() {
@@ -46,6 +49,9 @@ export function TitleBar() {
   const [maximized, setMaximized] = useState(false);
   const { activeModuleId, setPaletteOpen } = useUiStore();
   const active = useEnabledModules().find((m) => m.id === activeModuleId);
+  const tutorial = useService<TutorialService>("tutorial.open");
+  // Pas d'aide sur l'écran du tutoriel lui-même.
+  const help = tutorial && active && !active.provides?.["tutorial.open"] ? { tutorial, active } : null;
 
   useEffect(() => {
     const win = appWindow();
@@ -64,6 +70,17 @@ export function TitleBar() {
       <span data-tauri-drag-region className="min-w-0 truncate text-body-sm font-semibold">
         {active?.name ?? "SDAI ARCHIMED"}
       </span>
+      {help && (
+        <Tooltip label={help.active.tutorial ? `Tutoriel : ${help.active.name}` : "Tutoriel : premiers pas"} side="bottom">
+          <button
+            onClick={() => help.tutorial.open(help.active.id)}
+            aria-label={help.active.tutorial ? `Ouvrir le tutoriel de ${help.active.name}` : "Ouvrir le tutoriel"}
+            className="-ml-1.5 flex size-7 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors duration-[80ms] hover:bg-surface-2 hover:text-text"
+          >
+            <CircleHelp size={15} strokeWidth={1.75} />
+          </button>
+        </Tooltip>
+      )}
 
       <div data-tauri-drag-region className="flex flex-1 justify-center">
         <button

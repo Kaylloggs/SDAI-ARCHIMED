@@ -1,4 +1,4 @@
-import { manifestSchema, type ManifestIssue } from "./manifest.schema";
+import { manifestSchema, tutorialSchema, type ManifestIssue } from "./manifest.schema";
 import type { LoadedModule, ModuleCategory, ModuleManifest } from "./types";
 import { MODULE_CATEGORIES } from "./types";
 
@@ -35,7 +35,18 @@ for (const [source, mod] of Object.entries(found)) {
     issues.push({ source, message: `id dupliqué: ${manifest.id}` });
     continue;
   }
-  modules.push({ ...manifest, path: `/m/${manifest.id}` });
+  let tutorial = manifest.tutorial;
+  if (tutorial !== undefined) {
+    const checked = tutorialSchema.safeParse(tutorial);
+    if (!checked.success) {
+      issues.push({
+        source,
+        message: `tutoriel ignoré : ${checked.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
+      });
+      tutorial = undefined;
+    }
+  }
+  modules.push({ ...manifest, tutorial, path: `/m/${manifest.id}` });
 }
 
 if (issues.length > 0) {

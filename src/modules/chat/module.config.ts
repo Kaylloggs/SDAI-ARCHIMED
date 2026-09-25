@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { MessagesSquare } from "lucide-react";
 import { defineModule } from "@/core/modules";
+import tutorial from "./tutorial";
 
 export default defineModule({
   id: "chat",
@@ -15,4 +16,5 @@ export default defineModule({
   launchpad: { size: "lg", accent: true },
   consumes: ["voice.transcribe", "code.project"],
   commands: [{ id: "chat.open", title: "Ouvrir le chat", run: "navigate" }],
+  tutorial,
 });

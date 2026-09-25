@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MODULE_CATEGORIES } from "./types";
+import { MODULE_CATEGORIES, TUTORIAL_AREAS } from "./types";
 
 /**
  * Validation défensive des manifests : un module invalide est ignoré,
@@ -42,6 +42,30 @@ export const manifestSchema = z.object({
     )
     .optional(),
   settings: z.custom<unknown>((v) => typeof v === "object").optional(),
+});
+
+/**
+ * Tutoriel d'un module : validé à part. Un tutoriel mal écrit est écarté (avec une erreur
+ * loggée) sans priver l'application du module.
+ */
+export const tutorialSchema = z.object({
+  summary: z.string().min(1).max(200),
+  steps: z
+    .array(
+      z.object({
+        icon: z.custom<unknown>((v) => typeof v === "function" || typeof v === "object", {
+          message: "icon: composant lucide attendu",
+        }),
+        title: z.string().min(1).max(48),
+        text: z.string().min(1).max(280),
+        area: z.enum(TUTORIAL_AREAS).optional(),
+        keys: z.array(z.string().min(1).max(12)).max(4).optional(),
+        code: z.string().min(1).max(600).optional(),
+      }),
+    )
+    .min(1)
+    .max(9),
+  tips: z.array(z.string().min(1).max(200)).max(4).optional(),
 });
 
 export type ManifestIssue = { source: string; message: string };

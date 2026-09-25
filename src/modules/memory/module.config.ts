@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { Brain } from "lucide-react";
 import { defineModule } from "@/core/modules";
+import tutorial from "./tutorial";
 
 export default defineModule({
   id: "memory",
@@ -19,4 +20,5 @@ export default defineModule({
     "memory.context": () => import("./services/context"),
   },
   commands: [{ id: "memory.open", title: "Gérer la mémoire des IA", run: "navigate" }],
+  tutorial,
 });

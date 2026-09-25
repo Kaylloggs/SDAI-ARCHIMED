@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { BriefcaseBusiness } from "lucide-react";
 import { defineModule } from "@/core/modules";
+import tutorial from "./tutorial";
 
 export default defineModule({
   id: "jobagent",
@@ -16,4 +17,5 @@ export default defineModule({
   launchpad: { size: "md" },
   backend: { plugin: "jobagent" },
   commands: [{ id: "jobagent.open", title: "Ouvrir JobAgent", run: "navigate" }],
+  tutorial,
 });

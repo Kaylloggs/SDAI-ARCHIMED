@@ -92,7 +92,19 @@ Une recherche d'emploi et un mod de jeu vidéo, difficile de trouver deux projet
 | 💼 | **Job Agent** · `jobagent` | Recherche d'emploi sur sept sites, carte du monde, lettres de motivation et candidatures par lot après confirmation. |
 | ⛏️ | **Mod Studio** · `mcstudio` | Mods Minecraft : modèles 3D, textures par IA, assistant de code, compilation en un clic, test en jeu et sur serveur, portage de version. |
 | 📊 | **Crédits** · `usage` | Ce qu'il reste de votre forfait IA, et combien de tokens chaque assistant a utilisés. |
-| 🏠 | **Accueil** · `home` · **Réglages** · `settings` | Votre page de départ, et l'endroit où choisir le thème, les assistants et les modules. |
+
+> **Gardez seulement ce qui vous sert.** Chaque module de ce tableau se désactive ou se supprime dans **Réglages → Modules**. Désactivé, il disparaît du menu et garde tout. Supprimé, il quitte l'application et ses données partent à la Corbeille ; vous le remettez quand vous voulez depuis **Modules supprimés**.
+
+### 🧱 Ajouter votre propre module
+
+ARCHIMED est fait de blocs : chaque fonction ci-dessus est un module dans son propre dossier, et l'application trouve les modules toute seule. Un nouveau module s'ajoute au **code source** : il faut donc les fichiers sources du projet (et les outils listés dans [Pour les développeurs](#-pour-les-développeurs)) pour compiler votre propre version de l'application, avec un module en plus :
+
+1. **Récupérez les sources** : `git clone https://github.com/Kaylloggs/SDAI-ARCHIMED.git`, puis `pnpm install`.
+2. **Créez le module** : `pnpm new:module meteo` copie un modèle prêt à remplir dans `src/modules/meteo/`.
+3. **Remplissez-le** : son nom et son icône dans `module.config.ts`, son écran dans `index.tsx`, son tutoriel pas à pas dans `tutorial.ts`.
+4. **Essayez-le et compilez** : `pnpm tauri dev` pour tester, puis `.\build.ps1`. Votre propre version (installeur et `.exe` portable) arrive dans `release/`.
+
+Vous n'êtes pas seul : ouvrez le dossier du projet dans le module **Code** et demandez à l'IA de *« créer un module météo en suivant guidelines.md »*. Le **Tutoriel** de l'application montre les mêmes étapes, avec les commandes à copier.
 
 <br />
 
@@ -106,6 +118,10 @@ Une recherche d'emploi et un mod de jeu vidéo, difficile de trouver deux projet
 <tr>
 <td width="50%"><img src="docs/images/jobagent.png" alt="Liste des offres de Job Agent regroupées par métier avec salaire, contrat et source" /><p align="center"><sub>Job Agent : les offres triées, prêtes à passer en revue</sub></p></td>
 <td width="50%"><img src="docs/images/mcstudio-dashboard.png" alt="Tableau de bord de Mod Studio avec une compilation réussie et le contenu du mod" /><p align="center"><sub>Mod Studio : compiler, vérifier et publier votre mod</sub></p></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/images/tutorial.png" alt="Tutoriel : une étape montrée sur une miniature de la fenêtre, barre de recherche allumée et touches Ctrl K" /><p align="center"><sub>Tutoriel : chaque étape montre où regarder</sub></p></td>
+<td width="50%"><img src="docs/images/tutorial-create-module.png" alt="Tutoriel pour créer un module, avec la commande à copier" /><p align="center"><sub>Tutoriel : créer votre propre module</sub></p></td>
 </tr>
 </table>
 
@@ -139,6 +155,7 @@ Choisissez l'apparence qui vous ressemble dans **Réglages → Thème**. Toute l
 - **Rien ne se fait dans votre dos.** Installations de logiciels, candidatures et modifications de vos projets demandent toujours votre accord. Les fichiers supprimés vont dans la Corbeille.
 - **Vos propres clés API.** Certains modules acceptent votre clé **OpenRouter**, **Google** (AI Studio) ou **Higgsfield**, par exemple pour générer des images et des textures. Vous ne payez que ce que vous utilisez, directement au fournisseur.
 - **Vos secrets restent secrets.** Clés API et mots de passe sont rangés dans le Gestionnaire d'identifiants de Windows ou chiffrés par Windows, jamais dans un fichier en clair.
+- **On apprend en s'en servant.** Le **Tutoriel**, juste au-dessus de Réglages dans le menu, présente l'application et chaque module étape par étape, sur une miniature de l'écran. Le **?** à côté du nom d'un module ouvre son tutoriel.
 - **Léger pour votre portefeuille et votre PC.** Un économiseur de tokens intégré réduit la consommation d'IA, et l'application est un petit programme natif, pas un navigateur complet.
 
 <br />
@@ -208,7 +225,7 @@ Double-cliquez sur le fichier téléchargé. Si Windows affiche **« Windows a p
 
 ### Étape 5 · Dire bonjour
 
-ARCHIMED trouve votre assistant tout seul. Cliquez sur **Chat**, écrivez un message, c'est parti. 🎉
+ARCHIMED trouve votre assistant tout seul. Cliquez sur **Chat**, écrivez un message, c'est parti. 🎉 Première fois ? Ouvrez le **Tutoriel**, juste au-dessus de Réglages, pour un tour de deux minutes.
 
 <details>
 <summary><b>En option : clés API pour certains modules</b></summary>
@@ -287,7 +304,7 @@ pnpm tauri dev      # le premier lancement compile Rust et prend quelques minute
 
 **3. Construire le `.exe`** : double-cliquez sur `build.bat`, ou lancez `powershell -ExecutionPolicy Bypass -File .\build.ps1` (options : `-Bundles nsis|msi|all|none`, `-Bump patch|minor|major|none`, `-Publish`, `-Clean`…). Sortie : `release/<version>/`.
 
-**4. Publier une version** : `pnpm version:bump minor`, commit, puis poussez un tag `vX.Y.Z`. GitHub Actions compile les fichiers Windows sur une machine propre et publie la release, avec les notes tirées du `CHANGELOG.md`.
+**4. Publier une version** : `pnpm version:bump minor` et poussez sur `main`, puis sur GitHub ouvrez **Actions → Release → Run workflow**. Il compile les fichiers Windows sur une machine propre, crée le tag `vX.Y.Z` et publie la release, avec les notes tirées du `CHANGELOG.md`. Pousser vous-même un tag `vX.Y.Z` fait la même chose.
 
 | Commande | Rôle |
 |---|---|

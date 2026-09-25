@@ -92,7 +92,19 @@ A job hunt and a game mod are about as far apart as two projects can be. If ARCH
 | 💼 | **Job Agent** · `jobagent` | Job search on seven boards, world map, cover letters and batch applications after confirmation. |
 | ⛏️ | **Mod Studio** · `mcstudio` | Minecraft mods: 3D models, AI textures, AI coding assistant, one-click build, game and server testing, version porting. |
 | 📊 | **Usage** · `usage` | How much of your AI plan is left, and how many tokens each assistant used. |
-| 🏠 | **Home** · `home` · **Settings** · `settings` | Your start page, and the place to choose the theme, the assistants and the modules. |
+
+> **Keep only what you use.** Every module in this table can be switched off or removed in **Settings → Modules**. Switched off, it hides and keeps everything. Removed, it leaves the app and its data goes to the Recycle Bin; you can bring it back any time from **Removed modules**.
+
+### 🧱 Add your own module
+
+ARCHIMED is made of blocks: each feature above is a module in its own folder, and the app picks up modules on its own. A new module is added to the **source code**, so you need the project's source files (and the developer tools listed in [For developers](#-for-developers)) to build your own version of the app with one more module:
+
+1. **Get the source**: `git clone https://github.com/Kaylloggs/SDAI-ARCHIMED.git`, then `pnpm install`.
+2. **Create the module**: `pnpm new:module weather` copies a ready-made template into `src/modules/weather/`.
+3. **Fill it in**: its name and icon in `module.config.ts`, its screen in `index.tsx`, its step-by-step guide in `tutorial.ts`.
+4. **Try it and build it**: `pnpm tauri dev` to test, then `.\build.ps1`. Your own version (installer and portable `.exe`) lands in `release/`.
+
+You don't have to write it alone: open the project folder in the **Code** module and ask the AI to *"create a weather module following guidelines.md"*. The **Tutorial** in the app shows the same steps, with commands to copy.
 
 <br />
 
@@ -106,6 +118,10 @@ A job hunt and a game mod are about as far apart as two projects can be. If ARCH
 <tr>
 <td width="50%"><img src="docs/images/jobagent.png" alt="Job Agent list of offers grouped by job title with salary, contract and source" /><p align="center"><sub>Job Agent: offers sorted and ready to review</sub></p></td>
 <td width="50%"><img src="docs/images/mcstudio-dashboard.png" alt="Mod Studio dashboard with a successful build and the content of the mod" /><p align="center"><sub>Mod Studio: build, check and ship your mod</sub></p></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/images/tutorial.png" alt="Tutorial showing a step on a miniature of the window, with the search bar highlighted and the Ctrl K keys" /><p align="center"><sub>Tutorial: each step shows where to look</sub></p></td>
+<td width="50%"><img src="docs/images/tutorial-create-module.png" alt="Tutorial for creating a module, with the command to copy" /><p align="center"><sub>Tutorial: create your own module</sub></p></td>
 </tr>
 </table>
 
@@ -139,6 +155,7 @@ Pick the look that suits you in **Settings → Theme**. The whole app follows, d
 - **Nothing happens behind your back.** Software installs, job applications and changes to your projects always ask first. Deleted files go to the Recycle Bin.
 - **Bring your own API keys.** Some modules can use your own key from **OpenRouter**, **Google** (AI Studio) or **Higgsfield**, for example to generate images and textures. You only pay for what you use, directly to the provider.
 - **Secrets stay secret.** API keys and passwords are kept in the Windows Credential Manager or encrypted by Windows, never in a plain file.
+- **Learn as you go.** The **Tutorial**, just above Settings in the menu, walks through the app and every module step by step on a miniature of the screen. The **?** next to a module's name opens its guide.
 - **Light on your wallet and your PC.** A built-in token saver cuts AI usage, and the app is a small native program, not a full browser.
 
 <br />
@@ -208,7 +225,7 @@ Double-click the file you downloaded. If Windows shows **“Windows protected yo
 
 ### Step 5 · Say hello
 
-ARCHIMED finds your assistant on its own. Click **Chat**, type a message, and you are set. 🎉
+ARCHIMED finds your assistant on its own. Click **Chat**, type a message, and you are set. 🎉 New to it? Open **Tutorial**, just above Settings, for a two-minute tour.
 
 <details>
 <summary><b>Optional: API keys for some modules</b></summary>
@@ -287,7 +304,7 @@ pnpm tauri dev      # the first launch compiles Rust and takes a few minutes
 
 **3. Build the `.exe`**: double-click `build.bat`, or run `powershell -ExecutionPolicy Bypass -File .\build.ps1` (options: `-Bundles nsis|msi|all|none`, `-Bump patch|minor|major|none`, `-Publish`, `-Clean`…). Output: `release/<version>/`.
 
-**4. Publish a release**: `pnpm version:bump minor`, commit, then push a tag `vX.Y.Z`. GitHub Actions builds the Windows files on a clean machine and publishes the release, with the notes taken from `CHANGELOG.md`.
+**4. Publish a release**: `pnpm version:bump minor` and push to `main`, then on GitHub open **Actions → Release → Run workflow**. It builds the Windows files on a clean machine, creates the `vX.Y.Z` tag and publishes the release, with the notes taken from `CHANGELOG.md`. Pushing a `vX.Y.Z` tag yourself does the same.
 
 | Command | Purpose |
 |---|---|

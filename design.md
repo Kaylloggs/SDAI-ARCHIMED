@@ -219,6 +219,7 @@ Règles : animer seulement `transform`, `opacity` (et `filter` léger). Interact
 
 ### 7.1 Navigation
 - **Rail de navigation** (`core/shell/Sidebar.tsx`) : verre fonctionnel flottant. Logo en haut (retour à l'accueil), modules groupés par catégorie et séparés par un filet de 24 px, catégorie « Réglages » épinglée en bas avec le bouton replier/déployer. Items 40 × 40, rayon 12, icône 18 px. Actif : fond texte à 12 % + icône accent + trait accent de 3 px à gauche (animé `spring.snappy`). Replié : infobulles `Tooltip` (jamais l'attribut `title`, qui affiche une bulle système).
+- **Barre de titre** : nom du module affiché, suivi d'un bouton « ? » (icône 15 px, pastille 28 px) qui ouvre son tutoriel ; absent sur le tutoriel lui-même et si le module Tutoriel manque.
 - **Launchpad** : grille bento 4 colonnes. Héros (module `launchpad.accent`, 3 × 2) avec la spirale en filigrane, colonne « Récemment » (1 × 2), puis une tuile par module. Tuiles rayon 20, survol `--surface-2` + bordure `--border-strong`.
 
 ### 7.2 Chat
@@ -258,6 +259,16 @@ Icônes : `lucide-react`, trait 1.75, tailles 14 / 16 / 20 uniquement.
 **Menu contextuel** : primitive `ContextMenu` (portail, couche L3 glass, `↑` `↓` `Entrée` `Échap`, se replie dans la fenêtre près des bords). Jamais le menu natif de WebView2.
 
 **Liens de fichiers** (`core/chat/FileLink.tsx`) : dans une réponse d'IA, un chemin cité (code en ligne ou lien) qui existe sur le disque devient un lien accent souligné au survol. Clic : ouvrir dans Code (ou application par défaut) ; clic droit : ouvrir dans Code, application par défaut, afficher dans l'Explorateur, copier le chemin. Les programmes (`.exe`, `.bat`, `.ps1`…) ne s'ouvrent jamais d'un clic.
+
+**Tutoriel** (module `tutorial`) : liste des tutoriels à gauche (216 px, 248 px au-delà de 1180 px :
+progression, recherche, groupes), puis la scène : en-tête (icône, titre, résumé, « Ouvrir le module »),
+étape en deux colonnes au-delà de 720 px de large (illustration 1,6 fr, texte 1 fr) et empilée
+dessous (texte d'abord), pied avec les pastilles d'étapes (infobulle = titre de l'étape),
+« Précédent » et « Suivant » / « Terminer ». L'illustration est une **miniature de la fenêtre**
+(`--bg`, rayon 20) dont la zone de l'étape s'allume (`--accent-soft` + filet `--accent`, pastille
+accent avec l'icône de l'étape et pointeur) ; le voile glisse d'une zone à l'autre (`spring.gentle`,
+fondu seul si mouvement réduit). Clavier : `←` `→` étapes, `↑` `↓` tutoriels, `Entrée` dans la
+recherche ouvre le premier résultat. Espaces insécables du français appliqués au rendu.
 
 **Menus déroulants** : toujours la primitive `Select` (`design-system/primitives/Select.tsx`), jamais un `<select>` natif — ses options sont dessinées par le système et ignorent le thème. La liste est rendue dans un portail, en couche L3 (glass), navigable au clavier (`↑` `↓` `Entrée` `Échap`).
 

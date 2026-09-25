@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { Settings } from "lucide-react";
 import { defineModule } from "@/core/modules";
+import tutorial from "./tutorial";
 
 export default defineModule({
   id: "settings",
@@ -14,4 +15,5 @@ export default defineModule({
   required: true,
   page: lazy(() => import("./index")),
   launchpad: { size: "sm" },
+  tutorial,
 });

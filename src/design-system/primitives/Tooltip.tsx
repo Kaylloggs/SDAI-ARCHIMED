@@ -5,7 +5,7 @@ import { duration, ease } from "@/design-system/motion";
 
 type Props = {
   label: ReactNode;
-  side?: "right" | "bottom";
+  side?: "right" | "bottom" | "top";
   disabled?: boolean;
   children: ReactElement;
 };
@@ -32,9 +32,11 @@ export function Tooltip({ label, side = "right", disabled = false, children }: P
   const position =
     rect && side === "right"
       ? { left: rect.right + 10, top: rect.top + rect.height / 2, transform: "translateY(-50%)" }
-      : rect
-        ? { left: rect.left + rect.width / 2, top: rect.bottom + 8, transform: "translateX(-50%)" }
-        : undefined;
+      : rect && side === "top"
+        ? { left: rect.left + rect.width / 2, top: rect.top - 8, transform: "translate(-50%, -100%)" }
+        : rect
+          ? { left: rect.left + rect.width / 2, top: rect.bottom + 8, transform: "translateX(-50%)" }
+          : undefined;
 
   return (
     <span
@@ -52,7 +54,7 @@ export function Tooltip({ label, side = "right", disabled = false, children }: P
             <span style={{ position: "fixed", zIndex: 50, pointerEvents: "none", ...position }}>
               <motion.span
                 role="tooltip"
-                initial={{ opacity: 0, x: side === "right" ? -4 : 0, y: side === "bottom" ? -4 : 0 }}
+                initial={{ opacity: 0, x: side === "right" ? -4 : 0, y: side === "bottom" ? -4 : side === "top" ? 4 : 0 }}
                 animate={{ opacity: 1, x: 0, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: duration.fast, ease: ease.emphasized }}

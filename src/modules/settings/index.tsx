@@ -71,7 +71,7 @@ export default function SettingsModule() {
 
       <Section
         title="Modules"
-        description="Désactiver un module le met de côté en gardant tout. Le supprimer le retire de l'application et met ses données à la Corbeille. Les modules requis restent toujours."
+        description="Désactiver un module le met de côté en gardant tout. Le supprimer le retire de l'application et met ses données à la Corbeille."
       >
         <ModulesSection />
       </Section>

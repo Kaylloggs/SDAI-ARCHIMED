@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { KanbanSquare } from "lucide-react";
 import { defineModule } from "@/core/modules";
+import tutorial from "./tutorial";
 
 export default defineModule({
   id: "planner",
@@ -21,4 +22,5 @@ export default defineModule({
     "code.editor.footer": lazy(() => import("./slots/RoadmapFooter")),
   },
   commands: [{ id: "planner.open", title: "Ouvrir le Planner", run: "navigate" }],
+  tutorial,
 });

@@ -59,6 +59,38 @@ export type ModuleCommand = {
   run: "navigate" | (() => void | Promise<void>);
 };
 
+/** Zone de l'écran mise en lumière par une étape de tutoriel (miniature du module Tutoriel). */
+export const TUTORIAL_AREAS = ["rail", "top", "left", "center", "right", "bottom"] as const;
+export type TutorialArea = (typeof TUTORIAL_AREAS)[number];
+
+export type TutorialStep = {
+  /** Pictogramme de l'étape (lucide), posé sur la zone mise en lumière. */
+  icon: LucideIcon;
+  /** Titre court qui commence par un verbe : « Choisir un agent ». */
+  title: string;
+  /** Une ou deux phrases, sans jargon. */
+  text: string;
+  /** Où se passe l'étape dans l'écran du module (défaut : centre). */
+  area?: TutorialArea;
+  /** Raccourci montré en touches : ["Ctrl", "K"]. */
+  keys?: string[];
+  /** Commande ou extrait de code, montré à la place de la miniature (tutoriels techniques). */
+  code?: string;
+};
+
+/**
+ * Tutoriel d'utilisation d'un module, affiché par le module Tutoriel s'il est présent.
+ * Obligatoire pour tout module non requis (vérifié par `pnpm check`).
+ */
+export type ModuleTutorial = {
+  /** À quoi sert le module, en une phrase. */
+  summary: string;
+  /** Trois à sept étapes, dans l'ordre où on les fait. */
+  steps: TutorialStep[];
+  /** Astuces montrées à la fin. */
+  tips?: string[];
+};
+
 export type ModuleManifest = {
   id: string;
   name: string;
@@ -79,6 +111,8 @@ export type ModuleManifest = {
   cards?: Record<string, LazyPage>;
   commands?: ModuleCommand[];
   settings?: LazyPage;
+  /** Tutoriel d'utilisation (données seulement, voir `ModuleTutorial`). */
+  tutorial?: ModuleTutorial;
 };
 
 export type LoadedModule = ModuleManifest & {

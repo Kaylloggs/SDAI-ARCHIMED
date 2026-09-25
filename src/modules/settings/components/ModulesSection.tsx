@@ -119,6 +119,8 @@ function RemovePanel({
 /**
  * Modules installés : activer, désactiver (tout est gardé) ou supprimer (retiré de
  * l'application, données à la Corbeille). Les modules supprimés se remettent plus bas.
+ * Les modules requis (accueil, réglages, tutoriel) n'apparaissent pas : on ne peut ni les
+ * désactiver ni les supprimer.
  */
 export function ModulesSection() {
   const { overrides, removed, setOverride } = useModulesStore();
@@ -127,8 +129,9 @@ export function ModulesSection() {
   // Supprimés pendant cette session : leur partie native repart de zéro au prochain lancement.
   const [removedNow, setRemovedNow] = useState<string[]>([]);
 
-  const installed = allModules.filter((m) => !removed.includes(m.id));
-  const gone = allModules.filter((m) => removed.includes(m.id));
+  const optional = allModules.filter((m) => !m.required);
+  const installed = optional.filter((m) => !removed.includes(m.id));
+  const gone = optional.filter((m) => removed.includes(m.id));
 
   return (
     <div className="space-y-6">
@@ -145,31 +148,27 @@ export function ModulesSection() {
                     <div className="flex items-center gap-2">
                       <p className="text-body font-medium">{module.name}</p>
                       <Badge tone="neutral">v{module.version}</Badge>
-                      {module.required && <Badge tone="accent">requis</Badge>}
                       {module.backend && <Badge tone="neutral">backend</Badge>}
                     </div>
                     <p className="line-clamp-1 text-footnote text-text-subtle">{module.description}</p>
                   </div>
-                  {!module.required && (
-                    <button
-                      type="button"
-                      aria-label={`Supprimer ${module.name}`}
-                      title={`Supprimer ${module.name}`}
-                      aria-expanded={asking === module.id}
-                      onClick={() => setAsking((a) => (a === module.id ? null : module.id))}
-                      className={cn(
-                        "flex size-7 shrink-0 items-center justify-center rounded-sm transition-colors",
-                        asking === module.id
-                          ? "bg-danger-soft text-danger"
-                          : "text-text-subtle hover:bg-danger-soft hover:text-danger",
-                      )}
-                    >
-                      <Trash2 size={15} strokeWidth={1.75} />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    aria-label={`Supprimer ${module.name}`}
+                    title={`Supprimer ${module.name}`}
+                    aria-expanded={asking === module.id}
+                    onClick={() => setAsking((a) => (a === module.id ? null : module.id))}
+                    className={cn(
+                      "flex size-7 shrink-0 items-center justify-center rounded-sm transition-colors",
+                      asking === module.id
+                        ? "bg-danger-soft text-danger"
+                        : "text-text-subtle hover:bg-danger-soft hover:text-danger",
+                    )}
+                  >
+                    <Trash2 size={15} strokeWidth={1.75} />
+                  </button>
                   <Switch
                     checked={enabled}
-                    disabled={module.required}
                     label={`${enabled ? "Désactiver" : "Activer"} ${module.name}`}
                     onChange={(value) => {
                       setOverride(module.id, value);

@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { Boxes } from "lucide-react";
 import { defineModule } from "@/core/modules";
+import tutorial from "./tutorial";
 
 export default defineModule({
   id: "skills",
@@ -19,4 +20,5 @@ export default defineModule({
     "chat.composer.actions": lazy(() => import("./slots/ComposerSkills")),
   },
   commands: [{ id: "skills.open", title: "Gérer les skills", run: "navigate" }],
+  tutorial,
 });

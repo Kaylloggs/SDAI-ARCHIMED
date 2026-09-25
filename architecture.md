@@ -125,7 +125,12 @@ SDAI ARCHIMED/
 │       ├── usage/                       # Crédits : module.config · index · api · lib/format · README
 │       ├── memory/                      # Mémoire : index · api · services/context · README
 │       ├── skills/                      # module.config · index · api · README
-│       ├── settings/                    # index + components/ (ThemeSection · EngineSection)
+│       ├── settings/                    # index + components/ (ThemeSection · EngineSection · ModulesSection)
+│       ├── tutorial/                    # Tutoriel (requis, au-dessus de Réglages) : index · store (progression)
+│       │   ├── components/              # TopicList · Stage · Miniature (écran en réduction) · CodeSample
+│       │   ├── content/                 # start (premiers pas) · create-module (créer un module)
+│       │   ├── lib/topics.ts            # liste, recherche, sujet suivant (lit `manifest.tutorial`)
+│       │   └── services/open.ts         # service `tutorial.open` (bouton d'aide de la barre de titre)
 │       ├── files/                       # (prévu) explorateur et actions système
 │       ├── voice/                       # (prévu)
 │       └── image-gen/                   # (prévu)
@@ -298,6 +303,8 @@ inscrite au journal d'audit (`modules.remove`). Les modules `required` ne se sup
 | Service | `code.open` | code | ouvrir un fichier ou dossier cité par l'IA dans l'éditeur (consommé par `core/chat/FileLink`) |
 | Réglage | `EngineTuning` | core (Réglages › Économie de tokens) | effort, skills, cache, compactage transmis à `engine_start_session` puis aux `spawn_args` des adaptateurs |
 | Service | `memory.context` | memory | informations actives de l'utilisateur ajoutées au premier message (consommé par `useChat`) |
+| Service | `tutorial.open` | tutorial | `open(moduleId)` ouvre le tutoriel d'un module (ou « Premiers pas ») ; consommé par le bouton d'aide de `core/shell/TitleBar` |
+| Manifest | `tutorial` | chaque module | tutoriel d'utilisation (`ModuleTutorial`, voir §5.5), lu par le module Tutoriel |
 | Service | `engine.session` | core | démarrer/envoyer/écouter une session |
 | Service | `system.fs` / `system.shell` | core | actions système passant par la policy |
 | Service | `notify.toast` | core | notifications UI |
@@ -310,9 +317,25 @@ inscrite au journal d'audit (`modules.remove`). Les modules `required` ne se sup
 Ajouter un slot = l'ajouter dans `src/core/modules/slots.ts` **et** dans ce tableau.
 
 ### 5.4 Navigation évolutive
-- **Sidebar** : groupes par `category` (ordre fixe : Core, IA, Système, Créatif, Automatisation), items triés par `order`. Une catégorie vide est masquée. Réglages épinglé en bas.
+- **Sidebar** : groupes par `category` (ordre fixe : Core, IA, Système, Créatif, Automatisation), items triés par `order`. Une catégorie vide est masquée. Catégorie `settings` épinglée en bas : Tutoriel (`order` 800) puis Réglages (900).
 - **Launchpad** (accueil) : grille bento de blocs générés depuis `manifest.launchpad`. Nouvelle tuile = nouveau module, rien d'autre.
 - **Palette `Ctrl+K`** : agrège `manifest.commands` + navigation vers chaque module + sessions récentes.
+- **Modules requis** (`required: true` : Accueil, Réglages, Tutoriel) : le socle. Toujours actifs, ils
+  n'apparaissent ni dans Réglages › Modules ni dans le tableau des modules du README.
+
+### 5.5 Tutoriels
+Chaque module non requis déclare un **tutoriel** dans son manifest (`tutorial`, fichier
+`tutorial.ts` avec `defineTutorial`) ; `pnpm check` refuse un module qui n'en a pas et un test
+vérifie qu'aucun tutoriel n'est écarté. Format (`ModuleTutorial`, `core/modules/types.ts`) :
+`summary` (une phrase), `steps` (1 à 9 : `icon`, `title`, `text`, `area` parmi `rail | top | left |
+center | right | bottom`, `keys` facultatif, `code` facultatif) et `tips`. Le registre valide le
+tutoriel à part (`tutorialSchema`) : un tutoriel mal formé est écarté et signalé, le module reste.
+
+Le module Tutoriel lit ces données : il ne connaît aucun module. Il montre chaque étape sur une
+**miniature de la fenêtre** où la zone `area` s'allume (le voile glisse d'une zone à l'autre entre
+deux étapes), ou un extrait `code` à copier. Un module sans tutoriel (module personnel) y figure
+avec « à venir ». Le bouton « ? » de la barre de titre ouvre le tutoriel du module affiché via le
+service `tutorial.open` ; absent si le module Tutoriel l'est.
 
 ---
 
@@ -593,4 +616,4 @@ arrête son processus puis efface son entrée.
 
 `build.ps1` : prérequis (Node, pnpm, Rust MSVC, Build Tools) → `pnpm install` → `pnpm check` + `pnpm test` + `cargo clippy -D warnings` → build d'un sidecar optionnel s'il existe → `pnpm tauri build` → copie de l'`.exe` portable et des installeurs dans `release/<version>/`.
 
-Publication : `build.ps1 -Publish` en local, ou un tag `vX.Y.Z` poussé, qui lance `.github/workflows/release.yml` (runner Windows, `build.ps1 -Bump none -Publish`). Les notes viennent de `scripts/release-notes.mjs` (installation + section du CHANGELOG, UTF-8) ; le workflow `release-notes.yml` réécrit celles d'une release déjà publiée.
+Publication : `build.ps1 -Publish` en local, ou `.github/workflows/release.yml` sur un runner Windows (`build.ps1 -Bump none -Publish`), lancé par un tag `vX.Y.Z` poussé ou à la main (Actions → Release → Run workflow : la version de `tauri.conf.json` de la branche choisie ; la release crée le tag sur le commit compilé, et refuse une version déjà publiée depuis un autre commit). Les notes viennent de `scripts/release-notes.mjs` (installation + section du CHANGELOG, UTF-8) ; le workflow `release-notes.yml` réécrit celles d'une release déjà publiée.

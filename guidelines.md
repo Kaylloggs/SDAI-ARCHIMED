@@ -107,6 +107,7 @@ src/modules/image-gen/
 ├── module.config.ts     ← OBLIGATOIRE : manifest (seul fichier lu par le core)
 ├── index.tsx            ← OBLIGATOIRE : page principale (export default, chargée en lazy)
 ├── README.md            ← OBLIGATOIRE : rôle, services fournis/consommés, commandes Rust
+├── tutorial.ts          ← OBLIGATOIRE (sauf module requis) : tutoriel d'utilisation, voir §4.3
 ├── api.ts               ← appels backend typés (seul endroit avec invoke)
 ├── store.ts             ← store zustand du module (préfixé par l'id)
 ├── types.ts
@@ -155,8 +156,27 @@ export default defineModule({
     { id: "image-gen.new", title: "Nouvelle image", shortcut: "Ctrl+Shift+I", run: "navigate" },
   ],
   settings: lazy(() => import("./settings/ImageGenSettings")),
+  tutorial,                           // import tutorial from "./tutorial" (obligatoire, voir ci-dessous)
 });
 ```
+
+**Tutoriel** (`tutorial.ts`, affiché par le module Tutoriel, architecture.md §5.5) :
+```ts
+import { MapPin, Sparkles } from "lucide-react";
+import { defineTutorial } from "@/core/modules";
+
+export default defineTutorial({
+  summary: "Générer une image à partir d'une phrase.",  // à quoi sert le module
+  steps: [                                               // 3 à 7 étapes, dans l'ordre du geste
+    { icon: Sparkles, title: "Décrire l'image", text: "Écrivez ce que vous voulez voir.", area: "bottom" },
+    { icon: MapPin, title: "Choisir le format", text: "Carré, portrait ou paysage.", area: "right", keys: ["Ctrl", "R"] },
+  ],
+  tips: ["Une astuce, facultative."],
+});
+```
+Titre qui commence par un verbe, une ou deux phrases avec les mots affichés à l'écran, `area`
+= où regarder dans la fenêtre (`rail`, `top`, `left`, `center`, `right`, `bottom`). Pas de tiret
+cadratin. **Tu changes l'interface d'un module → tu mets son tutoriel à jour dans le même commit.**
 
 Le manifest est validé par `zod` au démarrage (`src/core/modules/manifest.schema.ts`). **Un manifest invalide = module ignoré + erreur loggée + badge dans Réglages > Modules. Jamais un crash du shell.**
 
@@ -265,11 +285,12 @@ Noms de slots, services et événements : `domaine.sujet.action` en minuscules. 
 - [ ] `pnpm check` et `pnpm test` passent ; `cargo clippy -- -D warnings` et `cargo test` passent.
 - [ ] Le module fonctionne **seul** et l'app fonctionne **sans lui** (tester en renommant le dossier en `_image-gen`).
 - [ ] `README.md` du module rempli (template fourni).
+- [ ] `tutorial.ts` écrit et relu dans le module Tutoriel (vérifié par `pnpm check` et `pnpm test`).
 - [ ] États vide / chargement / erreur conçus (voir `design.md` §9).
 - [ ] Aucun token de design en dur, aucune chaîne UI en dur hors `i18n/`.
 - [ ] Types Rust exportés via `ts-rs` et bindings régénérés (`pnpm gen:bindings`).
 - [ ] Ligne ajoutée dans `CHANGELOG.md`.
-- [ ] **Module listé dans la documentation** : tableau « Shipped modules » du `README.md` ET arborescence d'`architecture.md` §2 (vérifié par `pnpm check`).
+- [ ] **Module listé dans la documentation** : tableau des modules du `README.md` (sauf module requis) ET arborescence d'`architecture.md` §2 (vérifié par `pnpm check`).
 
 ---
 

@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { Sparkles } from "lucide-react";
 import { defineModule } from "@/core/modules";
+import tutorial from "./tutorial";
 
 export default defineModule({
   id: "__ID__",
@@ -12,5 +13,6 @@ export default defineModule({
   order: 50,
   enabledByDefault: true,
   page: lazy(() => import("./index")),
-  launchpad: { size: "md" },__BACKEND__
+  launchpad: { size: "md" },
+  tutorial,__BACKEND__
 });

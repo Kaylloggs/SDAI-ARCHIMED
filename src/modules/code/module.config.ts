@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { Code2 } from "lucide-react";
 import { defineModule } from "@/core/modules";
+import tutorial from "./tutorial";
 
 export default defineModule({
   id: "code",
@@ -21,4 +22,5 @@ export default defineModule({
     "code.open": () => import("./services/open"),
   },
   commands: [{ id: "code.open", title: "Ouvrir un projet dans Code", run: "navigate" }],
+  tutorial,
 });

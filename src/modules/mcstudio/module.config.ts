@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { Pickaxe } from "lucide-react";
 import { defineModule } from "@/core/modules";
+import tutorial from "./tutorial";
 
 export default defineModule({
   id: "mcstudio",
@@ -15,4 +16,5 @@ export default defineModule({
   launchpad: { size: "md" },
   backend: { plugin: "mcstudio" },
   commands: [{ id: "mcstudio.open", title: "Ouvrir Mod Studio", run: "navigate" }],
+  tutorial,
 });
