@@ -209,20 +209,24 @@ if ($Publish) {
     if (-not (Test-Command 'git')) { Fail 'git introuvable.' }
 
     $tag = "v$Version"
-    Invoke-Native 'git add (version)' { git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock CHANGELOG.md }
-    git diff --cached --quiet
-    if ($LASTEXITCODE -ne 0) {
-        Invoke-Native 'git commit (version)' { git commit -q -m "chore(release): $tag" }
-        Write-Ok "commit chore(release): $tag"
+    # En CI (GitHub Actions), le tag pousse a declenche le build : rien a committer ni pousser.
+    $InCi = $env:GITHUB_ACTIONS -eq 'true'
+    if (-not $InCi) {
+        Invoke-Native 'git add (version)' { git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock CHANGELOG.md }
+        git diff --cached --quiet
+        if ($LASTEXITCODE -ne 0) {
+            Invoke-Native 'git commit (version)' { git commit -q -m "chore(release): $tag" }
+            Write-Ok "commit chore(release): $tag"
+        }
+        git rev-parse -q --verify "refs/tags/$tag" | Out-Null
+        if ($LASTEXITCODE -ne 0) { Invoke-Native 'git tag' { git tag -a $tag -m "SDAI ARCHIMED $tag" } }
+        Invoke-Native 'git push' { git push origin HEAD:main }
+        Invoke-Native 'git push tag' { git push origin $tag }
+        Write-Ok "tag $tag pousse"
     }
-    git rev-parse -q --verify "refs/tags/$tag" | Out-Null
-    if ($LASTEXITCODE -ne 0) { Invoke-Native 'git tag' { git tag -a $tag -m "SDAI ARCHIMED $tag" } }
-    Invoke-Native 'git push' { git push origin HEAD:main }
-    Invoke-Native 'git push tag' { git push origin $tag }
-    Write-Ok "tag $tag pousse"
 
     # Notes : section de cette version dans le CHANGELOG.
-    $changelog = Get-Content (Join-Path $Root 'CHANGELOG.md') -Raw
+    $changelog = Get-Content (Join-Path $Root 'CHANGELOG.md') -Raw -Encoding UTF8
     $escaped = [regex]::Escape($Version)
     $match = [regex]::Match($changelog, "(?s)## \[$escaped\][^\n]*\n(.*?)(?=\n## \[|\z)")
     $notes = if ($match.Success) { $match.Groups[1].Value.Trim() } else { "Version $Version" }
