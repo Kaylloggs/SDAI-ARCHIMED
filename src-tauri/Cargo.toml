@@ -1,6 +1,6 @@
 [package]
 name = "sdai-archimed"
-version = "0.5.0"
+version = "0.6.0"
 description = "SDAI ARCHIMED - assistant personnel modulaire"
 authors = ["SearaDesign"]
 license = "MIT"

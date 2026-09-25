@@ -4,6 +4,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.6.0] - 2026-09-25
+
 ### Ajouté — Module Image Maker (catégorie Création)
 - **Studio d'images par IA** : créer à partir d'une description (consigne libre ou structurée :
   sujet, décor, composition, lumière, appareil, matières, couleurs, ambiance, style, détail),
@@ -65,6 +67,19 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
   26.x retire Yarn du build (`mappings`, `modImplementation`, id du plugin) et liste les
   renommages de classes pour l'assistant IA. Forge 26.x reste non pris en charge (EventBus 7),
   avec la raison affichée.
+
+### Ajouté — Mod Studio : textures avec Higgsfield
+- **Service d'image → Higgsfield** dans l'atelier de textures, avec deux accès : **Mon compte**
+  (outil officiel `@higgsfield/cli` installé après confirmation, connexion dans le navigateur,
+  crédits de l'abonnement, aucun mot de passe dans l'app) ou **Clé d'API** (vérifiée puis rangée
+  sous `mcstudio-higgsfield` ; celle d'Image Maker est relue sur place, jamais copiée). Seuls les
+  modèles qui créent à partir d'un texte sont proposés ; la texture de référence part en entrée
+  quand le modèle lit les images. Interrupteur « Utiliser mes crédits Higgsfield » avant tout envoi.
+- Panneau Environnement : compte et clé Higgsfield à côté d'OpenRouter et de Gemini.
+
+### Corrigé
+- Atelier de textures : la carte de clé (ou de compte) relisait son état à chaque rendu quand le
+  sélecteur de modèle était ouvert sans clé, jusqu'à figer l'interface.
 
 ### Technique
 - Commandes du core `clipboard_file_paths` (liste CF_HDROP de Windows) et `clipboard_save_file`
