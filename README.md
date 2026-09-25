@@ -1,64 +1,238 @@
+<div align="center">
+
+<img src="src-tauri/icons/128x128@2x.png" width="104" alt="ARCHIMED logo" />
+
 # SDAI ARCHIMED
 
-A modular desktop app that runs **Claude Code**, **Antigravity** and **Codex** with their full agentic capabilities in one interface: chat, code editor, skills, planner, AI memory, job search and a Minecraft mod studio. Built with **Tauri 2 & Rust**.
+**Your AI assistant, finally at home on your desktop.**<br />
+Chat with Claude, Gemini or Codex in a real app, approve what they do with one click,<br />
+and put them to work: code, plan, search for a job, even build Minecraft mods.
 
-> Windows 10/11 · free and open source (MIT) · made by **SearaDesign**
+[![Latest release](https://img.shields.io/github/v/release/Kaylloggs/SDAI-ARCHIMED?style=for-the-badge&label=release&color=d9a441)](https://github.com/Kaylloggs/SDAI-ARCHIMED/releases/latest)
+[![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=for-the-badge&logo=windows&logoColor=white)](#-install-in-5-minutes)
+[![Free and open source](https://img.shields.io/badge/license-MIT-2ea043?style=for-the-badge)](LICENSE)
+[![Built with Tauri and Rust](https://img.shields.io/badge/Tauri%202-Rust-24C8DB?style=for-the-badge&logo=tauri&logoColor=white)](#-for-developers)
 
-ARCHIMED drives the CLIs installed on your machine, with your own subscriptions. Terminal output, permission requests and tool calls become interactive cards, governed by a risk policy.
+### [⬇ Download for Windows](https://github.com/Kaylloggs/SDAI-ARCHIMED/releases/latest) &nbsp;·&nbsp; [Install guide](#-install-in-5-minutes) &nbsp;·&nbsp; [What's inside](#-whats-inside) &nbsp;·&nbsp; [FAQ](#-questions)
 
-## Why ARCHIMED
+<img src="docs/images/chat.png" alt="ARCHIMED chat: Claude Code edits a website, asks before running the tests, and sums up what it did" width="920" />
 
-- **Your CLIs, your subscriptions.** No API key to buy, no proxy: ARCHIMED talks to the Claude Code, Antigravity or Codex already installed and logged in, with everything they can do (files, shell, MCP, skills).
-- **Agentic power you can read.** Streams become a timeline of messages, tool calls, diffs and question cards. The raw terminal stays one click away.
-- **Safe by default.** Every permission request is scored by a risk policy (low to critical). Auto mode can approve the harmless ones, never the critical ones, and each decision is written to a local audit log.
-- **One app, many tools.** Chat, code, planning, memory, job search and modding share the same engine, sessions and design, instead of seven windows.
-- **Modular.** One feature is one module: enable, disable or delete what you don't use; nothing else breaks.
-- **Local and private.** Data stays in `%APPDATA%`, secrets in the Windows Credential Manager, deletions go to the Recycle Bin.
-- **Frugal.** A built-in token saver (three levels) and a usage panel that shows what each CLI has consumed and what is left of your plan.
-- **Native and light.** Tauri 2 and Rust: a small binary on the system WebView, no bundled browser.
+</div>
 
-## Modules
+<br />
 
-In **Settings → Modules** you can enable, disable or **delete** any module (its data goes to the Recycle Bin, and you can bring it back later). Each one documents itself in `src/modules/<id>/README.md`.
+## 👋 What is ARCHIMED?
 
-### Chat · `chat`
-Conversations with Claude Code, Antigravity or Codex: pick the agent, model and effort; answer permissions and questions on cards; Auto mode (off, smart, full); attachments; local voice dictation (Windows speech recognition, no cloud); raw terminal drawer.
+AI assistants such as **Claude Code**, **Google Antigravity** or **OpenAI Codex** can do far more than answer questions: they can read your files, write code, run commands and finish real tasks. The catch is that they live in a black terminal window, which is intimidating and hard to follow.
 
-### Code · `code`
-A VS Code-like editor (CodeMirror 6, ~35 languages, tabs, `Ctrl+P`) with the AI panel on the side, working in the open folder. Files refresh live while the AI edits them; drag a file into the chat to target it; preview the dev server the agent started, or an HTML page.
+**ARCHIMED gives them a proper home.** It is a free Windows app that opens the assistant you already have and turns everything it does into something you can read and control:
 
-### Skills · `skills`
-A local library of skills, switched on per CLI (linked into each CLI's skills folder), imported from any folder, and reachable from the chat with **Use a skill**.
+<table>
+<tr>
+<td width="50%" valign="top">💬 <b>Readable</b><br />Answers, file changes and commands appear as clean cards, not scrolling text.</td>
+<td width="50%" valign="top">✅ <b>Under your control</b><br />Before the AI does something that matters, ARCHIMED asks you. Harmless steps can be approved automatically, risky ones never are.</td>
+</tr>
+<tr>
+<td valign="top">🧩 <b>Useful beyond chat</b><br />Modules give the AI concrete jobs to do, each with its own screen.</td>
+<td valign="top">🔒 <b>Private</b><br />Everything stays on your computer. ARCHIMED uses your own AI account and has no server of its own.</td>
+</tr>
+</table>
 
-### Planner · `planner`
-Trello-like boards with Markdown cards, subtasks, due dates, labels and a calendar view. A board can follow a `roadmap.md` in both directions, so the plan an AI writes during a project becomes cards you can tick. Export to `.ics` or add a card to Google Calendar.
+```mermaid
+flowchart LR
+    you(["🙂 You"]) --> app["ARCHIMED<br/>cards · approvals · modules"]
+    app --> claude["Claude Code"]
+    app --> agy["Antigravity"]
+    app --> codex["Codex"]
+    claude & agy & codex --> work[("Your files, projects,<br/>mods, job search…")]
+```
 
-### Memory · `memory`
-What the AIs should know about you: preferences and conventions you write yourself, global or per project, each with its own switch. Active notes are added to the first message of a conversation, with a preview of the exact block. Nothing is recorded behind your back.
+<br />
 
-### Job Agent · `jobagent`
-Searches several job titles, countries, cities and contract types across seven boards (Indeed, LinkedIn, Glassdoor, Google, HelloWork, Welcome to the Jungle, ZipRecruiter) in parallel, removes duplicates, then drafts cover letters and emails from your CV. Batch sending only happens after one confirmation that lists every recipient.
+## 🌈 One app, very different jobs
 
-### Minecraft Mod Studio · `mcstudio`
-Real mods for Fabric, Forge and NeoForge, Minecraft 1.14 to 1.21.x. Each project is a standard Gradle folder that also builds without ARCHIMED.
-- **Create and build**: guided setup, loader and mapping versions, JDK installed for you (SHA-256 checked), Gradle builds with errors explained in plain words.
-- **Test**: launch the game with your mod, or a local test server (you accept the Minecraft EULA yourself); crashes are explained.
-- **AI assistant**: your CLI works in a copy of the project; you review each file before it lands, with a restore point every time.
-- **Textures**: generate with OpenRouter or Google Gemini (your key) or import an image, converted to real pixel art; a pixel editor with brush sizes; every texture the mod needs is listed, overlays included.
-- **3D studio**, Blockbench-style: block and item models, entities (the Java model class is generated) and armor. Add cubes, cylinders, spheres or cones, carve holes, group cubes, give each shape the same texture, a reused one or a new one generated by AI or imported, and paint directly on the model. Flat items turn into 3D in one click.
-- **Grow the project**: import an existing mod, port it to another Minecraft version (build files and data migrated, Java code handed to the assistant), export the sources as a ZIP.
+The best way to show what ARCHIMED can do is to put two of its modules side by side. They have nothing in common, and they run on the same engine, with the same AI and the same safety rules.
 
-### Usage · `usage`
-Remaining subscription limits (Claude's 5-hour and weekly windows), plus tokens and estimated cost per CLI, measured on every answer.
+<table>
+<tr>
+<td width="50%" valign="top">
 
-### Home and Settings · `home` `settings`
-The launchpad with one tile per active module, and the settings: CLI paths, theme, token saver, modules. Both are required.
+### 💼 Find a job
+**Job Agent** searches seven job boards at once (Indeed, LinkedIn, Glassdoor, Google, HelloWork, Welcome to the Jungle, ZipRecruiter), across several job titles, countries and cities. It removes duplicates, shows every offer on a world map, then writes cover letters and emails from your CV. Nothing is sent until you confirm the full list of recipients.
 
-## Install and run
+</td>
+<td width="50%" valign="top">
 
-**Prerequisites** (Windows 10/11): [Git](https://git-scm.com/download/win), [Node.js](https://nodejs.org) 20+, pnpm 9+ (`npm install -g pnpm`), [Rust](https://rustup.rs) 1.85+ (MSVC), [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with "Desktop development with C++", and WebView2 (built into Windows 11). Optional: a JDK for `mcstudio` (it can install one for you), Python 3.10+ for `jobagent`.
+### ⛏️ Make a Minecraft mod
+**Mod Studio** creates real mods for Fabric, Forge and NeoForge, from Minecraft 1.14 to 1.21. Model blocks and creatures in 3D like in Blockbench, paint or generate textures with AI, ask the assistant to write the code, then build and test the mod in the game. It even installs Java for you.
 
-**At least one AI CLI**, installed and logged in: [Claude Code](https://docs.claude.com/en/docs/claude-code), [Antigravity CLI](https://antigravity.google/download#antigravity-cli) (`agy`), or Codex (`npm install -g @openai/codex`, experimental). They are detected automatically; set a custom path in **Settings → Engine** if needed.
+</td>
+</tr>
+<tr>
+<td><img src="docs/images/jobagent-map.png" alt="Job Agent: search filters on the left, job offers grouped on a world map" /></td>
+<td><img src="docs/images/mcstudio-3d.png" alt="Mod Studio: a ruby lamp modelled in 3D, with its cubes listed on the right" /></td>
+</tr>
+</table>
+
+A job hunt and a game mod are about as far apart as two projects can be. If ARCHIMED handles both, it can grow into whatever you need next. Every feature is an independent **module**: keep the ones you use, remove the others in one click from the settings.
+
+<br />
+
+## 📦 What's inside
+
+| | Module | What it does for you |
+|---|---|---|
+| 💬 | **Chat** · `chat` | Talk to Claude Code, Antigravity or Codex. Pick the model and how hard it should think, attach files, dictate with your voice (processed on your PC), approve actions on cards. |
+| 🧑‍💻 | **Code** · `code` | A code editor with the AI beside it. Open a folder, watch files update live as the AI edits them, preview the website it is building. |
+| 🗂️ | **Planner** · `planner` | Task boards and a calendar. A board can follow a `roadmap.md`, so the plan an AI writes becomes cards you can tick off. Export to your calendar. |
+| 🧠 | **Memory** · `memory` | Tell the AI once who you are and how you like to work. Notes can be global or per project, and you see exactly what is sent. |
+| 🧩 | **Skills** · `skills` | A library of skills (reusable instructions) you can switch on for each assistant. |
+| 💼 | **Job Agent** · `jobagent` | Job search on seven boards, world map, cover letters and batch applications after confirmation. |
+| ⛏️ | **Mod Studio** · `mcstudio` | Minecraft mods: 3D models, AI textures, AI coding assistant, one-click build, game and server testing, version porting. |
+| 📊 | **Usage** · `usage` | How much of your AI plan is left, and how many tokens each assistant used. |
+| 🏠 | **Home** · `home` · **Settings** · `settings` | Your start page, and the place to choose the theme, the assistants and the modules. |
+
+<br />
+
+## 🖼️ A closer look
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/home.png" alt="Home screen with a tile for each module and recent conversations" /><p align="center"><sub>Home: every module one click away</sub></p></td>
+<td width="50%"><img src="docs/images/planner.png" alt="Planner board with ideas, tasks in progress and finished tasks" /><p align="center"><sub>Planner: boards, due dates, subtasks</sub></p></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/images/jobagent.png" alt="Job Agent list of offers grouped by job title with salary, contract and source" /><p align="center"><sub>Job Agent: offers sorted and ready to review</sub></p></td>
+<td width="50%"><img src="docs/images/mcstudio-dashboard.png" alt="Mod Studio dashboard with a successful build and the content of the mod" /><p align="center"><sub>Mod Studio: build, check and ship your mod</sub></p></td>
+</tr>
+</table>
+
+<sub>The interface is in French for now. Screenshots use sample data.</sub>
+
+<br />
+
+## ✨ Why people like it
+
+- **No new subscription.** ARCHIMED is free and uses the AI account you already have.
+- **You stay in charge.** Every sensitive action goes through a risk check (low to critical). Auto mode approves the harmless ones and always asks for the critical ones. Every decision is written to a log on your PC.
+- **Nothing happens behind your back.** Software installs, job applications and changes to your projects always ask first. Deleted files go to the Recycle Bin.
+- **Secrets stay secret.** API keys and passwords are kept in the Windows Credential Manager or encrypted by Windows.
+- **Light on your wallet and your PC.** A built-in token saver cuts AI usage, and the app is a small native program, not a full browser.
+
+<br />
+
+## 🚀 Install in 5 minutes
+
+> **You need:** a Windows 10 or 11 PC and an internet connection. No coding knowledge required.
+
+### Step 1 · Install an AI assistant
+
+ARCHIMED drives an AI assistant installed on your PC. Pick **one** (you can add others later):
+
+| Assistant | How to install | Account |
+|---|---|---|
+| **Claude Code** (Anthropic)<br /><sub>recommended</sub> | Open **PowerShell** (Start menu, type *PowerShell*) and paste:<br />`irm https://claude.ai/install.ps1 \| iex`<br />Then type `claude` once to sign in. [Official guide](https://docs.claude.com/en/docs/claude-code/setup) | A Claude plan or an API key |
+| **Antigravity** (Google) | [Download the Antigravity CLI](https://antigravity.google/download#antigravity-cli), install it, then type `agy` once to sign in. | A Google account |
+| **Codex** (OpenAI)<br /><sub>experimental</sub> | Install [Node.js](https://nodejs.org/en/download) (LTS), then in PowerShell:<br />`npm install -g @openai/codex` | An OpenAI account |
+
+### Step 2 · Download ARCHIMED
+
+<table>
+<tr>
+<td align="center" width="50%">
+
+**Installer** <sub>(recommended)</sub>
+
+[**⬇ Download the setup file**](https://github.com/Kaylloggs/SDAI-ARCHIMED/releases/latest)
+
+<sub>On the release page, click the file ending in <code>x64-setup.exe</code>.<br />Adds ARCHIMED to the Start menu.</sub>
+
+</td>
+<td align="center" width="50%">
+
+**Portable version**
+
+[**⬇ Download SDAI-Archimed.exe**](https://github.com/Kaylloggs/SDAI-ARCHIMED/releases/latest/download/SDAI-Archimed.exe)
+
+<sub>Nothing to install: put it anywhere and double-click it.</sub>
+
+</td>
+</tr>
+</table>
+
+### Step 3 · Open it
+
+Double-click the file you downloaded. If Windows shows **“Windows protected your PC”**, click **More info**, then **Run anyway**: the app is not code-signed yet, which triggers this warning for new apps.
+
+### Step 4 · Say hello
+
+ARCHIMED finds your assistant on its own. Click **Chat**, type a message, and you are set. 🎉
+
+<details>
+<summary><b>Optional: extras for some modules</b></summary>
+<br />
+
+| To use | You also need | |
+|---|---|---|
+| **Mod Studio** | Java (JDK) | Nothing to do: ARCHIMED offers to install the right version for you. |
+| **Job Agent** | Python 3.10 or newer | [Download Python](https://www.python.org/downloads/windows/) and tick **“Add python.exe to PATH”** during the install. |
+| **AI textures** (Mod Studio) | An image AI key | A [Google AI Studio](https://aistudio.google.com/apikey) or [OpenRouter](https://openrouter.ai/keys) key, pasted in the app. |
+
+</details>
+
+<br />
+
+## ❓ Questions
+
+<details>
+<summary><b>Is ARCHIMED free?</b></summary>
+<br />
+Yes, free and open source (MIT). The AI itself runs on your own account with Anthropic, Google or OpenAI, under their plans and limits.
+</details>
+
+<details>
+<summary><b>Does ARCHIMED send my data anywhere?</b></summary>
+<br />
+No. ARCHIMED has no server. Your conversations, settings and projects stay in <code>%APPDATA%\com.sdai.archimed\</code>. The only traffic is between the assistant you chose and its own service, exactly as when you use it in a terminal.
+</details>
+
+<details>
+<summary><b>ARCHIMED says it cannot find my assistant</b></summary>
+<br />
+Open a new PowerShell window and type <code>claude</code> (or <code>agy</code>). If the command is not found, the install did not finish: repeat step 1. If it works there, open <b>Settings → Engine</b> in ARCHIMED and point it to the program.
+</details>
+
+<details>
+<summary><b>The app does not open, or the window stays blank</b></summary>
+<br />
+ARCHIMED needs Microsoft WebView2, included in Windows 11 and in up-to-date Windows 10. The installer adds it when missing. With the portable version, install the <a href="https://developer.microsoft.com/microsoft-edge/webview2/">WebView2 Runtime</a> (Evergreen Bootstrapper) and try again.
+</details>
+
+<details>
+<summary><b>Does it work on macOS or Linux?</b></summary>
+<br />
+Not yet: ARCHIMED is built for Windows 10 and 11.
+</details>
+
+<br />
+
+## 🧰 For developers
+
+<details>
+<summary><b>Build ARCHIMED from source</b></summary>
+<br />
+
+**1. Install the tools** (Windows 10/11)
+
+| Tool | Link |
+|---|---|
+| Git | [git-scm.com](https://git-scm.com/download/win) |
+| Node.js 20+ | [nodejs.org](https://nodejs.org/en/download) |
+| pnpm 9+ | `npm install -g pnpm` |
+| Rust 1.85+ (MSVC) | [rustup.rs](https://rustup.rs) |
+| Visual Studio Build Tools | [Download](https://visualstudio.microsoft.com/visual-cpp-build-tools/), tick **“Desktop development with C++”** |
+
+**2. Run it**
 
 ```bash
 git clone https://github.com/Kaylloggs/SDAI-ARCHIMED.git
@@ -67,9 +241,7 @@ pnpm install        # pnpm 10+: if ERR_PNPM_IGNORED_BUILDS, run `pnpm approve-bu
 pnpm tauri dev      # the first launch compiles Rust and takes a few minutes
 ```
 
-**Build the `.exe`**: double-click `build.bat`, or `powershell -ExecutionPolicy Bypass -File .\build.ps1` (options: `-Bundles nsis|msi|all|none`, `-Bump patch|minor|major|none`, `-Publish`, `-Clean`…). Output: `release/<version>/`. Each release build bumps the version (`patch` by default).
-
-## Developers
+**3. Build the `.exe`**: double-click `build.bat`, or run `powershell -ExecutionPolicy Bypass -File .\build.ps1` (options: `-Bundles nsis|msi|all|none`, `-Bump patch|minor|major|none`, `-Publish`, `-Clean`…). Output: `release/<version>/`.
 
 | Command | Purpose |
 |---|---|
@@ -78,19 +250,16 @@ pnpm tauri dev      # the first launch compiles Rust and takes a few minutes
 | `cargo test --manifest-path src-tauri/Cargo.toml` | Rust tests |
 | `pnpm new:module <id>` | scaffold a new module |
 
-Stack: Tauri 2 · Rust · React 19 · TypeScript · Vite · Tailwind CSS v4 · zustand · motion · CodeMirror 6.
+</details>
 
-Read [`guidelines.md`](guidelines.md) (rules: one feature = one module), [`architecture.md`](architecture.md) (IPC, CLI engine, parsing, risk policy) and [`design.md`](design.md) (design system). Decisions live in `docs/adr/`, changes in [`CHANGELOG.md`](CHANGELOG.md). Internal docs are in French.
+**Stack:** Tauri 2 · Rust · React 19 · TypeScript · Vite · Tailwind CSS v4 · zustand · motion · CodeMirror 6 · three.js
 
-## Privacy and safety
+**Docs** (in French): [`guidelines.md`](guidelines.md) for the rules (one feature = one module), [`architecture.md`](architecture.md) for the CLI engine and the risk policy, [`design.md`](design.md) for the design system, `docs/adr/` for decisions, [`CHANGELOG.md`](CHANGELOG.md) for changes, and a `README.md` in each `src/modules/<id>/`.
 
-- Everything stays on your machine, in `%APPDATA%\com.sdai.archimed\`.
-- CLIs never run with `--dangerously-skip-permissions`: every permission goes through ARCHIMED's risk policy, and decisions are logged locally.
-- Software installs and job applications always ask first: JDKs are checked with SHA-256, applications list every recipient.
-- API keys and passwords live in the Windows Credential Manager or are encrypted with DPAPI.
+<br />
 
-## License
+## 📄 License
 
-[MIT](LICENSE) © 2026 SearaDesign.
+[MIT](LICENSE) © 2026 **SearaDesign**
 
-Third-party: the token saver bundles the [Caveman](https://github.com/JuliusBrussee/caveman) skill (MIT); `jobagent` vendors [JobSpy](https://github.com/speedyapply/JobSpy) (MIT) with [GeoNames](https://www.geonames.org/) (CC BY 4.0) and [Natural Earth](https://www.naturalearthdata.com/) data; `mcstudio` templates ship the Gradle Wrapper (Apache 2.0). Minecraft is a trademark of Mojang/Microsoft; mods you build are subject to the Minecraft EULA. Claude, Antigravity and Codex belong to their owners; ARCHIMED is not affiliated with Anthropic, Google or OpenAI.
+<sub>Third-party: the token saver bundles the [Caveman](https://github.com/JuliusBrussee/caveman) skill (MIT); `jobagent` vendors [JobSpy](https://github.com/speedyapply/JobSpy) (MIT) with [GeoNames](https://www.geonames.org/) (CC BY 4.0) and [Natural Earth](https://www.naturalearthdata.com/) data; `mcstudio` templates ship the Gradle Wrapper (Apache 2.0). Minecraft is a trademark of Mojang/Microsoft; mods you build are subject to the Minecraft EULA. Claude, Antigravity and Codex belong to their owners; ARCHIMED is not affiliated with Anthropic, Google or OpenAI.</sub>
