@@ -10,6 +10,10 @@ export type VersionOptions = { loader: Array<VersionChoice>,
  */
 mappings: Array<VersionChoice>, 
 /**
+ * Le profil demande Yarn (Fabric jusqu'à 1.21.x) ; faux pour les noms officiels de Mojang.
+ */
+yarn: boolean, 
+/**
  * Fabric API ; vide pour Forge et NeoForge.
  */
 api: Array<VersionChoice>, offline: boolean, };

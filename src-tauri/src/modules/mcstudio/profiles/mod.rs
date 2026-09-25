@@ -21,6 +21,8 @@ const DEFAULTS: &[(&str, &str)] = &[
         "fabric-1.14.toml",
         include_str!("defaults/fabric-1.14.toml"),
     ),
+    ("fabric-26.toml", include_str!("defaults/fabric-26.toml")),
+    ("neoforge-26.toml", include_str!("defaults/neoforge-26.toml")),
     (
         "fabric-1.17.toml",
         include_str!("defaults/fabric-1.17.toml"),
@@ -112,6 +114,9 @@ pub enum Dialect {
     /// 1.21.2+ : clé de registre dans les réglages.
     #[serde(rename = "fabric-yarn-1.21.2")]
     FabricYarn1212,
+    /// 26.1+ : jeu non obfusqué, noms officiels de Mojang (`Item.Properties`, `ResourceKey`).
+    #[serde(rename = "fabric-mojang-26")]
+    FabricMojang26,
     /// 1.14.4 – 1.16.5 : noms de classes MCP, `Material`, onglet dans les propriétés.
     #[serde(rename = "forge-1.14")]
     Forge114,
@@ -174,7 +179,10 @@ pub struct Profile {
     pub template: String,
     pub dialect: Dialect,
     pub data_format: DataFormat,
-    pub pack_format: u32,
+    /// Format du `pack.mcmeta` écrit par le template (Forge) ; absent quand le template
+    /// n'en écrit pas (Fabric, NeoForge récents).
+    #[serde(default)]
+    pub pack_format: Option<u32>,
     /// Une vraie compilation a déjà réussi avec ce profil.
     #[serde(default)]
     pub verified: bool,
@@ -223,8 +231,14 @@ pub fn unsupported_reason(loader: LoaderId, minecraft: &str) -> String {
     let Some(parts) = parse_release(minecraft) else {
         return "Version de test (snapshot, pré-version) : seules les versions publiées sont prises en charge.".into();
     };
+    if parts[0] >= 26 {
+        return match loader {
+            LoaderId::Forge => "Forge 26.x : nouveau bus d'événements (EventBus 7), comme depuis 1.21.6. Pas encore pris en charge : utilisez Fabric ou NeoForge.".into(),
+            _ => "Version plus récente que les profils de Mod Studio : ajoutez un profil dans le dossier des profils, ou mettez ARCHIMED à jour.".into(),
+        };
+    }
     if parts[0] >= 2 {
-        return "Nouvelle numérotation (26.x et suivantes) : jeu non obfusqué et chaîne d'outils des loaders refondue. Pas encore pris en charge.".into();
+        return "Pas encore de profil pour cette version.".into();
     }
     if parts[1] < 14 {
         return "Avant 1.14 : outillage (ForgeGradle 1 à 3, Gradle 2 à 4) et formats de données différents. Pas encore pris en charge.".into();
@@ -399,8 +413,26 @@ mod tests {
         }
         assert!(unsupported_reason(LoaderId::Forge, "1.21.8").contains("EventBus 7"));
         assert!(unsupported_reason(LoaderId::Fabric, "1.12.2").contains("Avant 1.14"));
-        assert!(unsupported_reason(LoaderId::Fabric, "26.1").contains("26.x"));
+        assert!(unsupported_reason(LoaderId::Forge, "26.1").contains("EventBus 7"));
+        assert!(unsupported_reason(LoaderId::Fabric, "27.1").contains("plus récente"));
         assert!(unsupported_reason(LoaderId::Fabric, "25w14a").contains("snapshot"));
+    }
+
+    /// Numérotation par année : 26.1, ses correctifs (26.1.2) et les suivantes (26.3…).
+    #[test]
+    fn year_versions_have_fabric_and_neoforge_profiles() {
+        let profiles = load_all(&std::env::temp_dir().join("mcstudio-none"));
+        for version in ["26.1", "26.1.1", "26.1.2", "26.2", "26.3", "26.3.1"] {
+            assert_eq!(matching(&profiles, LoaderId::Fabric, version).unwrap().id, "fabric-26", "{version}");
+            assert_eq!(matching(&profiles, LoaderId::Neoforge, version).unwrap().id, "neoforge-26", "{version}");
+            assert!(matching(&profiles, LoaderId::Forge, version).is_none(), "{version}");
+        }
+        assert!(matching(&profiles, LoaderId::Fabric, "1.21.11").unwrap().id != "fabric-26");
+        assert!(matching(&profiles, LoaderId::Fabric, "27.1").is_none());
+        let fabric = find(&profiles, "fabric-26").unwrap();
+        assert_eq!((fabric.java, fabric.mappings.as_str()), (25, "mojang"));
+        assert_eq!(fabric.dialect, Dialect::FabricMojang26);
+        assert!(fabric.pack_format.is_none());
     }
 
     #[test]

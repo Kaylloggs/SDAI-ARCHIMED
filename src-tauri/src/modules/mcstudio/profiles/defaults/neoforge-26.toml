@@ -1,0 +1,18 @@
+# NeoForge · 26.1 et suivantes (numérotation par année)
+# Relevé sur les MDK officiels (NeoForgeMDKs/MDK-26.1-ModDevGradle, MDK-26.3-ModDevGradle) :
+# ModDevGradle 2.0.147, Gradle 9.2.1, Java 25, plus de Parchment. Même API d'enregistrement
+# qu'en 1.21.2+ (`DeferredRegister`, `setId`). Version exacte : résolue à la création.
+id = "neoforge-26"
+loader = "neoforge"
+label = "NeoForge · 26.1 et suivantes"
+minecraft_min = "26.1"
+minecraft_max = "26.99"
+java = 25
+gradle = "9.2.1"
+plugin = "[2.0.147,2.1)"
+mappings = "official"
+template = "neoforge-1.21.2"
+dialect = "neoforge-1.21.2"
+data_format = "1.21.4"
+verified = false
+notes = "Minecraft sans obfuscation, Java 25. Versions NeoForge encore en bêta à leur sortie. Pas encore compilé par Mod Studio : le premier build le confirmera."

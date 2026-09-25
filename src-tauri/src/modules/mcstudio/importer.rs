@@ -215,11 +215,6 @@ pub fn inspect(root: &Path, all: &[Profile]) -> ImportPreview {
             .unwrap_or_default();
         preview.mappings_version = first(&props, &["yarn_mappings"]).cloned();
         preview.api_version = first(&props, &["fabric_version", "fabric_api_version"]).cloned();
-        if preview.mappings_version.is_none() {
-            preview.notes.push(
-                "Pas de Yarn dans gradle.properties (mappings officiels ?) : les générateurs d'objets et de blocs de Mod Studio écrivent du code Yarn.".into(),
-            );
-        }
     } else if neo_toml.is_file() || (forge_toml.is_file() && neo_props) {
         preview.loader = Some(LoaderId::Neoforge);
         let file = if neo_toml.is_file() {
@@ -307,7 +302,15 @@ pub fn inspect(root: &Path, all: &[Profile]) -> ImportPreview {
         );
     }
     match profiles::matching(all, loader, &preview.minecraft) {
-        Some(profile) => preview.profile_id = Some(profile.id.clone()),
+        Some(profile) => {
+            // Avant 26.1, Mod Studio écrit du code Yarn pour Fabric (26.1+ : noms Mojang).
+            if loader == LoaderId::Fabric && profile.mappings == "yarn" && preview.mappings_version.is_none() {
+                preview.notes.push(
+                    "Pas de Yarn dans gradle.properties (mappings officiels ?) : les générateurs d'objets et de blocs de Mod Studio écrivent du code Yarn.".into(),
+                );
+            }
+            preview.profile_id = Some(profile.id.clone());
+        }
         None => {
             return fail(
                 preview.clone(),

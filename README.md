@@ -66,7 +66,7 @@ The best way to show what ARCHIMED can do is to put two of its modules side by s
 <td width="50%" valign="top">
 
 ### ⛏️ Make a Minecraft mod
-**Mod Studio** creates real mods for Fabric, Forge and NeoForge, from Minecraft 1.14 to 1.21. Model blocks and creatures in 3D like in Blockbench, paint or generate textures with AI, ask the assistant to write the code, then build and test the mod in the game. It even installs Java for you.
+**Mod Studio** creates real mods for Fabric, Forge and NeoForge, from Minecraft 1.14 to the latest 26.x releases. Model blocks and creatures in 3D like in Blockbench, paint or generate textures with AI, ask the assistant to write the code, then build and test the mod in the game. It even installs Java for you.
 
 </td>
 </tr>

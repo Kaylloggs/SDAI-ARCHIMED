@@ -338,10 +338,13 @@ pub fn instructions(profile: &Profile, meta: &ProjectMeta, root: &Path) -> Strin
                 .as_deref()
                 .map(|api| format!(", Fabric API {api}"))
                 .unwrap_or_default(),
-            v.mappings_version
-                .as_deref()
-                .map(|yarn| format!(", mappings Yarn {yarn}"))
-                .unwrap_or_default()
+            match v.mappings_version.as_deref() {
+                Some(yarn) => format!(", mappings Yarn {yarn}"),
+                None if profile.mappings != "yarn" => {
+                    " (jeu non obfusqué : noms officiels de Mojang, pas de Yarn ; Item.Properties, ResourceKey, BuiltInRegistries, Identifier.fromNamespaceAndPath)".to_string()
+                }
+                None => String::new(),
+            }
         ),
         LoaderId::Forge if profile.dialect == super::profiles::Dialect::Forge114 => format!(
             "Forge {} (méthodes et champs aux noms officiels de Mojang, classes aux noms MCP : ItemGroup, Block.Properties)",

@@ -90,6 +90,27 @@ const FABRIC: &[TemplateFile] = &[
     text(ITEMS, include_str!("files/fabric/ModItems.java")),
     text(BLOCKS, include_str!("files/fabric/ModBlocks.java")),
 ];
+/// 26.1+ : noms officiels de Mojang, plus de mappings, Loom `net.fabricmc.fabric-loom`.
+const FABRIC_26_BUILD: &[TemplateFile] = &[
+    text(
+        "settings.gradle",
+        include_str!("files/fabric/settings.gradle"),
+    ),
+    text("build.gradle", include_str!("files/fabric-26/build.gradle")),
+    text(
+        "gradle.properties",
+        include_str!("files/fabric-26/gradle.properties"),
+    ),
+    text(
+        "src/main/resources/fabric.mod.json",
+        include_str!("files/fabric/fabric.mod.json"),
+    ),
+];
+const FABRIC_26: &[TemplateFile] = &[
+    text(MAIN, include_str!("files/fabric-26/Main.java")),
+    text(ITEMS, include_str!("files/fabric-26/ModItems.java")),
+    text(BLOCKS, include_str!("files/fabric-26/ModBlocks.java")),
+];
 /// 1.21.2+ : clés de registre dans les réglages.
 const FABRIC_1_21_2: &[TemplateFile] = &[
     text(MAIN, include_str!("files/fabric/Main.java")),
@@ -208,6 +229,7 @@ pub const TEMPLATE_IDS: &[&str] = &[
     "fabric-legacy",
     "fabric",
     "fabric-1.21.2",
+    "fabric-26",
     "forge-legacy",
     "forge-1.17",
     "forge-1.19.3",
@@ -224,6 +246,7 @@ pub fn files(template: &str) -> AppResult<Vec<&'static TemplateFile>> {
         "fabric-legacy" => &[FABRIC_BUILD, FABRIC_LEGACY],
         "fabric" => &[FABRIC_BUILD, FABRIC],
         "fabric-1.21.2" => &[FABRIC_BUILD, FABRIC_1_21_2],
+        "fabric-26" => &[FABRIC_26_BUILD, FABRIC_26],
         "forge-legacy" => &[FORGE_META, FORGE_BUILD_FG5_JAVA8, FORGE_LEGACY],
         "forge-1.17" => &[FORGE_META, FORGE_BUILD_FG5, FORGE_1_17],
         "forge-1.19.3" => &[FORGE_META, FORGE_BUILD_FG5, FORGE_1_19_3],

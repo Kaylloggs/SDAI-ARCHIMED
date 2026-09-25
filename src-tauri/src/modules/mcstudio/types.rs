@@ -128,6 +128,8 @@ pub struct VersionOptions {
     pub loader: Vec<VersionChoice>,
     /// Yarn (Fabric) ; vide pour les mappings officiels.
     pub mappings: Vec<VersionChoice>,
+    /// Le profil demande Yarn (Fabric jusqu'à 1.21.x) ; faux pour les noms officiels de Mojang.
+    pub yarn: bool,
     /// Fabric API ; vide pour Forge et NeoForge.
     pub api: Vec<VersionChoice>,
     pub offline: bool,

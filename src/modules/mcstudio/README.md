@@ -35,8 +35,9 @@ Rien n'est simulé : un bouton qui n'a pas encore de moteur n'est pas affiché.
 ## Versions prises en charge
 
 Un **profil** par époque d'API (`src-tauri/src/modules/mcstudio/profiles/defaults/*.toml`) : Java,
-Gradle, plugin, mappings, template, dialecte de code et format de données. **1.14 → 1.21.11** pour
-Fabric, **1.14.4 → 1.21.5** pour Forge, **1.20.4 → 1.21.11** pour NeoForge.
+Gradle, plugin, mappings, template, dialecte de code et format de données. **1.14 → 1.21.11 puis
+26.1 et suivantes** pour Fabric, **1.14.4 → 1.21.5** pour Forge, **1.20.4 → 1.21.11 puis 26.1 et
+suivantes** pour NeoForge.
 
 | Loader | Profil | Minecraft | JDK (build) | Bytecode | Gradle · plugin | Particularités |
 |---|---|---|---|---|---|---|
@@ -49,6 +50,7 @@ Fabric, **1.14.4 → 1.21.5** pour Forge, **1.20.4 → 1.21.11** pour NeoForge.
 | Fabric | `fabric-1.21` ✓ | 1.21 – 1.21.1 | 21+ | 21 | idem | `Identifier.of`, dossiers au singulier |
 | Fabric | `fabric-1.21.2` | 1.21.2 – 1.21.3 | 21+ | 21 | idem | clés de registre, ingrédients en texte |
 | Fabric | `fabric-1.21.4` | 1.21.4 – 1.21.11 | 21+ | 21 | idem | + `assets/<modid>/items/` |
+| Fabric | `fabric-26` | 26.1 – 26.x | 25+ | 25 | 9.5.1 · Loom 1.17 (`net.fabricmc.fabric-loom`) | jeu non obfusqué : noms Mojang, plus de Yarn, `implementation` |
 | Forge | `forge-1.14` | 1.14.4 – 1.16.5 | **8** | 8 | 7.6.4 · FG 5.1 | noms MCP, `Material`, onglet dans les propriétés |
 | Forge | `forge-1.17` | 1.17.1 | **17** | 16 | 7.6.4 · FG 5.1 | noms Mojang, `fmllegacy.RegistryObject` |
 | Forge | `forge-1.18` | 1.18 – 1.19.2 | **17** | 17 | 7.6.4 · FG 5.1 | noms Mojang |
@@ -63,20 +65,28 @@ Fabric, **1.14.4 → 1.21.5** pour Forge, **1.20.4 → 1.21.11** pour NeoForge.
 | NeoForge | `neoforge-1.21` | 1.21 – 1.21.1 | 21+ | 21 | idem | |
 | NeoForge | `neoforge-1.21.2` | 1.21.2 – 1.21.3 | 21+ | 21 | idem | `setId` |
 | NeoForge | `neoforge-1.21.4` | 1.21.4 – 1.21.11 | 21+ | 21 | idem | + `assets/<modid>/items/` |
+| NeoForge | `neoforge-26` | 26.1 – 26.x | 25+ | 25 | 9.2.1 · MDG 2.0.147 | version `26.1.0.x` = Minecraft 26.1, sans Parchment |
 
 **JDK en gras** : version exacte (les JVM plus récentes cassent Forge). ✓ = validé par une vraie
 compilation ; les autres sont marqués « Non vérifié » dans l'assistant jusqu'à leur premier build
 réussi (`verified = true` dans le profil). `profiles_cover_every_release_once` garantit qu'aucune
 version n'est couverte deux fois et que Fabric les couvre toutes.
 
+**26.1 et suivantes** (numérotation par année, 2026) : relevé sur les dépôts officiels
+(`FabricMC/fabric-example-mod` 26.3, `fabric-docs` 26.1.2 et 26.2, `NeoForgeMDKs/MDK-26.1` et
+`MDK-26.3-ModDevGradle`). Minecraft est livré sans obfuscation : Fabric abandonne Yarn (dialecte
+`fabric-mojang-26` : `Item.Properties`, `ResourceKey`, `BuiltInRegistries`,
+`Identifier.fromNamespaceAndPath`, `CreativeModeTabEvents`), NeoForge garde son API 1.21.2+. Les
+profils couvrent toute l'année 26 ; non vérifiés tant qu'un vrai build n'a pas réussi. Le portage
+d'un mod Fabric 1.21.x vers 26.x retire Yarn du build et liste les renommages pour l'assistant.
+
 **Pas encore pris en charge**, avec la raison affichée dans l'assistant : avant 1.14 (ForgeGradle 1
 à 3, Gradle 2 à 4, formats de données différents), Forge 1.21.6+ (EventBus 7), les premières
-versions de NeoForge (1.20.2 – 1.20.3), la numérotation 26.x (jeu non obfusqué, chaînes d'outils
-refondues) et les snapshots.
+versions de NeoForge (1.20.2 – 1.20.3), Forge 26.x (EventBus 7 aussi) et les snapshots.
 
 - **Choix des versions** : l'assistant (étape Loader) et le tableau de bord (« Changer les
   versions ») listent toutes les versions publiées du loader, de Fabric API (Modrinth, repli sur
-  Maven) et de Yarn, la recommandée par défaut. Changer de version réécrit `gradle.properties`,
+  Maven) et de Yarn (jusqu'à 1.21.x), la recommandée par défaut. Changer de version réécrit `gradle.properties`,
   `fabric.mod.json` et `project.json` ; changer de Minecraft est un portage, pas encore géré.
 - **Hors ligne** : chaque réponse de métadonnées est gardée dans `cache/meta/`.
 - **Corriger un profil sans recompiler** : déposer un `.toml` de même `id` dans

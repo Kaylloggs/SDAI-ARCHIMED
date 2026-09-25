@@ -156,13 +156,21 @@ impl MetaClient {
                     "{FABRIC_API_MODRINTH}?loaders=%5B%22fabric%22%5D&game_versions=%5B%22{minecraft}%22%5D"
                 );
                 let modrinth_key = format!("modrinth-fabric-api-{minecraft}");
+                // 26.1+ : jeu non obfusqué, plus de Yarn (noms officiels de Mojang).
+                let wants_yarn = profile.mappings == "yarn";
                 let (loader, yarn, modrinth) = tokio::join!(
                     self.fetch("fabric-loader", FABRIC_LOADER),
-                    self.fetch(&yarn_key, &yarn_url),
+                    async {
+                        if wants_yarn {
+                            self.fetch(&yarn_key, &yarn_url).await.map(Some)
+                        } else {
+                            Ok(None)
+                        }
+                    },
                     self.fetch(&modrinth_key, &modrinth_url),
                 );
                 let (loader, yarn) = (loader.map_err(unreachable)?, yarn.map_err(unreachable)?);
-                let mut offline = loader.from_cache || yarn.from_cache;
+                let mut offline = loader.from_cache || yarn.as_ref().is_some_and(|y| y.from_cache);
                 let mut api = match &modrinth {
                     Ok(fetched) => {
                         offline |= fetched.from_cache;
@@ -181,7 +189,8 @@ impl MetaClient {
                 }
                 Ok(VersionOptions {
                     loader: fabric_loaders(&loader.body),
-                    mappings: fabric_yarns(&yarn.body),
+                    mappings: yarn.map(|y| fabric_yarns(&y.body)).unwrap_or_default(),
+                    yarn: wants_yarn,
                     api,
                     offline,
                 })
@@ -199,6 +208,7 @@ impl MetaClient {
                 Ok(VersionOptions {
                     loader: forge_versions(&versions, &promos.body, minecraft),
                     mappings: Vec::new(),
+                    yarn: false,
                     api: Vec::new(),
                     offline: promos.from_cache || maven_cached,
                 })
@@ -211,6 +221,7 @@ impl MetaClient {
                 Ok(VersionOptions {
                     loader: neoforge_versions(&maven_versions(&maven.body), minecraft),
                     mappings: Vec::new(),
+                    yarn: false,
                     api: Vec::new(),
                     offline: maven.from_cache,
                 })
@@ -239,23 +250,29 @@ impl MetaClient {
             ))
         })?;
         let (mappings_version, api_version) = if profile.loader == LoaderId::Fabric {
-            let yarn = pick(
-                &options.mappings,
-                selection.mappings_version.as_deref(),
-                "Yarn",
-            )?
-            .ok_or_else(|| {
-                AppError::not_found(format!(
-                    "Pas de mappings Yarn publiés pour Minecraft {minecraft}."
-                ))
-            })?;
+            let yarn = if profile.mappings == "yarn" {
+                Some(
+                    pick(
+                        &options.mappings,
+                        selection.mappings_version.as_deref(),
+                        "Yarn",
+                    )?
+                    .ok_or_else(|| {
+                        AppError::not_found(format!(
+                            "Pas de mappings Yarn publiés pour Minecraft {minecraft}."
+                        ))
+                    })?,
+                )
+            } else {
+                None
+            };
             let api = pick(&options.api, selection.api_version.as_deref(), "Fabric API")?
                 .ok_or_else(|| {
                     AppError::not_found(format!(
                         "Pas de Fabric API publiée pour Minecraft {minecraft}."
                     ))
                 })?;
-            (Some(yarn), Some(api))
+            (yarn, Some(api))
         } else {
             (None, None)
         };
@@ -549,6 +566,8 @@ fn forge_versions(maven: &[String], promos: &str, minecraft: &str) -> Vec<Versio
 }
 
 /// Minecraft ciblé par une version NeoForge (`21.1.172` → `1.21.1`, `21.0.3-beta` → `1.21`).
+/// Depuis 26.1, les trois premiers nombres sont ceux de Minecraft, puis le build
+/// (`26.1.0.19-beta` → `26.1`, `26.1.2.4` → `26.1.2`).
 /// Les numérotations inconnues renvoient `None` plutôt qu'une supposition.
 fn neoforge_minecraft(version: &str) -> Option<String> {
     let base = version.split('-').next()?;
@@ -556,6 +575,13 @@ fn neoforge_minecraft(version: &str) -> Option<String> {
         .split('.')
         .map(|p| p.parse().ok())
         .collect::<Option<_>>()?;
+    if parts.len() == 4 && parts[0] >= 26 {
+        return Some(if parts[2] == 0 {
+            format!("{}.{}", parts[0], parts[1])
+        } else {
+            format!("{}.{}.{}", parts[0], parts[1], parts[2])
+        });
+    }
     if parts.len() != 3 || !(20..=21).contains(&parts[0]) {
         return None;
     }
@@ -684,7 +710,16 @@ mod tests {
         assert_eq!(neoforge_minecraft("21.0.3-beta").as_deref(), Some("1.21"));
         assert_eq!(neoforge_minecraft("21.10.5").as_deref(), Some("1.21.10"));
         assert_eq!(neoforge_minecraft("20.4.237").as_deref(), Some("1.20.4"));
-        assert_eq!(neoforge_minecraft("26.1.0.1"), None);
+        assert_eq!(neoforge_minecraft("26.1.0.19-beta").as_deref(), Some("26.1"));
+        assert_eq!(neoforge_minecraft("26.3.0.10-beta").as_deref(), Some("26.3"));
+        assert_eq!(neoforge_minecraft("26.1.2.4").as_deref(), Some("26.1.2"));
+        assert_eq!(neoforge_minecraft("26.1.0"), None);
+        assert_eq!(neoforge_minecraft("19.4.1"), None);
+        let modern: Vec<String> = ["26.1.0.19-beta", "26.1.0.21", "26.3.0.10-beta"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(values(&neoforge_versions(&modern, "26.1")), vec!["26.1.0.21", "26.1.0.19-beta"]);
         let versions: Vec<String> = ["21.1.1-beta", "21.1.9", "21.1.172", "21.2.0-beta"]
             .iter()
             .map(|s| s.to_string())

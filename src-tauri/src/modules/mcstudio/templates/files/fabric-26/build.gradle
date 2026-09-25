@@ -1,0 +1,40 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version '{{plugin_version}}'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	// Add repositories for third-party dependencies here.
+}
+
+dependencies {
+	// Minecraft 26.1+ ships unobfuscated: no mappings, official Mojang names.
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.encoding = "UTF-8"
+	it.options.release = {{java_release}}
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_{{java_enum}}
+	targetCompatibility = JavaVersion.VERSION_{{java_enum}}
+}

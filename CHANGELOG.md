@@ -50,6 +50,17 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Atelier de textures de Mod Studio** : une image collée dans la description devient une
   proposition de texture, comme avec « Importer une image ».
 
+### Ajouté — Mod Studio : Minecraft 26.x
+- **Minecraft 26.1 et suivantes** (numérotation par année) pour **Fabric** et **NeoForge** : le jeu
+  est livré sans obfuscation. Fabric passe aux noms officiels de Mojang (plus de Yarn, Loom
+  `net.fabricmc.fabric-loom` 1.17, Gradle 9.5.1) ; NeoForge garde son API (ModDevGradle 2.0.147,
+  Gradle 9.2.1, versions `26.1.0.x`). Java 25 pour les deux, proposé à l'installation. Relevé sur
+  les exemples et MDK officiels ; profils « Non vérifié » jusqu'au premier build réussi.
+- Le choix des versions n'affiche plus Yarn pour 26.x ; le portage d'un mod Fabric 1.21.x vers
+  26.x retire Yarn du build (`mappings`, `modImplementation`, id du plugin) et liste les
+  renommages de classes pour l'assistant IA. Forge 26.x reste non pris en charge (EventBus 7),
+  avec la raison affichée.
+
 ### Technique
 - Commandes du core `clipboard_file_paths` (liste CF_HDROP de Windows) et `clipboard_save_file`
   (50 Mo au plus, nom nettoyé, copies de plus de 30 jours retirées), aide `onPasteFiles` dans

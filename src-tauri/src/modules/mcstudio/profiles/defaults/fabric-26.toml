@@ -1,0 +1,18 @@
+# Fabric · 26.1 et suivantes (numérotation par année)
+# Relevé sur les dépôts officiels (fabric-example-mod, fabric-docs) pour 26.1 à 26.3 :
+# jeu non obfusqué, plus de mappings (noms officiels de Mojang), Loom `net.fabricmc.fabric-loom`
+# 1.17, Gradle 9.5.1, Java 25. Versions exactes (loader, API) : résolues à la création.
+id = "fabric-26"
+loader = "fabric"
+label = "Fabric · 26.1 et suivantes"
+minecraft_min = "26.1"
+minecraft_max = "26.99"
+java = 25
+gradle = "9.5.1"
+plugin = "1.17-SNAPSHOT"
+mappings = "mojang"
+template = "fabric-26"
+dialect = "fabric-mojang-26"
+data_format = "1.21.4"
+verified = false
+notes = "Minecraft sans obfuscation : noms officiels de Mojang (plus de Yarn), Java 25. Pas encore compilé par Mod Studio : le premier build le confirmera."

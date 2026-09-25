@@ -66,7 +66,7 @@ Le meilleur moyen de montrer ce que sait faire ARCHIMED, c'est de mettre deux de
 <td width="50%" valign="top">
 
 ### ⛏️ Créer un mod Minecraft
-**Mod Studio** crée de vrais mods Fabric, Forge et NeoForge, de Minecraft 1.14 à 1.21. Modélisez blocs et créatures en 3D comme dans Blockbench, peignez ou générez les textures avec l'IA, demandez à l'assistant d'écrire le code, puis compilez et testez le mod en jeu. Il installe même Java pour vous.
+**Mod Studio** crée de vrais mods Fabric, Forge et NeoForge, de Minecraft 1.14 aux dernières versions 26.x. Modélisez blocs et créatures en 3D comme dans Blockbench, peignez ou générez les textures avec l'IA, demandez à l'assistant d'écrire le code, puis compilez et testez le mod en jeu. Il installe même Java pour vous.
 
 </td>
 </tr>

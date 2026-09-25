@@ -183,6 +183,9 @@ pub(super) mod java {
             Dialect::FabricYarn1212 => {
                 format!("public static final Item {konst} = register(\"{id}\", Item::new, new Item.Settings());")
             }
+            Dialect::FabricMojang26 => {
+                format!("public static final Item {konst} = register(\"{id}\", Item::new, new Item.Properties());")
+            }
             Dialect::Forge114 => format!(
                 "public static final RegistryObject<Item> {konst} = ITEMS.register(\"{id}\", () -> new Item(new Item.Properties().tab(ItemGroup.TAB_MISC)));"
             ),
@@ -239,6 +242,9 @@ pub(super) mod java {
             Dialect::FabricYarn1212 => format!(
                 "public static final Block {konst} = register(\"{id}\", Block::new, AbstractBlock.Settings.create().{strength}.sounds(BlockSoundGroup.{sound}));"
             ),
+            Dialect::FabricMojang26 => format!(
+                "public static final Block {konst} = register(\"{id}\", Block::new, BlockBehaviour.Properties.of().{strength}.sound(SoundType.{sound}));"
+            ),
             // Noms de classes MCP (`Block.Properties`), membres aux noms officiels.
             Dialect::Forge114 => format!(
                 "public static final RegistryObject<Block> {konst} = registerBlock(\"{id}\", () -> new Block(Block.Properties.of(Material.{sound}).{strength}.sound(SoundType.{sound})));"
@@ -270,6 +276,7 @@ pub(super) mod java {
             | Dialect::FabricYarn120
             | Dialect::FabricYarn121
             | Dialect::FabricYarn1212 => Some(format!("entries.add({reference});")),
+            Dialect::FabricMojang26 => Some(format!("output.accept({reference});")),
             Dialect::Forge1193
             | Dialect::Forge120
             | Dialect::Forge1213
@@ -744,6 +751,22 @@ mod tests {
             java::item_field(Dialect::Forge114, "RUBY", "ruby").contains("tab(ItemGroup.TAB_MISC)")
         );
         assert!(java::item_field(Dialect::FabricYarn1212, "RUBY", "ruby").contains("Item::new"));
+        // 26.1+ : noms officiels de Mojang côté Fabric aussi.
+        assert!(java::item_field(Dialect::FabricMojang26, "RUBY", "ruby")
+            .contains("Item::new, new Item.Properties()"));
+        assert!(java::block_field(
+            Dialect::FabricMojang26,
+            "X",
+            "x",
+            "3.0f",
+            "6.0f",
+            BlockSound::Metal
+        )
+        .contains("BlockBehaviour.Properties.of().strength(3.0f, 6.0f).sound(SoundType.METAL)"));
+        assert_eq!(
+            java::creative_entry(Dialect::FabricMojang26, "X").as_deref(),
+            Some("output.accept(X);")
+        );
         assert!(java::block_field(
             Dialect::FabricYarn114,
             "X",

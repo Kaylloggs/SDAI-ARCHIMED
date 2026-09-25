@@ -554,6 +554,8 @@ pub fn template_vars(profile: &Profile, meta: &ProjectMeta) -> Vars {
         Dialect::FabricYarn1193 | Dialect::FabricYarn120 => "new Identifier(MOD_ID, path)",
         // 1.21 : le constructeur d'`Identifier` devient privé.
         Dialect::FabricYarn121 | Dialect::FabricYarn1212 => "Identifier.of(MOD_ID, path)",
+        // 26.1+ : noms officiels de Mojang.
+        Dialect::FabricMojang26 => "Identifier.fromNamespaceAndPath(MOD_ID, path)",
         _ => "",
     };
     let raw = |v: &str| Value::Raw(v.to_string());
@@ -595,7 +597,9 @@ pub fn template_vars(profile: &Profile, meta: &ProjectMeta) -> Vars {
     vars.insert("gradle_version", raw(&versions.gradle));
     vars.insert("plugin_version", raw(&versions.plugin));
     vars.insert("identifier_expr", raw(identifier_expr));
-    vars.insert("pack_format", raw(&profile.pack_format.to_string()));
+    if let Some(pack_format) = profile.pack_format {
+        vars.insert("pack_format", raw(&pack_format.to_string()));
+    }
     // Valeurs propres au profil (chemins d'import qui changent d'une version à l'autre).
     for (key, value) in &profile.vars {
         if let Some(known) = PROFILE_VARS.iter().find(|k| **k == key.as_str()) {
@@ -814,7 +818,7 @@ pub mod tests {
         let (loader_version, mappings, api) = match profile.loader {
             LoaderId::Fabric => (
                 "0.16.14".to_string(),
-                Some(format!("{}+build.1", profile.minecraft_max)),
+                (profile.mappings == "yarn").then(|| format!("{}+build.1", profile.minecraft_max)),
                 Some(format!("0.100.0+{}", profile.minecraft_max)),
             ),
             LoaderId::Forge => ("47.4.0".to_string(), None, None),

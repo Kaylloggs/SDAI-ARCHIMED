@@ -23,7 +23,7 @@ function current(list: VersionChoice[], chosen: string | null): string {
 
 /**
  * Choix des versions publiées pour un couple Minecraft × loader : loader, et pour
- * Fabric, Fabric API et Yarn. Par défaut, la version recommandée.
+ * Fabric, Fabric API et Yarn (jusqu'à 1.21.x). Par défaut, la version recommandée.
  */
 export function VersionPicker({
   profileId,
@@ -74,7 +74,8 @@ export function VersionPicker({
   ];
   if (loader === "fabric") {
     rows.push({ key: "apiVersion", label: "Fabric API", list: options.api });
-    rows.push({ key: "mappingsVersion", label: "Mappings Yarn", list: options.mappings });
+    // 26.1+ : jeu non obfusqué, plus de Yarn (noms officiels de Mojang).
+    if (options.yarn) rows.push({ key: "mappingsVersion", label: "Mappings Yarn", list: options.mappings });
   }
 
   return (
@@ -98,6 +99,9 @@ export function VersionPicker({
           </div>
         ))}
       </div>
+      {loader === "fabric" && !options.yarn && (
+        <p className="text-caption text-text-subtle">Minecraft 26.1 et plus : jeu non obfusqué, noms officiels de Mojang (pas de Yarn).</p>
+      )}
       {options.offline && (
         <p className="flex items-center gap-1.5 text-caption text-warning">
           <CloudOff size={12} /> Hors ligne : listes tirées du cache.

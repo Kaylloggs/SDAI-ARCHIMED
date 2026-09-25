@@ -138,6 +138,20 @@ fn api_notes(from: &Profile, to: &Profile, loader: LoaderId) -> Vec<String> {
             "1.21.2 : chaque objet et bloc reçoit sa clé de registre avant sa construction (`Item.Properties#setId`, `BlockBehaviour.Properties#setId`) ; ingrédients des recettes écrits en texte (\"minecraft:stick\").".into()
         });
     }
+    let year = |p: &Profile| p.minecraft_min.split('.').next().and_then(|m| m.parse::<u32>().ok()).unwrap_or(1) >= 26;
+    if year(from) != year(to) {
+        notes.push(
+            "26.1 : numérotation par année et jeu livré sans obfuscation ; Java 25 ; ModDevGradle sans Parchment, Loom sans remappage."
+                .into(),
+        );
+    }
+    if yarn && from.mappings != to.mappings {
+        notes.push(if to.mappings == "yarn" {
+            "Retour à Yarn : tout le code Java reprend les noms Yarn (Item.Settings, RegistryKey, Registries, Identifier.of…).".into()
+        } else {
+            "Fabric 26.1 : plus de Yarn, noms officiels de Mojang dans tout le code Java (Item.Settings → Item.Properties, RegistryKey → ResourceKey, Registries → BuiltInRegistries, Identifier.of → Identifier.fromNamespaceAndPath, ItemGroupEvents → CreativeModeTabEvents, AbstractBlock.Settings → BlockBehaviour.Properties). Build : ligne `mappings` retirée, `modImplementation` → `implementation`, plugin `net.fabricmc.fabric-loom`.".into()
+        });
+    }
     if crosses(a, b, DataFormat::V1_21_4) {
         notes.push(
             "1.21.4 : chaque objet a une définition de modèle dans assets/<modid>/items/ (créées par Mod Studio pour les modèles existants)."
@@ -228,6 +242,17 @@ fn set_properties(text: &str, values: &BTreeMap<&str, String>) -> String {
     joined
 }
 
+/// Retire la ligne `clé=…` d'un `.properties`.
+fn drop_property(text: &str, key: &str) -> String {
+    let mut out: String = text
+        .lines()
+        .filter(|line| line.split_once('=').is_none_or(|(k, _)| k.trim() != key))
+        .collect::<Vec<_>>()
+        .join("\n");
+    out.push('\n');
+    out
+}
+
 fn replace_all(text: &str, pattern: &str, replacement: &str) -> String {
     match Regex::new(pattern) {
         Ok(re) => re.replace_all(text, replacement).into_owned(),
@@ -272,18 +297,27 @@ fn surgical(
                 .filter_map(|l| l.split_once('=').map(|(k, _)| k.trim().to_string()))
                 .collect();
             values.retain(|key, _| *key == "minecraft_version" || present.contains(*key));
-            set_properties(text, &values)
+            let text = set_properties(text, &values);
+            if n.loader == LoaderId::Fabric && to.mappings != "yarn" {
+                // 26.1+ : plus de Yarn.
+                drop_property(&text, "yarn_mappings")
+            } else {
+                text
+            }
         }
         "gradle/wrapper/gradle-wrapper.properties" => replace_all(
             text,
             r"gradle-[0-9][0-9A-Za-z.\-]*-(bin|all)\.zip",
             &format!("gradle-{}-$1.zip", n.gradle),
         ),
-        "src/main/resources/pack.mcmeta" => replace_all(
-            text,
-            r#""pack_format"\s*:\s*\d+"#,
-            &format!("\"pack_format\": {}", to.pack_format),
-        ),
+        "src/main/resources/pack.mcmeta" => match to.pack_format {
+            Some(format) => replace_all(
+                text,
+                r#""pack_format"\s*:\s*\d+"#,
+                &format!("\"pack_format\": {format}"),
+            ),
+            None => text.to_string(),
+        },
         "src/main/resources/fabric.mod.json" => {
             let text = replace_all(
                 text,
@@ -318,6 +352,16 @@ fn surgical(
         // build.gradle, settings.gradle : versions du plugin et de Java.
         _ => {
             let mut out = text.to_string();
+            if from.mappings == "yarn" && to.mappings != "yarn" && relative == "build.gradle" {
+                // Fabric 26.1+ : Loom sans remappage, dépendances ordinaires, plus de Yarn.
+                out = replace_all(&out, r"(?m)^[ \t]*mappings[ \t].*yarn.*\r?\n", "");
+                out = replace_all(&out, r"\bmodImplementation\b", "implementation");
+                out = replace_all(
+                    &out,
+                    r#"id[ \t]+(['"])fabric-loom(['"])"#,
+                    "id ${1}net.fabricmc.fabric-loom${2}",
+                );
+            }
             if !o.plugin.is_empty() && o.plugin != n.plugin {
                 out = out.replace(&format!("'{}'", o.plugin), &format!("'{}'", n.plugin));
                 out = out.replace(&format!("\"{}\"", o.plugin), &format!("\"{}\"", n.plugin));
@@ -815,5 +859,29 @@ mod tests {
             to,
         );
         assert!(out.contains("versionRange=\"[1.21.1,1.22)\""), "{out}");
+    }
+
+    /// Fabric 1.21.x (Yarn) → 26.x (noms Mojang) : le build perd Yarn et le remappage.
+    #[test]
+    fn a_hand_edited_fabric_build_drops_yarn_for_26() {
+        let all = profiles::load_all(Path::new("/nonexistent"));
+        let from = profiles::find(&all, "fabric-1.21.4").unwrap();
+        let to = profiles::find(&all, "fabric-26").unwrap();
+        let old = meta("fabric-1.21.4", "1.21.11", "0.18.1", "1.21.11+build.3", "0.140.0+1.21.11", "8.14.3");
+        let mut new = meta("fabric-26", "26.1", "0.19.5", "", "0.145.1+26.1", "9.5.1");
+        new.versions.mappings_version = None;
+        new.versions.plugin = "1.17-SNAPSHOT".into();
+        let build = "plugins {\n\tid 'fabric-loom' version '1.10-SNAPSHOT'\n}\ndependencies {\n\tminecraft \"com.mojang:minecraft:${project.minecraft_version}\"\n\tmappings \"net.fabricmc:yarn:${project.yarn_mappings}:v2\"\n\tmodImplementation \"net.fabricmc:fabric-loader:${project.loader_version}\"\n\tmodImplementation \"x:y:1\" // my dep\n}\ntasks.withType(JavaCompile).configureEach {\n\tit.options.release = 21\n}\n";
+        let out = surgical("build.gradle", build, &old, &new, from, to);
+        assert!(out.contains("id 'net.fabricmc.fabric-loom' version '1.17-SNAPSHOT'"), "{out}");
+        assert!(!out.contains("yarn"), "{out}");
+        assert!(out.contains("\timplementation \"x:y:1\" // my dep"), "{out}");
+        assert!(!out.contains("modImplementation"), "{out}");
+        assert!(out.contains("release = 25"), "{out}");
+        let props = "minecraft_version=1.21.11\nyarn_mappings=1.21.11+build.3\nloader_version=0.18.1\nfabric_version=0.140.0+1.21.11\n";
+        let out = surgical("gradle.properties", props, &old, &new, from, to);
+        assert_eq!(out, "minecraft_version=26.1\nloader_version=0.19.5\nfabric_version=0.145.1+26.1\n");
+        let notes = plan(&old, from, to, "26.1").notes.join("\n");
+        assert!(notes.contains("Java 25") && notes.contains("Item.Properties"), "{notes}");
     }
 }
