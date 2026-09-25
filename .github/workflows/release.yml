@@ -1,21 +1,20 @@
 # Builds the Windows app with build.ps1 and publishes the GitHub release.
-# Triggered by pushing a version tag (vX.Y.Z), or by hand for an existing tag.
+# Two ways to start it:
+# - push a version tag vX.Y.Z (it must match the app version);
+# - Actions tab > Release > Run workflow: publishes the version in tauri.conf.json of the chosen
+#   branch, and the release creates the tag itself on the built commit.
 name: Release
 
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Existing version tag to build and publish (for example v0.4.0)
-        required: true
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ inputs.tag || github.ref_name }}
+  group: release-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -23,18 +22,25 @@ jobs:
     name: Build and publish (Windows x64)
     runs-on: windows-latest
     timeout-minutes: 90
-    env:
-      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.tag || github.ref }}
 
-      - name: Tag matches the app version
+      - name: Version to publish
         shell: pwsh
         run: |
           $version = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
-          if ("v$version" -ne $env:TAG) { throw "Tag $env:TAG does not match the app version v$version" }
+          $tag = "v$version"
+          if ($env:GITHUB_EVENT_NAME -eq 'push' -and $env:GITHUB_REF_NAME -ne $tag) {
+            throw "Tag $env:GITHUB_REF_NAME does not match the app version $tag"
+          }
+          # An existing tag must point at this commit: a new version needs a version bump first.
+          $lines = git ls-remote origin "refs/tags/$tag" "refs/tags/$tag^{}"
+          $peeled = $lines | Where-Object { $_ -like "*^{}" } | Select-Object -First 1
+          $line = if ($peeled) { $peeled } else { $lines | Select-Object -First 1 }
+          if ($line -and $line.Split()[0] -ne $env:GITHUB_SHA) {
+            throw "$tag is already published from another commit. Bump the version (pnpm version:bump minor) and try again."
+          }
+          Write-Output "Publishing $tag from $env:GITHUB_SHA"
 
       - uses: pnpm/action-setup@v6
         with:

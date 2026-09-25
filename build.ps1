@@ -242,7 +242,9 @@ if ($Publish) {
         Invoke-Native 'gh release upload' { & $gh release upload $tag @assets --clobber }
         Invoke-Native 'gh release edit' { & $gh release edit $tag --notes-file $notesFile }
     } else {
-        Invoke-Native 'gh release create' { & $gh release create $tag @assets --title "SDAI ARCHIMED $tag" --notes-file $notesFile }
+        # En CI, le tag peut ne pas exister encore (lancement manuel) : la release le cree sur le commit compile.
+        $target = if ($InCi -and $env:GITHUB_SHA) { @('--target', $env:GITHUB_SHA) } else { @() }
+        Invoke-Native 'gh release create' { & $gh release create $tag @assets @target --title "SDAI ARCHIMED $tag" --notes-file $notesFile }
     }
     Write-Ok "release $tag publiee"
 }
