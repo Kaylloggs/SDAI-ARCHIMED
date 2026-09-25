@@ -52,7 +52,7 @@ export default defineTutorial({
   tips: [
     "Mode Auto : choisit un modèle de vos connexions qui sait faire l'opération, et dit pourquoi.",
     "« Image » traite tout sur votre ordinateur (recadrage, taille, rotation, réglages, fond uni) : rien n'est envoyé.",
-    "Sans clé, bouton « Compte » : Higgsfield génère ici avec vos crédits (connexion dans le navigateur, aucun mot de passe), ou créez sur un site officiel et importez l'image en un clic.",
+    "Sans clé, bouton « Compte » : Gemini, ChatGPT ou Higgsfield s'ouvrent dans le studio avec votre abonnement, l'image téléchargée s'importe en un clic.",
     "Ctrl+V dans la consigne : l'image copiée (Explorateur, capture, site) s'ajoute aux images de référence.",
   ],
 });

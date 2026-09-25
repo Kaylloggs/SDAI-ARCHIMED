@@ -16,7 +16,8 @@ tauri-build = { version = "2", features = [] }
 toml = "0.8"
 
 [dependencies]
-tauri = { version = "2", features = ["protocol-asset"] }
+# `unstable` : vues web enfants (vue navigateur du mode compte d'Image Maker).
+tauri = { version = "2", features = ["protocol-asset", "unstable"] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"

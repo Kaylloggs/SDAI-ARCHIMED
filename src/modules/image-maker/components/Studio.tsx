@@ -22,6 +22,7 @@ import { usable } from "../lib/capabilities";
 import { PROVIDERS } from "../lib/format";
 import { currentNode, useImageMaker, type EditTask } from "../store";
 import { AiPanel } from "./AiPanel";
+import { BrowserSide, BrowserView } from "./BrowserView";
 import { Canvas } from "./Canvas";
 import { Dock } from "./Dock";
 import { ModelPicker } from "./ModelPicker";
@@ -30,21 +31,32 @@ import { focusRing } from "./ui";
 
 export function Studio() {
   const panel = useImageMaker((s) => s.panel);
+  const browser = useImageMaker((s) => s.browser);
   const submit = useCallback(() => void run(panel === "edit" ? "edit" : "create"), [panel]);
   useStudioShortcuts(submit);
   return (
     <div className="flex h-full min-h-0 flex-col">
       <TopBar />
       <div className="flex min-h-0 flex-1">
-        <ToolRail />
-        <div className="relative flex min-w-0 flex-1 flex-col">
-          <ToolOptions />
-          <div className="relative min-h-0 flex-1">
-            <Canvas />
-            <QuickActions />
-          </div>
-        </div>
-        <AiPanel />
+        {browser ? (
+          // Mode compte : le site officiel à la place de l'image, l'historique reste en bas.
+          <>
+            <BrowserView site={browser} />
+            <BrowserSide />
+          </>
+        ) : (
+          <>
+            <ToolRail />
+            <div className="relative flex min-w-0 flex-1 flex-col">
+              <ToolOptions />
+              <div className="relative min-h-0 flex-1">
+                <Canvas />
+                <QuickActions />
+              </div>
+            </div>
+            <AiPanel />
+          </>
+        )}
       </div>
       <Dock />
     </div>
@@ -110,8 +122,9 @@ function TopBar() {
       </Button>
       <Button
         size="md"
-        variant="ghost"
+        variant={s.browser ? "secondary" : "ghost"}
         aria-label="Créer avec votre compte"
+        aria-pressed={Boolean(s.browser)}
         icon={<UserRound size={14} />}
         onClick={() => s.set({ dialog: "account" })}
       >

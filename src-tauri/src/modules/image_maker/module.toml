@@ -10,4 +10,5 @@ commands = [
   "import_files", "import_data", "apply_local", "apply_local_batch", "save_paint",
   "submit_operation", "list_jobs", "cancel_job", "retry_job", "clear_jobs", "wait_jobs",
   "export_images", "recent_downloads",
+  "browser_open", "browser_bounds", "browser_hide", "browser_close", "browser_action",
 ]

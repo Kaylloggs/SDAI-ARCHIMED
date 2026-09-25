@@ -1,5 +1,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { create } from "zustand";
+import type { AccountSite } from "@/core/ipc/bindings/AccountSite";
+import type { BrowserEvent } from "@/core/ipc/bindings/BrowserEvent";
 import type { ImageAiOperation } from "@/core/ipc/bindings/ImageAiOperation";
 import type { ImageAiSettings } from "@/core/ipc/bindings/ImageAiSettings";
 import type { ImageBackgroundAction } from "@/core/ipc/bindings/ImageBackgroundAction";
@@ -17,7 +19,7 @@ import type { ProviderModel } from "@/core/ipc/bindings/ProviderModel";
 import type { ProviderStatus } from "@/core/ipc/bindings/ProviderStatus";
 import { errorText, imageMakerApi as api } from "./api";
 import { autoPick, blockers, needsOf, shortfalls, usable, type AiTask, type Candidate } from "./lib/capabilities";
-import { PROVIDER_NAMES, PROVIDERS } from "./lib/format";
+import { PROVIDER_NAMES, PROVIDERS, SITE_INFO } from "./lib/format";
 import { latestChild, parentOf } from "./lib/history";
 import { MaskLayer } from "./lib/mask-layer";
 import { PaintLayer } from "./lib/paint-layer";
@@ -120,8 +122,14 @@ export type State = {
   dock: Dock;
   dockOpen: boolean;
   dialog: null | "connections" | "export" | "account";
-  /** Site ouvert dans « Créer avec votre compte ». */
-  accountSite: ProviderId;
+  /** Site choisi dans « Créer avec votre compte ». */
+  accountSite: AccountSite;
+  /** Site affiché dans le studio, à la place de l'image (vue navigateur). */
+  browser: AccountSite | null;
+  /** Page affichée par la vue navigateur (adresse, titre, chargement). */
+  browserPage: { url: string; title: string; loading: boolean } | null;
+  /** Fichiers téléchargés depuis la vue navigateur, les plus récents d'abord. */
+  received: Received[];
   exportNodes: string[];
   busy: string | null;
   notice: Notice | null;
@@ -168,12 +176,20 @@ type Actions = {
   deleteNode: (id: string) => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
   notify: (tone: Notice["tone"], text: string) => void;
+  /** Ouvre un site officiel dans le studio (un projet est créé s'il n'y en a pas). */
+  openBrowser: (site: AccountSite) => Promise<void>;
+  closeBrowser: () => void;
+  onBrowser: (event: BrowserEvent) => void;
+  /** Importe un fichier reçu : nouvelle version de l'image affichée, ou nouvelle image. */
+  importReceived: (path: string, attach: boolean) => Promise<void>;
   saveSettings: (settings: ImageMakerSettings) => Promise<boolean>;
 };
 
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let listening: Promise<() => void> | null = null;
+
+export type Received = { path: string; name: string; image: boolean; at: number; imported: boolean };
 
 export function currentNode(state: Pick<State, "project">): ImageNode | null {
   const project = state.project;
@@ -313,6 +329,9 @@ export const useImageMaker = create<State & Actions>()((set, get) => {
     dockOpen: true,
     dialog: null,
     accountSite: "gemini",
+    browser: null,
+    browserPage: null,
+    received: [],
     exportNodes: [],
     busy: null,
     notice: null,
@@ -324,6 +343,7 @@ export const useImageMaker = create<State & Actions>()((set, get) => {
           .listen(
             (job) => get().upsertJob(job),
             (project) => get().applyProject(project),
+            (event) => get().onBrowser(event),
           )
           .catch(() => () => undefined);
       }
@@ -397,7 +417,7 @@ export const useImageMaker = create<State & Actions>()((set, get) => {
     },
 
     closeProject: () => {
-      set({ project: null, mask: null, selected: [], compare: { mode: "off", other: null } });
+      set({ project: null, mask: null, selected: [], compare: { mode: "off", other: null }, browser: null });
       void get().refreshProjects();
     },
 
@@ -753,6 +773,40 @@ export const useImageMaker = create<State & Actions>()((set, get) => {
       } catch (error) {
         fail(error);
       }
+    },
+
+    openBrowser: async (site) => {
+      if (!get().project && !(await get().createProject(`Depuis ${SITE_INFO[site].name}`))) return;
+      // Place au site : l'historique se replie (il se rouvre en bas à tout moment).
+      set({ browser: site, accountSite: site, dialog: null, tool: "hand", dockOpen: false });
+    },
+
+    closeBrowser: () => {
+      set({ browser: null });
+      void api.browserHide().catch(() => undefined);
+    },
+
+    onBrowser: (event) => {
+      if (event.type === "page") {
+        set((s) => ({ browserPage: { url: event.url, title: s.browserPage?.title ?? "", loading: event.loading } }));
+      } else if (event.type === "title") {
+        set((s) => ({ browserPage: { url: s.browserPage?.url ?? "", loading: s.browserPage?.loading ?? false, title: event.title } }));
+      } else if (event.success) {
+        const item: Received = { path: event.path, name: event.name, image: event.image, at: Date.now(), imported: false };
+        set((s) => ({ received: [item, ...s.received.filter((r) => r.path !== item.path)].slice(0, 20) }));
+        get().notify(
+          event.image ? "info" : "warning",
+          event.image ? `Image reçue : ${event.name}. Importez-la depuis le panneau de droite.` : `${event.name} n'est pas une image.`,
+        );
+      }
+    },
+
+    importReceived: async (path, attach) => {
+      const state = get();
+      const node = currentNode(state);
+      const site = SITE_INFO[state.browser ?? state.accountSite];
+      await state.importPaths([path], attach && node ? node.id : null, site.host);
+      set((s) => ({ received: s.received.map((r) => (r.path === path ? { ...r, imported: true } : r)) }));
     },
 
     notify: (tone, text) => {

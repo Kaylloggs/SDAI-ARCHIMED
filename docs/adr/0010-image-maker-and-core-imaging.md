@@ -65,6 +65,14 @@ de développement ; les SDK officiels l'étaient) :
    CLI garde la session : ARCHIMED ne voit ni mot de passe ni jeton. Les 21 modèles d'image
    viennent de la documentation de la CLI (`MODELS.md`), croisés avec `model list --image --json`.
    `ImageProvider` gagne `login()` et `ProviderStatus.access` (`key` ou `account`).
+   Sites du mode compte : Gemini (gemini.google.com), ChatGPT (chatgpt.com), Higgsfield ; pas
+   OpenRouter. Ils s'ouvrent aussi **dans le studio** : vue web enfant de la fenêtre (Tauri
+   `unstable`, `Window::add_child`), posée sur une zone du DOM et cachée dès qu'une fenêtre
+   modale ou un menu passe au-dessus (la vue native reste au premier plan). Tauri 2.11 refuse
+   toute commande d'une origine distante sans capacité `remote` : la page n'a aucun accès à
+   l'application. Aucun script injecté, aucun agent utilisateur maquillé ; si un site refuse la
+   connexion dans une vue intégrée, il s'ouvre dans le navigateur. Les téléchargements restent
+   dans le dossier Téléchargements et sont signalés au studio (`on_download`).
 8. **Coûts** : seulement ce que le fournisseur publie ou renvoie ; sinon « Coût non communiqué ».
 9. **Mode Auto** : choix déterministe par capacités, en gardant le modèle de la personne s'il
    convient, expliqué avant l'envoi. Aucun classement de qualité.

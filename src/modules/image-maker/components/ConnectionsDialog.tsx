@@ -8,7 +8,7 @@ import type { HiggsfieldModelSpec } from "@/core/ipc/bindings/HiggsfieldModelSpe
 import type { ProviderId } from "@/core/ipc/bindings/ProviderId";
 import { errorText, imageMakerApi } from "../api";
 import { usable } from "../lib/capabilities";
-import { PROVIDER_NAMES, PROVIDERS, stateLook } from "../lib/format";
+import { PROVIDER_ACCOUNT_SITE, PROVIDER_NAMES, PROVIDERS, stateLook } from "../lib/format";
 import { useImageMaker } from "../store";
 import { AccountLink } from "./AccountDialog";
 import { Chip, Dialog, Label, Switch, focusRing, inputClass } from "./ui";
@@ -230,7 +230,7 @@ function KeyRow({ provider }: { provider: ProviderId }) {
         </p>
       )}
 
-      {!hasKey && <AccountLink site={provider} />}
+      {!hasKey && PROVIDER_ACCOUNT_SITE[provider] && <AccountLink site={PROVIDER_ACCOUNT_SITE[provider]} />}
       {provider === "higgsfield" && <HiggsfieldModels />}
     </section>
   );

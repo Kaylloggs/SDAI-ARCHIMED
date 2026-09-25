@@ -32,9 +32,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
   confirmation, connexion OAuth dans le navigateur, crédits affichés, déconnexion) et ses
   21 modèles d'image documentés (Nano Banana Pro et 2, GPT Image 2 et 2.5, Seedream 4.5 et
   V5 Lite, FLUX.2, Flux Kontext, Kling O1 Image, Grok Image, Soul V2, Cinematic Studio 2.5,
-  Recraft V4.1, Z Image…). Autres sites (Google AI Studio, OpenRouter, Higgsfield) : copier la demande et
-  l'image, ouvrir le site, puis importer l'image téléchargée en un clic, en nouvelle version de
-  l'image affichée.
+  Recraft V4.1, Z Image…).
+- **Sites officiels dans le studio** : Gemini (gemini.google.com, Nano Banana), ChatGPT
+  (chatgpt.com) et Higgsfield s'ouvrent **dans ARCHIMED**, à la place de l'image, dans une vue
+  web à part (barre de navigation, adresse toujours visible). Le site n'a aucun accès à
+  l'application et rien n'est injecté dans ses pages. Les images téléchargées sur le site
+  arrivent dans le panneau de droite et s'importent en un clic, en nouvelle version de l'image
+  affichée. Le site peut aussi s'ouvrir dans le navigateur. Plus de mode compte pour OpenRouter
+  (clé d'API seulement).
 - **Confidentialité et coûts** : avant chaque envoi, ce qui part et chez qui ; coût affiché
   seulement quand le fournisseur le donne. Glisser-déposer, Ctrl+V, copie d'image.
 - **Service `image.maker`** pour les autres modules : générer, modifier, détourer, agrandir,

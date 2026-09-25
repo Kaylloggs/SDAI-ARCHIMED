@@ -7,6 +7,7 @@ use std::sync::Arc;
 use tauri::plugin::{Builder, TauriPlugin};
 use tauri::{Emitter, Manager, Runtime};
 
+mod browser;
 mod commands;
 mod jobs;
 mod local;
@@ -60,6 +61,11 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::wait_jobs,
             commands::export_images,
             commands::recent_downloads,
+            commands::browser_open,
+            commands::browser_bounds,
+            commands::browser_hide,
+            commands::browser_close,
+            commands::browser_action,
         ])
         .setup(|app, _api| {
             let paths = crate::core::paths::Paths::resolve(app)?;

@@ -1,16 +1,17 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Copy, Download, ExternalLink, Loader2, LogOut, Plus, RefreshCw, ShieldCheck, TerminalSquare } from "lucide-react";
+import { Copy, Download, ExternalLink, Loader2, LogOut, PanelsTopLeft, Plus, RefreshCw, ShieldCheck, TerminalSquare } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Badge, Button } from "@/design-system/primitives";
 import type { CliInfo } from "@/core/ipc/bindings/CliInfo";
 import type { DownloadedImage } from "@/core/ipc/bindings/DownloadedImage";
+import type { AccountSite } from "@/core/ipc/bindings/AccountSite";
 import type { ProviderId } from "@/core/ipc/bindings/ProviderId";
 import { errorText, imageMakerApi } from "../api";
 import { copyImage } from "../clipboard";
 import { usable } from "../lib/capabilities";
-import { PROVIDER_NAMES, PROVIDER_SITES, SITE_PROVIDERS, ago, megabytes, stateLook } from "../lib/format";
-import { composePrompt } from "../lib/prompt";
+import { ACCOUNT_SITES, SITE_INFO, ago, megabytes, stateLook } from "../lib/format";
+import { copyPrompt, currentPrompt } from "../actions";
 import { currentNode, useImageMaker } from "../store";
 import { Dialog, Label, Segmented, Switch, focusRing } from "./ui";
 
@@ -253,25 +254,19 @@ function HiggsfieldAccount() {
   );
 }
 
-/** Texte de la demande en cours : consigne du panneau affiché. */
-function currentPrompt(): string {
-  const { draft, panel } = useImageMaker.getState();
-  if (panel === "edit") return draft.instruction.trim();
-  return (draft.structured ? composePrompt(draft.structure) : draft.prompt).trim();
-}
-
 /**
- * Sur le site officiel, puis import : vous créez avec votre abonnement dans le navigateur,
- * l'image téléchargée arrive ici (dossier Téléchargements, vérifié toutes les 5 s).
+ * Sur le site officiel : dans ARCHIMED (vue navigateur, les téléchargements arrivent dans le
+ * studio), ou dans votre navigateur (le dossier Téléchargements est surveillé toutes les 5 s).
  */
 function SiteImport() {
   const site = useImageMaker((s) => s.accountSite);
   const node = useImageMaker((s) => currentNode(s));
+  const [external, setExternal] = useState(false);
   const [since, setSince] = useState<number | null>(null);
   const [files, setFiles] = useState<DownloadedImage[]>([]);
   const [loading, setLoading] = useState(false);
   const [attach, setAttach] = useState(true);
-  const info = PROVIDER_SITES[site];
+  const info = SITE_INFO[site];
   const prompt = currentPrompt();
 
   const refresh = async (from: number) => {
@@ -293,108 +288,115 @@ function SiteImport() {
 
   const importFile = (file: DownloadedImage) => {
     const s = useImageMaker.getState();
-    void s.importPaths([file.path], attach && node ? node.id : null, info.label).then(() => {
+    void s.importPaths([file.path], attach && node ? node.id : null, info.host).then(() => {
       s.set({ dialog: null });
-      s.notify("success", `Image importée depuis ${info.label}.`);
+      s.notify("success", `Image importée depuis ${info.host}.`);
     });
   };
 
   return (
     <section className="space-y-3" aria-labelledby="account-sites">
       <h3 id="account-sites" className="text-body font-semibold text-text">
-        Sur le site officiel, puis import
+        Sur le site officiel
       </h3>
       <p className="text-body-sm text-text-muted">
-        Créez avec votre abonnement directement sur le site, téléchargez l'image : elle apparaît ici et s'importe en un clic.
+        Créez avec votre abonnement sur le site, téléchargez l'image : elle s'importe en un clic.
       </p>
       <Segmented
         label="Site"
         value={site}
         onChange={(accountSite) => useImageMaker.getState().set({ accountSite })}
-        options={SITE_PROVIDERS.map((p) => ({ value: p, label: PROVIDER_NAMES[p] }))}
+        options={ACCOUNT_SITES.map((id) => ({ value: id, label: SITE_INFO[id].name }))}
       />
-      <ol className="space-y-2.5">
-        <Step n={1} title="Préparer">
-          <div className="flex flex-wrap gap-2">
+      <p className="text-footnote text-text-muted">
+        {info.hint} <span className="text-text-subtle">({info.host})</span>
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="primary" icon={<PanelsTopLeft size={14} />} onClick={() => void useImageMaker.getState().openBrowser(site)}>
+          Ouvrir ici, dans ARCHIMED
+        </Button>
+        <Button variant="ghost" icon={<ExternalLink size={14} />} aria-expanded={external} onClick={() => setExternal(!external)}>
+          Dans votre navigateur
+        </Button>
+      </div>
+      <p className="text-footnote text-text-subtle">
+        Ici, le site s'affiche dans une vue séparée : il n'a aucun accès à ARCHIMED, et ARCHIMED ne lit rien de ce que vous y
+        tapez. Si le site refuse la connexion dans l'application, ouvrez-le dans votre navigateur.
+      </p>
+
+      {external && (
+        <ol className="space-y-2.5 rounded-md bg-surface-2 p-3">
+          <Step n={1} title="Préparer">
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="ghost" icon={<Copy size={14} />} disabled={!prompt} onClick={() => void copyPrompt(prompt)}>
+                Copier la demande
+              </Button>
+              <Button size="sm" variant="ghost" icon={<Copy size={14} />} disabled={!node} onClick={() => node && void copyImage(node)}>
+                Copier l'image affichée
+              </Button>
+            </div>
+            {node && (
+              <p className="text-footnote text-text-subtle">L'image ne part sur le site que si vous l'y collez vous-même.</p>
+            )}
+          </Step>
+          <Step n={2} title={`Créer sur ${info.host}`}>
             <Button
               size="sm"
-              variant="ghost"
-              icon={<Copy size={14} />}
-              disabled={!prompt}
-              onClick={() =>
-                void navigator.clipboard.writeText(prompt).then(
-                  () => useImageMaker.getState().notify("success", "Demande copiée : collez-la sur le site."),
-                  () => useImageMaker.getState().notify("warning", "Copie impossible."),
-                )
-              }
-            >
-              Copier la demande
-            </Button>
-            <Button size="sm" variant="ghost" icon={<Copy size={14} />} disabled={!node} onClick={() => node && void copyImage(node)}>
-              Copier l'image affichée
-            </Button>
-          </div>
-          {node && (
-            <p className="text-footnote text-text-subtle">L'image ne part sur le site que si vous l'y collez vous-même.</p>
-          )}
-        </Step>
-        <Step n={2} title={`Créer sur ${info.label}`}>
-          <Button
-            size="sm"
-            icon={<ExternalLink size={14} />}
-            onClick={() => {
-              const from = Date.now() - 60_000;
-              setSince(from);
-              void refresh(from);
-              void openUrl(info.url);
-            }}
-          >
-            Ouvrir {info.label}
-          </Button>
-        </Step>
-        <Step n={3} title="Importer l'image téléchargée">
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              size="sm"
-              variant="ghost"
-              icon={loading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              icon={<ExternalLink size={14} />}
               onClick={() => {
-                const from = since ?? Date.now() - 24 * 3600_000;
+                const from = Date.now() - 60_000;
                 setSince(from);
                 void refresh(from);
+                void openUrl(info.url);
               }}
             >
-              {since === null ? "Voir les images téléchargées" : "Actualiser"}
+              Ouvrir {info.host}
             </Button>
-            {node && (
-              <Switch checked={attach} onChange={setAttach}>
-                Nouvelle version de l'image affichée
-              </Switch>
-            )}
-          </div>
-          {since !== null &&
-            (files.length === 0 ? (
-              <p className="text-footnote text-text-subtle">
-                Aucune image téléchargée pour l'instant (dossier Téléchargements, vérifié toutes les 5 s). Vous pouvez aussi
-                glisser l'image dans la fenêtre, ou la coller avec Ctrl+V.
-              </p>
-            ) : (
-              <ul className="space-y-1" aria-label="Images téléchargées">
-                {files.slice(0, 6).map((file) => (
-                  <li key={file.path} className="flex items-center gap-2 text-footnote">
-                    <span className="min-w-0 flex-1 truncate text-text">{file.name}</span>
-                    <span className="shrink-0 tabular-nums text-text-subtle">
-                      {megabytes(file.bytes)} · {ago(file.modified)}
-                    </span>
-                    <Button size="sm" variant="ghost" icon={<Plus size={14} />} onClick={() => importFile(file)}>
-                      Importer
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            ))}
-        </Step>
-      </ol>
+          </Step>
+          <Step n={3} title="Importer l'image téléchargée">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={loading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                onClick={() => {
+                  const from = since ?? Date.now() - 24 * 3600_000;
+                  setSince(from);
+                  void refresh(from);
+                }}
+              >
+                {since === null ? "Voir les images téléchargées" : "Actualiser"}
+              </Button>
+              {node && (
+                <Switch checked={attach} onChange={setAttach}>
+                  Nouvelle version de l'image affichée
+                </Switch>
+              )}
+            </div>
+            {since !== null &&
+              (files.length === 0 ? (
+                <p className="text-footnote text-text-subtle">
+                  Aucune image téléchargée pour l'instant (dossier Téléchargements, vérifié toutes les 5 s). Vous pouvez aussi
+                  glisser l'image dans la fenêtre, ou la coller avec Ctrl+V.
+                </p>
+              ) : (
+                <ul className="space-y-1" aria-label="Images téléchargées">
+                  {files.slice(0, 6).map((file) => (
+                    <li key={file.path} className="flex items-center gap-2 text-footnote">
+                      <span className="min-w-0 flex-1 truncate text-text">{file.name}</span>
+                      <span className="shrink-0 tabular-nums text-text-subtle">
+                        {megabytes(file.bytes)} · {ago(file.modified)}
+                      </span>
+                      <Button size="sm" variant="ghost" icon={<Plus size={14} />} onClick={() => importFile(file)}>
+                        Importer
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ))}
+          </Step>
+        </ol>
+      )}
     </section>
   );
 }
@@ -417,7 +419,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 }
 
 /** Lien discret vers « Créer avec votre compte », là où une clé manque. */
-export function AccountLink({ className, site }: { className?: string; site?: ProviderId }) {
+export function AccountLink({ className, site }: { className?: string; site?: AccountSite }) {
   return (
     <button
       type="button"

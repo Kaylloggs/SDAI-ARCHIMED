@@ -8,6 +8,24 @@ import { splitList, composePrompt } from "./lib/prompt";
 import { extendToRatio, parseRatio } from "./lib/ratio";
 import { currentNode, useImageMaker, type State } from "./store";
 
+/** Texte de la demande en cours : consigne du panneau affiché. */
+export function currentPrompt(): string {
+  const { draft, panel } = useImageMaker.getState();
+  if (panel === "edit") return draft.instruction.trim();
+  return (draft.structured ? composePrompt(draft.structure) : draft.prompt).trim();
+}
+
+/** Copie la demande pour la coller sur un site officiel. */
+export async function copyPrompt(prompt: string): Promise<void> {
+  const s = useImageMaker.getState();
+  try {
+    await navigator.clipboard.writeText(prompt);
+    s.notify("success", "Demande copiée : collez-la sur le site.");
+  } catch {
+    s.notify("warning", "Copie impossible.");
+  }
+}
+
 export type Prepared = { operation: ImageAiOperation; task: AiTask } | { problem: string };
 
 export function prepareCreate(state: State): Prepared {

@@ -1,5 +1,9 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invokeModule } from "@/core/ipc";
+import type { AccountSite } from "@/core/ipc/bindings/AccountSite";
+import type { BrowserAction } from "@/core/ipc/bindings/BrowserAction";
+import type { BrowserBounds } from "@/core/ipc/bindings/BrowserBounds";
+import type { BrowserEvent } from "@/core/ipc/bindings/BrowserEvent";
 import type { CliInfo } from "@/core/ipc/bindings/CliInfo";
 import type { DownloadedImage } from "@/core/ipc/bindings/DownloadedImage";
 import type { ImageAiOperation } from "@/core/ipc/bindings/ImageAiOperation";
@@ -23,6 +27,7 @@ const PLUGIN = "image-maker";
 /** Événements émis par le backend (voir `src-tauri/src/modules/image_maker/mod.rs`). */
 export const JOB_EVENT = "image-maker:job";
 export const PROJECT_EVENT = "image-maker:project";
+export const BROWSER_EVENT = "image-maker:browser";
 
 /** Seul point d'appel du backend Image Maker (guidelines.md, règle d'or n°5). */
 export const imageMakerApi = {
@@ -98,14 +103,23 @@ export const imageMakerApi = {
   exportImages: (request: ImageExportRequest) => invokeModule<ImageExportResult>(PLUGIN, "export_images", { request }),
   recentDownloads: (since: number) => invokeModule<DownloadedImage[]>(PLUGIN, "recent_downloads", { since }),
 
+  // Vue navigateur : le site officiel dans la fenêtre, sans accès à l'application.
+  browserOpen: (site: AccountSite, bounds: BrowserBounds) => invokeModule<void>(PLUGIN, "browser_open", { site, bounds }),
+  browserBounds: (bounds: BrowserBounds) => invokeModule<void>(PLUGIN, "browser_bounds", { bounds }),
+  browserHide: () => invokeModule<void>(PLUGIN, "browser_hide"),
+  browserClose: () => invokeModule<void>(PLUGIN, "browser_close"),
+  browserAction: (action: BrowserAction) => invokeModule<void>(PLUGIN, "browser_action", { action }),
+
   /** Suivi des tâches et des projets ; renvoie la fonction qui arrête l'écoute. */
   listen: async (
     onJob: (job: ImageJob) => void,
     onProject: (project: ImageProject) => void,
+    onBrowser: (event: BrowserEvent) => void,
   ): Promise<UnlistenFn> => {
     const stops = await Promise.all([
       listen<ImageJob>(JOB_EVENT, (event) => onJob(event.payload)),
       listen<ImageProject>(PROJECT_EVENT, (event) => onProject(event.payload)),
+      listen<BrowserEvent>(BROWSER_EVENT, (event) => onBrowser(event.payload)),
     ]);
     return () => stops.forEach((stop) => stop());
   },

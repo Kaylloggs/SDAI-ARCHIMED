@@ -190,7 +190,8 @@ SDAI ARCHIMED/
             │                            # export (sources en ZIP)
             ├── image_maker/             # projets et arbre de versions (store), traitements locaux (local),
             │                            # opérations IA et recollage hors zone (pipeline), file de tâches (jobs),
-            │                            # service, commandes ; clés image-maker-<fournisseur>
+            │                            # service, commandes, vue navigateur du mode compte (browser) ;
+            │                            # clés image-maker-<fournisseur>
             ├── jobagent/                # moteur Python embarqué (engine/ : JobSpy + archimed_jobagent),
             │                            # service.rs, letters.rs (Antigravity), secrets.rs (DPAPI), serveur MCP
             └── skills/                  # module.toml · mod.rs · commands.rs

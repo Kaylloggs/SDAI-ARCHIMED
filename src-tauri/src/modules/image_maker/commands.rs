@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use serde_json::Value;
-use tauri::State;
+use tauri::{Runtime, State};
 
 use crate::core::imaging::{ModelList, PriceLine, PromptSuggestion, ProviderId, ProviderStatus};
 use crate::core::{AppError, AppResult};
 
+use super::browser::{self, AccountSite, BrowserAction, BrowserBounds};
 use super::service::ImageMaker;
 use super::types::{
     AiOperation, AiSettings, BatchOutcome, CliInfo, DownloadedImage, ExportRequest, ExportResult, ImageMakerSettings, Job,
@@ -310,4 +311,33 @@ pub async fn export_images(maker: Maker<'_>, request: ExportRequest) -> AppResul
 #[tauri::command]
 pub async fn recent_downloads(maker: Maker<'_>, since: i64) -> AppResult<Vec<DownloadedImage>> {
     maker.recent_downloads(since).await
+}
+
+// ── Vue navigateur (mode compte) ────────────────────────────────────────────────────────
+
+/// Affiche le site officiel dans la zone réservée par le studio (vue web à part, sans accès
+/// à l'application).
+#[tauri::command]
+pub async fn browser_open<R: Runtime>(window: tauri::Window<R>, site: AccountSite, bounds: BrowserBounds) -> AppResult<()> {
+    browser::open(&window, site, bounds)
+}
+
+#[tauri::command]
+pub async fn browser_bounds<R: Runtime>(app: tauri::AppHandle<R>, bounds: BrowserBounds) -> AppResult<()> {
+    browser::set_bounds(&app, bounds)
+}
+
+#[tauri::command]
+pub async fn browser_hide<R: Runtime>(app: tauri::AppHandle<R>) -> AppResult<()> {
+    browser::hide(&app)
+}
+
+#[tauri::command]
+pub async fn browser_close<R: Runtime>(app: tauri::AppHandle<R>) -> AppResult<()> {
+    browser::close(&app)
+}
+
+#[tauri::command]
+pub async fn browser_action<R: Runtime>(app: tauri::AppHandle<R>, action: BrowserAction) -> AppResult<()> {
+    browser::act(&app, action)
 }

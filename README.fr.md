@@ -244,7 +244,7 @@ Certaines fonctions appellent directement un service d'IA avec **votre propre cl
 | **OpenRouter** | Images et textures, de nombreux modèles avec un seul compte | [openrouter.ai/keys](https://openrouter.ai/keys) |
 | **Higgsfield** | Images (Image Maker) | [cloud.higgsfield.ai](https://cloud.higgsfield.ai/) |
 
-Pas de clé ? Bouton **Compte** dans Image Maker. Avec un abonnement Higgsfield, les images se génèrent directement dans l'application avec vos crédits : l'outil officiel de Higgsfield s'installe une fois (vous confirmez avant), et vous vous connectez sur la page de Higgsfield dans votre navigateur. Ou créez l'image sur le site de Google AI Studio, OpenRouter ou Higgsfield : le fichier téléchargé revient dans l'application en un clic. ARCHIMED ne demande jamais votre mot de passe.
+Pas de clé ? Bouton **Compte** dans Image Maker. Avec un abonnement Higgsfield, les images se génèrent directement dans l'application avec vos crédits : l'outil officiel de Higgsfield s'installe une fois (vous confirmez avant), et vous vous connectez sur la page de Higgsfield dans votre navigateur. Ou ouvrez Gemini (Nano Banana), ChatGPT ou Higgsfield directement dans ARCHIMED, créez l'image avec votre abonnement : le fichier téléchargé revient dans votre projet en un clic. ARCHIMED ne demande jamais votre mot de passe.
 
 </details>
 

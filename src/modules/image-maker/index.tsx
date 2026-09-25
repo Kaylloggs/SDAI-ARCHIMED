@@ -75,9 +75,18 @@ export default function ImageMakerModule() {
 
 function NoticeToast() {
   const notice = useImageMaker((s) => s.notice);
+  // Mode site : la vue web recouvre le centre, le message va au-dessus du panneau de droite.
+  const browser = useImageMaker((s) => s.browser !== null && s.project !== null);
   const Icon = notice?.tone === "success" ? CheckCircle2 : notice?.tone === "info" ? Info : AlertTriangle;
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-14 z-30 flex justify-center px-4" role="status" aria-live="polite">
+    <div
+      className={cn(
+        "pointer-events-none absolute z-30 flex px-4",
+        browser ? "bottom-4 right-0 w-80 justify-end" : "inset-x-0 top-14 justify-center",
+      )}
+      role="status"
+      aria-live="polite"
+    >
       <AnimatePresence>
         {notice && (
           <motion.div

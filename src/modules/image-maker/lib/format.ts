@@ -1,4 +1,5 @@
 /** Mise en forme : fournisseurs, états de connexion, coûts, dates, versions. */
+import type { AccountSite } from "@/core/ipc/bindings/AccountSite";
 import type { ConnectionState } from "@/core/ipc/bindings/ConnectionState";
 import type { ImageJobStatus } from "@/core/ipc/bindings/ImageJobStatus";
 import type { ImageNodeKind } from "@/core/ipc/bindings/ImageNodeKind";
@@ -16,15 +17,43 @@ export const PROVIDER_NAMES: Record<ProviderId, string> = {
   higgsfieldAccount: "Higgsfield (compte)",
 };
 
-/** Fournisseurs dont le site officiel permet de créer avec son compte, puis d'importer. */
-export const SITE_PROVIDERS: ProviderId[] = ["gemini", "openrouter", "higgsfield"];
-
 /**
- * Sites officiels, pour le mode compte : on y crée avec son abonnement, puis on importe le
- * résultat (Téléchargements, glisser-déposer, presse-papiers). Aucun mot de passe ne passe ici.
+ * Mode compte : sites officiels où l'on crée avec son abonnement (dans ARCHIMED ou dans son
+ * navigateur), puis l'image téléchargée s'importe. Aucun mot de passe ne passe ici.
  */
+export const ACCOUNT_SITES: AccountSite[] = ["gemini", "chatgpt", "higgsfield"];
+
+export const SITE_INFO: Record<AccountSite, { name: string; url: string; host: string; hint: string }> = {
+  gemini: {
+    name: "Gemini",
+    url: "https://gemini.google.com/",
+    host: "gemini.google.com",
+    hint: "Nano Banana dans l'application Gemini, avec votre compte Google.",
+  },
+  chatgpt: {
+    name: "ChatGPT",
+    url: "https://chatgpt.com/",
+    host: "chatgpt.com",
+    hint: "Création d'images dans ChatGPT, avec votre compte OpenAI.",
+  },
+  higgsfield: {
+    name: "Higgsfield",
+    url: "https://higgsfield.ai/",
+    host: "higgsfield.ai",
+    hint: "Les outils du site Higgsfield, avec votre abonnement.",
+  },
+};
+
+/** Site du mode compte proche d'un fournisseur d'API (aucun pour OpenRouter). */
+export const PROVIDER_ACCOUNT_SITE: Partial<Record<ProviderId, AccountSite>> = {
+  gemini: "gemini",
+  higgsfield: "higgsfield",
+  higgsfieldAccount: "higgsfield",
+};
+
+/** Page du fournisseur où recharger son crédit (échec « crédit »). */
 export const PROVIDER_SITES: Record<ProviderId, { url: string; label: string }> = {
-  openrouter: { url: "https://openrouter.ai/chat", label: "openrouter.ai" },
+  openrouter: { url: "https://openrouter.ai/", label: "openrouter.ai" },
   gemini: { url: "https://aistudio.google.com/", label: "aistudio.google.com" },
   higgsfield: { url: "https://higgsfield.ai/", label: "higgsfield.ai" },
   higgsfieldAccount: { url: "https://higgsfield.ai/", label: "higgsfield.ai" },
