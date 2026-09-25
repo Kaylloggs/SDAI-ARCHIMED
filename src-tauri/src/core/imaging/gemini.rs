@@ -345,6 +345,7 @@ impl ImageProvider for Gemini {
 fn blank_status() -> ProviderStatus {
     ProviderStatus {
         provider: ProviderId::Gemini,
+        access: ProviderAccess::Key,
         name: "Google AI Studio (Gemini)".into(),
         state: ConnectionState::ApiKeyMissing,
         key_source: None,

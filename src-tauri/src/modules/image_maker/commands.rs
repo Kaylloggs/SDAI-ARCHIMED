@@ -8,7 +8,7 @@ use crate::core::{AppError, AppResult};
 
 use super::service::ImageMaker;
 use super::types::{
-    AiOperation, AiSettings, BatchOutcome, DownloadedImage, ExportRequest, ExportResult, ImageMakerSettings, Job,
+    AiOperation, AiSettings, BatchOutcome, CliInfo, DownloadedImage, ExportRequest, ExportResult, ImageMakerSettings, Job,
     LocalOperation, Project, ProjectSummary,
 };
 
@@ -32,6 +32,24 @@ pub async fn set_provider_key(maker: Maker<'_>, provider: ProviderId, key: Strin
 #[tauri::command]
 pub async fn clear_provider_key(maker: Maker<'_>, provider: ProviderId) -> AppResult<ProviderStatus> {
     maker.clear_key(provider).await
+}
+
+/// Connexion au compte (Higgsfield par sa CLI officielle) : la page de connexion s'ouvre dans
+/// le navigateur de la personne.
+#[tauri::command]
+pub async fn provider_login(maker: Maker<'_>, provider: ProviderId) -> AppResult<ProviderStatus> {
+    maker.login(provider).await
+}
+
+#[tauri::command]
+pub async fn higgsfield_cli_info(maker: Maker<'_>) -> AppResult<CliInfo> {
+    Ok(maker.cli_info())
+}
+
+/// `npm install -g @higgsfield/cli`, après confirmation explicite dans l'interface.
+#[tauri::command]
+pub async fn install_higgsfield_cli(maker: Maker<'_>) -> AppResult<String> {
+    maker.install_cli().await
 }
 
 #[tauri::command]
@@ -199,8 +217,14 @@ pub async fn integration_project(maker: Maker<'_>) -> AppResult<Project> {
 // ── Import et opérations locales ────────────────────────────────────────────────────────
 
 #[tauri::command]
-pub async fn import_files(maker: Maker<'_>, project_id: String, paths: Vec<String>) -> AppResult<BatchOutcome> {
-    maker.import_files(project_id, paths).await
+pub async fn import_files(
+    maker: Maker<'_>,
+    project_id: String,
+    paths: Vec<String>,
+    parent: Option<String>,
+    source: Option<String>,
+) -> AppResult<BatchOutcome> {
+    maker.import_files(project_id, paths, parent, source).await
 }
 
 /// Image du presse-papiers (base64 ou adresse `data:`).

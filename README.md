@@ -244,7 +244,7 @@ Some features call an AI service directly with **your own key**. Paste it once i
 | **OpenRouter** | Images and textures, many models in one account | [openrouter.ai/keys](https://openrouter.ai/keys) |
 | **Higgsfield** | Images (Image Maker) | [cloud.higgsfield.ai](https://cloud.higgsfield.ai/) |
 
-No key? Image Maker can open the provider's website: create the image there with your own account, and the downloaded file comes back into the app in one click. ARCHIMED never asks for your password.
+No key? Click **Account** in Image Maker. With a Higgsfield subscription, images are generated right in the app with your own credits: the official Higgsfield tool is installed once (you confirm first), and you sign in on Higgsfield's page in your browser. Or create the image on the Google AI Studio, OpenRouter or Higgsfield website, and the downloaded file comes back into the app in one click. ARCHIMED never asks for your password.
 
 </details>
 

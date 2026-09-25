@@ -12,6 +12,9 @@ pub enum ProviderId {
     Openrouter,
     Gemini,
     Higgsfield,
+    /// Higgsfield avec le compte de la personne, par la CLI officielle (`higgsfield auth login`).
+    #[serde(rename = "higgsfieldAccount")]
+    HiggsfieldAccount,
 }
 
 impl ProviderId {
@@ -21,6 +24,7 @@ impl ProviderId {
             Self::Openrouter => "openrouter",
             Self::Gemini => "gemini",
             Self::Higgsfield => "higgsfield",
+            Self::HiggsfieldAccount => "higgsfield-account",
         }
     }
 
@@ -29,6 +33,7 @@ impl ProviderId {
             Self::Openrouter => "OpenRouter",
             Self::Gemini => "Google AI Studio (Gemini)",
             Self::Higgsfield => "Higgsfield",
+            Self::HiggsfieldAccount => "Higgsfield (compte)",
         }
     }
 }
@@ -50,6 +55,18 @@ pub enum ConnectionState {
     ApiKeyMissing,
     /// Clé acceptée mais aucun modèle d'image n'est ouvert.
     ModelUnavailable,
+    /// L'outil officiel du fournisseur (CLI) n'est pas installé.
+    CliMissing,
+}
+
+/// Comment on se connecte : clé d'API, ou compte de la personne (connexion dans son navigateur,
+/// par l'outil officiel du fournisseur ; aucun mot de passe ne passe par l'application).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub enum ProviderAccess {
+    Key,
+    Account,
 }
 
 /// D'où vient la clé utilisée.
@@ -69,6 +86,7 @@ pub enum KeySource {
 pub struct ProviderStatus {
     pub provider: ProviderId,
     pub name: String,
+    pub access: ProviderAccess,
     pub state: ConnectionState,
     pub key_source: Option<KeySource>,
     /// Début et fin de la clé (« sk-or-…3f9a ») : jamais la clé entière.

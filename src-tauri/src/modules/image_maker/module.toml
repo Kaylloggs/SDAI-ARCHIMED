@@ -3,7 +3,7 @@ id = "image-maker"
 # Une clé déjà rangée par un autre module (ex. mcstudio-openrouter) est relue, jamais copiée.
 credentials = ["image-maker-openrouter", "image-maker-gemini", "image-maker-higgsfield"]
 commands = [
-  "provider_statuses", "set_provider_key", "clear_provider_key", "provider_models", "model_pricing", "improve_prompt",
+  "provider_statuses", "set_provider_key", "clear_provider_key", "provider_login", "higgsfield_cli_info", "install_higgsfield_cli", "provider_models", "model_pricing", "improve_prompt",
   "get_maker_settings", "save_maker_settings",
   "list_image_projects", "create_image_project", "get_image_project", "delete_image_project", "rename_image_project",
   "set_current_node", "set_favorite", "rename_node", "set_references", "save_ai_settings", "delete_node", "integration_project",

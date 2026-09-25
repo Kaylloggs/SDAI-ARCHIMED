@@ -427,6 +427,17 @@ pub struct BatchOutcome {
     pub skipped: Vec<String>,
 }
 
+/// CLI officielle Higgsfield (mode compte) : présente, installable par npm.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct CliInfo {
+    pub installed: bool,
+    pub npm: bool,
+    pub package: String,
+    pub page: String,
+}
+
 /// Image trouvée dans le dossier Téléchargements (mode compte : site officiel, puis import).
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../../src/core/ipc/bindings/")]

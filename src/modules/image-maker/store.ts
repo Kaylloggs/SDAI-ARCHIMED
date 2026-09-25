@@ -119,7 +119,9 @@ export type State = {
   selected: string[];
   dock: Dock;
   dockOpen: boolean;
-  dialog: null | "connections" | "export";
+  dialog: null | "connections" | "export" | "account";
+  /** Site ouvert dans « Créer avec votre compte ». */
+  accountSite: ProviderId;
   exportNodes: string[];
   busy: string | null;
   notice: Notice | null;
@@ -149,7 +151,7 @@ type Actions = {
   chooseModel: (provider: ProviderId, model: string) => void;
   toggleReference: (node: string) => void;
   setReferenceRole: (node: string, role: string) => void;
-  importPaths: (paths: string[]) => Promise<void>;
+  importPaths: (paths: string[], parent?: string | null, source?: string | null) => Promise<void>;
   importData: (data: string, name?: string) => Promise<void>;
   local: (operation: ImageLocalOperation, node?: string) => Promise<boolean>;
   localBatch: (nodes: string[], operation: ImageLocalOperation) => Promise<void>;
@@ -308,6 +310,7 @@ export const useImageMaker = create<State & Actions>()((set, get) => {
     dock: "history",
     dockOpen: true,
     dialog: null,
+    accountSite: "gemini",
     exportNodes: [],
     busy: null,
     notice: null,
@@ -515,13 +518,13 @@ export const useImageMaker = create<State & Actions>()((set, get) => {
     setReferenceRole: (node, role) =>
       get().setDraft({ references: get().draft.references.map((r) => (r.node === node ? { ...r, role } : r)) }),
 
-    importPaths: async (paths) => {
+    importPaths: async (paths, parent = null, source = null) => {
       let project = get().project;
       if (!project) project = await get().createProject(nameFromPath(paths[0] ?? ""));
       if (!project) return;
       set({ busy: paths.length > 1 ? `Import de ${paths.length} images…` : "Import de l'image…" });
       try {
-        const outcome = await api.importFiles(project.id, paths);
+        const outcome = await api.importFiles(project.id, paths, parent, source);
         if (outcome.project) get().applyProject(outcome.project);
         if (outcome.skipped.length > 0) get().notify("warning", `Non importé : ${outcome.skipped.join(" · ")}`);
       } catch (error) {

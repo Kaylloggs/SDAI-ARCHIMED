@@ -1,15 +1,16 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Download, ExternalLink, KeyRound, Loader2, Plus, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
+import { ExternalLink, KeyRound, Loader2, Plus, RefreshCw, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { useEnabledModules } from "@/core/modules";
 import { Badge, Button } from "@/design-system/primitives";
-import type { DownloadedImage } from "@/core/ipc/bindings/DownloadedImage";
 import type { HiggsfieldModelSpec } from "@/core/ipc/bindings/HiggsfieldModelSpec";
 import type { ProviderId } from "@/core/ipc/bindings/ProviderId";
 import { errorText, imageMakerApi } from "../api";
-import { PROVIDER_NAMES, PROVIDER_SITES, PROVIDERS, STATE_LABELS, ago, megabytes } from "../lib/format";
+import { usable } from "../lib/capabilities";
+import { PROVIDER_NAMES, PROVIDERS, stateLook } from "../lib/format";
 import { useImageMaker } from "../store";
+import { AccountLink } from "./AccountDialog";
 import { Chip, Dialog, Label, Switch, focusRing, inputClass } from "./ui";
 
 export function ConnectionsDialog() {
@@ -22,14 +23,14 @@ export function ConnectionsDialog() {
     <Dialog
       open={open}
       title="Connexions"
-      description="Clés d'API des fournisseurs d'images, ou création sur leur site avec votre compte."
+      description="Clés d'API des fournisseurs d'images, ou connexion avec votre compte."
       width={640}
       onClose={() => set({ dialog: null })}
       footer={
         <>
           <p className="mr-auto flex items-center gap-1.5 text-footnote text-text-muted">
             <ShieldCheck size={14} className="shrink-0" />
-            Clés rangées dans le Gestionnaire d'identifiants de Windows. Aucun mot de passe.
+            Clés rangées dans le Gestionnaire d'identifiants de Windows. Aucun mot de passe demandé.
           </p>
           <Button
             size="sm"
@@ -74,12 +75,46 @@ export function ConnectionsDialog() {
 
 function ProviderRow({ provider }: { provider: ProviderId }) {
   const status = useImageMaker((s) => s.statuses[provider]);
+  if (status?.access === "account") return <AccountRow provider={provider} />;
+  return <KeyRow provider={provider} />;
+}
+
+/** Fournisseur sans clé : l'état du compte, et le chemin vers « Créer avec votre compte ». */
+function AccountRow({ provider }: { provider: ProviderId }) {
+  const status = useImageMaker((s) => s.statuses[provider]);
+  const look = stateLook(status);
+  return (
+    <section className="flex items-start justify-between gap-3 py-4 first:pt-0" aria-label={PROVIDER_NAMES[provider]}>
+      <div className="min-w-0 space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-body font-semibold text-text">{PROVIDER_NAMES[provider]}</h3>
+          <Badge tone={look.tone}>{look.label}</Badge>
+        </div>
+        <p className="text-footnote text-text-muted">
+          Votre compte et vos crédits, sans clé d'API : connexion dans votre navigateur.
+          {status?.credits && <span> · {status.credits}</span>}
+        </p>
+      </div>
+      <Button
+        size="sm"
+        className="shrink-0"
+        icon={<UserRound size={14} />}
+        onClick={() => useImageMaker.getState().set({ dialog: "account" })}
+      >
+        {usable(status?.state) ? "Gérer" : status?.state === "cliMissing" ? "Installer" : "Se connecter"}
+      </Button>
+    </section>
+  );
+}
+
+function KeyRow({ provider }: { provider: ProviderId }) {
+  const status = useImageMaker((s) => s.statuses[provider]);
   const [editing, setEditing] = useState(false);
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
-  const look = status ? STATE_LABELS[status.state] : null;
+  const look = status ? stateLook(status) : null;
   const hasKey = status && status.state !== "apiKeyMissing";
   const modules = useEnabledModules();
   const sharedId = status?.keySource?.kind === "shared" ? status.keySource.module : null;
@@ -195,106 +230,9 @@ function ProviderRow({ provider }: { provider: ProviderId }) {
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-footnote">
-        <span className="flex items-center gap-1.5 text-text-muted">
-          <Badge tone={hasKey ? "success" : "neutral"}>API</Badge>
-          {hasKey ? "Génération dans l'application" : "API nécessaire pour générer ici"}
-        </span>
-        <span className="flex items-center gap-1.5 text-text-muted">
-          <Badge tone="info">Compte</Badge>
-          Connexion de compte disponible : site officiel, puis import
-        </span>
-      </div>
-      <AccountMode provider={provider} />
+      {!hasKey && <AccountLink site={provider} />}
       {provider === "higgsfield" && <HiggsfieldModels />}
     </section>
-  );
-}
-
-/**
- * Mode compte : on crée sur le site officiel avec son abonnement, puis le résultat arrive
- * ici (Téléchargements, glisser-déposer, Ctrl+V). Rien n'automatise le site à votre place.
- */
-function AccountMode({ provider }: { provider: ProviderId }) {
-  const [since, setSince] = useState<number | null>(null);
-  const [files, setFiles] = useState<DownloadedImage[]>([]);
-  const [loading, setLoading] = useState(false);
-  const site = PROVIDER_SITES[provider];
-
-  const refresh = async (from: number) => {
-    setLoading(true);
-    try {
-      setFiles(await imageMakerApi.recentDownloads(from));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (since === null) return;
-    const timer = setInterval(() => void refresh(since), 5000);
-    return () => clearInterval(timer);
-  }, [since]);
-
-  return (
-    <div className="space-y-2 rounded-md bg-surface-2 p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          size="sm"
-          icon={<ExternalLink size={14} />}
-          onClick={() => {
-            const from = Date.now() - 60_000;
-            setSince(from);
-            void refresh(from);
-            void openUrl(site.url);
-          }}
-        >
-          Ouvrir {site.label}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          icon={loading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-          onClick={() => {
-            const from = since ?? Date.now() - 24 * 3600_000;
-            setSince(from);
-            void refresh(from);
-          }}
-        >
-          Images téléchargées
-        </Button>
-      </div>
-      {since !== null && (
-        <>
-          <p className="text-footnote text-text-muted">
-            Téléchargez l'image sur le site : elle apparaît ici (dossier Téléchargements, vérifié toutes les 5 s).
-          </p>
-          {files.length > 0 && (
-            <ul className="space-y-1">
-              {files.slice(0, 6).map((file) => (
-                <li key={file.path} className="flex items-center gap-2 text-footnote">
-                  <span className="min-w-0 flex-1 truncate text-text">{file.name}</span>
-                  <span className="shrink-0 text-text-subtle">
-                    {megabytes(file.bytes)} · {ago(file.modified)}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    icon={<Plus size={14} />}
-                    onClick={() => {
-                      const s = useImageMaker.getState();
-                      void s.importPaths([file.path]).then(() => s.set({ dialog: null }));
-                    }}
-                  >
-                    Importer
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      )}
-    </div>
   );
 }
 

@@ -1,5 +1,6 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invokeModule } from "@/core/ipc";
+import type { CliInfo } from "@/core/ipc/bindings/CliInfo";
 import type { DownloadedImage } from "@/core/ipc/bindings/DownloadedImage";
 import type { ImageAiOperation } from "@/core/ipc/bindings/ImageAiOperation";
 import type { ImageAiSettings } from "@/core/ipc/bindings/ImageAiSettings";
@@ -31,6 +32,11 @@ export const imageMakerApi = {
   setKey: (provider: ProviderId, key: string) =>
     invokeModule<ProviderStatus>(PLUGIN, "set_provider_key", { provider, key }),
   clearKey: (provider: ProviderId) => invokeModule<ProviderStatus>(PLUGIN, "clear_provider_key", { provider }),
+  /** Connexion au compte : la page officielle s'ouvre dans le navigateur (aucun mot de passe ici). */
+  login: (provider: ProviderId) => invokeModule<ProviderStatus>(PLUGIN, "provider_login", { provider }),
+  cliInfo: () => invokeModule<CliInfo>(PLUGIN, "higgsfield_cli_info"),
+  /** `npm install -g @higgsfield/cli`, seulement après confirmation explicite. */
+  installCli: () => invokeModule<string>(PLUGIN, "install_higgsfield_cli"),
   models: (provider: ProviderId, refresh = false) =>
     invokeModule<ModelList>(PLUGIN, "provider_models", { provider, refresh }),
   pricing: (provider: ProviderId, model: string) =>
@@ -67,8 +73,9 @@ export const imageMakerApi = {
   integrationProject: () => invokeModule<ImageProject>(PLUGIN, "integration_project"),
 
   // Import et opérations locales (rien n'est envoyé)
-  importFiles: (projectId: string, paths: string[]) =>
-    invokeModule<ImageBatchOutcome>(PLUGIN, "import_files", { projectId, paths }),
+  /** `parent` : version dont l'image découle ; `source` : site d'où elle vient. */
+  importFiles: (projectId: string, paths: string[], parent: string | null = null, source: string | null = null) =>
+    invokeModule<ImageBatchOutcome>(PLUGIN, "import_files", { projectId, paths, parent, source }),
   importData: (projectId: string, data: string, name = "") =>
     invokeModule<ImageProject>(PLUGIN, "import_data", { projectId, data, name }),
   applyLocal: (projectId: string, nodeId: string, operation: ImageLocalOperation) =>

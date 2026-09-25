@@ -25,8 +25,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
   Auto qui choisit un modèle compatible et dit pourquoi. File de demandes (en attente, en cours,
   terminée, échec, annulée) avec annulation, relance et correction proposée selon l'erreur.
 - **Connexions** : clés vérifiées puis rangées dans le Gestionnaire d'identifiants, jamais
-  affichées en entier ; une clé déjà donnée à Mod Studio est relue sans être copiée. Mode compte :
-  ouvrir le site officiel, puis importer l'image téléchargée (aucun mot de passe demandé).
+  affichées en entier ; une clé déjà donnée à Mod Studio est relue sans être copiée.
+- **Mode compte** (bouton « Compte », visible dans le studio et sur la liste des projets), sans
+  clé ni mot de passe : **Higgsfield (compte)** génère dans l'application avec l'abonnement et les
+  crédits de la personne, par la CLI officielle `@higgsfield/cli` (installation après
+  confirmation, connexion OAuth dans le navigateur, crédits affichés, déconnexion) et ses
+  21 modèles d'image documentés (Nano Banana Pro et 2, GPT Image 2 et 2.5, Seedream 4.5 et
+  V5 Lite, FLUX.2, Flux Kontext, Kling O1 Image, Grok Image, Soul V2, Cinematic Studio 2.5,
+  Recraft V4.1, Z Image…). Autres sites (Google AI Studio, OpenRouter, Higgsfield) : copier la demande et
+  l'image, ouvrir le site, puis importer l'image téléchargée en un clic, en nouvelle version de
+  l'image affichée.
 - **Confidentialité et coûts** : avant chaque envoi, ce qui part et chez qui ; coût affiché
   seulement quand le fournisseur le donne. Glisser-déposer, Ctrl+V, copie d'image.
 - **Service `image.maker`** pour les autres modules : générer, modifier, détourer, agrandir,

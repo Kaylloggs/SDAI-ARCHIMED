@@ -8,6 +8,7 @@ import {
   Layers,
   Palette,
   PlugZap,
+  UserRound,
   Replace,
   Scaling,
   Sparkles,
@@ -98,12 +99,23 @@ function TopBar() {
       <Button
         size="md"
         variant="ghost"
-        aria-label={`Connexions : ${connected} sur 3`}
+        aria-label={`Connexions : ${connected} sur ${PROVIDERS.length}`}
         icon={<PlugZap size={14} className={connected > 0 ? "text-success" : "text-warning"} />}
         onClick={() => s.set({ dialog: "connections" })}
       >
         <span className="hidden lg:inline">Connexions</span>
-        <span className="tabular-nums text-text-subtle">{connected}/3</span>
+        <span className="tabular-nums text-text-subtle">
+          {connected}/{PROVIDERS.length}
+        </span>
+      </Button>
+      <Button
+        size="md"
+        variant="ghost"
+        aria-label="Créer avec votre compte"
+        icon={<UserRound size={14} />}
+        onClick={() => s.set({ dialog: "account" })}
+      >
+        <span className="hidden lg:inline">Compte</span>
       </Button>
       <Button
         size="md"

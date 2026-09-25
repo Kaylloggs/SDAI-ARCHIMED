@@ -20,7 +20,7 @@ import type { ModelCapabilities } from "@/core/ipc/bindings/ModelCapabilities";
 import type { ProviderId } from "@/core/ipc/bindings/ProviderId";
 import type { ProviderModel } from "@/core/ipc/bindings/ProviderModel";
 import { usable } from "../lib/capabilities";
-import { PROVIDER_NAMES, PROVIDERS, STATE_LABELS, formatUsd } from "../lib/format";
+import { PROVIDER_NAMES, PROVIDERS, formatUsd, stateLook } from "../lib/format";
 import { findModel, useImageMaker } from "../store";
 import { Popover } from "./Popover";
 import { Switch, focusRing, inputClass } from "./ui";
@@ -34,8 +34,7 @@ const DOT: Record<string, string> = {
 };
 
 export function StateDot({ provider }: { provider: ProviderId }) {
-  const state = useImageMaker((s) => s.statuses[provider]?.state);
-  const look = state ? STATE_LABELS[state] : { label: "Lecture…", tone: "neutral" as const };
+  const look = stateLook(useImageMaker((s) => s.statuses[provider]));
   return <span aria-label={look.label} className={cn("inline-block size-2 shrink-0 rounded-full", DOT[look.tone])} />;
 }
 
@@ -205,16 +204,16 @@ export function ModelPicker() {
           </div>
           {!usable(status?.state) ? (
             <div className="space-y-2 p-4 text-body-sm text-text-muted">
-              <p>{status ? STATE_LABELS[status.state].label : "Lecture de la connexion…"} pour {PROVIDER_NAMES[tab]}.</p>
+              <p>{status ? stateLook(status).label : "Lecture de la connexion…"} pour {PROVIDER_NAMES[tab]}.</p>
               <button
                 type="button"
                 onClick={() => {
                   close();
-                  useImageMaker.getState().set({ dialog: "connections" });
+                  useImageMaker.getState().set({ dialog: status?.access === "account" ? "account" : "connections" });
                 }}
                 className={cn("text-accent hover:underline", focusRing)}
               >
-                Ouvrir les connexions
+                {status?.access === "account" ? "Se connecter avec votre compte" : "Ouvrir les connexions"}
               </button>
             </div>
           ) : (

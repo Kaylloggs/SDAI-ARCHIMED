@@ -7,7 +7,7 @@ export default defineTutorial({
     {
       icon: PlugZap,
       title: "Connecter un fournisseur",
-      text: "« Connexions » : collez une clé d'API, vérifiée puis rangée dans Windows. Une clé déjà donnée à Mod Studio est reprise sans copie.",
+      text: "« Connexions » : collez une clé d'API, vérifiée puis rangée dans Windows. Sans clé : « Compte », pour Higgsfield avec votre abonnement ou un site officiel.",
       area: "top",
     },
     {
@@ -52,6 +52,7 @@ export default defineTutorial({
   tips: [
     "Mode Auto : choisit un modèle de vos connexions qui sait faire l'opération, et dit pourquoi.",
     "« Image » traite tout sur votre ordinateur (recadrage, taille, rotation, réglages, fond uni) : rien n'est envoyé.",
-    "Sans clé d'API, « Ouvrir le site » dans Connexions : créez avec votre compte, l'image téléchargée s'importe en un clic.",
+    "Sans clé d'API, bouton « Compte » : Higgsfield génère ici avec vos crédits (connexion dans le navigateur, aucun mot de passe), ou créez sur un site officiel et importez l'image téléchargée en un clic.",
+    "Une clé déjà donnée à Mod Studio est reprise sur place, sans copie.",
   ],
 });

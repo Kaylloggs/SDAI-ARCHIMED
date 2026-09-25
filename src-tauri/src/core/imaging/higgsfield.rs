@@ -438,6 +438,7 @@ impl ImageProvider for Higgsfield {
 fn blank_status() -> ProviderStatus {
     ProviderStatus {
         provider: ProviderId::Higgsfield,
+        access: ProviderAccess::Key,
         name: NAME.into(),
         state: ConnectionState::ApiKeyMissing,
         key_source: None,

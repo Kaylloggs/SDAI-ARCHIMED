@@ -5,6 +5,7 @@ import { useOsFileDrop } from "@/core/chat";
 import { cn } from "@/core/lib/cn";
 import { enterUp } from "@/design-system/motion";
 import { pasteFrom } from "./clipboard";
+import { AccountDialog } from "./components/AccountDialog";
 import { ConnectionsDialog } from "./components/ConnectionsDialog";
 import { ExportDialog } from "./components/ExportDialog";
 import { ProjectList } from "./components/ProjectList";
@@ -52,6 +53,7 @@ export default function ImageMakerModule() {
         </div>
       )}
       <ConnectionsDialog />
+      <AccountDialog />
       <ExportDialog />
       <NoticeToast />
       <AnimatePresence>

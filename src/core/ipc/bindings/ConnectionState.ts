@@ -3,4 +3,4 @@
 /**
  * État d'une connexion, tel que montré dans le gestionnaire de connexions.
  */
-export type ConnectionState = "connected" | "disconnected" | "error" | "authRequired" | "apiKeyMissing" | "modelUnavailable";
+export type ConnectionState = "connected" | "disconnected" | "error" | "authRequired" | "apiKeyMissing" | "modelUnavailable" | "cliMissing";

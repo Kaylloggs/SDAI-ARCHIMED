@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { ImageIcon, ImagePlus, Images, PlugZap, Plus, Trash2 } from "lucide-react";
+import { ImageIcon, ImagePlus, Images, PlugZap, Plus, Trash2, UserRound } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Button, EmptyState, SectionHeader } from "@/design-system/primitives";
 import type { ImageProjectSummary } from "@/core/ipc/bindings/ImageProjectSummary";
 import { usable } from "../lib/capabilities";
-import { PROVIDER_NAMES, PROVIDERS, STATE_LABELS, ago } from "../lib/format";
+import { PROVIDER_NAMES, PROVIDERS, ago, stateLook } from "../lib/format";
 import { useImageMaker } from "../store";
 import { StateDot } from "./ModelPicker";
 import { checker, focusRing } from "./ui";
@@ -81,6 +81,9 @@ export function ProjectList() {
         description="Créer, retoucher et agrandir des images avec l'IA, sans jamais perdre l'original."
         actions={
           <>
+            <Button icon={<UserRound size={14} />} onClick={() => set({ dialog: "account" })}>
+              Avec votre compte
+            </Button>
             <Button icon={<Images size={14} />} onClick={() => void pickImages()}>
               Importer
             </Button>
@@ -104,11 +107,11 @@ export function ProjectList() {
           <span key={p} className="flex items-center gap-1.5 text-footnote text-text-muted">
             <StateDot provider={p} />
             {PROVIDER_NAMES[p]}
-            <span className="text-text-subtle">{statuses[p] ? STATE_LABELS[statuses[p]!.state].label : "…"}</span>
+            <span className="text-text-subtle">{stateLook(statuses[p]).label}</span>
           </span>
         ))}
         <span className="ml-auto text-footnote font-medium text-accent">
-          {connected.length > 0 ? "Gérer les connexions" : "Ajouter une clé"}
+          {connected.length > 0 ? "Gérer les connexions" : "Ajouter une clé ou un compte"}
         </span>
       </button>
 

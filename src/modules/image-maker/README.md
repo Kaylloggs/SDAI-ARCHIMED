@@ -4,7 +4,7 @@ Studio d'images assisté par IA : créer à partir d'un texte, retoucher une zon
 
 - **Backend** : plugin `image-maker` (`src-tauri/src/modules/image_maker/`), fournisseurs d'images du core (`src-tauri/src/core/imaging/`, voir ADR 0010).
 - **Catégorie** : Création, juste après Mod Studio.
-- **Commandes** : connexions (`provider_statuses`, `set_provider_key`, `clear_provider_key`, `provider_models`, `model_pricing`, `improve_prompt`), réglages (`get_maker_settings`, `save_maker_settings`), projets (`list_image_projects`, `create_image_project`, `get_image_project`, `rename_image_project`, `delete_image_project`, `set_current_node`, `set_favorite`, `rename_node`, `set_references`, `save_ai_settings`, `delete_node`, `integration_project`), images (`import_files`, `import_data`, `apply_local`, `apply_local_batch`, `save_paint`), file IA (`submit_operation`, `list_jobs`, `cancel_job`, `retry_job`, `clear_jobs`, `wait_jobs`), sorties (`export_images`, `recent_downloads`).
+- **Commandes** : connexions (`provider_statuses`, `set_provider_key`, `clear_provider_key`, `provider_login`, `higgsfield_cli_info`, `install_higgsfield_cli`, `provider_models`, `model_pricing`, `improve_prompt`), réglages (`get_maker_settings`, `save_maker_settings`), projets (`list_image_projects`, `create_image_project`, `get_image_project`, `rename_image_project`, `delete_image_project`, `set_current_node`, `set_favorite`, `rename_node`, `set_references`, `save_ai_settings`, `delete_node`, `integration_project`), images (`import_files`, `import_data`, `apply_local`, `apply_local_batch`, `save_paint`), file IA (`submit_operation`, `list_jobs`, `cancel_job`, `retry_job`, `clear_jobs`, `wait_jobs`), sorties (`export_images`, `recent_downloads`).
 - **Événements** : `image-maker:job` (une tâche change d'état), `image-maker:project` (un projet reçoit une version).
 - **Service fourni** : `image.maker` (voir plus bas).
 - **Identifiants** : `image-maker-openrouter`, `image-maker-gemini`, `image-maker-higgsfield` (Gestionnaire d'identifiants). Une clé déjà rangée par un autre module pour le même fournisseur (ex. `mcstudio-openrouter`) est **relue sur place**, jamais copiée.
@@ -17,9 +17,12 @@ Studio d'images assisté par IA : créer à partir d'un texte, retoucher une zon
 |---|---|---|
 | OpenRouter | Images API (`/api/v1/images`) : modèles, capacités (`supported_parameters`), prix publiés (`/endpoints`), coût réel (`usage.cost`), crédit de la clé (`/key`) | site officiel, puis import |
 | Google AI Studio | `generateContent` des modèles d'image Gemini : format (`aspectRatio`), taille (`imageSize`) ; pas de coût dans la réponse | site officiel, puis import |
-| Higgsfield | `POST /{application}` puis suivi de la demande ; pas de liste de modèles ni de coût dans l'API : trois modèles des SDK officiels, les autres s'ajoutent à la main (Connexions) | site officiel, puis import |
+| Higgsfield | `POST /{application}` puis suivi de la demande ; pas de liste de modèles ni de coût dans l'API : trois modèles des SDK officiels, les autres s'ajoutent à la main (Connexions) | **dans l'application** par la CLI officielle (fournisseur « Higgsfield (compte) »), ou site officiel puis import |
 
-**Mode compte** : aucun mot de passe n'est demandé ni stocké, et rien n'automatise le site. « Ouvrir le site » ouvre la page officielle ; l'image téléchargée apparaît dans Connexions (dossier Téléchargements, vérifié toutes les 5 s) et s'importe en un clic. Glisser-déposer et Ctrl+V marchent aussi.
+**Mode compte** (bouton « Compte » en haut du studio, « Avec votre compte » sur la liste des projets) : aucun mot de passe n'est demandé ni stocké.
+
+- **Higgsfield (compte)** : génère dans l'application avec l'abonnement et les crédits de la personne, par la CLI officielle [`@higgsfield/cli`](https://github.com/higgsfield-ai/cli). Installation une seule fois, après confirmation explicite (`npm install -g @higgsfield/cli` ; le paquet télécharge le binaire `hf` des versions GitHub de Higgsfield et vérifie son SHA-256). « Se connecter » lance `higgsfield auth login` : OAuth dans le navigateur, la session reste gérée par la CLI (jamais par ARCHIMED). Modèles : les 21 modèles d'image documentés par la CLI (`MODELS.md` : formats, résolutions, qualités, images d'entrée, fond transparent), croisés avec `model list --image --json` quand la session est ouverte. Crédits : `account status --json`. Génération : `generate create <modèle> … --wait --json`. « Se déconnecter » lance `auth logout`.
+- **Sites officiels** (Google AI Studio, OpenRouter, Higgsfield) : rien n'automatise le site. Copier la demande (et l'image si besoin), ouvrir le site, créer avec son compte, télécharger : l'image apparaît dans la fenêtre (dossier Téléchargements, vérifié toutes les 5 s) et s'importe en un clic, en nouvelle version de l'image affichée ou en nouvelle image, avec le site d'origine dans son nom. Glisser-déposer et Ctrl+V marchent aussi.
 
 **Capacités** : lues dans la liste du fournisseur, ou tirées de sa documentation / de son SDK officiel quand l'API ne les donne pas (indiqué dans le sélecteur). Une option que le modèle n'accepte pas n'est ni proposée ni envoyée. Aucun modèle n'est présenté comme « meilleur ».
 
@@ -46,7 +49,7 @@ Seulement ce que le fournisseur publie ou renvoie : prix des modèles OpenRouter
 Pour les autres modules (couplage faible : gérer l'absence du service si Image Maker est désactivé ou supprimé).
 
 ```ts
-type ImageOptions = { provider?: "openrouter" | "gemini" | "higgsfield"; model?: string; aspectRatio?: string; count?: number; references?: string[] };
+type ImageOptions = { provider?: "openrouter" | "gemini" | "higgsfield" | "higgsfieldAccount"; model?: string; aspectRatio?: string; count?: number; references?: string[] };
 type ImageResult = { files: string[]; projectId: string; provider: string | null; model: string | null; errors: string[] };
 
 type ImageMakerService = {

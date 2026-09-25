@@ -57,9 +57,14 @@ de développement ; les SDK officiels l'étaient) :
    modèle produit à la fois), limite de tâches simultanées par fournisseur, annulation (Higgsfield
    annule aussi chez lui), relance avec la même source et la même consigne, nature de l'échec
    (clé, crédit, modération, modèle, réseau) pour proposer la bonne correction.
-7. **Mode compte sans automatisation** : ouvrir le site officiel, puis importer l'image
+7. **Mode compte sans automatisation de site** : ouvrir le site officiel, puis importer l'image
    téléchargée (dossier Téléchargements), glissée ou collée. Aucun identifiant de compte ne passe
-   par l'application.
+   par l'application. Exception outillée par l'éditeur lui-même : **Higgsfield (compte)** passe
+   par sa CLI officielle `@higgsfield/cli` (installée seulement après confirmation, par npm ; le
+   paquet vérifie le SHA-256 du binaire `hf`). `auth login` fait l'OAuth dans le navigateur et la
+   CLI garde la session : ARCHIMED ne voit ni mot de passe ni jeton. Les 21 modèles d'image
+   viennent de la documentation de la CLI (`MODELS.md`), croisés avec `model list --image --json`.
+   `ImageProvider` gagne `login()` et `ProviderStatus.access` (`key` ou `account`).
 8. **Coûts** : seulement ce que le fournisseur publie ou renvoie ; sinon « Coût non communiqué ».
 9. **Mode Auto** : choix déterministe par capacités, en gardant le modèle de la personne s'il
    convient, expliqué avant l'envoi. Aucun classement de qualité.

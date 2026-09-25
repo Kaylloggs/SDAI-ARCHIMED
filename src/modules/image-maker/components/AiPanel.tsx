@@ -29,6 +29,7 @@ import { PROVIDER_NAMES, priceText, usageText } from "../lib/format";
 import { STRUCTURE, parseStructure } from "../lib/prompt";
 import { RATIOS, extendToRatio, parseRatio, type Anchor } from "../lib/ratio";
 import { currentNode, findModel, resolveModel, useImageMaker, type EditTask } from "../store";
+import { AccountLink } from "./AccountDialog";
 import { ImagePanel } from "./ImagePanel";
 import { Chip, Label, NumberField, Segmented, Switch, focusRing, inputClass, textareaClass } from "./ui";
 
@@ -723,6 +724,7 @@ function PanelFooter({ kind }: { kind: "create" | "edit" }) {
         </p>
       )}
       {shownProblem && <p className="text-footnote text-text-muted">{shownProblem}</p>}
+      {"error" in resolved && <AccountLink />}
       <Button
         variant="primary"
         size="lg"

@@ -5,14 +5,19 @@ import type { ImageNodeKind } from "@/core/ipc/bindings/ImageNodeKind";
 import type { ImageUsage } from "@/core/ipc/bindings/ImageUsage";
 import type { PriceLine } from "@/core/ipc/bindings/PriceLine";
 import type { ProviderId } from "@/core/ipc/bindings/ProviderId";
+import type { ProviderStatus } from "@/core/ipc/bindings/ProviderStatus";
 
-export const PROVIDERS: ProviderId[] = ["openrouter", "gemini", "higgsfield"];
+export const PROVIDERS: ProviderId[] = ["openrouter", "gemini", "higgsfield", "higgsfieldAccount"];
 
 export const PROVIDER_NAMES: Record<ProviderId, string> = {
   openrouter: "OpenRouter",
   gemini: "Google AI Studio",
   higgsfield: "Higgsfield",
+  higgsfieldAccount: "Higgsfield (compte)",
 };
+
+/** Fournisseurs dont le site officiel permet de créer avec son compte, puis d'importer. */
+export const SITE_PROVIDERS: ProviderId[] = ["gemini", "openrouter", "higgsfield"];
 
 /**
  * Sites officiels, pour le mode compte : on y crée avec son abonnement, puis on importe le
@@ -22,6 +27,7 @@ export const PROVIDER_SITES: Record<ProviderId, { url: string; label: string }> 
   openrouter: { url: "https://openrouter.ai/chat", label: "openrouter.ai" },
   gemini: { url: "https://aistudio.google.com/", label: "aistudio.google.com" },
   higgsfield: { url: "https://higgsfield.ai/", label: "higgsfield.ai" },
+  higgsfieldAccount: { url: "https://higgsfield.ai/", label: "higgsfield.ai" },
 };
 
 export type Tone = "success" | "info" | "warning" | "danger" | "neutral";
@@ -33,7 +39,20 @@ export const STATE_LABELS: Record<ConnectionState, { label: string; tone: Tone }
   authRequired: { label: "Clé refusée", tone: "warning" },
   apiKeyMissing: { label: "Clé manquante", tone: "neutral" },
   modelUnavailable: { label: "Aucun modèle d'image", tone: "warning" },
+  cliMissing: { label: "Outil à installer", tone: "neutral" },
 };
+
+/** Fournisseurs sans clé : on se connecte avec son compte, dans le navigateur. */
+const ACCOUNT_LABELS: Partial<Record<ConnectionState, { label: string; tone: Tone }>> = {
+  authRequired: { label: "À connecter", tone: "warning" },
+  disconnected: { label: "Non vérifié", tone: "info" },
+};
+
+/** Libellé de l'état, selon qu'on se connecte par clé ou par compte. */
+export function stateLook(status: ProviderStatus | undefined): { label: string; tone: Tone } {
+  if (!status) return { label: "Lecture…", tone: "neutral" };
+  return (status.access === "account" && ACCOUNT_LABELS[status.state]) || STATE_LABELS[status.state];
+}
 
 export const JOB_LABELS: Record<ImageJobStatus, { label: string; tone: Tone }> = {
   waiting: { label: "En attente", tone: "neutral" },

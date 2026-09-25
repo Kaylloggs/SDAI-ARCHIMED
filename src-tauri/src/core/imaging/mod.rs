@@ -7,6 +7,7 @@
 
 pub mod gemini;
 pub mod higgsfield;
+pub mod higgsfield_cli;
 pub mod http;
 pub mod keys;
 pub mod openrouter;
@@ -70,6 +71,11 @@ pub trait ImageProvider: Send + Sync {
     /// Vérifie la clé auprès du fournisseur, puis la range. Une clé refusée n'est pas gardée.
     async fn set_key(&self, key: &str) -> AppResult<ProviderStatus>;
     fn clear_key(&self) -> AppResult<()>;
+    /// Connexion au compte (fournisseurs `ProviderAccess::Account`) : le navigateur s'ouvre sur
+    /// la page officielle du fournisseur ; aucun mot de passe ne passe par l'application.
+    async fn login(&self) -> AppResult<ProviderStatus> {
+        Err(AppError::invalid("Ce fournisseur se connecte avec une clé d'API."))
+    }
     async fn models(&self) -> AppResult<ModelList>;
     /// Prix d'un modèle quand le fournisseur les publie.
     async fn pricing(&self, _model: &str) -> AppResult<Vec<PriceLine>> {
@@ -140,8 +146,12 @@ impl Imaging {
             KeyRing::for_module(owner, ProviderId::Higgsfield),
             reqwest::Client::builder(),
         ));
+        let account = Arc::new(higgsfield_cli::HiggsfieldCli::new(
+            module_dir.join("cache").join("higgsfield-cli"),
+            reqwest::Client::builder(),
+        ));
         Self {
-            providers: vec![openrouter, gemini, higgsfield.clone()],
+            providers: vec![openrouter, gemini, higgsfield.clone(), account],
             higgsfield,
         }
     }

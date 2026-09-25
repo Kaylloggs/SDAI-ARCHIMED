@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 use serde_json::{json, Value};
 
 use crate::core::error::AppErrorCode;
+use crate::core::imaging::higgsfield_cli;
 use crate::core::imaging::http::MAX_IMAGE_BYTES;
 use crate::core::imaging::{
     is_cancelled, wait_or_cancel, Cancel, CapabilitySource, ImageRequest, ImageUsage, Imaging, InputImage,
@@ -22,7 +23,7 @@ use super::local;
 use super::pipeline::{self, Finish, Inputs};
 use super::store::{now, NewNode, Store};
 use super::types::{
-    AiOperation, AiSettings, BatchOutcome, DownloadedImage, ExportRequest, ExportResult, FailureKind,
+    AiOperation, AiSettings, BatchOutcome, CliInfo, DownloadedImage, ExportRequest, ExportResult, FailureKind,
     ImageMakerSettings, Job, JobStatus, LocalOperation, NodeKind, Project, ProjectSummary,
 };
 
@@ -189,6 +190,29 @@ impl ImageMaker {
         Ok(handle.status(false).await)
     }
 
+    /// Connexion au compte d'un fournisseur (navigateur de la personne, page officielle).
+    pub async fn login(&self, provider: ProviderId) -> AppResult<ProviderStatus> {
+        let status = self.imaging.provider(provider)?.login().await?;
+        self.models.lock().await.remove(&provider);
+        Ok(status)
+    }
+
+    pub fn cli_info(&self) -> CliInfo {
+        CliInfo {
+            installed: higgsfield_cli::find_binary().is_some(),
+            npm: higgsfield_cli::npm_available(),
+            package: higgsfield_cli::NPM_PACKAGE.into(),
+            page: higgsfield_cli::CLI_PAGE.into(),
+        }
+    }
+
+    /// Installe la CLI officielle Higgsfield ; appelé seulement après confirmation explicite.
+    pub async fn install_cli(&self) -> AppResult<String> {
+        let output = higgsfield_cli::install().await?;
+        self.models.lock().await.remove(&ProviderId::HiggsfieldAccount);
+        Ok(output)
+    }
+
     pub async fn models(&self, provider: ProviderId, refresh: bool) -> AppResult<ModelList> {
         if !refresh {
             if let Some((at, list)) = self.models.lock().await.get(&provider) {
@@ -288,7 +312,15 @@ impl ImageMaker {
     // ── Import ──────────────────────────────────────────────────────────────────────────
 
     /// Ajoute des fichiers image au projet (glisser-déposer, sélecteur, Téléchargements).
-    pub async fn import_files(self: &Arc<Self>, project_id: String, paths: Vec<String>) -> AppResult<BatchOutcome> {
+    /// `parent` : version dont l'image est le résultat (création sur le site d'un fournisseur à
+    /// partir de l'image affichée) ; `source` : d'où elle vient (« aistudio.google.com »…).
+    pub async fn import_files(
+        self: &Arc<Self>,
+        project_id: String,
+        paths: Vec<String>,
+        parent: Option<String>,
+        source: Option<String>,
+    ) -> AppResult<BatchOutcome> {
         if paths.is_empty() {
             return Err(AppError::invalid("Aucun fichier à importer."));
         }
@@ -297,13 +329,17 @@ impl ImageMaker {
                 let mut outcome = BatchOutcome::default();
                 for path in paths {
                     let name = file_label(&path);
+                    let label = match &source {
+                        Some(site) => format!("Depuis {site}"),
+                        None => name.clone(),
+                    };
                     let added = read_image_file(Path::new(&path)).and_then(|bytes| {
                         s.store.add_node(
                             &project_id,
                             &bytes,
                             NewNode {
-                                parent: None,
-                                ..NewNode::local("", NodeKind::Import, name.clone(), json!({ "file": name }))
+                                parent: parent.clone(),
+                                ..NewNode::local("", NodeKind::Import, label, json!({ "file": name, "source": source }))
                             },
                         )
                     });
@@ -782,7 +818,7 @@ fn failure_kind(error: &AppError) -> FailureKind {
         FailureKind::Credit
     } else if has(&["modération", "filtre de sécurité"]) {
         FailureKind::Moderation
-    } else if has(&["clé", "identifiant"]) {
+    } else if has(&["clé", "identifiant", "session", "se connecter"]) {
         FailureKind::Key
     } else if has(&["modèle introuvable", "n'est pas proposé", "application higgsfield", "ne reçoit pas d'image", "arguments refusés"]) {
         FailureKind::Model
@@ -935,7 +971,7 @@ mod tests {
     use super::*;
     use crate::core::imaging::http::data_url;
     use crate::core::imaging::{
-        ConnectionState, GeneratedImage, ImageProvider, ImageResponse, ModelCapabilities,
+        ConnectionState, GeneratedImage, ImageProvider, ImageResponse, ModelCapabilities, ProviderAccess,
     };
     use crate::modules::image_maker::types::InpaintMode;
     use image::{GrayImage, Luma, Rgba, RgbaImage};
@@ -955,6 +991,7 @@ mod tests {
         async fn status(&self, _check: bool) -> ProviderStatus {
             ProviderStatus {
                 provider: ProviderId::Gemini,
+                access: ProviderAccess::Key,
                 name: "Faux".into(),
                 state: ConnectionState::Connected,
                 key_source: None,

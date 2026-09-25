@@ -157,7 +157,8 @@ SDAI ARCHIMED/
         │                                # · mcp.rs (serveurs MCP déclarés par les modules)
         │                                # · audit.rs (audit.jsonl) · usage.rs (registre de consommation) · mod.rs
         │                                # · imaging/ (fournisseurs d'images partagés, ADR 0010 : trait ImageProvider,
-        │                                #   openrouter · gemini · higgsfield · keys (relecture entre modules) · http)
+        │                                #   openrouter · gemini · higgsfield · higgsfield_cli (compte, CLI officielle)
+        │                                #   · keys (relecture entre modules) · http)
         ├── engine/
         │   ├── mod.rs · commands.rs     # engine_* exposées au frontend
         │   ├── manager.rs · session.rs  # SessionManager, boucle de session tokio

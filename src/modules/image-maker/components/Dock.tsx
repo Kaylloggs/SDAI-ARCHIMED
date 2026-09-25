@@ -423,7 +423,7 @@ function Queue({ jobs }: { jobs: ImageJob[] }) {
                   variant="ghost"
                   icon={<fix.Icon size={14} />}
                   onClick={() => {
-                    if (job.failure === "key") s.set({ dialog: "connections" });
+                    if (job.failure === "key") s.set({ dialog: job.provider === "higgsfieldAccount" ? "account" : "connections" });
                     else if (job.failure === "credit") void openUrl(PROVIDER_SITES[job.provider].url);
                     else s.restoreJob(job);
                   }}

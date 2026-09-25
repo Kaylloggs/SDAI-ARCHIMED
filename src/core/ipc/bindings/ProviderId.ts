@@ -4,4 +4,4 @@
  * Fournisseurs d'images branchés par API. En ajouter un : une variante ici, un fichier
  * dans `providers/`, une ligne dans `Imaging::new`.
  */
-export type ProviderId = "openrouter" | "gemini" | "higgsfield";
+export type ProviderId = "openrouter" | "gemini" | "higgsfield" | "higgsfieldAccount";
