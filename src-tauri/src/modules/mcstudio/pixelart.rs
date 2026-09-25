@@ -429,7 +429,7 @@ fn border(raster: &Raster) -> Vec<(u32, u32)> {
 fn background_colors(raster: &Raster, edge: &[(u32, u32)]) -> Vec<[u8; 4]> {
     let histogram = Histogram::of(edge.iter().map(|&(x, y)| raster.at(x, y)));
     let mut buckets: Vec<&(u32, [u32; 3])> = histogram.buckets.values().collect();
-    buckets.sort_by(|a, b| b.0.cmp(&a.0));
+    buckets.sort_by_key(|bucket| std::cmp::Reverse(bucket.0));
     let seeds: Vec<[u8; 4]> = buckets
         .into_iter()
         .take(4)
