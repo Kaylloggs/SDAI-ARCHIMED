@@ -4,6 +4,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.4.0] - 2026-09-25
+
 ### Modifié — Publication des versions
 - Chaque tag `vX.Y.Z` lance la compilation Windows sur GitHub Actions (vérifications, tests,
   installeur, exe portable) et publie la release avec ses deux fichiers.
