@@ -4,6 +4,31 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.5.0] - 2026-09-25
+
+### Ajouté — Module Tutoriel
+- **Tutoriel**, dans le menu juste au-dessus de Réglages : « Premiers pas » (le tour de
+  l'application en huit étapes), un tutoriel pour chaque module, et « Créer un module » (du code
+  source à votre propre version de l'application, commandes à copier).
+- Chaque étape se voit sur une **miniature de la fenêtre** où la zone à regarder s'allume ; le
+  repère glisse d'une zone à l'autre en changeant d'étape. Clavier `←` `→` pour les étapes, `↑`
+  `↓` pour les tutoriels, recherche sans accents, progression gardée, écran de fin avec astuces et
+  tutoriel suivant.
+- Bouton **?** à côté du nom du module, dans la barre de titre : ouvre son tutoriel (« Premiers
+  pas » sur l'accueil).
+- Tout module déclare son tutoriel (`tutorial.ts`, `defineTutorial`) : `pnpm check` refuse un
+  module qui n'en a pas, et le modèle de `pnpm new:module` en contient un. Tutoriels écrits pour
+  Chat, Code, Planner, Mémoire, Skills, Crédits, JobAgent, Mod Studio et Réglages.
+
+### Modifié
+- **Réglages → Modules** ne montre plus les modules requis (Accueil, Réglages, Tutoriel), qu'on ne
+  peut ni désactiver ni supprimer.
+- README (anglais et français) : les modules se désactivent ou se suppriment ; ajouter son
+  propre module (sources nécessaires, compilation de sa version) ; Accueil et Réglages retirés du
+  tableau des modules.
+- **Publication en un clic** : Actions → Release → Run workflow publie la version du projet et
+  crée le tag lui-même ; une version déjà publiée depuis un autre commit est refusée.
+
 ## [0.4.0] - 2026-09-25
 
 ### Modifié — Publication des versions
