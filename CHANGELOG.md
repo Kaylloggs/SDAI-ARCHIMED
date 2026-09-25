@@ -4,6 +4,17 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Atelier 3D façon Blockbench
+- **Formes** : cube, cylindre, sphère, cône, pleins ou creux, avec aperçu et poignée pour les
+  placer ; faites de cubes regroupés (le seul volume que le jeu connaît).
+- **Texture au choix** pour une nouvelle forme ou les cubes choisis : même texture que le cube de
+  départ, texture du mod ou du jeu réutilisée, nouvelle texture unie, ou nouvelle texture générée
+  par l'IA ou importée (l'atelier de texture s'ouvre sans quitter le modèle).
+- **Creuser** : une boîte retirée des cubes qu'elle traverse, textures gardées en place.
+- **Groupes** (format Blockbench), sélection multiple, poignée pour déplacer ou redimensionner.
+- **Objets en 3D** : un objet à plat passe en cubes d'un pixel d'épaisseur pour recevoir
+  d'autres formes. Les entités reçoivent formes, creusage et textures de la même façon.
+
 ### Corrigé — Mod Studio : serveur de test
 - Le jeu se lance pendant que le serveur de test tourne (« Tester en jeu », puis Multijoueur,
   `localhost`) : le serveur a son propre emplacement et son propre journal.

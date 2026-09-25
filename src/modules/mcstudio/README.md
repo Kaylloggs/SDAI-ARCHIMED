@@ -298,6 +298,28 @@ seul historique pour le modèle et les textures). Suppr, Ctrl+D (dupliquer), Ctr
 - **Armures** : couches 1 (casque, plastron, bottes) et 2 (jambières) sur le modèle d'armure du
   jeu, autour d'un mannequin ; couche manquante créée en 64 × 32.
 
+**Comme Blockbench** :
+- **Formes** (barre d'outils) : cube, cylindre, sphère, cône, pleins ou creux (épaisseur de
+  paroi), précision 2, 1 ou 0,5 px. Le jeu ne connaît que des cubes : la forme est faite de
+  cubes regroupés au plus grand (un cylindre de 8 px = 5 cubes). Aperçu translucide avant de
+  créer, la poignée place la forme. Blocs et objets : la forme entre dans un groupe ; entités :
+  dans un nouvel os, sous l'os choisi.
+- **Texture d'une forme ou des cubes choisis** : la même que le cube de départ, une texture du
+  mod réutilisée (ou du jeu, `minecraft:block/stone`), une nouvelle texture unie de la couleur du
+  pinceau (16, 32 ou 64 px), ou une nouvelle texture **générée par l'IA ou importée** : l'atelier
+  de texture s'ouvre en surcouche et rend son brouillon sans rien écrire (la texture est
+  enregistrée avec le modèle). Entités : une zone de texture propre, remplie.
+- **Creuser** (pioche) : une boîte rouge, déplaçable à la poignée, est retirée des cubes choisis
+  (ou de tout le modèle) ; les cubes traversés sont recoupés en morceaux qui gardent leur texture
+  au même endroit (entités : les morceaux reçoivent de nouvelles zones peintes d'après la peau).
+  Un cube tourné n'est pas recoupé.
+- **Groupes** (clé `groups` du JSON, format Blockbench, ignorée par le jeu), sélection multiple
+  (Maj ou Ctrl + clic), Ctrl+G grouper, Ctrl+A tout choisir, Échap.
+- **Poignée** : déplacer (V) ou redimensionner (S, le coin opposé suit la souris).
+- **Objets à plat** : « Passer en 3D » remplace `item/generated` par des cubes d'un pixel
+  d'épaisseur (réglages d'affichage en main, au sol, sur la tête gardés), prêts à recevoir
+  d'autres formes.
+
 Tout enregistrement de modèle crée d'abord un point de restauration ; une texture remplacée est
 copiée dans `.mcstudio/history/textures/`.
 
@@ -419,6 +441,9 @@ Assistant : `agent_prepare` · `agent_instructions` · `agent_changes` · `agent
   dossier inutilisable), portage (Fabric 1.20.1 → 1.21.1 → 1.21.4 : retouches gardées, données
   renommées, définitions d'objet), export ZIP (fichiers exclus, `gradlew` exécutable, secret
   signalé), CLUF du serveur (jamais accepté sans la personne).
+- `pnpm test` (atelier 3D) : formes en cubes (sans chevauchement, dans leur boîte, creuses),
+  creuser (volume exact, UV gardés, peau des entités recopiée), objets à plat en relief, groupes
+  au format Blockbench, zones de texture des nouveaux cubes d'entité.
 - `JAVA_HOME=… cargo test server_console -- --ignored --nocapture` : vrai Gradle 8.14.3 et vrai
   Java sur un faux `runServer` ; commandes reçues par la console, partie lancée pendant que le
   serveur tourne, arrêt propre sur `stop`.

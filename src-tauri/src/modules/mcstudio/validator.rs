@@ -400,6 +400,33 @@ pub fn validate(root: &Path, mod_id: &str, format: DataFormat) -> ValidationRepo
                     }
                 }
             }
+            // Le jeu refuse un modèle dont un cube sort de -16 à 32 (formes placées trop loin).
+            let outside = value["elements"]
+                .as_array()
+                .map(|elements| {
+                    elements
+                        .iter()
+                        .filter(|element| {
+                            ["from", "to"].iter().any(|key| {
+                                element[key].as_array().is_some_and(|v| {
+                                    v.iter()
+                                        .filter_map(Value::as_f64)
+                                        .any(|c| !(-16.0..=32.0).contains(&c))
+                                })
+                            })
+                        })
+                        .count()
+                })
+                .unwrap_or(0);
+            if outside > 0 {
+                checker.push(issue(
+                    Severity::Error,
+                    file,
+                    None,
+                    format!("{outside} cube(s) hors des limites du jeu (-16 à 32) : le modèle ne se chargera pas."),
+                    Some("Rapprochez ou réduisez ces cubes dans l'atelier 3D (onglet Modèles 3D)."),
+                ));
+            }
             if let Some(parent) = value["parent"].as_str() {
                 if let Some(path) = checker.own(parent) {
                     let model = asset(&format!("models/{path}.json"));
@@ -642,6 +669,11 @@ mod tests {
         put(&root, "assets/dm/textures/block/ore.png", &png(20));
         put(
             &root,
+            "assets/dm/models/block/tower.json",
+            br#"{"groups":[{"name":"g","origin":[8,8,8],"children":[0,1]}],"elements":[{"from":[0,0,0],"to":[16,16,16],"faces":{}},{"from":[4,16,4],"to":[12,40,12],"faces":{}}]}"#,
+        );
+        put(
+            &root,
             "assets/dm/blockstates/ore.json",
             br#"{"variants":{"":{"model":"dm:block/ore"}}}"#,
         );
@@ -674,6 +706,12 @@ mod tests {
             found
                 .iter()
                 .any(|m| m.starts_with("gone.json | Modèle « dm:block/gone » introuvable")),
+            "{found:?}"
+        );
+        assert!(
+            found
+                .iter()
+                .any(|m| m.starts_with("tower.json | 1 cube(s) hors des limites du jeu")),
             "{found:?}"
         );
         assert!(

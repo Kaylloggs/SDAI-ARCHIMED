@@ -194,3 +194,27 @@ export function fillRect(pixels: Pixels, x: number, y: number, w: number, h: num
     }
   }
 }
+
+/** Image unie d'une couleur. */
+export function solidPixels(width: number, height: number, color: Rgba): Pixels {
+  const out = blankPixels(width, height);
+  fillRect(out, 0, 0, width, height, color);
+  return out;
+}
+
+/** Recopie `source` étirée (au plus proche) dans le rectangle `x, y, w, h` de `target`. */
+export function drawScaled(target: Pixels, source: Pixels, x: number, y: number, w: number, h: number) {
+  const x0 = Math.max(0, Math.floor(x));
+  const y0 = Math.max(0, Math.floor(y));
+  const width = Math.ceil(x + w) - Math.floor(x);
+  const height = Math.ceil(y + h) - Math.floor(y);
+  if (width <= 0 || height <= 0 || source.width === 0 || source.height === 0) return;
+  for (let py = y0; py < Math.min(target.height, Math.floor(y) + height); py += 1) {
+    const sy = Math.min(source.height - 1, Math.floor(((py - Math.floor(y) + 0.5) / height) * source.height));
+    for (let px = x0; px < Math.min(target.width, Math.floor(x) + width); px += 1) {
+      const sx = Math.min(source.width - 1, Math.floor(((px - Math.floor(x) + 0.5) / width) * source.width));
+      const from = (sy * source.width + sx) * 4;
+      target.data.set(source.data.subarray(from, from + 4), (py * target.width + px) * 4);
+    }
+  }
+}

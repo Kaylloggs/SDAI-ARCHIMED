@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Bone, Box, Code2, Copy, Grid2x2, LayoutGrid, Plus, Trash2 } from "lucide-react";
+import { Bone, Box, Code2, Cone, Copy, Cylinder, Globe, Grid2x2, LayoutGrid, Move3d, Palette, Pickaxe, Plus, Scale3d, Trash2 } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Button, Select } from "@/design-system/primitives";
 import type { EntityCube } from "@/core/ipc/bindings/EntityCube";
@@ -13,22 +13,60 @@ import {
   boneMatrices,
   boxUvBounds,
   boxUvRects,
-  boxUvSize,
   cubeOwner,
   ENTITY_ROOT,
   entityParts,
-  freeUvSpot,
   packBoxUv,
 } from "../../../lib/models/geometry";
-import { cloneModel, type FaceName } from "../../../lib/models/types";
-import { blankPixels, fillRect, resizePixels, shade, type Pixels } from "../../../lib/pixels";
+import {
+  allocateBoxUv,
+  boundsOf,
+  carveCube,
+  copyCubeTexture,
+  cubeBox,
+  SHAPE_LABEL,
+  shapeBounds,
+  shapeBoxes,
+  subtractBox,
+  type Aabb,
+  type ShapeKind,
+} from "../../../lib/models/shapes";
+import { cloneModel, type FaceName, type Vec3 } from "../../../lib/models/types";
+import { blankPixels, clonePixels, drawScaled, fillRect, resizePixels, shade, type Pixels, type Rgba } from "../../../lib/pixels";
 import { focusRing, inputClass, Switch } from "../../ui";
 import { IconButton, NumberInput, PanelSection, StudioHeader, StudioToolbar, Vec3Input } from "./controls";
+import { TextureChoice, texturePixelsOf, useModTextures, useTextureAtelier, type TextureSource } from "./TextureChoice";
+import { CarvePanel, defaultParams, ShapePanel, type ShapeDraft } from "./tools";
 import { useStudio } from "./useStudio";
 import { UvView, type UvRect } from "./UvView";
 import { Viewport } from "./Viewport";
 
 type Selection = { kind: "bone"; bone: string } | { kind: "cube"; bone: string; index: number } | null;
+
+/** Outil en cours : forme à créer (dans un nouvel os), zone à creuser, texture des cubes choisis. */
+type Tool =
+  | { kind: "shape"; draft: ShapeDraft; parent: string | null }
+  | { kind: "carve"; hole: Aabb; bone: string; cubes: number[] }
+  | { kind: "texture"; source: TextureSource }
+  | null;
+type Transform = "move" | "resize";
+/** Remplissage de la zone de texture d'un cube. */
+type Fill = { kind: "color"; color: Rgba } | { kind: "image"; image: Pixels };
+
+const SHAPE_NAME: Record<ShapeKind, string> = { cube: "cube", cylinder: "cylindre", sphere: "sphere", cone: "cone" };
+const SHAPE_ICON: Record<ShapeKind, typeof Box> = { cube: Box, cylinder: Cylinder, sphere: Globe, cone: Cone };
+const round = (v: number) => Math.round(v * 1000) / 1000;
+const snap = (v: number) => Math.round(v * 2) / 2;
+const sizeOf = (box: Aabb) => box.to.map((v, i) => round(v - box.from[i]!)) as Vec3;
+
+/**
+ * Formes vues comme dans l'éditeur de blocs : l'espace des entités a Y vers le bas et Z vers
+ * l'arrière, une pointe « +Y » monte donc à l'écran.
+ */
+const toEntitySpace = (box: Aabb): Aabb => ({
+  from: [box.from[0], round(-box.to[1]), round(-box.to[2])],
+  to: [box.to[0], round(-box.from[1]), round(-box.from[2])],
+});
 
 /** Os dans l'ordre de l'arbre (parent puis enfants), avec leur profondeur. */
 function tree(model: EntityModel): { name: string; depth: number }[] {
@@ -77,10 +115,16 @@ export function EntityEditor({
   const [notice, setNotice] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const [tool, setTool] = useState<Tool>(null);
+  const [transform, setTransform] = useState<Transform>("move");
+  const [busy, setBusy] = useState(false);
+  const modTextures = useModTextures(project.id);
+  const atelier = useTextureAtelier(project, modTextures);
 
   useEffect(() => {
     let cancelled = false;
     setSelection(null);
+    setTool(null);
     setCode(null);
     mcstudioApi
       .readEntityModel(project.id, info.id)
@@ -118,34 +162,77 @@ export function EntityEditor({
     );
   }, [model]);
 
-  // Poignée de déplacement : le coin d'un cube (dans son os) ou le pivot d'un os (dans son parent).
+  // ── Aperçu de la forme, zone à creuser ──────────────────────────────────
+
   const matrices = useMemo(() => (model ? boneMatrices(model) : new Map()), [model]);
+  const preview = useMemo(() => {
+    if (!model || tool?.kind !== "shape") return [];
+    const boxes = shapeBoxes(tool.draft.params).map(toEntitySpace);
+    const ghost: EntityModel = {
+      ...model,
+      bones: [
+        ...model.bones,
+        { name: "__apercu", parent: tool.parent, pivot: tool.draft.center, rotation: [0, 0, 0], cubes: boxes.map((b) => makeCube(b.from, sizeOf(b), [0, 0])) },
+      ],
+    };
+    return entityParts(ghost, null).filter((part) => part.owner.startsWith("c:__apercu:"));
+  }, [model, tool]);
+  const carveBone = tool?.kind === "carve" ? model?.bones.find((b) => b.name === tool.bone) : undefined;
+  const boxes = useMemo(
+    () => (tool?.kind === "carve" ? [{ ...tool.hole, parent: matrices.get(tool.bone), tone: "danger" as const }] : []),
+    [tool, matrices],
+  );
+  const touched =
+    tool?.kind === "carve" && carveBone ? tool.cubes.filter((i) => carveBone.cubes[i] && subtractBox(cubeBox(carveBone.cubes[i]!), tool.hole)).length : 0;
+
+  // Poignée : la forme, la zone à creuser, le coin (ou la taille) d'un cube, le pivot d'un os.
   const gizmo = useMemo(() => {
-    if (!model || !selection) return null;
+    if (!model) return null;
+    if (tool?.kind === "shape") return { parent: (tool.parent && matrices.get(tool.parent)) || ENTITY_ROOT, position: tool.draft.center };
+    if (tool?.kind === "carve") {
+      const parent = matrices.get(tool.bone);
+      return parent ? { parent, position: tool.hole.from.map((v, i) => (v + tool.hole.to[i]!) / 2) as Vec3 } : null;
+    }
+    if (!selection) return null;
     const target = model.bones.find((b) => b.name === selection.bone);
     if (!target) return null;
     if (selection.kind === "cube") {
       const c = target.cubes[selection.index];
       const parent = matrices.get(target.name);
       if (!c || !parent) return null;
-      return { parent, position: c.origin.map((v, i) => v + c.size[i]! / 2) as [number, number, number] };
+      if (transform === "resize") return { parent, position: c.origin.map((v, i) => v + c.size[i]!) as Vec3 };
+      return { parent, position: c.origin.map((v, i) => v + c.size[i]! / 2) as Vec3 };
     }
+    if (transform === "resize") return null;
     const parent = (target.parent && matrices.get(target.parent)) || ENTITY_ROOT;
     return { parent, position: target.pivot };
-  }, [model, selection, matrices]);
-  const dragBase = useRef<EntityModel | null>(null);
+  }, [model, selection, matrices, tool, transform]);
+  const dragBase = useRef<{ model?: EntityModel; center?: Vec3; hole?: Aabb } | null>(null);
   const move = (delta: [number, number, number], done: boolean) => {
+    const shifted = (base: Vec3) => base.map((v, i) => round(v + delta[i]!)) as Vec3;
+    if (tool?.kind === "shape") {
+      const base = dragBase.current?.center ?? tool.draft.center;
+      dragBase.current = done ? null : { center: base };
+      setTool({ ...tool, draft: { ...tool.draft, center: shifted(base) } });
+      return;
+    }
+    if (tool?.kind === "carve") {
+      const base = dragBase.current?.hole ?? tool.hole;
+      dragBase.current = done ? null : { hole: base };
+      setTool({ ...tool, hole: { from: shifted(base.from), to: shifted(base.to) } });
+      return;
+    }
     if (!model || !selection) return;
-    const base = dragBase.current ?? model;
-    dragBase.current = base;
+    const base = dragBase.current?.model ?? model;
+    dragBase.current = { model: base };
     const next = cloneModel(base);
     const target = next.bones.find((b) => b.name === selection.bone);
-    const round = (v: number) => Math.round(v * 1000) / 1000;
     if (target && selection.kind === "cube") {
       const c = target.cubes[selection.index];
-      if (c) c.origin = c.origin.map((v, i) => round(v + delta[i]!)) as [number, number, number];
+      if (c && transform === "resize") c.size = c.size.map((v, i) => Math.max(0, round(v + delta[i]!))) as Vec3;
+      else if (c) c.origin = shifted(c.origin);
     } else if (target) {
-      target.pivot = target.pivot.map((v, i) => round(v + delta[i]!)) as [number, number, number];
+      target.pivot = shifted(target.pivot);
     }
     if (done) {
       if (delta.some((d) => d !== 0)) studio.changeFrom(base, next);
@@ -180,21 +267,157 @@ export function EntityEditor({
       setSelection({ kind: "bone", bone: name });
     });
 
-  const addCube = () =>
-    edit((draft) => {
-      let target = draft.bones.find((b) => b.name === selection?.bone);
-      if (!target) {
-        const name = freeBoneName(draft);
-        target = { name, parent: null, pivot: [0, 24, 0], rotation: [0, 0, 0], cubes: [] };
-        draft.bones.push(target);
-      }
-      const size: [number, number, number] = [4, 4, 4];
-      const taken = draft.bones.flatMap((b) => b.cubes.map(boxUvBounds));
-      const [w, h] = boxUvSize(size);
-      const uv = freeUvSpot(taken, w, h, { width: draft.textureWidth, height: draft.textureHeight }) ?? [0, 0];
-      target.cubes.push(makeCube([-2, -4, -2], size, uv));
-      setSelection({ kind: "cube", bone: target.name, index: target.cubes.length - 1 });
+  /** Cube dont on reprend la zone de texture : celui choisi, ou le premier de l'os choisi. */
+  const sourceCube = bone ? (cube ?? bone.cubes[0]) : undefined;
+
+  /** Image de travail à la taille du modèle (`width` × `height`). */
+  const canvas = (width: number, height: number): Pixels => {
+    const base = pixels ?? blankPixels(model?.textureWidth ?? width, model?.textureHeight ?? height);
+    return base.width === width && base.height === height ? clonePixels(base) : resizePixels(base, width, height);
+  };
+
+  const paintCube = (out: Pixels, target: EntityCube, fill: Fill) => {
+    for (const [face, [x, y, w, h]] of Object.entries(boxUvRects(target)) as [FaceName, [number, number, number, number]][]) {
+      if (fill.kind === "color") fillRect(out, x, y, w, h, shade(fill.color, TEMPLATE_SHADE[face]));
+      else drawScaled(out, fill.image, x, y, w, h);
+    }
+  };
+
+  /** Texture choisie → remplissage (ou « même zone ») ; `null` : annulé. */
+  const fillFor = async (source: TextureSource, label: string): Promise<Fill | "same" | null> => {
+    if (source.kind === "same") return "same";
+    if (source.kind === "color") return { kind: "color", color: studio.color };
+    if (source.kind === "existing") return source.file ? { kind: "image", image: await texturePixelsOf(project.id, source.file) } : null;
+    const name = `${model?.name ?? "entite"}_${label}`.toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 48);
+    const image = await atelier.pick(name || "entite", label);
+    return image ? { kind: "image", image } : null;
+  };
+
+  const openShape = (kind: ShapeKind) => {
+    if (!model) return;
+    const params = defaultParams(kind);
+    const height = shapeBounds(params)[1];
+    const parent = bone?.name ?? null;
+    const area = bone ? boundsOf(bone.cubes.map(cubeBox)) : null;
+    const center: Vec3 = area
+      ? [snap((area.from[0] + area.to[0]) / 2), round(area.from[1] - height / 2), snap((area.from[2] + area.to[2]) / 2)]
+      : parent
+        ? [0, round(-height / 2), 0]
+        : [0, round(24 - height / 2), 0];
+    setTool({ kind: "shape", parent, draft: { params, center, source: sourceCube ? { kind: "same" } : { kind: "color", size: 16 } } });
+    studio.setMode("select");
+  };
+
+  const createShape = async () => {
+    if (!model || tool?.kind !== "shape") return;
+    const { draft: shape, parent } = tool;
+    let fill: Fill | "same" | null = null;
+    setBusy(true);
+    try {
+      fill = await fillFor(shape.source, SHAPE_NAME[shape.params.kind]);
+    } catch (e) {
+      studio.setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+    if (!fill) return;
+    const boxes = shapeBoxes(shape.params).map(toEntitySpace);
+    const sizes = boxes.map(sizeOf);
+    const next = cloneModel(model);
+    const name = freeBoneName(next, SHAPE_NAME[shape.params.kind]);
+    let uvs: [number, number][];
+    if (fill === "same") {
+      uvs = sizes.map(() => (sourceCube ? [sourceCube.uv[0], sourceCube.uv[1]] : [0, 0]));
+    } else {
+      const placed = allocateBoxUv(next.bones.flatMap((b) => b.cubes.map(boxUvBounds)), sizes, { width: next.textureWidth, height: next.textureHeight });
+      uvs = placed.uvs;
+      next.textureWidth = placed.width;
+      next.textureHeight = placed.height;
+    }
+    const cubes = boxes.map((b, i) => makeCube(b.from, sizes[i]!, uvs[i]!));
+    next.bones.push({ name, parent, pivot: shape.center, rotation: [0, 0, 0], cubes });
+    studio.change(next);
+    if (fill !== "same") {
+      const out = canvas(next.textureWidth, next.textureHeight);
+      for (const c of cubes) paintCube(out, c, fill);
+      studio.putTexture(texturePath, out);
+    }
+    setSelection({ kind: "bone", bone: name });
+    setTool(null);
+    setNotice(null);
+  };
+
+  const openCarve = () => {
+    if (!model || !bone) return;
+    const cubes = selection?.kind === "cube" ? [selection.index] : bone.cubes.map((_, i) => i);
+    const area = boundsOf(cubes.map((i) => cubeBox(bone.cubes[i]!)));
+    if (!area) return;
+    // Un trou ouvert sur le dessus (Y vers le bas : le dessus est le plus petit Y).
+    const center = area.from.map((v, i) => (v + area.to[i]!) / 2);
+    const half = area.from.map((v, i) => Math.max(0.5, snap((area.to[i]! - v) / 4)));
+    const top = area.from[1];
+    const depth = Math.max(0.5, snap((area.to[1] - top) / 2));
+    setTool({
+      kind: "carve",
+      bone: bone.name,
+      cubes,
+      hole: {
+        from: [snap(center[0]! - half[0]!), top, snap(center[2]! - half[2]!)],
+        to: [snap(center[0]! + half[0]!), round(top + depth), snap(center[2]! + half[2]!)],
+      },
     });
+    studio.setMode("select");
+  };
+
+  /** Creuse : les morceaux prennent de nouvelles zones, peintes d'après la peau du cube d'origine. */
+  const carve = () => {
+    if (!model || tool?.kind !== "carve") return;
+    const next = cloneModel(model);
+    const target = next.bones.find((b) => b.name === tool.bone);
+    if (!target) return;
+    const results = tool.cubes
+      .map((index) => ({ index, original: target.cubes[index]!, pieces: target.cubes[index] ? carveCube(target.cubes[index]!, tool.hole) : null }))
+      .filter((r): r is { index: number; original: EntityCube; pieces: EntityCube[] } => Boolean(r.pieces));
+    if (results.length === 0) return;
+    const carved = new Set(results.map((r) => r.index));
+    const taken = next.bones.flatMap((b) => b.cubes.filter((_, i) => b.name !== target.name || !carved.has(i)).map(boxUvBounds));
+    const placed = allocateBoxUv(taken, results.flatMap((r) => r.pieces.map((p) => p.size as Vec3)), { width: next.textureWidth, height: next.textureHeight });
+    let k = 0;
+    for (const r of results) for (const piece of r.pieces) piece.uv = placed.uvs[k++] ?? piece.uv;
+    for (const r of [...results].sort((a, b) => b.index - a.index)) target.cubes.splice(r.index, 1, ...r.pieces);
+    next.textureWidth = placed.width;
+    next.textureHeight = placed.height;
+    studio.change(next);
+    if (pixels) {
+      const out = canvas(placed.width, placed.height);
+      const origin = clonePixels(out);
+      for (const r of results) for (const piece of r.pieces) copyCubeTexture(out, r.original, piece, origin);
+      studio.putTexture(texturePath, out);
+    }
+    const pieces = results.reduce((n, r) => n + r.pieces.length, 0);
+    setSelection({ kind: "bone", bone: target.name });
+    setTool(null);
+    setNotice(`${results.length} cube${results.length > 1 ? "s" : ""} creusé${results.length > 1 ? "s" : ""} · ${pieces} morceau${pieces > 1 ? "x" : ""}`);
+  };
+
+  /** Remplit la zone de texture des cubes choisis (le cube, ou tous ceux de l'os). */
+  const applyTexture = async () => {
+    if (!model || tool?.kind !== "texture" || !bone) return;
+    let fill: Fill | "same" | null = null;
+    setBusy(true);
+    try {
+      fill = await fillFor(tool.source, bone.name);
+    } catch (e) {
+      studio.setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+    if (!fill || fill === "same") return;
+    const out = canvas(model.textureWidth, model.textureHeight);
+    for (const c of cube ? [cube] : bone.cubes) paintCube(out, c, fill);
+    studio.putTexture(texturePath, out);
+    setTool(null);
+  };
 
   const duplicate = () => {
     if (!selection || !model) return;
@@ -316,9 +539,19 @@ export function EntityEditor({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest("[data-studio]") || target.closest("input, textarea")) return;
+      if (!target.closest("[data-studio]") || target.closest("input, textarea, [role=dialog]")) return;
       const ctrl = event.ctrlKey || event.metaKey;
-      if (event.key === "Delete") remove();
+      const key = event.key.toLowerCase();
+      if (event.key === "Escape") {
+        if (tool) setTool(null);
+        else setSelection(null);
+      } else if (!ctrl && key === "v") {
+        setTransform("move");
+        studio.setMode("select");
+      } else if (!ctrl && key === "s") {
+        setTransform("resize");
+        studio.setMode("select");
+      } else if (event.key === "Delete") remove();
       else if (ctrl && event.key.toLowerCase() === "d") {
         event.preventDefault();
         duplicate();
@@ -355,7 +588,7 @@ export function EntityEditor({
   const cubeCount = model.bones.reduce((n, b) => n + b.cubes.length, 0);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col" data-studio tabIndex={-1}>
+    <div className="relative flex min-h-0 flex-1 flex-col" data-studio tabIndex={-1}>
       <StudioHeader
         title={info.label}
         subtitle={
@@ -388,7 +621,44 @@ export function EntityEditor({
             history={studio.history}
             onUndo={studio.undo}
             onRedo={studio.redo}
-          />
+          >
+            <span role="group" aria-label="Poignée" className="flex items-center">
+              <IconButton label="Déplacer (V)" pressed={studio.mode === "select" && transform === "move"} onClick={() => (setTransform("move"), studio.setMode("select"))}>
+                <Move3d size={15} strokeWidth={1.75} />
+              </IconButton>
+              <IconButton
+                label="Redimensionner le cube (S) : la poignée tire le coin opposé"
+                pressed={studio.mode === "select" && transform === "resize"}
+                onClick={() => (setTransform("resize"), studio.setMode("select"))}
+              >
+                <Scale3d size={15} strokeWidth={1.75} />
+              </IconButton>
+            </span>
+            <span aria-hidden className="mx-1 h-5 w-px bg-border" />
+            <span role="group" aria-label="Ajouter" className="flex items-center">
+              {(Object.keys(SHAPE_ICON) as ShapeKind[]).map((kind) => {
+                const Icon = SHAPE_ICON[kind];
+                return (
+                  <IconButton
+                    key={kind}
+                    label={`Ajouter : ${SHAPE_LABEL[kind].toLowerCase()} (nouvel os${bone ? `, sous ${bone.name}` : ""})`}
+                    pressed={tool?.kind === "shape" && tool.draft.params.kind === kind}
+                    onClick={() => openShape(kind)}
+                  >
+                    <Icon size={15} strokeWidth={1.75} />
+                  </IconButton>
+                );
+              })}
+              <IconButton
+                label={bone ? (cube ? "Creuser le cube choisi" : `Creuser les cubes de ${bone.name}`) : "Creuser : choisissez d'abord un os ou un cube"}
+                pressed={tool?.kind === "carve"}
+                disabled={!bone || bone.cubes.length === 0}
+                onClick={openCarve}
+              >
+                <Pickaxe size={15} strokeWidth={1.75} />
+              </IconButton>
+            </span>
+          </StudioToolbar>
           <div className="relative min-h-0 flex-1 bg-bg-subtle">
             <Viewport
               parts={parts}
@@ -402,11 +672,17 @@ export function EntityEditor({
               onPaint={studio.paint}
               gizmo={gizmo}
               onMove={move}
+              preview={preview}
+              boxes={boxes}
             />
             <p className="pointer-events-none absolute bottom-2 left-3 text-caption text-text-subtle">
               {studio.mode === "paint"
                 ? "Glisser : peindre · clic droit : tourner · molette : zoom"
-                : "Clic : choisir un cube, ses flèches le déplacent · glisser : tourner · clic droit : déplacer la vue · molette : zoom"}
+                : tool?.kind === "shape"
+                  ? "La poignée place la forme · Créer pour l'ajouter"
+                  : tool?.kind === "carve"
+                    ? "La poignée déplace la zone à creuser"
+                    : "Clic : choisir un cube, ses flèches le déplacent · glisser : tourner · clic droit : déplacer la vue · molette : zoom"}
             </p>
             {studio.error && (
               <p role="alert" className="absolute left-3 right-3 top-3 rounded-md bg-danger-soft px-3 py-2 text-footnote">
@@ -430,6 +706,53 @@ export function EntityEditor({
         </div>
 
         <aside aria-label="Structure et réglages du modèle" className="w-[300px] shrink-0 overflow-y-auto border-l border-border">
+          {tool?.kind === "shape" && (
+            <ShapePanel
+              value={tool.draft}
+              onChange={(draft) => setTool({ ...tool, draft })}
+              onCreate={() => void createShape()}
+              onCancel={() => setTool(null)}
+              busy={busy}
+              same={sourceCube ? `« ${bone?.name ?? "cube"} »` : null}
+              textures={modTextures}
+              modId={project.meta?.modId ?? ""}
+              color={studio.color}
+              entity
+              centerLabel={tool.parent ? `Centre (dans l'os ${tool.parent})` : "Centre (24 = sol)"}
+            />
+          )}
+          {tool?.kind === "carve" && (
+            <CarvePanel
+              hole={tool.hole}
+              onChange={(hole) => setTool({ ...tool, hole })}
+              onApply={carve}
+              onCancel={() => setTool(null)}
+              touched={touched}
+              scope={tool.cubes.length === 1 ? "ce cube" : `${tool.cubes.length} cubes de ${tool.bone}`}
+            />
+          )}
+          {tool?.kind === "texture" && bone && (
+            <PanelSection title={cube ? "Texture du cube" : `Texture des cubes de ${bone.name}`}>
+              <TextureChoice
+                value={tool.source}
+                onChange={(source) => setTool({ kind: "texture", source })}
+                same={null}
+                textures={modTextures}
+                modId={project.meta?.modId ?? ""}
+                color={studio.color}
+                entity
+              />
+              <p className="text-caption text-text-subtle">Les cubes qui partagent cette zone de texture changent aussi.</p>
+              <div className="flex justify-end gap-2">
+                <Button type="button" size="sm" variant="ghost" onClick={() => setTool(null)}>
+                  Annuler
+                </Button>
+                <Button type="button" size="sm" variant="primary" disabled={busy} onClick={() => void applyTexture()}>
+                  Appliquer
+                </Button>
+              </div>
+            </PanelSection>
+          )}
           <PanelSection
             title="Os et cubes"
             actions={
@@ -437,7 +760,7 @@ export function EntityEditor({
                 <IconButton label="Nouvel os (dans l'os choisi)" onClick={addBone}>
                   <Bone size={14} />
                 </IconButton>
-                <IconButton label="Nouveau cube (dans l'os choisi)" onClick={addCube}>
+                <IconButton label="Nouveau cube (dans un nouvel os, sous l'os choisi)" onClick={() => openShape("cube")}>
                   <Plus size={14} />
                 </IconButton>
                 <IconButton label="Dupliquer (Ctrl+D)" disabled={!selection} onClick={duplicate}>
@@ -546,7 +869,14 @@ export function EntityEditor({
           )}
 
           {cube && selection?.kind === "cube" && (
-            <PanelSection title="Cube">
+            <PanelSection
+              title="Cube"
+              actions={
+                <IconButton label="Texture du cube : couleur, texture du mod, image générée ou importée" onClick={() => setTool({ kind: "texture", source: { kind: "color", size: 16 } })}>
+                  <Palette size={14} />
+                </IconButton>
+              }
+            >
               <Vec3Input
                 label="Position (coin, relatif au pivot de l'os)"
                 value={cube.origin}
@@ -650,6 +980,7 @@ export function EntityEditor({
           </PanelSection>
         </aside>
       </div>
+      {atelier.overlay}
     </div>
   );
 }

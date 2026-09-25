@@ -84,6 +84,7 @@ export function TextureStudio({
   onSelect,
   onLayoutChanged,
   onDeleted,
+  pick,
 }: {
   project: ProjectSummary;
   texture: TextureInfo;
@@ -93,6 +94,11 @@ export function TextureStudio({
   onSelect: (target: TextureTarget) => void;
   onLayoutChanged: (faces: TextureInfo[]) => void;
   onDeleted: () => void;
+  /**
+   * Mode « choisir » (atelier 3D) : la texture n'est pas écrite dans le projet, le brouillon
+   * retenu est rendu à l'appelant, qui en fait ce qu'il veut (face de cube, zone d'entité).
+   */
+  pick?: { label: string; onUse: (draft: TextureDraft) => void; onCancel: () => void };
 }) {
   const target = texture.target;
   const remembered = memory.get(memoryKey(target));
@@ -125,7 +131,7 @@ export function TextureStudio({
     memory.set(memoryKey(target), { description, prompt });
   }, [target, description, prompt]);
 
-  const block = texture.unused ? null : blockOf(target);
+  const block = texture.unused || pick ? null : blockOf(target);
   const faces = useMemo(() => (block ? textures.filter((t) => !t.unused && blockOf(t.target) === block) : []), [textures, block]);
   const references = useMemo(() => textures.filter((t) => t.exists), [textures]);
   const cube = useMemo(() => cubeFor(texture, faces), [texture, faces]);
@@ -306,6 +312,10 @@ export function TextureStudio({
     run("applying", async () => {
       if (!draft) return;
       await flushRef.current();
+      if (pick) {
+        pick.onUse(draft);
+        return;
+      }
       const info = await mcstudioApi.applyTexture(project.id, draft.id);
       setNotice(texture.exists ? "Appliquée. L'ancienne est gardée dans .mcstudio/history/textures/." : "Appliquée au projet.");
       setDraft(null);
@@ -402,7 +412,12 @@ export function TextureStudio({
             </>
           ) : (
             <>
-              {texture.exists && (
+              {pick && (
+                <Button type="button" size="sm" variant="ghost" disabled={phase === "applying"} onClick={pick.onCancel} icon={<X size={14} />}>
+                  Annuler
+                </Button>
+              )}
+              {texture.exists && !pick && (
                 <button
                   type="button"
                   aria-label="Supprimer la texture"
@@ -430,7 +445,7 @@ export function TextureStudio({
                     onClick={() => void apply()}
                     icon={phase === "applying" ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                   >
-                    Appliquer au projet
+                    {pick?.label ?? "Appliquer au projet"}
                   </Button>
                 </>
               )}

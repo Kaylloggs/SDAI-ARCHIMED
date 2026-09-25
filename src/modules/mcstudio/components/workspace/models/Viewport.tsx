@@ -1,10 +1,13 @@
 import { useEffect, useRef } from "react";
 import {
+  BoxGeometry,
   BufferAttribute,
   BufferGeometry,
   CanvasTexture,
   Color,
   DataTexture,
+  DoubleSide,
+  EdgesGeometry,
   FrontSide,
   GridHelper,
   Group,
@@ -49,7 +52,8 @@ export type ViewportProps = {
   /** Change quand un autre modèle s'ouvre : la caméra se recadre. */
   frameKey: string;
   floor: "block" | "entity";
-  onPick?: (owner: string | null, face: FaceName | null) => void;
+  /** `additive` : Maj, Ctrl ou Cmd enfoncée (ajouter à la sélection). */
+  onPick?: (owner: string | null, face: FaceName | null, additive: boolean) => void;
   onPaint?: (hit: { texture: string; x: number; y: number; owner: string; face: FaceName | null }, phase: PaintPhase) => void;
   /**
    * Poignée de déplacement (mode sélection) : `position` dans l'espace de `parent` (matrice
@@ -57,6 +61,10 @@ export type ViewportProps = {
    */
   gizmo?: { parent: Matrix4; position: Vec3 } | null;
   onMove?: (delta: Vec3, done: boolean) => void;
+  /** Aperçu d'une forme à créer : translucide, non sélectionnable. */
+  preview?: Part[];
+  /** Boîtes repères (zone à creuser) : `parent` = matrice de l'os, identité pour un bloc. */
+  boxes?: { from: Vec3; to: Vec3; parent?: Matrix4; tone: "danger" | "accent" }[];
 };
 
 type Stage = {
@@ -66,6 +74,7 @@ type Stage = {
   controls: OrbitControls;
   content: Group;
   overlay: Group;
+  marks: Group;
   floor: Group;
   textures: Map<string, DataTexture>;
   checker: Texture;
@@ -197,6 +206,8 @@ export function Viewport({
   onPaint,
   gizmo = null,
   onMove,
+  preview = [],
+  boxes = [],
 }: ViewportProps) {
   const host = useRef<HTMLDivElement>(null);
   const stage = useRef<Stage | null>(null);
@@ -218,8 +229,9 @@ export function Viewport({
     controls.enableDamping = false;
     const content = new Group();
     const overlay = new Group();
+    const marks = new Group();
     const floorGroup = new Group();
-    scene.add(floorGroup, content, overlay);
+    scene.add(floorGroup, content, overlay, marks);
     const render = () => renderer.render(scene, camera);
     controls.addEventListener("change", render);
 
@@ -259,6 +271,7 @@ export function Viewport({
       controls,
       content,
       overlay,
+      marks,
       floor: floorGroup,
       textures: new Map(),
       checker: checkerTexture(),
@@ -328,7 +341,7 @@ export function Viewport({
       if (event.button === 0 && Math.hypot(event.clientX - start.x, event.clientY - start.y) < 4) {
         const found = hit(event);
         const part = found?.object.userData.part as Part | undefined;
-        handlers.current.onPick?.(part?.owner ?? null, part?.face ?? null);
+        handlers.current.onPick?.(part?.owner ?? null, part?.face ?? null, event.shiftKey || event.ctrlKey || event.metaKey);
       }
     };
     const canvas = renderer.domElement;
@@ -347,6 +360,7 @@ export function Viewport({
       controls.dispose();
       disposeGroup(content);
       disposeGroup(overlay);
+      disposeGroup(marks);
       disposeGroup(floorGroup);
       for (const texture of current.textures.values()) texture.dispose();
       current.checker.dispose();
@@ -447,6 +461,45 @@ export function Viewport({
     if (chosen.length > 0) current.overlay.add(outlineOf(chosen, cssColor("--color-accent", "#d9a441").color));
     current.render();
   }, [parts, selected]);
+
+  // Aperçu d'une forme et boîtes repères, par-dessus le modèle.
+  useEffect(() => {
+    const current = stage.current;
+    if (!current) return;
+    disposeGroup(current.marks);
+    const accent = cssColor("--color-accent", "#d9a441").color;
+    const danger = cssColor("--color-danger", "#d9534f").color;
+    if (preview.length > 0) {
+      const material = new MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.35, depthWrite: false, side: DoubleSide });
+      for (const part of preview) {
+        const mesh = new Mesh(geometryOf(part, true), material);
+        mesh.raycast = () => undefined;
+        current.marks.add(mesh);
+      }
+      const lines = outlineOf(preview, accent);
+      lines.raycast = () => undefined;
+      current.marks.add(lines);
+    }
+    for (const box of boxes) {
+      const color = box.tone === "danger" ? danger : accent;
+      const size = box.to.map((v, i) => Math.max(0.01, Math.abs(v - box.from[i]!))) as Vec3;
+      const center = box.to.map((v, i) => (v + box.from[i]!) / 2) as Vec3;
+      const holder = new Group();
+      holder.matrixAutoUpdate = false;
+      holder.matrix.copy(box.parent ?? new Matrix4());
+      const shape = new BoxGeometry(...size);
+      const fill = new Mesh(shape, new MeshBasicMaterial({ color, transparent: true, opacity: 0.18, depthWrite: false, side: DoubleSide }));
+      fill.position.set(...center);
+      fill.raycast = () => undefined;
+      const edges = new LineSegments(new EdgesGeometry(shape), new LineBasicMaterial({ color, depthTest: false, transparent: true }));
+      edges.position.set(...center);
+      edges.renderOrder = 11;
+      edges.raycast = () => undefined;
+      holder.add(fill, edges);
+      current.marks.add(holder);
+    }
+    current.render();
+  }, [preview, boxes]);
 
   // Sol : un bloc (grille 16 × 16 et son cube) ou une grille de 3 × 3 blocs pour une entité.
   useEffect(() => {
