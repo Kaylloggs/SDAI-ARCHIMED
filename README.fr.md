@@ -287,6 +287,8 @@ pnpm tauri dev      # le premier lancement compile Rust et prend quelques minute
 
 **3. Construire le `.exe`** : double-cliquez sur `build.bat`, ou lancez `powershell -ExecutionPolicy Bypass -File .\build.ps1` (options : `-Bundles nsis|msi|all|none`, `-Bump patch|minor|major|none`, `-Publish`, `-Clean`…). Sortie : `release/<version>/`.
 
+**4. Publier une version** : `pnpm version:bump minor`, commit, puis poussez un tag `vX.Y.Z`. GitHub Actions compile les fichiers Windows sur une machine propre et publie la release, avec les notes tirées du `CHANGELOG.md`.
+
 | Commande | Rôle |
 |---|---|
 | `pnpm check` | types TypeScript et règles des modules |

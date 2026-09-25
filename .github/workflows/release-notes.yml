@@ -1,0 +1,36 @@
+# Rewrites the notes of a published release from the CHANGELOG on the default branch,
+# for example to repair notes published with broken accents.
+name: Release notes
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published version tag whose notes to rewrite (for example v0.3.0)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  notes:
+    name: Rewrite release notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Rewrite the notes
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Not a version tag: $TAG"; exit 1; }
+          gh release view "$TAG" > /dev/null
+          node scripts/release-notes.mjs "${TAG#v}" notes.md
+          gh release edit "$TAG" --notes-file notes.md

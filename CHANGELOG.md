@@ -4,6 +4,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Modifié — Publication des versions
+- Chaque tag `vX.Y.Z` lance la compilation Windows sur GitHub Actions (vérifications, tests,
+  installeur, exe portable) et publie la release avec ses deux fichiers.
+- **Accents des notes de release** : ils sortaient cassés (« AjoutÃ© ») car `build.ps1` lisait
+  le CHANGELOG en ANSI sous Windows PowerShell 5.1. Les notes sont maintenant écrites en UTF-8
+  par `scripts/release-notes.mjs`, et le workflow « Release notes » répare une release déjà
+  publiée.
+
+### Documentation
+- README en français (`README.fr.md`), galerie des six thèmes, prérequis installés en une
+  seule commande `winget`, clés API personnelles (OpenRouter, Google, Higgsfield).
+
 ### Ajouté — Atelier 3D façon Blockbench
 - **Formes** : cube, cylindre, sphère, cône, pleins ou creux, avec aperçu et poignée pour les
   placer ; faites de cubes regroupés (le seul volume que le jeu connaît).

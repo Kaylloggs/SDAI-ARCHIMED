@@ -225,14 +225,9 @@ if ($Publish) {
         Write-Ok "tag $tag pousse"
     }
 
-    # Notes : section de cette version dans le CHANGELOG.
-    $changelog = Get-Content (Join-Path $Root 'CHANGELOG.md') -Raw -Encoding UTF8
-    $escaped = [regex]::Escape($Version)
-    $match = [regex]::Match($changelog, "(?s)## \[$escaped\][^\n]*\n(.*?)(?=\n## \[|\z)")
-    $notes = if ($match.Success) { $match.Groups[1].Value.Trim() } else { "Version $Version" }
-    $install = "## Installation`n`n- **Installeur** : SDAI.Archimed_$($Version)_x64-setup.exe`n- **Portable** : SDAI-Archimed.exe (aucune installation)`n`nPrerequis : Windows 10/11 et au moins une CLI d'IA installee et connectee (Claude Code, Antigravity ou Codex). Voir le README."
+    # Notes : fichiers, prerequis et section de cette version dans le CHANGELOG (UTF-8).
     $notesFile = Join-Path $outDir 'RELEASE_NOTES.md'
-    Set-Content -Path $notesFile -Value "$install`n`n---`n`n$notes" -Encoding utf8
+    Invoke-Native 'notes de release' { node (Join-Path $Root 'scripts\release-notes.mjs') $Version $notesFile }
 
     $assets = Get-ChildItem -Path $outDir -File |
         Where-Object { $_.Name -eq 'SDAI-Archimed.exe' -or $_.Name -like "*_$($Version)_*" } |
@@ -245,6 +240,7 @@ if ($Publish) {
     $ErrorActionPreference = $previousPreference
     if ($releaseExists) {
         Invoke-Native 'gh release upload' { & $gh release upload $tag @assets --clobber }
+        Invoke-Native 'gh release edit' { & $gh release edit $tag --notes-file $notesFile }
     } else {
         Invoke-Native 'gh release create' { & $gh release create $tag @assets --title "SDAI ARCHIMED $tag" --notes-file $notesFile }
     }

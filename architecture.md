@@ -592,3 +592,5 @@ arrête son processus puis efface son entrée.
 ## 12. Pipeline de build
 
 `build.ps1` : prérequis (Node, pnpm, Rust MSVC, Build Tools) → `pnpm install` → `pnpm check` + `pnpm test` + `cargo clippy -D warnings` → build d'un sidecar optionnel s'il existe → `pnpm tauri build` → copie de l'`.exe` portable et des installeurs dans `release/<version>/`.
+
+Publication : `build.ps1 -Publish` en local, ou un tag `vX.Y.Z` poussé, qui lance `.github/workflows/release.yml` (runner Windows, `build.ps1 -Bump none -Publish`). Les notes viennent de `scripts/release-notes.mjs` (installation + section du CHANGELOG, UTF-8) ; le workflow `release-notes.yml` réécrit celles d'une release déjà publiée.
