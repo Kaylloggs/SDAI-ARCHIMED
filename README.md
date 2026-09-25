@@ -1,5 +1,7 @@
 <div align="center">
 
+**English** &nbsp;·&nbsp; [Français](README.fr.md)
+
 <img src="src-tauri/icons/128x128@2x.png" width="104" alt="ARCHIMED logo" />
 
 # SDAI ARCHIMED
@@ -111,12 +113,32 @@ A job hunt and a game mod are about as far apart as two projects can be. If ARCH
 
 <br />
 
+## 🎨 Six themes
+
+Pick the look that suits you in **Settings → Theme**. The whole app follows, down to the 3D studio.
+
+<table>
+<tr>
+<td width="33%"><img src="docs/images/themes/archimed.png" alt="Archimède theme: deep dark with a brass accent" /><p align="center"><b>Archimède</b><br /><sub>deep dark, brass accent (default)</sub></p></td>
+<td width="33%"><img src="docs/images/themes/light.png" alt="Papier theme: light with an ochre accent" /><p align="center"><b>Papier</b><br /><sub>light, ochre accent</sub></p></td>
+<td width="33%"><img src="docs/images/themes/tokyo-neon.png" alt="Tokyo Néon theme: indigo night with a magenta accent" /><p align="center"><b>Tokyo Néon</b><br /><sub>indigo night, electric magenta</sub></p></td>
+</tr>
+<tr>
+<td width="33%"><img src="docs/images/themes/nord.png" alt="Nord theme: cold slate blue with an ice accent" /><p align="center"><b>Nord</b><br /><sub>cold slate blue, ice accent</sub></p></td>
+<td width="33%"><img src="docs/images/themes/solar-terra.png" alt="Terra theme: warm dark with a terracotta accent" /><p align="center"><b>Terra</b><br /><sub>warm dark, terracotta accent</sub></p></td>
+<td width="33%"><img src="docs/images/themes/monochrome.png" alt="Encre theme: neutral greys with a white accent" /><p align="center"><b>Encre</b><br /><sub>neutral greys, zero distraction</sub></p></td>
+</tr>
+</table>
+
+<br />
+
 ## ✨ Why people like it
 
 - **No new subscription.** ARCHIMED is free and uses the AI account you already have.
 - **You stay in charge.** Every sensitive action goes through a risk check (low to critical). Auto mode approves the harmless ones and always asks for the critical ones. Every decision is written to a log on your PC.
 - **Nothing happens behind your back.** Software installs, job applications and changes to your projects always ask first. Deleted files go to the Recycle Bin.
-- **Secrets stay secret.** API keys and passwords are kept in the Windows Credential Manager or encrypted by Windows.
+- **Bring your own API keys.** Some modules can use your own key from **OpenRouter**, **Google** (AI Studio) or **Higgsfield**, for example to generate images and textures. You only pay for what you use, directly to the provider.
+- **Secrets stay secret.** API keys and passwords are kept in the Windows Credential Manager or encrypted by Windows, never in a plain file.
 - **Light on your wallet and your PC.** A built-in token saver cuts AI usage, and the app is a small native program, not a full browser.
 
 <br />
@@ -125,17 +147,37 @@ A job hunt and a game mod are about as far apart as two projects can be. If ARCH
 
 > **You need:** a Windows 10 or 11 PC and an internet connection. No coding knowledge required.
 
-### Step 1 · Install an AI assistant
+### Step 1 · Install the prerequisites
+
+A few free programs make everything work smoothly. Open **PowerShell** (Start menu, type *PowerShell*, press Enter), paste this line and press Enter:
+
+```powershell
+"Microsoft.EdgeWebView2Runtime","Git.Git","OpenJS.NodeJS.LTS","Python.Python.3.12" | ForEach-Object { winget install -e --id $_ --accept-source-agreements --accept-package-agreements }
+```
+
+It uses **winget**, the installer built into Windows, and simply skips what you already have. When it is done, **close and reopen PowerShell** so Windows sees the new programs.
+
+| Program | What it is for | Needed? |
+|---|---|---|
+| [Microsoft WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) | Displays the ARCHIMED window | Yes (already in Windows 11) |
+| [Git for Windows](https://git-scm.com/download/win) | Lets Claude Code run commands on Windows | Yes for Claude Code |
+| [Node.js LTS](https://nodejs.org/en/download) | Installs Codex | Only for Codex |
+| [Python 3.12](https://www.python.org/downloads/windows/) | Runs the Job Agent search engine | Only for Job Agent |
+| Java (JDK) | Builds Minecraft mods | No: Mod Studio installs it for you |
+
+<sub>No winget? Install <a href="https://apps.microsoft.com/detail/9NBLGGH4NNS1">App Installer</a> from the Microsoft Store, or use the links in the table.</sub>
+
+### Step 2 · Install an AI assistant
 
 ARCHIMED drives an AI assistant installed on your PC. Pick **one** (you can add others later):
 
 | Assistant | How to install | Account |
 |---|---|---|
-| **Claude Code** (Anthropic)<br /><sub>recommended</sub> | Open **PowerShell** (Start menu, type *PowerShell*) and paste:<br />`irm https://claude.ai/install.ps1 \| iex`<br />Then type `claude` once to sign in. [Official guide](https://docs.claude.com/en/docs/claude-code/setup) | A Claude plan or an API key |
+| **Claude Code** (Anthropic)<br /><sub>recommended</sub> | In **PowerShell**, paste:<br />`irm https://claude.ai/install.ps1 \| iex`<br />Then type `claude` once to sign in. [Official guide](https://docs.claude.com/en/docs/claude-code/setup) | A Claude plan or an API key |
 | **Antigravity** (Google) | [Download the Antigravity CLI](https://antigravity.google/download#antigravity-cli), install it, then type `agy` once to sign in. | A Google account |
-| **Codex** (OpenAI)<br /><sub>experimental</sub> | Install [Node.js](https://nodejs.org/en/download) (LTS), then in PowerShell:<br />`npm install -g @openai/codex` | An OpenAI account |
+| **Codex** (OpenAI)<br /><sub>experimental</sub> | In PowerShell (Node.js from step 1 needed):<br />`npm install -g @openai/codex` | An OpenAI account |
 
-### Step 2 · Download ARCHIMED
+### Step 3 · Download ARCHIMED
 
 <table>
 <tr>
@@ -160,23 +202,25 @@ ARCHIMED drives an AI assistant installed on your PC. Pick **one** (you can add 
 </tr>
 </table>
 
-### Step 3 · Open it
+### Step 4 · Open it
 
 Double-click the file you downloaded. If Windows shows **“Windows protected your PC”**, click **More info**, then **Run anyway**: the app is not code-signed yet, which triggers this warning for new apps.
 
-### Step 4 · Say hello
+### Step 5 · Say hello
 
 ARCHIMED finds your assistant on its own. Click **Chat**, type a message, and you are set. 🎉
 
 <details>
-<summary><b>Optional: extras for some modules</b></summary>
+<summary><b>Optional: API keys for some modules</b></summary>
 <br />
 
-| To use | You also need | |
+Some features call an AI service directly with **your own key**. Paste it once in the module: it is stored in the Windows Credential Manager.
+
+| Provider | Used for | Get a key |
 |---|---|---|
-| **Mod Studio** | Java (JDK) | Nothing to do: ARCHIMED offers to install the right version for you. |
-| **Job Agent** | Python 3.10 or newer | [Download Python](https://www.python.org/downloads/windows/) and tick **“Add python.exe to PATH”** during the install. |
-| **AI textures** (Mod Studio) | An image AI key | A [Google AI Studio](https://aistudio.google.com/apikey) or [OpenRouter](https://openrouter.ai/keys) key, pasted in the app. |
+| **Google** (AI Studio, Gemini) | Images and textures | [aistudio.google.com](https://aistudio.google.com/apikey) |
+| **OpenRouter** | Images and textures, many models in one account | [openrouter.ai/keys](https://openrouter.ai/keys) |
+| **Higgsfield** | Images and videos | [higgsfield.ai](https://higgsfield.ai) |
 
 </details>
 
@@ -193,19 +237,19 @@ Yes, free and open source (MIT). The AI itself runs on your own account with Ant
 <details>
 <summary><b>Does ARCHIMED send my data anywhere?</b></summary>
 <br />
-No. ARCHIMED has no server. Your conversations, settings and projects stay in <code>%APPDATA%\com.sdai.archimed\</code>. The only traffic is between the assistant you chose and its own service, exactly as when you use it in a terminal.
+No. ARCHIMED has no server. Your conversations, settings and projects stay in <code>%APPDATA%\com.sdai.archimed\</code>. The only traffic is between the assistant you chose and its own service, exactly as when you use it in a terminal, plus the API providers whose key you added yourself.
 </details>
 
 <details>
 <summary><b>ARCHIMED says it cannot find my assistant</b></summary>
 <br />
-Open a new PowerShell window and type <code>claude</code> (or <code>agy</code>). If the command is not found, the install did not finish: repeat step 1. If it works there, open <b>Settings → Engine</b> in ARCHIMED and point it to the program.
+Open a new PowerShell window and type <code>claude</code> (or <code>agy</code>). If the command is not found, the install did not finish: repeat step 2. If it works there, open <b>Settings → Engine</b> in ARCHIMED and point it to the program.
 </details>
 
 <details>
 <summary><b>The app does not open, or the window stays blank</b></summary>
 <br />
-ARCHIMED needs Microsoft WebView2, included in Windows 11 and in up-to-date Windows 10. The installer adds it when missing. With the portable version, install the <a href="https://developer.microsoft.com/microsoft-edge/webview2/">WebView2 Runtime</a> (Evergreen Bootstrapper) and try again.
+ARCHIMED needs Microsoft WebView2, included in Windows 11 and in up-to-date Windows 10. The installer adds it when missing. With the portable version, install the <a href="https://developer.microsoft.com/microsoft-edge/webview2/">WebView2 Runtime</a> (Evergreen Bootstrapper) or run the step 1 command, then try again.
 </details>
 
 <details>
