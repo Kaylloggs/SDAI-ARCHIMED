@@ -19,7 +19,7 @@ un dossier Gradle autonome : il se compile aussi sans ARCHIMED (`gradlew build`)
 | B | Profils de version, métadonnées officielles, templates, JDK, création | ✓ |
 | C | Build Gradle réel, diagnostics, jar dans `dist/`, test e2e | ✓ (Fabric 1.21.1 compilé sur Windows) |
 | B+ | 1.14 → 1.21.x, choix des versions du loader, installation des JDK | ✓ (profils hors `fabric-1.21` à valider par l'e2e) |
-| T | Textures par IA (OpenRouter ou Google Gemini, clé de la personne), import d'image, conversion pixel-art, ajout d'objets et de blocs | ✓ (testé contre de faux OpenRouter et Gemini locaux) |
+| T | Textures par IA (OpenRouter, Google Gemini ou Higgsfield : clé de la personne, ou son compte Higgsfield), import d'image, conversion pixel-art, ajout d'objets et de blocs | ✓ (testé contre de faux OpenRouter et Gemini locaux) |
 | D | Explorateur et éditeur (`CodeEditor`/`FileTree` déplacés dans `core/editor`) | ✓ |
 | E | Validateur (JSON/TOML ligne/colonne, références, format de la version) et panneau Problèmes | ✓ |
 | F | Points de restauration (annulables), vrai diff dans `core/lib/diff` | ✓ |
@@ -187,7 +187,7 @@ courant est d'abord sauvegardé : une restauration s'annule en restaurant ce nou
 Supprimer un point le met à la Corbeille. Stockage : `<projet>/.mcstudio/snapshots/<id>/`
 (`manifest.json` + copies), restaurations auditées.
 
-## Textures : IA (OpenRouter ou Google Gemini) ou image importée
+## Textures : IA (OpenRouter, Google Gemini ou Higgsfield) ou image importée
 
 Onglet **Textures** d'un projet : l'icône, les objets, les blocs (et leurs faces), les éléments
 d'interface, puis **toutes les autres textures du mod**, classées par famille : superpositions
@@ -205,7 +205,7 @@ traductions, loot table, outil de minage) avec une texture provisoire, ou un él
 (écran de conteneur avec ou sans inventaire du joueur, bouton, case, flèche de progression, toile
 libre) dessiné sans IA aux couleurs des écrans du jeu, dans `textures/gui/`.
 
-1. **Source** : une description envoyée à un modèle d'image d'OpenRouter ou de Google Gemini
+1. **Source** : une description envoyée à un modèle d'image d'OpenRouter, de Google Gemini ou de Higgsfield
    (« Service d'image »), un PNG/JPEG/WebP, ou la texture actuelle (« Retoucher l'actuelle »).
    Le texte envoyé est construit pour la cible (objet isolé sur fond uni ; face de bloc vue de
    face, pleine case, sans cadre, raccordable ; côté d'un bloc à dessus distinct raccordable en
@@ -226,6 +226,15 @@ libre) dessiné sans IA aux couleurs des écrans du jeu, dans `textures/gui/`.
    en-tête `x-goog-api-key`. Modèles « Nano Banana » lus en direct ; tous facturés par Google sur
    le projet de la clé, donc soumis à « Accepter la facturation Google ». L'abonnement Gemini
    (Google AI Pro) ne couvre pas l'API ; ses crédits Google Cloud mensuels, si.
+   **Higgsfield** (`higgsfield.rs`, par la couche d'images du core, ADR 0010) : deux accès au
+   choix sous « Service d'image → Higgsfield ». *Mon compte* : l'outil officiel de Higgsfield
+   (`@higgsfield/cli`, installé par npm seulement après confirmation), connexion sur la page de
+   Higgsfield dans le navigateur, images payées avec les crédits de l'abonnement ; aucun mot de
+   passe ne passe par l'app. *Clé d'API* : `KEY_ID:KEY_SECRET` de cloud.higgsfield.ai, vérifiée
+   puis rangée sous `mcstudio-higgsfield` ; une clé déjà donnée à Image Maker est relue sur place,
+   jamais recopiée. Seuls les modèles qui créent à partir d'un texte sont proposés ; tous
+   débitent des crédits, donc soumis à « Utiliser mes crédits Higgsfield ». La texture de
+   référence part en image d'entrée quand le modèle en lit.
 4. **Conversion** (`pixelart.rs`, déterministe), sans réglage à choisir : la taille est celle de
    la texture en place (16, 32 ou 64 px ; 16 pour une nouvelle), la palette suit la taille, le
    raccord suit la face. Réduction en gardant par zone une couleur franche (la plus rare de
@@ -477,5 +486,5 @@ Assistant : `agent_prepare` · `agent_instructions` · `agent_changes` · `agent
 | `…\mcstudio\cache\openrouter-models.json` · `gemini-models.json` · `cache\textures\` | modèles d'image connus, brouillons de textures |
 | `…\mcstudio\jdks\` · `env.json` | JDK installés par Mod Studio, sources remplaçables |
 | `…\mcstudio\work\<projet>\` · `work\<projet>.base.json` | copie de travail de l'assistant IA, empreintes de base |
-| Gestionnaire d'identifiants Windows | clés OpenRouter (`mcstudio-openrouter.com.sdai.archimed`) et Google AI Studio (`mcstudio-gemini.com.sdai.archimed`) |
+| Gestionnaire d'identifiants Windows | clés OpenRouter (`mcstudio-openrouter.com.sdai.archimed`), Google AI Studio (`mcstudio-gemini.com.sdai.archimed`) et Higgsfield (`mcstudio-higgsfield.com.sdai.archimed`) |
 | `<projet>\.mcstudio\` | identité, historique et journaux de build, anciennes textures (`history/textures/`) |

@@ -26,6 +26,8 @@ import {
   saveProvider,
   targetKey,
 } from "../../lib/textures";
+import { higgsfieldKeyStatus } from "../ApiKeyCard";
+import { accountUsable } from "../HiggsfieldAccountCard";
 import { Checker, focusRing, PixelImage } from "../ui";
 import { BlockFaces } from "./textures/BlockFaces";
 import { Composer, type ModelState } from "./textures/Composer";
@@ -35,6 +37,19 @@ import { DEFAULT_PROMPT, promptSettings, type PromptChoice } from "./textures/Pr
 import { Workbench, type SaveState } from "./textures/Workbench";
 
 type Phase = "idle" | "generating" | "importing" | "opening" | "applying" | "deleting";
+
+/** Modèles d'image du service choisi. */
+function modelsOf(service: ImageProvider): Promise<ImageModelList> {
+  switch (service) {
+    case "gemini":
+      return mcstudioApi.geminiImageModels();
+    case "higgsfield":
+    case "higgsfieldAccount":
+      return mcstudioApi.higgsfieldImageModels(service === "higgsfieldAccount");
+    default:
+      return mcstudioApi.imageModels();
+  }
+}
 
 /**
  * Description et réglages du texte, gardés pendant la session : les faces d'un bloc partagent
@@ -106,11 +121,21 @@ export function TextureStudio({
   const [prompt, setPrompt] = useState<PromptChoice>(remembered?.prompt ?? DEFAULT_PROMPT);
   const [options, setOptions] = useState<PixelOptions>(() => defaultOptions(target, texture));
   const [provider, setProvider] = useState<ImageProvider>(loadProvider);
-  const [keys, setKeys] = useState<Record<ImageProvider, boolean | null>>({ openRouter: null, gemini: null });
+  const [keys, setKeys] = useState<Record<ImageProvider, boolean | null>>({
+    openRouter: null,
+    gemini: null,
+    higgsfield: null,
+    higgsfieldAccount: null,
+  });
   const [models, setModels] = useState<ImageModelList | null>(null);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [model, setModel] = useState<string | null>(null);
-  const [paid, setPaid] = useState<Record<ImageProvider, boolean>>({ openRouter: false, gemini: false });
+  const [paid, setPaid] = useState<Record<ImageProvider, boolean>>({
+    openRouter: false,
+    gemini: false,
+    higgsfield: false,
+    higgsfieldAccount: false,
+  });
   const [draft, setDraft] = useState<TextureDraft | null>(null);
   const [history, setHistory] = useState<TextureDraft[]>([]);
   const [confirmReprocess, setConfirmReprocess] = useState<PixelOptions | null>(null);
@@ -152,7 +177,8 @@ export function TextureStudio({
   }, []);
 
   const setKeyConfigured = useCallback(
-    (service: ImageProvider, configured: boolean) => setKeys((current) => ({ ...current, [service]: configured })),
+    (service: ImageProvider, configured: boolean) =>
+      setKeys((current) => (current[service] === configured ? current : { ...current, [service]: configured })),
     [],
   );
 
@@ -164,6 +190,11 @@ export function TextureStudio({
         .catch(() => !cancelled && setKeyConfigured(service, false));
     void read("openRouter", mcstudioApi.openrouterStatus(false));
     void read("gemini", mcstudioApi.geminiStatus(false));
+    void read("higgsfield", mcstudioApi.higgsfieldStatus(false, false).then(higgsfieldKeyStatus));
+    void read(
+      "higgsfieldAccount",
+      mcstudioApi.higgsfieldStatus(true, false).then((s) => ({ configured: accountUsable(s.state) })),
+    );
     return () => {
       cancelled = true;
     };
@@ -183,7 +214,7 @@ export function TextureStudio({
   const loadModels = useCallback(() => {
     const service = current.current;
     setModelsError(null);
-    (service === "gemini" ? mcstudioApi.geminiImageModels() : mcstudioApi.imageModels())
+    modelsOf(service)
       .then((list) => current.current === service && setModels(list))
       .catch((e) => current.current === service && setModelsError(errorText(e)));
   }, []);

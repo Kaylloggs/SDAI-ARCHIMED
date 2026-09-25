@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { CheckCircle2, ExternalLink, KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Button } from "@/design-system/primitives";
 import type { GeminiStatus } from "@/core/ipc/bindings/GeminiStatus";
 import type { OpenRouterStatus } from "@/core/ipc/bindings/OpenRouterStatus";
+import type { ProviderStatus } from "@/core/ipc/bindings/ProviderStatus";
 import { errorText, mcstudioApi } from "../api";
 import { focusRing, inputClass } from "./ui";
 
@@ -45,13 +46,13 @@ function ApiKeyCard<S extends KeyStatus>({
   const [error, setError] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
 
-  const publish = useCallback(
-    (next: S) => {
-      setStatus(next);
-      onChange?.(next);
-    },
-    [onChange],
-  );
+  // En ref : un `onChange` écrit en ligne ne doit pas relancer la lecture de la clé à chaque rendu.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const publish = useCallback((next: S) => {
+    setStatus(next);
+    onChangeRef.current?.(next);
+  }, []);
 
   const { load } = service;
   useEffect(() => {
@@ -88,7 +89,8 @@ function ApiKeyCard<S extends KeyStatus>({
     run(async () => {
       await service.clear();
       setConfirmClear(false);
-      publish(service.empty);
+      // Relue : une clé d'un autre module peut encore servir (Higgsfield).
+      publish(await service.load(false).catch(() => service.empty));
     });
 
   if (!status) {
@@ -236,4 +238,39 @@ export function OpenRouterKeyCard(props: { onChange?: (status: OpenRouterStatus)
 /** Clé Google AI Studio, pour les modèles d'image Gemini (« Nano Banana »). */
 export function GeminiKeyCard(props: { onChange?: (status: GeminiStatus) => void; compact?: boolean }) {
   return <ApiKeyCard service={GEMINI} {...props} />;
+}
+
+/** État de la clé Higgsfield, vu par la carte (la clé elle-même ne revient jamais). */
+export type HiggsfieldKeyStatus = KeyStatus & { masked: string | null; sharedFrom: string | null };
+
+export function higgsfieldKeyStatus(status: ProviderStatus): HiggsfieldKeyStatus {
+  return {
+    configured: status.state !== "apiKeyMissing",
+    problem: status.state === "error" || status.state === "authRequired" ? status.detail : null,
+    masked: status.maskedKey,
+    sharedFrom: status.keySource?.kind === "shared" ? status.keySource.module : null,
+  };
+}
+
+const HIGGSFIELD: Service<HiggsfieldKeyStatus> = {
+  name: "Higgsfield",
+  placeholder: "KEY_ID:KEY_SECRET",
+  keysPage: "https://cloud.higgsfield.ai/",
+  destination: "Higgsfield",
+  empty: { configured: false, problem: null, masked: null, sharedFrom: null },
+  describe: (status) =>
+    [
+      status.masked ?? "Clé Higgsfield enregistrée",
+      status.sharedFrom ? `clé de ${status.sharedFrom === "image-maker" ? "Image Maker" : status.sharedFrom}, relue sur place (jamais copiée)` : null,
+    ]
+      .filter(Boolean)
+      .join(" · "),
+  load: (check) => mcstudioApi.higgsfieldStatus(false, check).then(higgsfieldKeyStatus),
+  save: (key) => mcstudioApi.setHiggsfieldKey(key).then(higgsfieldKeyStatus),
+  clear: () => mcstudioApi.clearHiggsfieldKey(false).then(() => undefined),
+};
+
+/** Clé d'API Higgsfield (celle déjà donnée à Image Maker est reprise sans copie). */
+export function HiggsfieldKeyCard(props: { onChange?: (status: HiggsfieldKeyStatus) => void; compact?: boolean }) {
+  return <ApiKeyCard service={HIGGSFIELD} {...props} />;
 }

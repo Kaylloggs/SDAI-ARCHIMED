@@ -1092,6 +1092,7 @@ impl Drafts {
         let origin = match &draft.source {
             DraftSource::OpenRouter { model, .. } => format!("openrouter:{model}"),
             DraftSource::Gemini { model, .. } => format!("gemini:{model}"),
+            DraftSource::Higgsfield { model, .. } => format!("higgsfield:{model}"),
             DraftSource::File { .. } => "fichier".to_string(),
             DraftSource::Project { .. } => "retouche".to_string(),
         };

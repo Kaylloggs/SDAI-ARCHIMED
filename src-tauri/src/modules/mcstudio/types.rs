@@ -613,6 +613,20 @@ pub enum ImageProvider {
     OpenRouter,
     /// API Gemini de Google (clé Google AI Studio) : modèles « Nano Banana ».
     Gemini,
+    /// Higgsfield avec une clé d'API (couche d'images du core).
+    Higgsfield,
+    /// Higgsfield avec le compte de la personne, par la CLI officielle (crédits de l'abonnement).
+    HiggsfieldAccount,
+}
+
+/// Outil officiel de Higgsfield (mode compte) : présent, installable par npm.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+#[serde(rename_all = "camelCase")]
+pub struct HiggsfieldCliState {
+    pub installed: bool,
+    pub npm: bool,
+    pub package: String,
 }
 
 /// Clé Google AI Studio : présente ou non, et ce que l'API Gemini en dit quand on vérifie.
@@ -843,6 +857,10 @@ pub enum DraftSource {
         prompt: String,
     },
     Gemini {
+        model: String,
+        prompt: String,
+    },
+    Higgsfield {
         model: String,
         prompt: String,
     },

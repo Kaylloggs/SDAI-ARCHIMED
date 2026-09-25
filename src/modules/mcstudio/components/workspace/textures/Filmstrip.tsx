@@ -9,7 +9,7 @@ import type { TextureInfo } from "@/core/ipc/bindings/TextureInfo";
 import { ago } from "../../../lib/format";
 import { focusRing } from "../../ui";
 
-const SOURCE_ICON = { openRouter: Sparkles, gemini: Sparkles, file: ImageUp, project: Brush } as const;
+const SOURCE_ICON = { openRouter: Sparkles, gemini: Sparkles, higgsfield: Sparkles, file: ImageUp, project: Brush } as const;
 
 function Thumb({ src, active, label, caption, onClick, children }: {
   src: string | null;

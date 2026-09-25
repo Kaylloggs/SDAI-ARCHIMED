@@ -17,7 +17,8 @@ use super::types::{
 };
 
 use super::types::{ApplyOutcome, Snapshot, WorkChange, WorkInfo};
-use super::types::{BlockLayout, GuiRequest, PixelData, PromptSettings};
+use super::types::{BlockLayout, GuiRequest, HiggsfieldCliState, PixelData, PromptSettings};
+use crate::core::imaging::ProviderStatus;
 use super::types::{
     EntityModel, EntitySaved, ExportOutcome, ImportPreview, ModelFile, ModelInfo, PortOutcome,
     PortPlan,
@@ -326,6 +327,61 @@ pub async fn clear_gemini_key(studio: Studio<'_>) -> AppResult<()> {
 #[tauri::command]
 pub async fn gemini_image_models(studio: Studio<'_>) -> AppResult<ImageModelList> {
     studio.gemini.models().await
+}
+
+// ── Textures (Higgsfield, couche d'images du core) ──────────────────────────
+
+fn higgsfield(studio: &McStudio, account: bool) -> AppResult<std::sync::Arc<dyn crate::core::imaging::ImageProvider>> {
+    studio.imaging.provider(super::higgsfield::provider_id(account))
+}
+
+/// État de la clé d'API (`account = false`) ou du compte (`true`). La clé ne revient jamais.
+#[tauri::command]
+pub async fn higgsfield_status(studio: Studio<'_>, account: bool, check: bool) -> AppResult<ProviderStatus> {
+    Ok(higgsfield(&studio, account)?.status(check).await)
+}
+
+/// Vérifie la clé auprès de Higgsfield puis la range sous `mcstudio-higgsfield`.
+#[tauri::command]
+pub async fn set_higgsfield_key(studio: Studio<'_>, key: String) -> AppResult<ProviderStatus> {
+    higgsfield(&studio, false)?.set_key(&key).await
+}
+
+/// Retire la clé propre à Mod Studio (`account = false`) ou déconnecte le compte (`true`).
+#[tauri::command]
+pub async fn clear_higgsfield_key(studio: Studio<'_>, account: bool) -> AppResult<ProviderStatus> {
+    let provider = higgsfield(&studio, account)?;
+    provider.clear_key()?;
+    Ok(provider.status(true).await)
+}
+
+/// Connexion au compte : la page officielle s'ouvre dans le navigateur (aucun mot de passe ici).
+#[tauri::command]
+pub async fn higgsfield_login(studio: Studio<'_>) -> AppResult<ProviderStatus> {
+    higgsfield(&studio, true)?.login().await
+}
+
+#[tauri::command]
+pub async fn higgsfield_cli_state() -> AppResult<HiggsfieldCliState> {
+    use crate::core::imaging::higgsfield_cli;
+    Ok(HiggsfieldCliState {
+        installed: higgsfield_cli::find_binary().is_some(),
+        npm: higgsfield_cli::npm_available(),
+        package: higgsfield_cli::NPM_PACKAGE.into(),
+    })
+}
+
+/// `npm install -g @higgsfield/cli`, lancé seulement après confirmation dans l'interface.
+#[tauri::command]
+pub async fn install_higgsfield_tool() -> AppResult<String> {
+    let output = crate::core::imaging::higgsfield_cli::install().await?;
+    crate::core::audit::record("mcstudio.install_higgsfield_cli", "@higgsfield/cli", "installed", "user");
+    Ok(output)
+}
+
+#[tauri::command]
+pub async fn higgsfield_image_models(studio: Studio<'_>, account: bool) -> AppResult<ImageModelList> {
+    super::higgsfield::models(&studio.imaging, account).await
 }
 
 /// Texte exact envoyé au modèle, montré (et modifiable) avant l'envoi.

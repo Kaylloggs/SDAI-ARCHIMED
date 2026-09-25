@@ -13,7 +13,7 @@ export default defineTutorial({
     {
       icon: Palette,
       title: "Faire les textures",
-      text: "Onglet Textures : générez une texture par IA, importez une image ou retouchez-la au pixel.",
+      text: "Onglet Textures : générez une texture par IA (OpenRouter, Gemini ou Higgsfield avec votre compte), importez une image ou retouchez-la au pixel.",
       area: "top",
     },
     {

@@ -239,14 +239,26 @@ export function seamVerdict(seam: number): { label: string; tone: "success" | "w
 export const PROVIDER_LABEL: Record<ImageProvider, string> = {
   openRouter: "OpenRouter",
   gemini: "Google Gemini",
+  higgsfield: "Higgsfield",
+  higgsfieldAccount: "Higgsfield (compte)",
 };
+
+const PROVIDERS: readonly ImageProvider[] = ["openRouter", "gemini", "higgsfield", "higgsfieldAccount"];
+
+/** Ce que coûte un modèle non gratuit, selon qui le facture. */
+export function paidHint(provider: ImageProvider): string {
+  if (provider === "gemini") return "facturé par Google";
+  if (provider === "higgsfield" || provider === "higgsfieldAccount") return "crédits Higgsfield";
+  return "payant";
+}
 
 const PROVIDER_KEY = "mcstudio.textureProvider";
 
 /** Dernier service choisi (préférence de ce poste ; OpenRouter par défaut). */
 export function loadProvider(): ImageProvider {
   try {
-    return localStorage.getItem(PROVIDER_KEY) === "gemini" ? "gemini" : "openRouter";
+    const saved = localStorage.getItem(PROVIDER_KEY);
+    return PROVIDERS.find((provider) => provider === saved) ?? "openRouter";
   } catch {
     return "openRouter";
   }
@@ -265,7 +277,7 @@ export function modelOptions(models: ImageModel[], allowPaid: boolean, provider:
   return models.map((model) => ({
     value: model.id,
     label: model.name,
-    hint: model.free ? "gratuit" : provider === "gemini" ? "facturé par Google" : "payant",
+    hint: model.free ? "gratuit" : paidHint(provider),
     disabled: !model.free && !allowPaid,
   }));
 }

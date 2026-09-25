@@ -4,7 +4,8 @@ import { cn } from "@/core/lib/cn";
 import type { EnvironmentReport } from "@/core/ipc/bindings/EnvironmentReport";
 import { errorText, mcstudioApi } from "../api";
 import { JdkInstallCard } from "./JdkInstallCard";
-import { GeminiKeyCard, OpenRouterKeyCard } from "./ApiKeyCard";
+import { GeminiKeyCard, HiggsfieldKeyCard, OpenRouterKeyCard } from "./ApiKeyCard";
+import { HiggsfieldAccountCard } from "./HiggsfieldAccountCard";
 import { focusRing } from "./ui";
 
 /**
@@ -106,6 +107,21 @@ export function EnvironmentPanel() {
             </div>
             <div className="w-full sm:w-auto sm:min-w-[320px] sm:max-w-[420px]">
               <GeminiKeyCard compact />
+            </div>
+          </div>
+          <div className="flex flex-wrap items-start gap-x-4 gap-y-2 border-t border-border pt-3">
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p className="text-body-sm font-medium">
+                Textures avec Higgsfield <span className="font-normal text-text-subtle">· facultatif</span>
+              </p>
+              <p className="text-caption text-text-subtle">
+                Votre compte Higgsfield (outil officiel, connexion dans le navigateur, crédits de l'abonnement) ou une clé
+                d'API. Une clé déjà donnée à Image Maker sert aussi ici, sans copie.
+              </p>
+            </div>
+            <div className="w-full space-y-3 sm:w-auto sm:min-w-[320px] sm:max-w-[420px]">
+              <HiggsfieldAccountCard compact />
+              <HiggsfieldKeyCard compact />
             </div>
           </div>
           <p className="text-caption text-text-subtle">

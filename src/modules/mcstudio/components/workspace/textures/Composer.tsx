@@ -9,13 +9,60 @@ import type { ImageProvider } from "@/core/ipc/bindings/ImageProvider";
 import type { TextureInfo } from "@/core/ipc/bindings/TextureInfo";
 import type { TextureTarget } from "@/core/ipc/bindings/TextureTarget";
 import { MAX_DESCRIPTION, modelOptions, PROVIDER_LABEL } from "../../../lib/textures";
-import { GeminiKeyCard, OpenRouterKeyCard } from "../../ApiKeyCard";
+import { GeminiKeyCard, HiggsfieldKeyCard, OpenRouterKeyCard } from "../../ApiKeyCard";
+import { HiggsfieldAccountCard } from "../../HiggsfieldAccountCard";
 import { focusRing, Segmented, Switch } from "../../ui";
 import { Popover } from "./Popover";
 import { PromptPanel, promptSummary, type PromptChoice } from "./PromptPanel";
 
-/** Ce que la personne doit savoir avant d'ajouter la clé d'un service. */
+type Family = "openRouter" | "gemini" | "higgsfield";
+
+function familyOf(provider: ImageProvider): Family {
+  return provider === "higgsfieldAccount" ? "higgsfield" : provider;
+}
+
+/** Textes qui changent selon qui facture les images. */
+const BILLING: Record<Family, { accept: string; placeholder: string; warning: string; none: string; noFree: string }> = {
+  openRouter: {
+    accept: "Autoriser les modèles payants",
+    placeholder: "Modèles payants : autorisez-les",
+    warning: "Un modèle payant est facturé sur votre crédit OpenRouter à chaque image.",
+    none: "OpenRouter ne propose aucun modèle d'image en ce moment.",
+    noFree: "Aucun modèle gratuit en ce moment : autorisez les payants, passez à un autre service, ou importez une image.",
+  },
+  gemini: {
+    accept: "Accepter la facturation Google",
+    placeholder: "Acceptez la facturation Google",
+    warning: "Chaque image est facturée par Google sur le projet de votre clé (quelques centimes l'image).",
+    none: "Aucun modèle d'image Gemini n'est ouvert à cette clé (pays non couvert ou projet sans l'API Gemini).",
+    noFree: "Les modèles d'image de Gemini sont payants : acceptez la facturation pour générer.",
+  },
+  higgsfield: {
+    accept: "Utiliser mes crédits Higgsfield",
+    placeholder: "Acceptez l'usage des crédits",
+    warning: "Chaque image débite des crédits Higgsfield (ceux de l'abonnement, ou ceux liés à la clé).",
+    none: "Higgsfield ne propose aucun modèle d'image à ce compte en ce moment.",
+    noFree: "Les modèles Higgsfield se paient en crédits : acceptez-le pour générer.",
+  },
+};
+
+/** Ce que la personne doit savoir avant d'ajouter la clé (ou le compte) d'un service. */
 function KeyIntro({ provider }: { provider: ImageProvider }) {
+  if (provider === "higgsfieldAccount") {
+    return (
+      <p className="text-footnote text-text-muted">
+        Avec votre abonnement Higgsfield, sans clé d'API : Nano Banana, GPT Image, Seedream, Flux… dessinent avec les
+        crédits de votre compte.
+      </p>
+    );
+  }
+  if (provider === "higgsfield") {
+    return (
+      <p className="text-footnote text-text-muted">
+        Une clé d'API Higgsfield (cloud.higgsfield.ai). Celle déjà donnée à Image Maker est reprise d'elle-même.
+      </p>
+    );
+  }
   return provider === "gemini" ? (
     <div className="space-y-1.5 text-footnote text-text-muted">
       <p>Les modèles d'image de Google (Nano Banana) dessinent avec une clé Google AI Studio.</p>
@@ -30,6 +77,20 @@ function KeyIntro({ provider }: { provider: ImageProvider }) {
       Les modèles d'image d'OpenRouter dessinent avec votre clé. Les modèles gratuits, quand il y en a, ont des quotas.
     </p>
   );
+}
+
+/** Carte de connexion du service : clé d'API, ou compte Higgsfield. */
+function Access({ provider, onKey }: { provider: ImageProvider; onKey: ModelState["onKey"] }) {
+  switch (provider) {
+    case "higgsfieldAccount":
+      return <HiggsfieldAccountCard key={provider} onChange={(usable) => onKey(provider, usable)} />;
+    case "higgsfield":
+      return <HiggsfieldKeyCard key={provider} onChange={(s) => onKey(provider, s.configured)} />;
+    case "gemini":
+      return <GeminiKeyCard key={provider} onChange={(s) => onKey(provider, s.configured)} />;
+    default:
+      return <OpenRouterKeyCard key={provider} onChange={(s) => onKey(provider, s.configured)} />;
+  }
 }
 
 export type ModelState = {
@@ -52,26 +113,37 @@ export type ModelState = {
 function ModelPanel({ state, disabled }: { state: ModelState; disabled: boolean }) {
   const { provider, key, models, model, chosen, allowPaid } = state;
   const noFreeModel = models !== null && models.models.length > 0 && !models.models.some((m) => m.free);
+  const family = familyOf(provider);
+  const text = BILLING[family];
   return (
     <>
-      <Segmented
+      <Segmented<Family>
         label="Service d'image"
-        value={provider}
-        onChange={state.onProvider}
+        value={family}
+        onChange={(next) => state.onProvider(next === "higgsfield" ? "higgsfieldAccount" : next)}
         disabled={disabled}
         options={[
           { value: "openRouter", label: PROVIDER_LABEL.openRouter },
-          { value: "gemini", label: "Gemini (Nano Banana)" },
+          { value: "gemini", label: "Gemini" },
+          { value: "higgsfield", label: PROVIDER_LABEL.higgsfield },
         ]}
       />
+      {family === "higgsfield" && (
+        <Segmented<ImageProvider>
+          label="Accès à Higgsfield"
+          value={provider}
+          onChange={state.onProvider}
+          disabled={disabled}
+          options={[
+            { value: "higgsfieldAccount", label: "Mon compte" },
+            { value: "higgsfield", label: "Clé d'API" },
+          ]}
+        />
+      )}
       {key === false ? (
         <div className="space-y-3">
           <KeyIntro provider={provider} />
-          {provider === "gemini" ? (
-            <GeminiKeyCard key="gemini" onChange={(s) => state.onKey("gemini", s.configured)} />
-          ) : (
-            <OpenRouterKeyCard key="openRouter" onChange={(s) => state.onKey("openRouter", s.configured)} />
-          )}
+          <Access provider={provider} onKey={state.onKey} />
         </div>
       ) : (
         <>
@@ -87,9 +159,7 @@ function ModelPanel({ state, disabled }: { state: ModelState; disabled: boolean 
                 !models
                   ? "Chargement des modèles…"
                   : models.models.length > 0
-                    ? provider === "gemini"
-                      ? "Acceptez la facturation Google"
-                      : "Modèles payants : autorisez-les"
+                    ? text.placeholder
                     : "Aucun modèle disponible"
               }
             />
@@ -109,35 +179,21 @@ function ModelPanel({ state, disabled }: { state: ModelState; disabled: boolean 
           </div>
           <div className="-ml-2">
             <Switch checked={allowPaid} disabled={disabled} onChange={state.onAllowPaid}>
-              {provider === "gemini" ? "Accepter la facturation Google" : "Autoriser les modèles payants"}
+              {text.accept}
             </Switch>
           </div>
           {chosen?.description && <p className="text-caption text-text-subtle">{chosen.description}</p>}
-          {allowPaid && (
-            <p className="text-caption text-warning">
-              {provider === "gemini"
-                ? "Chaque image est facturée par Google sur le projet de votre clé (quelques centimes l'image)."
-                : "Un modèle payant est facturé sur votre crédit OpenRouter à chaque image."}
-            </p>
-          )}
+          {allowPaid && <p className="text-caption text-warning">{text.warning}</p>}
           {models?.offline && (
             <p className="flex items-center gap-1.5 text-caption text-text-subtle">
               <CloudOff size={12} /> {PROVIDER_LABEL[provider]} injoignable : dernière liste connue.
             </p>
           )}
           {models !== null && models.models.length === 0 && (
-            <p className="text-caption text-warning">
-              {provider === "gemini"
-                ? "Aucun modèle d'image Gemini n'est ouvert à cette clé (pays non couvert ou projet sans l'API Gemini)."
-                : "OpenRouter ne propose aucun modèle d'image en ce moment."}
-            </p>
+            <p className="text-caption text-warning">{text.none}</p>
           )}
           {noFreeModel && !allowPaid && (
-            <p className="text-caption text-warning">
-              {provider === "gemini"
-                ? "Les modèles d'image de Gemini sont payants : acceptez la facturation pour générer."
-                : "Aucun modèle gratuit en ce moment : autorisez les payants, passez à Gemini, ou importez une image."}
-            </p>
+            <p className="text-caption text-warning">{text.noFree}</p>
           )}
           {state.modelsError && <p className="text-caption text-danger">{state.modelsError}</p>}
         </>
@@ -208,7 +264,14 @@ export function Composer({
     field.style.height = `${Math.min(field.scrollHeight, 144)}px`;
   }, [description]);
 
-  const modelValue = key === false ? "Ajouter une clé" : chosen ? chosen.name : PROVIDER_LABEL[provider];
+  const modelValue =
+    key === false
+      ? provider === "higgsfieldAccount"
+        ? "Connecter le compte"
+        : "Ajouter une clé"
+      : chosen
+        ? chosen.name
+        : PROVIDER_LABEL[provider];
 
   return (
     <div className="shrink-0 px-3 pb-3 pt-1">

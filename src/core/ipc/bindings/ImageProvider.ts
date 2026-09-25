@@ -3,4 +3,4 @@
 /**
  * Service qui dessine les textures, avec la clé API de la personne.
  */
-export type ImageProvider = "openRouter" | "gemini";
+export type ImageProvider = "openRouter" | "gemini" | "higgsfield" | "higgsfieldAccount";

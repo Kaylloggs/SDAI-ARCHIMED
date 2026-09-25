@@ -47,6 +47,8 @@ pub struct McStudio {
     pub jdk: JdkInstaller,
     pub openrouter: OpenRouter,
     pub gemini: Gemini,
+    /// Fournisseurs d'images du core (Higgsfield : clé d'API ou compte).
+    pub imaging: crate::core::imaging::Imaging,
     drafts: Drafts,
     workspaces: Workspaces,
 }
@@ -60,6 +62,7 @@ impl McStudio {
             jdk: JdkInstaller::new(&module_dir),
             openrouter: OpenRouter::new(&module_dir),
             gemini: Gemini::new(&module_dir),
+            imaging: crate::core::imaging::Imaging::new(super::ID, &module_dir),
             drafts: Drafts::new(&module_dir),
             workspaces: Workspaces::new(&module_dir),
             module_dir,
@@ -444,6 +447,12 @@ impl McStudio {
         let (models, service) = match request.provider {
             ImageProvider::OpenRouter => (self.openrouter.models().await?.models, "OpenRouter"),
             ImageProvider::Gemini => (self.gemini.models().await?.models, "Google Gemini"),
+            ImageProvider::Higgsfield | ImageProvider::HiggsfieldAccount => (
+                super::higgsfield::models(&self.imaging, request.provider == ImageProvider::HiggsfieldAccount)
+                    .await?
+                    .models,
+                "Higgsfield",
+            ),
         };
         let model = pick_image_model(models, &request, service)?;
         if reference.is_some() && !model.image_input {
@@ -483,6 +492,14 @@ impl McStudio {
                     .await,
                 "gemini",
             ),
+            ImageProvider::Higgsfield | ImageProvider::HiggsfieldAccount => {
+                let account = request.provider == ImageProvider::HiggsfieldAccount;
+                (
+                    super::higgsfield::generate(&self.imaging, account, &model, &prompt, reference.as_deref(), aspect)
+                        .await,
+                    if account { "higgsfield-account" } else { "higgsfield" },
+                )
+            }
         };
         crate::core::audit::record(
             "mcstudio.texture_generate",
@@ -505,6 +522,10 @@ impl McStudio {
                 prompt,
             },
             ImageProvider::Gemini => DraftSource::Gemini {
+                model: model.id,
+                prompt,
+            },
+            ImageProvider::Higgsfield | ImageProvider::HiggsfieldAccount => DraftSource::Higgsfield {
                 model: model.id,
                 prompt,
             },
@@ -827,6 +848,9 @@ fn pick_image_model(
         let rule = match request.provider {
             ImageProvider::OpenRouter => "autorisez les modèles payants pour l'utiliser",
             ImageProvider::Gemini => "acceptez la facturation Google pour l'utiliser",
+            ImageProvider::Higgsfield | ImageProvider::HiggsfieldAccount => {
+                "acceptez que Higgsfield débite vos crédits pour l'utiliser"
+            }
         };
         return Err(AppError::invalid(format!(
             "{} est payant : {rule}.",

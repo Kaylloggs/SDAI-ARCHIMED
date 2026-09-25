@@ -181,6 +181,16 @@ describe("textures", () => {
     expect(loadProvider()).toBe("openRouter");
   });
 
+  it("présente les modèles Higgsfield comme payés en crédits, clé ou compte", () => {
+    const higgsfield: ImageModel[] = [
+      { id: "nano_banana_2", name: "Nano Banana 2", free: false, description: "", textOutput: false, imageInput: true },
+    ];
+    for (const provider of ["higgsfield", "higgsfieldAccount"] as const) {
+      expect(modelOptions(higgsfield, false, provider)[0]).toMatchObject({ hint: "crédits Higgsfield", disabled: true });
+      expect(modelOptions(higgsfield, true, provider)[0]?.disabled).toBe(false);
+    }
+  });
+
   it("dérive le nom de registre du nom en jeu", () => {
     expect(suggestRegistryId("Épée de rubis")).toBe("epee_de_rubis");
     expect(suggestRegistryId("3 Gemmes")).toBe("x_3_gemmes");

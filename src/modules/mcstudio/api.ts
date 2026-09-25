@@ -21,6 +21,8 @@ import type { VersionCatalog } from "@/core/ipc/bindings/VersionCatalog";
 import type { ImageModelList } from "@/core/ipc/bindings/ImageModelList";
 import type { OpenRouterStatus } from "@/core/ipc/bindings/OpenRouterStatus";
 import type { GeminiStatus } from "@/core/ipc/bindings/GeminiStatus";
+import type { HiggsfieldCliState } from "@/core/ipc/bindings/HiggsfieldCliState";
+import type { ProviderStatus } from "@/core/ipc/bindings/ProviderStatus";
 import type { BlockLayout } from "@/core/ipc/bindings/BlockLayout";
 import type { GuiRequest } from "@/core/ipc/bindings/GuiRequest";
 import type { PixelData } from "@/core/ipc/bindings/PixelData";
@@ -131,6 +133,19 @@ export const mcstudioApi = {
   setGeminiKey: (key: string) => invokeModule<GeminiStatus>(PLUGIN, "set_gemini_key", { key }),
   clearGeminiKey: () => invokeModule<void>(PLUGIN, "clear_gemini_key"),
   geminiImageModels: () => invokeModule<ImageModelList>(PLUGIN, "gemini_image_models"),
+  /** Higgsfield : clé d'API (`account = false`) ou compte par l'outil officiel (`true`). */
+  higgsfieldStatus: (account: boolean, check: boolean) =>
+    invokeModule<ProviderStatus>(PLUGIN, "higgsfield_status", { account, check }),
+  /** Vérifiée auprès de Higgsfield puis rangée ; une clé déjà donnée à Image Maker est relue sur place. */
+  setHiggsfieldKey: (key: string) => invokeModule<ProviderStatus>(PLUGIN, "set_higgsfield_key", { key }),
+  clearHiggsfieldKey: (account: boolean) => invokeModule<ProviderStatus>(PLUGIN, "clear_higgsfield_key", { account }),
+  /** La page de connexion de Higgsfield s'ouvre dans le navigateur (aucun mot de passe ici). */
+  higgsfieldLogin: () => invokeModule<ProviderStatus>(PLUGIN, "higgsfield_login"),
+  higgsfieldCliState: () => invokeModule<HiggsfieldCliState>(PLUGIN, "higgsfield_cli_state"),
+  /** `npm install -g @higgsfield/cli`, seulement après confirmation. */
+  installHiggsfieldTool: () => invokeModule<string>(PLUGIN, "install_higgsfield_tool"),
+  higgsfieldImageModels: (account: boolean) =>
+    invokeModule<ImageModelList>(PLUGIN, "higgsfield_image_models", { account }),
   /** Texte exact envoyé au modèle pour cette description et ces réglages. */
   texturePrompt: (target: TextureTarget, description: string, settings: PromptSettings) =>
     invokeModule<string>(PLUGIN, "texture_prompt", { target, description, settings }),

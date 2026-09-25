@@ -16,6 +16,7 @@ mod files;
 mod fsutil;
 mod gemini;
 mod gradle;
+mod higgsfield;
 mod importer;
 mod java;
 mod jdk;
@@ -79,6 +80,13 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::set_gemini_key,
             commands::clear_gemini_key,
             commands::gemini_image_models,
+            commands::higgsfield_status,
+            commands::set_higgsfield_key,
+            commands::clear_higgsfield_key,
+            commands::higgsfield_login,
+            commands::higgsfield_cli_state,
+            commands::install_higgsfield_tool,
+            commands::higgsfield_image_models,
             commands::texture_prompt,
             commands::edit_texture,
             commands::draft_pixels,
