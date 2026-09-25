@@ -40,7 +40,20 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Service `image.maker`** pour les autres modules : générer, modifier, détourer, agrandir,
   varier (ADR 0010).
 
+### Ajouté — Ctrl+V dans les zones de saisie
+- **Chat, Code, assistant de Mod Studio** : Ctrl+V joint au message les fichiers copiés dans
+  l'Explorateur (par leur vrai chemin) ou une image copiée ailleurs (capture d'écran, image d'un
+  site), enregistrée dans le dossier `pasted` de l'application. Le texte se colle comme avant.
+- **Image Maker** : une image collée dans la consigne rejoint le projet et s'ajoute aux images de
+  référence, sans changer l'image affichée ; hors d'un champ, les fichiers d'images copiés dans
+  l'Explorateur s'importent aussi.
+- **Atelier de textures de Mod Studio** : une image collée dans la description devient une
+  proposition de texture, comme avec « Importer une image ».
+
 ### Technique
+- Commandes du core `clipboard_file_paths` (liste CF_HDROP de Windows) et `clipboard_save_file`
+  (50 Mo au plus, nom nettoyé, copies de plus de 30 jours retirées), aide `onPasteFiles` dans
+  `@/core/chat`.
 - Couche de fournisseurs d'images partagée dans le core (`core/imaging`, trait `ImageProvider`),
   relecture en lecture seule des clés d'un autre module (`all_credentials()` généré par
   `build.rs`), décodeurs TIFF, GIF et BMP ajoutés à `image`.

@@ -24,6 +24,7 @@ import type { ProviderId } from "@/core/ipc/bindings/ProviderId";
 import type { PromptSuggestion } from "@/core/ipc/bindings/PromptSuggestion";
 import { errorText, imageMakerApi } from "../api";
 import { prepareCreate, prepareEdit, run } from "../actions";
+import { pasteIntoPrompt } from "../clipboard";
 import { usable } from "../lib/capabilities";
 import { PROVIDER_NAMES, priceText, usageText } from "../lib/format";
 import { STRUCTURE, parseStructure } from "../lib/prompt";
@@ -165,7 +166,8 @@ function References() {
       </Label>
       {references.length === 0 ? (
         <p className="text-footnote text-text-subtle">
-          Personnage, vêtement, décor ou style à reprendre : ajoutez l'image affichée, ou clic droit sur une version.
+          Personnage, vêtement, décor ou style à reprendre : ajoutez l'image affichée, clic droit sur une version, ou
+          collez une image dans la consigne (Ctrl+V).
         </p>
       ) : (
         <ul className="space-y-1.5">
@@ -256,6 +258,7 @@ function CreatePanel() {
                     value={draft.structure[field.key] ?? ""}
                     placeholder={field.placeholder}
                     onChange={(e) => setDraft({ structure: { ...draft.structure, [field.key]: e.target.value } })}
+                    onPaste={pasteIntoPrompt}
                     className={cn(inputClass, "h-7 text-footnote")}
                   />
                 </div>
@@ -267,6 +270,7 @@ function CreatePanel() {
               ref={prompt}
               value={draft.prompt}
               onChange={(e) => setDraft({ prompt: e.target.value })}
+              onPaste={pasteIntoPrompt}
               rows={5}
               placeholder="Un phare sur une falaise au lever du jour, brume légère, photographie argentique"
               className={textareaClass}
@@ -628,6 +632,7 @@ function EditPanel() {
               ref={instruction}
               value={draft.instruction}
               onChange={(e) => setDraft({ instruction: e.target.value })}
+              onPaste={pasteIntoPrompt}
               rows={3}
               placeholder={placeholder[draft.task]}
               className={textareaClass}

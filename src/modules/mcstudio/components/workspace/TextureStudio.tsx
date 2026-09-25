@@ -250,12 +250,15 @@ export function TextureStudio({
       );
     });
 
-  const importFile = async () => {
-    const file = await openDialog({
-      multiple: false,
-      title: `Image pour ${texture.label}`,
-      filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] }],
-    });
+  /** `path` : image collée (Ctrl+V) ; sinon la personne en choisit une. */
+  const importFile = async (path?: string) => {
+    const file =
+      path ??
+      (await openDialog({
+        multiple: false,
+        title: `Image pour ${texture.label}`,
+        filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] }],
+      }));
     if (typeof file !== "string") return;
     await run("importing", async () => show(await mcstudioApi.importTexture(project.id, target, file, fresh())));
   };
@@ -541,6 +544,8 @@ export function TextureStudio({
           busy={busy}
           onGenerate={() => void generate()}
           onImport={() => void importFile()}
+          onPasteImage={(path) => void importFile(path)}
+          onPasteError={setError}
         />
       </div>
     </div>

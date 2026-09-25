@@ -57,6 +57,8 @@ pub fn run() {
             engine_commands::engine_dictation_start,
             engine_commands::engine_dictation_stop,
             engine_commands::engine_dictation_device,
+            core::clipboard::clipboard_file_paths,
+            core::clipboard::clipboard_save_file,
             core::modules::modules_footprint,
             core::modules::modules_remove,
         ])

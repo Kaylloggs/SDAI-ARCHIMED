@@ -25,7 +25,7 @@ export default defineTutorial({
     {
       icon: Paperclip,
       title: "Joindre des fichiers",
-      text: "Le trombone ajoute des PDF, des images ou des documents. Vous pouvez aussi les glisser depuis l'Explorateur.",
+      text: "Le trombone ajoute des PDF, des images ou des documents. Vous pouvez aussi les glisser depuis l'Explorateur, ou les coller avec Ctrl+V (fichiers copiés, capture d'écran).",
       area: "bottom",
     },
     {

@@ -153,6 +153,8 @@ type Actions = {
   setReferenceRole: (node: string, role: string) => void;
   importPaths: (paths: string[], parent?: string | null, source?: string | null) => Promise<void>;
   importData: (data: string, name?: string) => Promise<void>;
+  /** Images collées dans une consigne : versions du projet ajoutées en référence, l'image affichée reste. */
+  addReferenceImages: (input: { paths?: string[]; images?: { data: string; name: string }[] }) => Promise<void>;
   local: (operation: ImageLocalOperation, node?: string) => Promise<boolean>;
   localBatch: (nodes: string[], operation: ImageLocalOperation) => Promise<void>;
   savePaint: (data: string, parent: string) => Promise<void>;
@@ -541,6 +543,38 @@ export const useImageMaker = create<State & Actions>()((set, get) => {
       set({ busy: "Import de l'image…" });
       try {
         get().applyProject(await api.importData(project.id, data, name));
+      } catch (error) {
+        fail(error);
+      } finally {
+        set({ busy: null });
+      }
+    },
+
+    addReferenceImages: async ({ paths = [], images = [] }) => {
+      const project = get().project;
+      if (!project || (paths.length === 0 && images.length === 0)) return;
+      const before = new Set(project.nodes.map((n) => n.id));
+      const shown = project.current;
+      set({ busy: "Ajout des images de référence…" });
+      try {
+        let latest: ImageProject | null = null;
+        if (paths.length > 0) {
+          const outcome = await api.importFiles(project.id, paths, null, null);
+          latest = outcome.project;
+          if (outcome.skipped.length > 0) get().notify("warning", `Non importé : ${outcome.skipped.join(" · ")}`);
+        }
+        for (const image of images) latest = await api.importData(project.id, image.data, image.name);
+        if (!latest) return;
+        // Un import devient l'image affichée : on revient à celle que la personne regardait.
+        if (shown && latest.current !== shown) latest = await api.setCurrent(project.id, shown);
+        const added = latest.nodes.filter((n) => !before.has(n.id)).map((n) => n.id);
+        const references = [...get().draft.references, ...added.map((node) => ({ node, role: "" }))];
+        get().applyProject(latest);
+        get().setDraft({ references });
+        if (added.length > 0) {
+          get().applyProject(await api.setReferences(project.id, references.map((r) => r.node)));
+          get().notify("success", added.length > 1 ? `${added.length} images ajoutées en référence.` : "Image ajoutée en référence.");
+        }
       } catch (error) {
         fail(error);
       } finally {

@@ -18,6 +18,7 @@ import type { AdapterInfo, AutoMode } from "@/core/engine/types";
 import { Button, Kbd, Select, Tooltip } from "@/design-system/primitives";
 import { useUiStore } from "@/core/stores/ui.store";
 import { FILE_DRAG_TYPE, useOsFileDrop } from "./useOsFileDrop";
+import { onPasteFiles } from "./paste";
 import { useDictation } from "./useDictation";
 import { useDropTarget } from "@/core/dnd";
 import { EffortSlider } from "./EffortSlider";
@@ -103,6 +104,8 @@ export function Composer({
   /** Dernier texte reçu de l'extérieur : le même ne se réinjecte pas deux fois. */
   const lastPrefill = useRef<string | null>(null);
   const [attachments, setAttachments] = useState<string[]>([]);
+  /** Collage de fichiers refusé (trop lourd, illisible). */
+  const [pasteError, setPasteError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const toggleRawTerminal = useUiStore((s) => s.toggleRawTerminal);
 
@@ -129,6 +132,15 @@ export function Composer({
   }, []);
 
   const osDragging = useOsFileDrop(addAttachments);
+
+  // Ctrl+V : fichiers copiés dans l'Explorateur ou image copiée ailleurs, joints au message.
+  const onPaste = useCallback(
+    (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      setPasteError(null);
+      onPasteFiles(addAttachments, setPasteError)(event);
+    },
+    [addAttachments],
+  );
 
   // Dictée locale : le texte provisoire remplace la fin du message, la phrase confirmée s'y ajoute.
   const dictation = useDictation(
@@ -247,6 +259,12 @@ export function Composer({
           </p>
         )}
 
+        {pasteError && (
+          <p role="alert" className="pb-2 text-footnote text-danger">
+            {pasteError}
+          </p>
+        )}
+
         {chips.length > 0 && (
           <ul className="flex flex-wrap gap-1.5 pb-2">
             {chips.map(({ path, kind }) => (
@@ -287,6 +305,7 @@ export function Composer({
           value={text}
           rows={1}
           placeholder={`Écrire à ${adapter?.name ?? "l'agent"}…`}
+          onPaste={onPaste}
           onChange={(event) => {
             setText(event.target.value);
             dictationBase.current = event.target.value;

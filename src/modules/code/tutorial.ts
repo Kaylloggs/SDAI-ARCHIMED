@@ -46,5 +46,6 @@ export default defineTutorial({
   tips: [
     "Les fichiers ouverts se mettent à jour seuls quand l'IA les modifie.",
     "Double-cliquez sur la séparation entre deux panneaux pour lui rendre sa taille.",
+    "Ctrl+V dans la zone de saisie joint les fichiers copiés dans l'Explorateur, ou une capture d'écran.",
   ],
 });

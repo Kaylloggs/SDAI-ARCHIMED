@@ -4,15 +4,13 @@ import { AlertTriangle, CheckCircle2, Info, UploadCloud, X } from "lucide-react"
 import { useOsFileDrop } from "@/core/chat";
 import { cn } from "@/core/lib/cn";
 import { enterUp } from "@/design-system/motion";
-import { pasteFrom } from "./clipboard";
+import { IMAGE_FILE, pasteFrom } from "./clipboard";
 import { AccountDialog } from "./components/AccountDialog";
 import { ConnectionsDialog } from "./components/ConnectionsDialog";
 import { ExportDialog } from "./components/ExportDialog";
 import { ProjectList } from "./components/ProjectList";
 import { Studio } from "./components/Studio";
 import { useImageMaker } from "./store";
-
-const IMAGE_FILE = /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i;
 
 export default function ImageMakerModule() {
   const project = useImageMaker((s) => s.project);

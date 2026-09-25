@@ -76,6 +76,7 @@ SDAI ARCHIMED/
 │   ├── main.tsx
 │   ├── core/
 │   │   ├── chat/                        # Composer · ConversationView · useOsFileDrop · useDictation
+│   │   │                                # · paste (Ctrl+V de fichiers : onPasteFiles, pastedFiles)
 │   │   │                                # (UI de conversation partagée chat/code)
 │   │   ├── dnd/                         # glisser-déposer interne (pointeur) : useDragSource · DropZone · DragLayer
 │   │   ├── editor/                      # CodeEditor (CodeMirror aux tokens, lignes signalées) · FileTree (paresseux,
@@ -156,6 +157,7 @@ SDAI ARCHIMED/
         │                                # · dictation.rs (reconnaissance vocale Windows, locale + vumètre)
         │                                # · mcp.rs (serveurs MCP déclarés par les modules)
         │                                # · audit.rs (audit.jsonl) · usage.rs (registre de consommation) · mod.rs
+        │                                # · clipboard.rs (Ctrl+V : chemins CF_HDROP de l'Explorateur, images collées)
         │                                # · imaging/ (fournisseurs d'images partagés, ADR 0010 : trait ImageProvider,
         │                                #   openrouter · gemini · higgsfield · higgsfield_cli (compte, CLI officielle)
         │                                #   · keys (relecture entre modules) · http)
@@ -627,6 +629,7 @@ arrête son processus puis efface son entrée.
 | Skills | `%APPDATA%\com.sdai.archimed\skills\` |
 | Logs | `%APPDATA%\com.sdai.archimed\logs\` (`app.log` rotatif, `audit.jsonl`) |
 | Données d'un module | `%APPDATA%\com.sdai.archimed\modules\<id>\` (via `core::paths::module_dir`) |
+| Images collées avec Ctrl+V dans une zone de saisie (sans fichier d'origine) | `%APPDATA%\com.sdai.archimed\pasted\` (copies de l'application, retirées après 30 jours ; un fichier copié dans l'Explorateur est joint par son vrai chemin, jamais copié) |
 
 ---
 

@@ -44,5 +44,6 @@ export default defineTutorial({
   tips: [
     "Un point de restauration est créé avant chaque changement important : rien ne se perd.",
     "Le serveur de test tourne pendant que le jeu est ouvert : rejoignez localhost en multijoueur.",
+    "Ctrl+V : une image copiée devient une proposition de texture ; dans l'assistant, les fichiers copiés sont joints au message.",
   ],
 });

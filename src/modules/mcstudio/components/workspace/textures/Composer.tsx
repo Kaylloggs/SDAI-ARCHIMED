@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { CloudOff, Loader2, Paperclip, RefreshCw, SlidersHorizontal, Sparkles, SquareDashed } from "lucide-react";
+import { onPasteFiles } from "@/core/chat";
 import { cn } from "@/core/lib/cn";
 import { Button, Select } from "@/design-system/primitives";
 import type { ImageModel } from "@/core/ipc/bindings/ImageModel";
@@ -168,6 +169,8 @@ export function Composer({
   busy,
   onGenerate,
   onImport,
+  onPasteImage,
+  onPasteError,
 }: {
   target: TextureTarget;
   description: string;
@@ -187,6 +190,9 @@ export function Composer({
   busy: boolean;
   onGenerate: () => void;
   onImport: () => void;
+  /** Image collée (Ctrl+V) : copiée dans l'Explorateur ou ailleurs, par son chemin. */
+  onPasteImage: (path: string) => void;
+  onPasteError: (message: string) => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const handwritten = prompt.custom !== null;
@@ -215,6 +221,11 @@ export function Composer({
           disabled={busy || handwritten}
           placeholder={handwritten ? "Texte écrit à la main : modifiez-le dans « Style et texte »." : placeholder}
           onChange={(event) => onDescription(event.target.value)}
+          onPaste={onPasteFiles((paths) => {
+            const image = paths.find((p) => /\.(png|jpe?g|webp)$/i.test(p));
+            if (image) onPasteImage(image);
+            else onPasteError("Image attendue : PNG, JPEG ou WebP.");
+          }, onPasteError)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
@@ -272,7 +283,7 @@ export function Composer({
           <button
             type="button"
             aria-label="Importer une image"
-            title="Importer une image (PNG, JPEG, WebP)"
+            title="Importer une image (PNG, JPEG, WebP), ou collez-la dans la description avec Ctrl+V"
             disabled={busy}
             onClick={onImport}
             className={cn(

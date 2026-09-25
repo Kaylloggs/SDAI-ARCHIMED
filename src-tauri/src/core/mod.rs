@@ -1,4 +1,5 @@
 pub mod audit;
+pub mod clipboard;
 pub mod config;
 pub mod dictation;
 pub mod error;
