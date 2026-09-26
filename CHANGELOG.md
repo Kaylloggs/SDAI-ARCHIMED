@@ -22,6 +22,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 ### Corrigé
 - Éditeur : un fichier ouvert depuis un lien ou un résultat de recherche arrive bien à la ligne
   demandée, même quand l'éditeur vient d'être créé.
+- **Code à 960 × 640** : l'assistant (et son bouton Envoyer) sortait de l'écran. Les colonnes
+  s'adaptent maintenant à la largeur réelle : elles rétrécissent jusqu'à leur minimum, puis le
+  panneau ouvert le moins récemment se replie (l'arborescence devient une barre d'icônes,
+  l'assistant garde son bouton avec une pastille). Des largeurs mémorisées trop grandes ne
+  poussent plus rien hors de l'écran.
 
 ## [0.7.0] - 2026-09-26
 

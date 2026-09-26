@@ -6,7 +6,7 @@
 - **Commandes** : `list_dir`, `read_file`, `write_file` (atomique, auditée), `project_info`, `search_files`, `watch_root`, `unwatch_root`, `search_text`, `terminal_open` (auditée), `terminal_write`, `terminal_resize`, `terminal_close`.
 - **Événement émis** : `code:fs-changed` — l'arborescence, les onglets non modifiés et l'aperçu se mettent à jour seuls quand une IA crée ou modifie des fichiers (dépendances et builds ignorés).
 - **Éditeur et arborescence** : `@/core/editor` (`CodeEditor`, `FileTree`), partagés avec Mod Studio ; ce module fournit la lecture (`list_dir`), la surveillance et les états vide / binaire.
-- **Panneaux redimensionnables** : arborescence, éditeur, aperçu et assistant (`ResizeHandle`, tailles mémorisées ; double clic = taille par défaut).
+- **Panneaux redimensionnables** : arborescence, éditeur, aperçu et assistant (`ResizeHandle`, tailles mémorisées ; double clic = taille par défaut). Quand la fenêtre est étroite (`lib/layout.ts`, largeur du module mesurée), l'éditeur garde 280 px, les panneaux rétrécissent jusqu'à leur minimum puis le moins récemment ouvert se replie : l'arborescence devient une barre d'icônes (un clic la rouvre), l'assistant replié garde son bouton marqué d'une pastille. Rien ne sort de l'écran, même avec des tailles mémorisées plus grandes que la fenêtre.
 - **Aperçu** (bouton globe) : serveur de test lancé par l'agent (pastille verte quand il répond) ou page HTML ouverte / créée, dans une colonne dédiée (`@/core/preview`).
 - **Services consommés** : moteur core (`useChat`, `useAdapters`), composants `@/core/chat`.
 - **Entrées** : dossier choisi par l'utilisateur, ou passé par un autre module via `useUiStore.openModule("code", { cwd, file? })` (`file` : ouvert dans un onglet une fois le dossier chargé).

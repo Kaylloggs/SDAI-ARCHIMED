@@ -9,21 +9,40 @@ const VIEWS = [
   { id: "search", label: "Rechercher dans le projet (Ctrl+Maj+F)", icon: Search },
 ] as const;
 
-/** Bascule de la colonne de gauche : arborescence ou recherche dans le projet. */
-export function SidebarSwitcher({ view, onChange }: { view: SidebarView; onChange: (view: SidebarView) => void }) {
+/**
+ * Bascule de la colonne de gauche : arborescence ou recherche dans le projet. `vertical` :
+ * colonne repliée faute de place (barre d'icônes), un clic la rouvre sur la vue choisie.
+ */
+export function SidebarSwitcher({
+  view,
+  onChange,
+  vertical = false,
+}: {
+  view: SidebarView;
+  onChange: (view: SidebarView) => void;
+  vertical?: boolean;
+}) {
   return (
-    <div role="tablist" aria-label="Vue de la colonne" className="flex shrink-0 items-center gap-0.5 rounded-sm border border-border bg-surface-1 p-0.5">
+    <div
+      role="tablist"
+      aria-label="Vue de la colonne"
+      aria-orientation={vertical ? "vertical" : "horizontal"}
+      className={cn(
+        "flex shrink-0 items-center gap-0.5 rounded-sm border border-border bg-surface-1 p-0.5",
+        vertical && "flex-col",
+      )}
+    >
       {VIEWS.map(({ id, label, icon: Icon }) => (
-        <Tooltip key={id} side="bottom" label={label}>
+        <Tooltip key={id} side={vertical ? "right" : "bottom"} label={label}>
           <button
             type="button"
             role="tab"
-            aria-selected={view === id}
+            aria-selected={!vertical && view === id}
             aria-label={label}
             onClick={() => onChange(id)}
             className={cn(
               "flex size-6 items-center justify-center rounded-xs transition-colors",
-              view === id ? "bg-surface-3 text-text" : "text-text-subtle hover:text-text",
+              !vertical && view === id ? "bg-surface-3 text-text" : "text-text-subtle hover:text-text",
             )}
           >
             <Icon size={14} strokeWidth={1.75} />

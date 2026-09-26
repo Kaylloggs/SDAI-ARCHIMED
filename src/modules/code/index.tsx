@@ -21,6 +21,7 @@ import { SearchPanel } from "./components/SearchPanel";
 import { SidebarSwitcher, type SidebarView } from "./components/SidebarSwitcher";
 import { TerminalPanel } from "./components/TerminalPanel";
 import { closeTerminalsOutside } from "./terminal/sessions";
+import { computeLayout, PANEL_MIN, touch, type PanelId } from "./lib/layout";
 
 const STORAGE_KEY = "archimed.code.root";
 const TERMINAL_KEY = "archimed.code.terminal";
@@ -55,11 +56,23 @@ export default function CodeModule() {
   const [error, setError] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [treeWidth, setTreeWidth] = usePanelSize("code.tree", 240, 160, 480);
-  const [chatWidth, setChatWidth] = usePanelSize("code.chat", 380, 280, 760);
-  const [previewWidth, setPreviewWidth] = usePanelSize("code.preview", 520, 280, 1200);
+  const [treeWidth, setTreeWidth] = usePanelSize("code.tree", 240, PANEL_MIN.tree, 480);
+  const [chatWidth, setChatWidth] = usePanelSize("code.chat", 380, PANEL_MIN.chat, 760);
+  const [previewWidth, setPreviewWidth] = usePanelSize("code.preview", 520, PANEL_MIN.preview, 1200);
   const [previewOpen, setPreviewOpen] = useState(false);
+  /** Panneaux du moins au plus récemment ouvert : les premiers cèdent la place. */
+  const [recent, setRecent] = useState<PanelId[]>(["tree", "preview", "chat"]);
+  const bringForward = useCallback((id: PanelId) => setRecent((current) => touch(current, id)), []);
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const [moduleWidth, setModuleWidth] = useState(0);
   const [sidebarView, setSidebarView] = useState<SidebarView>("files");
+  const showSidebar = useCallback(
+    (view: SidebarView) => {
+      setSidebarView(view);
+      bringForward("tree");
+    },
+    [bringForward],
+  );
   /** Ctrl+Maj+F : focus du champ de recherche. */
   const [searchFocus, setSearchFocus] = useState(0);
   const [terminalOpen, setTerminalOpen] = useState(() => storedFlag(TERMINAL_KEY));
@@ -169,6 +182,7 @@ export default function CodeModule() {
       if (ctrl && event.shiftKey && event.key.toLowerCase() === "f") {
         event.preventDefault();
         setSidebarView("search");
+        setRecent((current) => touch(current, "tree"));
         setSearchFocus((n) => n + 1);
       } else if (ctrl && (event.key === "`" || event.code === "Backquote")) {
         event.preventDefault();
@@ -316,6 +330,34 @@ export default function CodeModule() {
     else setDraft((d) => ({ ...d, autoMode: mode }));
   };
 
+  // Largeur réelle du module : les colonnes s'y adaptent (lib/layout.ts).
+  useEffect(() => {
+    const element = layoutRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => setModuleWidth(Math.floor(entry?.contentRect.width ?? 0)));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [root]);
+
+  const layout = computeLayout(
+    moduleWidth,
+    {
+      tree: { open: true, desired: treeWidth, min: PANEL_MIN.tree },
+      preview: { open: previewOpen, desired: previewWidth, min: PANEL_MIN.preview },
+      chat: { open: chatOpen, desired: chatWidth, min: PANEL_MIN.chat },
+    },
+    recent,
+  );
+  const togglePanel = (id: "chat" | "preview", shown: boolean, setOpen: (open: boolean) => void) => {
+    if (shown) {
+      setOpen(false);
+    } else {
+      // Ouvert mais replié faute de place, ou fermé : il passe devant les autres.
+      setOpen(true);
+      bringForward(id);
+    }
+  };
+
   const activeHtml = active && isHtmlFile(active.path) ? [active.path] : [];
   const previewTargets = usePreviewTargets(session?.timeline, activeHtml);
   const liveServer = previewTargets.some((target) => target.kind === "server");
@@ -337,34 +379,44 @@ export default function CodeModule() {
   }
 
   return (
-    <div className="flex h-full">
+    <div ref={layoutRef} className="flex h-full min-w-0">
+      {layout.treeRail && (
+        <nav aria-label="Colonne repliée faute de place" className="flex w-10 shrink-0 flex-col items-center border-r border-border bg-bg-subtle pt-2">
+          <SidebarSwitcher view={sidebarView} onChange={showSidebar} vertical />
+        </nav>
+      )}
       <FileTree
         root={root}
-        width={treeWidth}
+        width={layout.tree ?? treeWidth}
         activePath={activePath}
         onOpenFile={(entry) => void openFile(entry)}
         onChangeRoot={() => void pickRoot()}
         switcher={<SidebarSwitcher view={sidebarView} onChange={setSidebarView} />}
-        hidden={sidebarView !== "files"}
+        hidden={layout.tree === null || sidebarView !== "files"}
       />
-      <aside style={{ width: treeWidth }} className={cn("flex shrink-0 flex-col bg-bg-subtle", sidebarView !== "search" && "hidden")}>
+      <aside
+        style={{ width: layout.tree ?? treeWidth }}
+        className={cn("flex shrink-0 flex-col bg-bg-subtle", (layout.tree === null || sidebarView !== "search") && "hidden")}
+      >
         <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border pl-2 pr-3">
           <SidebarSwitcher view={sidebarView} onChange={setSidebarView} />
           <span className="truncate text-caption font-medium text-text-subtle">Rechercher</span>
         </div>
         <SearchPanel
           root={root}
-          active={sidebarView === "search"}
+          active={layout.tree !== null && sidebarView === "search"}
           focusNonce={searchFocus}
           onOpenMatch={(path, line) => void openFile({ path }, line)}
         />
       </aside>
-      <ResizeHandle size={treeWidth} onResize={setTreeWidth} panel="before" label="Largeur de l'arborescence" defaultSize={240} />
+      {layout.tree !== null && (
+        <ResizeHandle size={layout.tree} onResize={setTreeWidth} panel="before" label="Largeur de l'arborescence" defaultSize={240} />
+      )}
 
-      <div className="flex min-w-[240px] flex-1 flex-col">
+      <div className="flex min-w-[280px] flex-1 flex-col">
         <header className="flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-2">
           {openFiles.length === 0 ? (
-            <span className="px-2 text-footnote text-text-subtle">
+            <span className="min-w-0 truncate px-2 text-footnote text-text-subtle">
               {project?.isProject
                 ? `Projet ${project.name} · ${project.kinds.join(", ")}`
                 : "Aucun fichier ouvert"}
@@ -464,12 +516,12 @@ export default function CodeModule() {
               }
             >
               <button
-                onClick={() => setPreviewOpen((value) => !value)}
-                aria-label={previewOpen ? "Masquer l'aperçu" : "Afficher l'aperçu"}
-                aria-pressed={previewOpen}
+                onClick={() => togglePanel("preview", layout.preview !== null, setPreviewOpen)}
+                aria-label={layout.preview !== null ? "Masquer l'aperçu" : "Afficher l'aperçu"}
+                aria-pressed={layout.preview !== null}
                 className={cn(
                   "relative flex size-7 items-center justify-center rounded-sm transition-colors",
-                  previewOpen ? "text-accent" : "text-text-subtle hover:text-text",
+                  layout.preview !== null ? "text-accent" : "text-text-subtle hover:text-text",
                 )}
               >
                 <Globe size={14} strokeWidth={1.75} />
@@ -484,17 +536,29 @@ export default function CodeModule() {
             >
               <Search size={14} strokeWidth={1.75} />
             </button>
-            <button
-              onClick={() => setChatOpen((value) => !value)}
-              aria-label={chatOpen ? "Masquer l'assistant" : "Afficher l'assistant"}
-              title={chatOpen ? "Masquer l'assistant" : "Afficher l'assistant"}
-              className={cn(
-                "flex size-7 items-center justify-center rounded-sm transition-colors",
-                chatOpen ? "text-accent" : "text-text-subtle hover:text-text",
-              )}
+            <Tooltip
+              side="bottom"
+              label={
+                layout.chat !== null
+                  ? "Masquer l'assistant"
+                  : chatOpen
+                    ? "Assistant replié faute de place : cliquer pour l'afficher"
+                    : "Afficher l'assistant"
+              }
             >
-              <PanelRight size={14} strokeWidth={1.75} />
-            </button>
+              <button
+                onClick={() => togglePanel("chat", layout.chat !== null, setChatOpen)}
+                aria-label={layout.chat !== null ? "Masquer l'assistant" : "Afficher l'assistant"}
+                aria-pressed={layout.chat !== null}
+                className={cn(
+                  "relative flex size-7 items-center justify-center rounded-sm transition-colors",
+                  layout.chat !== null ? "text-accent" : "text-text-subtle hover:text-text",
+                )}
+              >
+                <PanelRight size={14} strokeWidth={1.75} />
+                {chatOpen && layout.chat === null && <span className="absolute right-1 top-1 size-1.5 rounded-full bg-accent" />}
+              </button>
+            </Tooltip>
           </div>
         </header>
 
@@ -537,25 +601,25 @@ export default function CodeModule() {
         {error && <p className="px-4 pb-2 text-footnote text-danger">{error}</p>}
       </div>
 
-      {previewOpen && (
+      {layout.preview !== null && (
         <>
-          <ResizeHandle size={previewWidth} onResize={setPreviewWidth} panel="after" label="Largeur de l'aperçu" defaultSize={520} />
+          <ResizeHandle size={layout.preview} onResize={setPreviewWidth} panel="after" label="Largeur de l'aperçu" defaultSize={520} />
           <PreviewPane
             targets={previewTargets}
             preferredId={active && isHtmlFile(active.path) ? `file:${active.path}` : null}
             onClose={() => setPreviewOpen(false)}
             refreshKey={fsRevision}
             className="shrink-0"
-            style={{ width: previewWidth }}
+            style={{ width: layout.preview }}
           />
         </>
       )}
 
-      {chatOpen && (
-        <ResizeHandle size={chatWidth} onResize={setChatWidth} panel="after" label="Largeur de l'assistant" defaultSize={380} />
+      {layout.chat !== null && (
+        <ResizeHandle size={layout.chat} onResize={setChatWidth} panel="after" label="Largeur de l'assistant" defaultSize={380} />
       )}
-      {chatOpen && (
-        <section style={{ width: chatWidth }} className="flex min-w-0 shrink-0 flex-col">
+      {layout.chat !== null && (
+        <section style={{ width: layout.chat }} className="flex min-w-0 shrink-0 flex-col">
           <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-3">
             {projectSessions.length > 0 ? (
               <Select
