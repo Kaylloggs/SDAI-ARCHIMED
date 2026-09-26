@@ -12,7 +12,7 @@ et mettez-les au travail : coder, planifier, chercher un emploi, et même créer
 
 [![Dernière version](https://img.shields.io/github/v/release/Kaylloggs/SDAI-ARCHIMED?style=for-the-badge&label=version&color=d9a441)](https://github.com/Kaylloggs/SDAI-ARCHIMED/releases/latest)
 [![Windows 10 et 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=for-the-badge&logo=windows&logoColor=white)](#-installation-en-5-minutes)
-[![Gratuit et open source](https://img.shields.io/badge/licence-MIT-2ea043?style=for-the-badge)](LICENSE)
+[![Gratuit, code source disponible](https://img.shields.io/badge/licence-ARCHIMED%201.0-2ea043?style=for-the-badge)](LICENSE)
 [![Fait avec Tauri et Rust](https://img.shields.io/badge/Tauri%202-Rust-24C8DB?style=for-the-badge&logo=tauri&logoColor=white)](#-pour-les-développeurs)
 
 ### [⬇ Télécharger pour Windows](https://github.com/Kaylloggs/SDAI-ARCHIMED/releases/latest) &nbsp;·&nbsp; [Installation](#-installation-en-5-minutes) &nbsp;·&nbsp; [Les modules](#-les-modules) &nbsp;·&nbsp; [FAQ](#-faq)
@@ -104,6 +104,8 @@ ARCHIMED est fait de blocs : chaque fonction ci-dessus est un module dans son pr
 2. **Créez le module** : `pnpm new:module meteo` copie un modèle prêt à remplir dans `src/modules/meteo/`.
 3. **Remplissez-le** : son nom et son icône dans `module.config.ts`, son écran dans `index.tsx`, son tutoriel pas à pas dans `tutorial.ts`.
 4. **Essayez-le et compilez** : `pnpm tauri dev` pour tester, puis `.\build.ps1`. Votre propre version (installeur et `.exe` portable) arrive dans `release/`.
+
+Cette version est pour votre propre usage : la [licence](LICENSE) ne permet ni de la partager ni de la vendre. Pour proposer un module à tout le monde, soumettez-le au projet par une pull request.
 
 Vous n'êtes pas seul : ouvrez le dossier du projet dans le module **Code** et demandez à l'IA de *« créer un module météo en suivant guidelines.md »*. Le **Tutoriel** de l'application montre les mêmes étapes, avec les commandes à copier.
 
@@ -255,7 +257,7 @@ Pas de clé ? Bouton **Compte** dans Image Maker. Avec un abonnement Higgsfield,
 <details>
 <summary><b>ARCHIMED est-il gratuit ?</b></summary>
 <br />
-Oui, gratuit et open source (MIT). L'IA elle-même tourne sur votre propre compte Anthropic, Google ou OpenAI, selon leurs forfaits et leurs limites.
+Oui, gratuit. Le code source est public : vous pouvez utiliser, copier et modifier ARCHIMED pour votre propre usage, mais pas le redistribuer ni le vendre (voir la [licence](LICENSE)). Ce que vous créez avec (code, mods, images) vous appartient. L'IA elle-même tourne sur votre propre compte Anthropic, Google ou OpenAI, selon leurs forfaits et leurs limites.
 </details>
 
 <details>
@@ -330,6 +332,12 @@ pnpm tauri dev      # le premier lancement compile Rust et prend quelques minute
 
 ## 📄 Licence
 
-[MIT](LICENSE) © 2026 **SearaDesign**
+[Licence ARCHIMED 1.0](LICENSE) © 2026 **SearaDesign** : gratuit, code source disponible.
+
+- **Vous pouvez** utiliser, copier et modifier ARCHIMED pour votre propre usage, personnel ou professionnel, et proposer des modifications au projet.
+- **Vous ne pouvez pas** le redistribuer (d'origine ou modifié), le vendre, ni l'intégrer à un autre produit, ouvert ou fermé.
+- **Ce que vous créez avec vous revient** : code, mods, images, et les fichiers que l'application génère dans vos projets.
+
+Les versions publiées avant le 26 septembre 2026 (jusqu'à la 0.5.0) restent sous licence MIT. La licence est rédigée en français et en anglais ; le texte français fait foi.
 
 <sub>Tiers : l'économiseur de tokens embarque le skill [Caveman](https://github.com/JuliusBrussee/caveman) (MIT) ; `jobagent` inclut [JobSpy](https://github.com/speedyapply/JobSpy) (MIT) avec les données [GeoNames](https://www.geonames.org/) (CC BY 4.0) et [Natural Earth](https://www.naturalearthdata.com/) ; les modèles de `mcstudio` incluent le Gradle Wrapper (Apache 2.0). Minecraft est une marque de Mojang/Microsoft ; les mods que vous créez sont soumis au CLUF de Minecraft. Claude, Antigravity et Codex appartiennent à leurs propriétaires ; ARCHIMED n'est affilié ni à Anthropic, ni à Google, ni à OpenAI.</sub>

@@ -1,21 +1,424 @@
-MIT License
+LICENCE ARCHIMED — version 1.0
+ARCHIMED LICENSE — version 1.0
 
-Copyright (c) 2026 SearaDesign
+Copyright © 2026 SearaDesign. Tous droits réservés, sauf ceux que la présente licence accorde.
+Copyright © 2026 SearaDesign. All rights reserved, except those granted by this license.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+English version below. La version française fait foi (article 11).
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+================================================================================
+                              VERSION FRANÇAISE
+================================================================================
+
+En bref (sans valeur juridique : seuls les articles qui suivent engagent)
+
+  ARCHIMED est gratuit et son code source est consultable. Vous pouvez
+  l'utiliser, le copier et le modifier pour votre propre usage, personnel ou
+  professionnel. Vous ne pouvez pas le redistribuer, le vendre, ni l'intégrer
+  à un autre logiciel. Ce que vous créez avec ARCHIMED vous revient.
+
+
+Article 1 — Définitions
+
+  « Titulaire » : SearaDesign, titulaire des droits d'auteur sur le Logiciel.
+
+  « Logiciel » : le programme ARCHIMED sous toutes ses formes (code source,
+  code objet, exécutables, programmes d'installation), avec sa documentation,
+  ses modules, ses modèles de fichiers, ses images et ses textes, tels que le
+  Titulaire les publie sous la présente licence, versions ultérieures
+  comprises.
+
+  « Vous » : la personne physique ou morale qui exerce les droits accordés par
+  la présente licence.
+
+  « Version modifiée » : toute œuvre qui reprend tout ou partie du Logiciel,
+  modifiée ou non (adaptation, traduction, correction, ajout ou retrait d'un
+  module, extraction d'une partie).
+
+  « Distribuer » : mettre le Logiciel ou une Version modifiée, en tout ou
+  partie, à la disposition d'une personne autre que Vous, sous quelque forme
+  et par quelque moyen que ce soit (téléchargement, dépôt de code public,
+  support physique, magasin d'applications, registre de paquets, envoi
+  direct, accès à distance), à titre gratuit ou onéreux.
+
+  « Vos créations » : les contenus que Vous produisez en utilisant le
+  Logiciel (projets, code de vos propres programmes, mods, images, textes,
+  documents), ainsi que les fichiers que le Logiciel génère dans ces projets.
+
+  « Usage propre » : l'usage par Vous-même, pour Vos propres besoins,
+  personnels ou professionnels. Pour une personne morale, l'usage interne par
+  ses salariés et agents, pour son compte, relève de son Usage propre et ne
+  constitue pas une Distribution.
+
+
+Article 2 — Droits accordés
+
+  2.1 Le Titulaire Vous accorde, gratuitement, à titre non exclusif, pour le
+  monde entier et pour toute la durée de protection des droits d'auteur sur le
+  Logiciel, et pour Votre seul Usage propre :
+
+    a) le droit de reproduire le Logiciel : l'installer, le charger,
+       l'afficher, l'exécuter et le copier, en autant d'exemplaires que Votre
+       Usage propre le demande, sauvegardes comprises ;
+
+    b) le droit d'adapter le Logiciel : le modifier, le corriger, le traduire,
+       l'arranger et créer des Versions modifiées, y compris compiler Votre
+       propre version de l'application ;
+
+    c) le droit de reproduire et d'utiliser les Versions modifiées que Vous
+       créez, dans les mêmes limites.
+
+  2.2 Contributions. Vous pouvez proposer au Titulaire des modifications du
+  Logiciel (« Contributions ») par son dépôt officiel,
+  https://github.com/Kaylloggs/SDAI-ARCHIMED, par exemple sous forme de
+  demande de fusion (pull request). Cette transmission au Titulaire n'est pas
+  une Distribution. En proposant une Contribution, Vous déclarez en être
+  l'auteur ou détenir les droits nécessaires, et Vous accordez au Titulaire,
+  gratuitement, à titre non exclusif, pour le monde entier et pour toute la
+  durée de protection des droits d'auteur, afin de l'intégrer au Logiciel et
+  d'exploiter celui-ci sous la présente licence ou sous toute autre licence de
+  son choix :
+
+    a) le droit de reproduire la Contribution ;
+    b) le droit de la représenter et de la communiquer au public ;
+    c) le droit de l'adapter, de la modifier, de la corriger et de la traduire ;
+    d) le droit de la distribuer, à titre gratuit ou onéreux ;
+    e) le droit de concéder à des tiers tout ou partie de ces droits.
+
+  2.3 Plateforme d'hébergement. Lorsque le Logiciel est publié sur une
+  plateforme dont les conditions d'utilisation permettent à ses utilisateurs
+  de le consulter et d'en créer une copie sur cette même plateforme (par
+  exemple un « fork » sur GitHub), ces actions sont permises dans les limites
+  de ces conditions. La copie ainsi créée reste soumise à la présente licence
+  et ne peut servir qu'à Votre Usage propre ou à la préparation d'une
+  Contribution.
+
+
+Article 3 — Interdictions
+
+  Sauf accord écrit et préalable du Titulaire, il Vous est interdit :
+
+    a) de Distribuer le Logiciel ou une Version modifiée, en tout ou partie,
+       sous quelque forme que ce soit (code source, exécutable, programme
+       d'installation), à titre gratuit ou onéreux ;
+
+    b) de vendre, louer ou prêter le Logiciel ou une Version modifiée, d'en
+       concéder une sous-licence, ou d'en tirer un revenu par sa mise à
+       disposition, y compris en le proposant comme service accessible à
+       distance ;
+
+    c) d'intégrer tout ou partie du Logiciel à un autre logiciel, produit ou
+       service mis à la disposition de tiers, que son code soit fermé ou
+       ouvert ;
+
+    d) de supprimer ou de modifier les mentions de droits d'auteur, de licence
+       ou d'auteur figurant dans le Logiciel ;
+
+    e) d'utiliser les noms « ARCHIMED », « SDAI ARCHIMED », « SearaDesign » ou
+       le logo du Logiciel pour désigner ou promouvoir une Version modifiée ou
+       un autre produit.
+
+
+Article 4 — Vos créations
+
+  4.1 Le Titulaire ne revendique aucun droit sur Vos créations. La présente
+  licence ne Vous impose aucune restriction à leur égard : Vous pouvez les
+  utiliser, les publier, les distribuer et les vendre librement.
+
+  4.2 Les fichiers que le Logiciel crée dans Vos projets (par exemple les
+  fichiers d'un projet de mod Minecraft créé par Mod Studio, le code généré,
+  les textures, les images exportées), y compris lorsqu'ils reprennent des
+  modèles fournis avec le Logiciel, font partie de Vos créations. Le Titulaire
+  Vous autorise à les reproduire, à les modifier et à les distribuer avec
+  elles, sans restriction.
+
+  4.3 Les contenus produits par des services tiers (fournisseurs d'IA, sites
+  web) restent soumis aux conditions de ces services. Les fichiers de tiers
+  placés dans Vos projets (par exemple le Gradle Wrapper) restent soumis à
+  leur propre licence.
+
+
+Article 5 — Composants de tiers
+
+  Le Logiciel contient des composants de tiers, soumis à leur propre licence,
+  dont les avis sont joints à ces composants (par exemple
+  src/core/engine/prompts/caveman.LICENSE et
+  src-tauri/src/modules/jobagent/engine/LICENSE.jobspy). La présente licence
+  ne porte que sur les éléments dont le Titulaire détient les droits ; elle ne
+  restreint pas les droits que les licences de ces composants Vous accordent
+  sur eux.
+
+
+Article 6 — Droits que la loi Vous reconnaît
+
+  Aucune stipulation de la présente licence ne limite les droits que la loi
+  reconnaît à l'utilisateur d'un logiciel sans autorisation du titulaire des
+  droits, notamment ceux prévus à l'article L122-6-1 du code de la propriété
+  intellectuelle (copie de sauvegarde, observation et étude du
+  fonctionnement, décompilation à des fins d'interopérabilité, dans les
+  conditions fixées par ce texte).
+
+
+Article 7 — Versions antérieures
+
+  Les exemplaires du Logiciel que le Titulaire a publiés sous licence MIT
+  avant le 26 septembre 2026 (versions publiées jusqu'à la version 0.5.0
+  incluse, et états du code source publiés avant cette date) restent soumis à
+  la licence MIT. La présente licence s'applique à tout ce que le Titulaire
+  publie à compter du 26 septembre 2026, à commencer par la version 0.6.0.
+
+
+Article 8 — Fin de la licence
+
+  8.1 Toute violation de la présente licence met fin, de plein droit et sans
+  formalité, aux droits qu'elle Vous accorde.
+
+  8.2 S'il s'agit de Votre première violation et que Vous y mettez fin dans
+  les trente (30) jours qui suivent la notification que Vous en fait le
+  Titulaire, Vos droits sont rétablis.
+
+  8.3 À la fin de la licence, Vous devez cesser d'utiliser le Logiciel et les
+  Versions modifiées et en détruire les copies. Les articles 4, 5, 6, 9 et 11
+  continuent de s'appliquer.
+
+
+Article 9 — Absence de garantie et responsabilité
+
+  9.1 Le Logiciel est fourni gratuitement, « en l'état », sans garantie
+  d'aucune sorte, expresse ou implicite, notamment de bon fonctionnement,
+  d'adéquation à un usage particulier ou d'absence d'erreur, dans toute la
+  mesure permise par la loi applicable.
+
+  9.2 Dans toute la mesure permise par la loi applicable, le Titulaire ne
+  peut être tenu responsable des dommages résultant de l'utilisation du
+  Logiciel ou de l'impossibilité de l'utiliser, notamment une perte de
+  données, ni des actions exécutées par les assistants d'IA ou les services
+  de tiers que Vous connectez au Logiciel.
+
+  9.3 Le présent article ne limite pas la responsabilité du Titulaire dans
+  les cas où la loi interdit de la limiter, notamment en cas de faute lourde
+  ou dolosive, et ne prive pas le consommateur des droits que lui reconnaît
+  une disposition impérative.
+
+
+Article 10 — Autres autorisations
+
+  Toute utilisation que la présente licence n'autorise pas, notamment une
+  Distribution, une vente ou une intégration à un autre produit, nécessite
+  l'accord écrit et préalable du Titulaire. La demande s'adresse au Titulaire
+  par le dépôt officiel du Logiciel.
+
+
+Article 11 — Loi applicable, langue et divisibilité
+
+  11.1 La présente licence est régie par le droit français.
+
+  11.2 Elle est rédigée en français et en anglais. En cas de divergence entre
+  les deux versions, la version française fait foi.
+
+  11.3 Si une stipulation de la présente licence est déclarée nulle ou
+  inapplicable, les autres stipulations restent en vigueur.
+
+
+================================================================================
+                               ENGLISH VERSION
+                   (translation; the French version prevails)
+================================================================================
+
+In short (not legally binding: only the sections below are)
+
+  ARCHIMED is free and its source code is available to read. You may use,
+  copy and modify it for your own use, personal or professional. You may not
+  redistribute it, sell it, or build it into another piece of software. What
+  you create with ARCHIMED is yours.
+
+
+Section 1 — Definitions
+
+  "Licensor": SearaDesign, holder of the copyright in the Software.
+
+  "Software": the ARCHIMED program in all its forms (source code, object
+  code, executables, installers), together with its documentation, modules,
+  file templates, images and texts, as published by the Licensor under this
+  license, including later versions.
+
+  "You": the natural or legal person exercising the rights granted by this
+  license.
+
+  "Modified Version": any work that reproduces all or part of the Software,
+  whether modified or not (adaptation, translation, correction, adding or
+  removing a module, extracting a part).
+
+  "Distribute": to make the Software or a Modified Version, in whole or in
+  part, available to any person other than You, in any form and by any means
+  (download, public code repository, physical media, app store, package
+  registry, direct sending, remote access), free of charge or for a fee.
+
+  "Your Creations": the content You produce by using the Software (projects,
+  the code of your own programs, mods, images, texts, documents), together
+  with the files the Software generates in those projects.
+
+  "Own Use": use by You, for Your own needs, personal or professional. For a
+  legal person, internal use by its employees and agents on its behalf is
+  part of its Own Use and is not Distribution.
+
+
+Section 2 — Rights granted
+
+  2.1 The Licensor grants You, free of charge, on a non-exclusive basis,
+  worldwide and for the full term of copyright protection in the Software,
+  and for Your Own Use only:
+
+    a) the right to reproduce the Software: install, load, display, run and
+       copy it, in as many copies as Your Own Use requires, backups included;
+
+    b) the right to adapt the Software: modify, correct, translate and
+       arrange it and create Modified Versions, including compiling Your own
+       version of the application;
+
+    c) the right to reproduce and use the Modified Versions You create,
+       within the same limits.
+
+  2.2 Contributions. You may submit modifications of the Software
+  ("Contributions") to the Licensor through its official repository,
+  https://github.com/Kaylloggs/SDAI-ARCHIMED, for example as a pull request.
+  Sending a Contribution to the Licensor is not Distribution. By submitting a
+  Contribution, You declare that You are its author or hold the necessary
+  rights, and You grant the Licensor, free of charge, on a non-exclusive
+  basis, worldwide and for the full term of copyright protection, in order
+  to include it in the Software and exploit the Software under this license
+  or any other license of its choice:
+
+    a) the right to reproduce the Contribution;
+    b) the right to perform it and communicate it to the public;
+    c) the right to adapt, modify, correct and translate it;
+    d) the right to distribute it, free of charge or for a fee;
+    e) the right to grant third parties all or part of these rights.
+
+  2.3 Hosting platform. Where the Software is published on a platform whose
+  terms of use allow its users to view it and to make a copy of it on that
+  same platform (for example a "fork" on GitHub), these actions are allowed
+  within the limits of those terms. Such a copy remains subject to this
+  license and may only serve Your Own Use or the preparation of a
+  Contribution.
+
+
+Section 3 — Prohibitions
+
+  Unless the Licensor gives prior written consent, You may not:
+
+    a) Distribute the Software or a Modified Version, in whole or in part, in
+       any form (source code, executable, installer), free of charge or for a
+       fee;
+
+    b) sell, rent or lend the Software or a Modified Version, sublicense it,
+       or earn revenue by making it available, including by offering it as a
+       remotely accessible service;
+
+    c) build all or part of the Software into another piece of software,
+       product or service made available to third parties, whether its code
+       is closed or open;
+
+    d) remove or alter the copyright, license or author notices contained in
+       the Software;
+
+    e) use the names "ARCHIMED", "SDAI ARCHIMED", "SearaDesign" or the
+       Software's logo to name or promote a Modified Version or another
+       product.
+
+
+Section 4 — Your Creations
+
+  4.1 The Licensor claims no rights in Your Creations. This license places
+  no restriction on them: You may use, publish, distribute and sell them
+  freely.
+
+  4.2 The files the Software creates in Your projects (for example the files
+  of a Minecraft mod project created by Mod Studio, generated code, textures,
+  exported images), including when they reuse templates shipped with the
+  Software, are part of Your Creations. The Licensor allows You to
+  reproduce, modify and distribute them with Your Creations, without
+  restriction.
+
+  4.3 Content produced by third-party services (AI providers, websites)
+  remains subject to those services' terms. Third-party files placed in Your
+  projects (for example the Gradle Wrapper) remain subject to their own
+  license.
+
+
+Section 5 — Third-party components
+
+  The Software contains third-party components under their own licenses,
+  whose notices are kept with them (for example
+  src/core/engine/prompts/caveman.LICENSE and
+  src-tauri/src/modules/jobagent/engine/LICENSE.jobspy). This license only
+  covers the parts in which the Licensor holds the rights; it does not
+  restrict the rights that those components' licenses grant You in them.
+
+
+Section 6 — Rights granted to You by law
+
+  Nothing in this license limits the rights that the law grants the user of
+  a software program without the rightsholder's permission, in particular
+  those provided by Article L122-6-1 of the French Intellectual Property Code
+  (backup copy, observing and studying how the program works, decompilation
+  for interoperability, under the conditions set by that article).
+
+
+Section 7 — Earlier versions
+
+  Copies of the Software that the Licensor published under the MIT License
+  before 26 September 2026 (versions released up to and including 0.5.0, and
+  states of the source code published before that date) remain under the MIT
+  License. This license applies to everything the Licensor publishes from
+  26 September 2026 onwards, starting with version 0.6.0.
+
+
+Section 8 — Termination
+
+  8.1 Any breach of this license automatically terminates, without further
+  formality, the rights it grants You.
+
+  8.2 If it is Your first breach and You cure it within thirty (30) days of
+  the Licensor notifying You of it, Your rights are reinstated.
+
+  8.3 Upon termination, You must stop using the Software and Modified
+  Versions and destroy all copies. Sections 4, 5, 6, 9 and 11 survive.
+
+
+Section 9 — No warranty and liability
+
+  9.1 The Software is provided free of charge, "as is", without warranty of
+  any kind, express or implied, including of proper operation, fitness for a
+  particular purpose or absence of errors, to the fullest extent permitted by
+  applicable law.
+
+  9.2 To the fullest extent permitted by applicable law, the Licensor is not
+  liable for any damage arising from the use of, or inability to use, the
+  Software, including loss of data, nor for actions carried out by the AI
+  assistants or third-party services You connect to the Software.
+
+  9.3 This section does not limit the Licensor's liability where the law
+  forbids limiting it, in particular in case of gross negligence or wilful
+  misconduct, and does not deprive consumers of rights granted to them by
+  mandatory provisions.
+
+
+Section 10 — Other permissions
+
+  Any use not allowed by this license, in particular Distribution, sale or
+  inclusion in another product, requires the Licensor's prior written
+  consent. Requests are made to the Licensor through the Software's official
+  repository.
+
+
+Section 11 — Governing law, language and severability
+
+  11.1 This license is governed by French law.
+
+  11.2 It is written in French and in English. If the two versions differ,
+  the French version prevails.
+
+  11.3 If any provision of this license is held void or unenforceable, the
+  other provisions remain in force.

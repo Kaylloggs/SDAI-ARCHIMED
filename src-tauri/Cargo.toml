@@ -3,7 +3,7 @@ name = "sdai-archimed"
 version = "0.6.0"
 description = "SDAI ARCHIMED - assistant personnel modulaire"
 authors = ["SearaDesign"]
-license = "MIT"
+license-file = "../LICENSE"
 repository = "https://github.com/Kaylloggs/SDAI-ARCHIMED"
 edition = "2021"
 

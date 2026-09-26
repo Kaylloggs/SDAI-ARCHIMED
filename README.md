@@ -12,7 +12,7 @@ and put them to work: code, plan, search for a job, even build Minecraft mods.
 
 [![Latest release](https://img.shields.io/github/v/release/Kaylloggs/SDAI-ARCHIMED?style=for-the-badge&label=release&color=d9a441)](https://github.com/Kaylloggs/SDAI-ARCHIMED/releases/latest)
 [![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=for-the-badge&logo=windows&logoColor=white)](#-install-in-5-minutes)
-[![Free and open source](https://img.shields.io/badge/license-MIT-2ea043?style=for-the-badge)](LICENSE)
+[![Free, source available](https://img.shields.io/badge/license-ARCHIMED%201.0-2ea043?style=for-the-badge)](LICENSE)
 [![Built with Tauri and Rust](https://img.shields.io/badge/Tauri%202-Rust-24C8DB?style=for-the-badge&logo=tauri&logoColor=white)](#-for-developers)
 
 ### [⬇ Download for Windows](https://github.com/Kaylloggs/SDAI-ARCHIMED/releases/latest) &nbsp;·&nbsp; [Install guide](#-install-in-5-minutes) &nbsp;·&nbsp; [What's inside](#-whats-inside) &nbsp;·&nbsp; [FAQ](#-questions)
@@ -104,6 +104,8 @@ ARCHIMED is made of blocks: each feature above is a module in its own folder, an
 2. **Create the module**: `pnpm new:module weather` copies a ready-made template into `src/modules/weather/`.
 3. **Fill it in**: its name and icon in `module.config.ts`, its screen in `index.tsx`, its step-by-step guide in `tutorial.ts`.
 4. **Try it and build it**: `pnpm tauri dev` to test, then `.\build.ps1`. Your own version (installer and portable `.exe`) lands in `release/`.
+
+Your build is for your own use: the [license](LICENSE) does not allow sharing or selling it. To offer a module to everyone, propose it to the project with a pull request.
 
 You don't have to write it alone: open the project folder in the **Code** module and ask the AI to *"create a weather module following guidelines.md"*. The **Tutorial** in the app shows the same steps, with commands to copy.
 
@@ -255,7 +257,7 @@ No key? Click **Account** in Image Maker. With a Higgsfield subscription, images
 <details>
 <summary><b>Is ARCHIMED free?</b></summary>
 <br />
-Yes, free and open source (MIT). The AI itself runs on your own account with Anthropic, Google or OpenAI, under their plans and limits.
+Yes, free. The source code is public: you may use, copy and modify ARCHIMED for your own use, but not redistribute or sell it (see the [license](LICENSE)). What you make with it (code, mods, images) is yours. The AI itself runs on your own account with Anthropic, Google or OpenAI, under their plans and limits.
 </details>
 
 <details>
@@ -330,6 +332,12 @@ pnpm tauri dev      # the first launch compiles Rust and takes a few minutes
 
 ## 📄 License
 
-[MIT](LICENSE) © 2026 **SearaDesign**
+[ARCHIMED License 1.0](LICENSE) © 2026 **SearaDesign**: free, source available.
+
+- **You may** use, copy and modify ARCHIMED for your own use, personal or professional, and propose changes to the project.
+- **You may not** redistribute it (original or modified), sell it, or build it into another product, open or closed.
+- **What you create with it is yours**: code, mods, images, and the files the app generates in your projects.
+
+Versions released before 26 September 2026 (up to 0.5.0) remain under the MIT License. The license is written in French and English; the French text prevails.
 
 <sub>Third-party: the token saver bundles the [Caveman](https://github.com/JuliusBrussee/caveman) skill (MIT); `jobagent` vendors [JobSpy](https://github.com/speedyapply/JobSpy) (MIT) with [GeoNames](https://www.geonames.org/) (CC BY 4.0) and [Natural Earth](https://www.naturalearthdata.com/) data; `mcstudio` templates ship the Gradle Wrapper (Apache 2.0). Minecraft is a trademark of Mojang/Microsoft; mods you build are subject to the Minecraft EULA. Claude, Antigravity and Codex belong to their owners; ARCHIMED is not affiliated with Anthropic, Google or OpenAI.</sub>

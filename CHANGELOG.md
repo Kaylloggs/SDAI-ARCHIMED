@@ -6,6 +6,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [0.6.0] - 2026-09-25
 
+### Modifié — Licence
+- ARCHIMED passe de la licence MIT à la **Licence ARCHIMED 1.0** (fichier `LICENSE`, en français et
+  en anglais, le français fait foi). Gratuit et code source disponible : utiliser, copier et
+  modifier pour son propre usage, personnel ou professionnel, et proposer des modifications au
+  projet. Interdit sans accord écrit : redistribuer (d'origine ou modifié), vendre, intégrer à un
+  autre produit. Ce qui est créé avec l'application (code, mods, images, fichiers générés dans les
+  projets) appartient à la personne. Les versions publiées avant le 26 septembre 2026 restent
+  sous licence MIT.
+
 ### Ajouté — Module Image Maker (catégorie Création)
 - **Studio d'images par IA** : créer à partir d'une description (consigne libre ou structurée :
   sujet, décor, composition, lumière, appareil, matières, couleurs, ambiance, style, détail),
