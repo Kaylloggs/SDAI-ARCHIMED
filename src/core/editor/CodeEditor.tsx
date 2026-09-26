@@ -59,17 +59,23 @@ type Props = {
  */
 export function CodeEditor({ language, value, onChange, onSave, readOnly = true, markers, reveal }: Props) {
   const view = useRef<EditorView | null>(null);
+  /** Demande reçue avant que CodeMirror n'ait créé sa vue (fichier juste ouvert). */
+  const pendingReveal = useRef<number | null>(null);
 
-  useEffect(() => {
-    const current = view.current;
-    if (!current || !reveal) return;
+  const revealLine = (current: EditorView, target: number) => {
     const doc = current.state.doc;
-    const line = doc.line(Math.min(Math.max(1, reveal.line), doc.lines));
+    const line = doc.line(Math.min(Math.max(1, target), doc.lines));
     current.dispatch({
-      selection: { anchor: line.from },
+      selection: { anchor: line.from, head: line.to },
       effects: EditorView.scrollIntoView(line.from, { y: "center" }),
     });
     current.focus();
+  };
+
+  useEffect(() => {
+    if (!reveal) return;
+    if (view.current) revealLine(view.current, reveal.line);
+    else pendingReveal.current = reveal.line;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reveal?.nonce]);
 
@@ -104,6 +110,10 @@ export function CodeEditor({ language, value, onChange, onSave, readOnly = true,
         onChange={onChange}
         onCreateEditor={(created) => {
           view.current = created;
+          const pending = pendingReveal.current;
+          pendingReveal.current = null;
+          // Après la première mise en page, sinon le défilement part de zéro.
+          if (pending !== null) requestAnimationFrame(() => revealLine(created, pending));
         }}
         basicSetup={{
           lineNumbers: true,

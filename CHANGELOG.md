@@ -4,6 +4,25 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Code : terminal et recherche dans le projet
+- **Terminal intégré** (``Ctrl+` ``) : PowerShell 7, ou Windows PowerShell, ouvert dans le dossier du
+  projet, sous l'éditeur, avec plusieurs onglets, une hauteur réglable et les couleurs du thème.
+  Les terminaux continuent de tourner quand on change de module (un serveur de dev reste lancé) et
+  s'arrêtent avec ce qu'ils ont lancé quand on les ferme ou qu'on change de projet. Ce qui s'y tape
+  part directement au shell : aucune IA n'y écrit (ADR 0011).
+- **Recherche dans tout le projet** (`Ctrl+Maj+F`, loupe en haut de la colonne de gauche) : casse,
+  mot entier, expression régulière, filtres de fichiers ; résultats groupés par fichier, un clic
+  ouvre le fichier à la ligne. Dépendances, builds, binaires et gros fichiers sont sautés.
+
+### Modifié
+- **Barre de saisie** : l'effort de réflexion n'est plus un curseur toujours affiché mais un bouton
+  compact (jauge + niveau) qui ouvre le curseur au clic. Le choix du modèle ne se fait plus écraser
+  quand la barre manque de place.
+
+### Corrigé
+- Éditeur : un fichier ouvert depuis un lien ou un résultat de recherche arrive bien à la ligne
+  demandée, même quand l'éditeur vient d'être créé.
+
 ## [0.7.0] - 2026-09-26
 
 ### Modifié — Licence

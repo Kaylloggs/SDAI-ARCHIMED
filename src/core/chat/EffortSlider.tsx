@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Gauge } from "lucide-react";
 import { cn } from "@/core/lib/cn";
+import { Popover } from "@/design-system/primitives";
 import type { EffortOption } from "@/core/engine/types";
 
 type Props = {
@@ -13,9 +14,10 @@ type Props = {
 };
 
 /**
- * Curseur d'effort du modèle : un cran par niveau, du plus économe au plus poussé. Le niveau
- * n'est appliqué qu'au relâchement (changer de modèle arrête le tour en cours), les flèches
- * du clavier l'appliquent cran par cran.
+ * Effort du modèle : un bouton compact (jauge + niveau) dans la barre de saisie, qui ouvre le
+ * curseur dans un panneau flottant. Un cran par niveau, du plus économe au plus poussé. Le
+ * niveau n'est appliqué qu'au relâchement (changer de modèle arrête le tour en cours), les
+ * flèches du clavier l'appliquent cran par cran.
  */
 export function EffortSlider({ efforts, value, onChange, disabled, className }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -51,13 +53,23 @@ export function EffortSlider({ efforts, value, onChange, disabled, className }: 
   };
 
   const percent = (index / last) * 100;
+  const first = efforts[0];
+  const end = efforts[last];
 
   return (
-    <div
-      className={cn("flex h-7 shrink-0 items-center gap-2 rounded-sm border border-border bg-surface-1 px-2", className)}
+    <Popover
+      label="Effort de réflexion"
       title="Effort de réflexion : plus il est élevé, plus le modèle réfléchit (et consomme)"
+      value={efforts[current]?.label ?? shown.label}
+      icon={<Gauge size={13} strokeWidth={1.75} className="shrink-0 text-text-subtle" aria-hidden />}
+      width={264}
+      disabled={disabled}
+      className={cn("min-w-0 max-w-40 shrink-0", className)}
     >
-      <Gauge size={13} strokeWidth={1.75} className="shrink-0 text-text-subtle" aria-hidden />
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-body-sm font-medium text-text">Effort de réflexion</span>
+        <span className="truncate text-footnote text-accent">{shown.label}</span>
+      </div>
       <div
         role="slider"
         tabIndex={disabled ? -1 : 0}
@@ -83,18 +95,19 @@ export function EffortSlider({ efforts, value, onChange, disabled, className }: 
         }}
         onPointerCancel={() => setDragIndex(null)}
         className={cn(
-          "relative flex h-5 w-20 cursor-pointer touch-none items-center rounded-full",
+          "relative mt-3 flex h-6 w-full cursor-pointer touch-none items-center rounded-full outline-none",
+          "focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
           disabled && "cursor-not-allowed opacity-60",
         )}
       >
-        <div ref={trackRef} className="relative mx-1.5 h-1 flex-1 rounded-full bg-surface-3">
+        <div ref={trackRef} className="relative mx-2 h-1.5 flex-1 rounded-full bg-surface-3">
           <div className="absolute inset-y-0 left-0 rounded-full bg-accent" style={{ width: `${percent}%` }} />
           {efforts.map((effort, stop) => (
             <span
               key={effort.id}
               aria-hidden
               className={cn(
-                "absolute top-1/2 size-1 -translate-x-1/2 -translate-y-1/2 rounded-full",
+                "absolute top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full",
                 stop <= index ? "bg-accent-fg/70" : "bg-text-subtle/60",
               )}
               style={{ left: `${(stop / last) * 100}%` }}
@@ -103,16 +116,20 @@ export function EffortSlider({ efforts, value, onChange, disabled, className }: 
           <span
             aria-hidden
             className={cn(
-              "absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-accent bg-surface-1 shadow-sm",
+              "absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-accent bg-surface-1 shadow-sm",
               dragIndex === null && "transition-[left] duration-100",
             )}
             style={{ left: `${percent}%` }}
           />
         </div>
       </div>
-      <span className="w-[4.5rem] truncate text-footnote text-text-muted" aria-hidden>
-        {shown.label}
-      </span>
-    </div>
+      <div aria-hidden className="mt-1 flex justify-between gap-3 text-caption text-text-subtle">
+        <span className="truncate">{first?.label}</span>
+        <span className="truncate">{end?.label}</span>
+      </div>
+      <p className="mt-3 text-footnote text-text-muted">
+        Plus il est élevé, plus le modèle réfléchit avant de répondre, et plus il consomme.
+      </p>
+    </Popover>
   );
 }

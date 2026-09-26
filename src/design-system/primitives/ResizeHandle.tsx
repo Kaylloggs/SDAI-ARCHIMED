@@ -43,18 +43,26 @@ type Props = {
   label: string;
   /** Double clic : taille par défaut. */
   defaultSize?: number;
+  /**
+   * `vertical` (défaut) : filet vertical entre deux colonnes, règle une largeur.
+   * `horizontal` : filet horizontal entre deux rangées, règle une hauteur (`after` = panneau
+   * du dessous, tirer vers le haut l'agrandit).
+   */
+  orientation?: "vertical" | "horizontal";
 };
 
-/** Poignée verticale entre deux panneaux : souris (glisser) et clavier (flèches). */
-export function ResizeHandle({ size, onResize, panel, label, defaultSize }: Props) {
+/** Poignée entre deux panneaux : souris (glisser) et clavier (flèches). */
+export function ResizeHandle({ size, onResize, panel, label, defaultSize, orientation = "vertical" }: Props) {
   const [dragging, setDragging] = useState(false);
   const start = useRef<{ x: number; size: number } | null>(null);
   const direction = panel === "before" ? 1 : -1;
+  const horizontal = orientation === "horizontal";
+  const [decrease, increase] = horizontal ? ["ArrowUp", "ArrowDown"] : ["ArrowLeft", "ArrowRight"];
 
   return (
     <div
       role="separator"
-      aria-orientation="vertical"
+      aria-orientation={horizontal ? "horizontal" : "vertical"}
       aria-label={label}
       aria-valuenow={size}
       tabIndex={0}
@@ -62,13 +70,14 @@ export function ResizeHandle({ size, onResize, panel, label, defaultSize }: Prop
         if (event.button !== 0) return;
         event.preventDefault();
         event.currentTarget.setPointerCapture(event.pointerId);
-        start.current = { x: event.clientX, size };
+        start.current = { x: horizontal ? event.clientY : event.clientX, size };
         setDragging(true);
         document.body.classList.add("resizing");
       }}
       onPointerMove={(event) => {
         if (!start.current) return;
-        onResize(start.current.size + (event.clientX - start.current.x) * direction);
+        const position = horizontal ? event.clientY : event.clientX;
+        onResize(start.current.size + (position - start.current.x) * direction);
       }}
       onPointerUp={(event) => {
         start.current = null;
@@ -78,18 +87,24 @@ export function ResizeHandle({ size, onResize, panel, label, defaultSize }: Prop
       }}
       onDoubleClick={() => defaultSize && onResize(defaultSize)}
       onKeyDown={(event) => {
-        if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        if (event.key === decrease || event.key === increase) {
           event.preventDefault();
-          const step = (event.shiftKey ? 48 : 16) * (event.key === "ArrowRight" ? 1 : -1);
+          const step = (event.shiftKey ? 48 : 16) * (event.key === increase ? 1 : -1);
           onResize(size + step * direction);
         }
       }}
-      className="group relative z-10 -mx-[3px] w-[6px] shrink-0 cursor-col-resize touch-none outline-none"
+      className={cn(
+        "group relative z-10 shrink-0 touch-none outline-none",
+        horizontal ? "-my-[3px] h-[6px] cursor-row-resize" : "-mx-[3px] w-[6px] cursor-col-resize",
+      )}
     >
       <span
         className={cn(
-          "absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors",
-          dragging ? "w-0.5 bg-accent" : "bg-border group-hover:bg-accent/60 group-focus-visible:bg-accent",
+          "absolute transition-colors",
+          horizontal ? "inset-x-0 top-1/2 h-px -translate-y-1/2" : "inset-y-0 left-1/2 w-px -translate-x-1/2",
+          dragging
+            ? cn("bg-accent", horizontal ? "h-0.5" : "w-0.5")
+            : "bg-border group-hover:bg-accent/60 group-focus-visible:bg-accent",
         )}
       />
     </div>

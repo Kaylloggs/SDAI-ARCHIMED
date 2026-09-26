@@ -5,6 +5,7 @@ export { Button } from "./Button";
 export { Select, type SelectOption } from "./Select";
 export { Tooltip } from "./Tooltip";
 export { ContextMenu, type ContextMenuItem } from "./ContextMenu";
+export { Popover } from "./Popover";
 export { ResizeHandle, usePanelSize } from "./ResizeHandle";
 
 /** Carte de contenu (couche L2). */

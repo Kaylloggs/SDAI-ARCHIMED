@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 import { FileTree as Tree, type TreeChanges } from "@/core/editor";
+import { cn } from "@/core/lib/cn";
 import { Button } from "@/design-system/primitives";
 import { codeApi, samePath, type FileEntry } from "../api";
 
@@ -11,10 +12,14 @@ type Props = {
   onChangeRoot: () => void;
   /** Largeur en pixels (redimensionnable par le parent). */
   width: number;
+  /** Bascule fichiers / recherche, en tête de colonne. */
+  switcher?: ReactNode;
+  /** Masquée (vue Recherche) : reste montée pour garder l'arbre ouvert et surveillé. */
+  hidden?: boolean;
 };
 
 /** Arborescence du projet : l'arbre partagé (`@/core/editor`), lu et surveillé par le backend Code. */
-export function FileTree({ root, activePath, onOpenFile, onChangeRoot, width }: Props) {
+export function FileTree({ root, activePath, onOpenFile, onChangeRoot, width, switcher, hidden }: Props) {
   const [changes, setChanges] = useState<TreeChanges>({ dirs: [], revision: 0 });
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -40,8 +45,9 @@ export function FileTree({ root, activePath, onOpenFile, onChangeRoot, width }: 
   }, [root]);
 
   return (
-    <aside style={{ width }} className="flex shrink-0 flex-col bg-bg-subtle">
-      <div className="flex h-10 shrink-0 items-center gap-1 border-b border-border px-3">
+    <aside style={{ width }} className={cn("flex shrink-0 flex-col bg-bg-subtle", hidden && "hidden")}>
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border pl-2 pr-1">
+        {switcher}
         <span className="truncate text-caption font-medium text-text-subtle" title={root}>
           {root.split(/[\\/]/).filter(Boolean).at(-1) ?? root}
         </span>

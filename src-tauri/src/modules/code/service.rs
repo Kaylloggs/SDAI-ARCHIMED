@@ -19,8 +19,13 @@ const IGNORED_DIRS: &[&str] = &[
     "vendor",
 ];
 
-const MAX_FILE_BYTES: usize = 2 * 1024 * 1024;
+pub(super) const MAX_FILE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_ENTRIES: usize = 2000;
+
+/// Dossier de dépendances ou de build, sauté par les recherches.
+pub(super) fn is_ignored_dir(name: &str) -> bool {
+    IGNORED_DIRS.contains(&name)
+}
 
 pub struct CodeService;
 

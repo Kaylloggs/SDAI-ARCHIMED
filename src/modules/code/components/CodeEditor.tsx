@@ -10,10 +10,12 @@ type Props = {
   onChange?: (content: string) => void;
   onSave?: () => void;
   readOnly?: boolean;
+  /** Ligne à montrer (résultat de recherche) ; `nonce` change à chaque demande. */
+  reveal?: { line: number; nonce: number } | null;
 };
 
 /** Éditeur du module : l'éditeur partagé (`@/core/editor`), avec les états vide et binaire. */
-export function CodeEditor({ file, value, onChange, onSave, readOnly = true }: Props) {
+export function CodeEditor({ file, value, onChange, onSave, readOnly = true, reveal }: Props) {
   if (!file) {
     return (
       <EmptyState
@@ -35,6 +37,13 @@ export function CodeEditor({ file, value, onChange, onSave, readOnly = true }: P
   }
 
   return (
-    <Editor language={file.language} value={value ?? file.content} onChange={onChange} onSave={onSave} readOnly={readOnly} />
+    <Editor
+      language={file.language}
+      value={value ?? file.content}
+      onChange={onChange}
+      onSave={onSave}
+      readOnly={readOnly}
+      reveal={reveal}
+    />
   );
 }

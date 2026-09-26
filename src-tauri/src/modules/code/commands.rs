@@ -1,7 +1,13 @@
 use crate::core::AppResult;
 
+use std::sync::Arc;
+
+use tauri::Manager;
+
+use super::search::{self, PathFilter, SearchState};
 use super::service::{to_path, CodeService};
-use super::types::{FileContent, FileEntry, ProjectInfo};
+use super::terminal::{TerminalEvent, TerminalInfo, Terminals};
+use super::types::{FileContent, FileEntry, ProjectInfo, SearchOptions, SearchOutcome};
 
 #[tauri::command]
 pub async fn list_dir(path: String) -> AppResult<Vec<FileEntry>> {
@@ -63,4 +69,69 @@ pub async fn watch_root<R: tauri::Runtime>(
 pub async fn unwatch_root(watcher: tauri::State<'_, super::watcher::ProjectWatcher>) -> AppResult<()> {
     watcher.unwatch();
     Ok(())
+}
+
+/// Cherche un texte dans les fichiers du projet. Une nouvelle recherche interrompt la
+/// précédente (renvoyée avec `cancelled`).
+#[tauri::command]
+pub async fn search_text<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    root: String,
+    query: String,
+    options: SearchOptions,
+    include: Option<String>,
+    exclude: Option<String>,
+) -> AppResult<SearchOutcome> {
+    let state = Arc::clone(app.state::<Arc<SearchState>>().inner());
+    let generation = state.begin();
+    if query.is_empty() {
+        return Ok(SearchOutcome::default());
+    }
+    let matcher = search::build_matcher(&query, &options)?;
+    let include = PathFilter::parse(include.as_deref().unwrap_or_default());
+    let exclude = PathFilter::parse(exclude.as_deref().unwrap_or_default());
+    tokio::task::spawn_blocking(move || search::search(&state, generation, &to_path(&root), &matcher, &include, &exclude))
+        .await
+        .map_err(|e| crate::core::AppError::internal(e.to_string()))?
+}
+
+/// Ouvre un terminal (PowerShell) dans `cwd` ; sa sortie arrive sur `on_event`.
+#[tauri::command]
+pub async fn terminal_open(
+    terminals: tauri::State<'_, Terminals>,
+    cwd: String,
+    cols: u16,
+    rows: u16,
+    on_event: tauri::ipc::Channel<TerminalEvent>,
+) -> AppResult<TerminalInfo> {
+    let result = terminals.open(&to_path(&cwd), cols, rows, on_event);
+    crate::core::audit::record(
+        "code.terminal_open",
+        &cwd,
+        if result.is_ok() { "ok" } else { "error" },
+        "user",
+    );
+    result
+}
+
+/// Frappe de la personne vers le shell.
+#[tauri::command]
+pub async fn terminal_write(terminals: tauri::State<'_, Terminals>, id: String, data: String) -> AppResult<()> {
+    terminals.write(&id, &data)
+}
+
+#[tauri::command]
+pub async fn terminal_resize(
+    terminals: tauri::State<'_, Terminals>,
+    id: String,
+    cols: u16,
+    rows: u16,
+) -> AppResult<()> {
+    terminals.resize(&id, cols, rows)
+}
+
+/// Ferme le terminal et arrête ce qui y tourne encore.
+#[tauri::command]
+pub async fn terminal_close(terminals: tauri::State<'_, Terminals>, id: String) -> AppResult<()> {
+    terminals.close(&id)
 }

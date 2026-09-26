@@ -173,7 +173,8 @@ SDAI ARCHIMED/
         ├── system/                      # (prévu) fs · shell · net
         └── modules/
             ├── mod.rs                   # registre généré par build.rs (include! OUT_DIR/modules.rs)
-            ├── code/                    # arborescence, lecture/écriture de fichiers, détection de projet, watcher (code:fs-changed)
+            ├── code/                    # arborescence, lecture/écriture de fichiers, détection de projet, watcher (code:fs-changed),
+            │                            # recherche dans le projet (search.rs), terminal PowerShell en PTY (terminal.rs)
             ├── usage/                   # résumé du registre, compte et limites Claude
             ├── memory/                  # notes.json (activables, par projet), bloc de contexte injecté
             ├── planner/                 # boards.json, roadmap.rs (parse/réécriture), ics.rs, watcher notify

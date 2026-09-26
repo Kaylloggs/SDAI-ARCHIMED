@@ -2,7 +2,9 @@ use tauri::plugin::{Builder, TauriPlugin};
 use tauri::{Manager, Runtime};
 
 mod commands;
+mod search;
 mod service;
+mod terminal;
 mod types;
 mod watcher;
 
@@ -18,9 +20,16 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::search_files,
             commands::watch_root,
             commands::unwatch_root,
+            commands::search_text,
+            commands::terminal_open,
+            commands::terminal_write,
+            commands::terminal_resize,
+            commands::terminal_close,
         ])
         .setup(|app, _api| {
             app.manage(watcher::ProjectWatcher::default());
+            app.manage(std::sync::Arc::new(search::SearchState::default()));
+            app.manage(terminal::Terminals::default());
             Ok(())
         })
         .build()

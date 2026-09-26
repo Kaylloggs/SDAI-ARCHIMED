@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Code2, FolderOpen, Globe, Loader2, PanelRight, Plus, Save, Search, Trash2, X } from "lucide-react";
+import { Code2, FolderOpen, Globe, Loader2, PanelRight, Plus, Save, Search, SquareTerminal, Trash2, X } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Badge, Button, EmptyState, ResizeHandle, Select, Tooltip, usePanelSize } from "@/design-system/primitives";
 import { PreviewPane, isHtmlFile, usePreviewTargets } from "@/core/preview";
@@ -17,8 +17,21 @@ import { codeApi, samePath, type FileContent, type FileEntry, type ProjectInfo }
 import { FileTree } from "./components/FileTree";
 import { CodeEditor } from "./components/CodeEditor";
 import { FilePalette } from "./components/FilePalette";
+import { SearchPanel } from "./components/SearchPanel";
+import { SidebarSwitcher, type SidebarView } from "./components/SidebarSwitcher";
+import { TerminalPanel } from "./components/TerminalPanel";
+import { closeTerminalsOutside } from "./terminal/sessions";
 
 const STORAGE_KEY = "archimed.code.root";
+const TERMINAL_KEY = "archimed.code.terminal";
+
+function storedFlag(key: string): boolean {
+  try {
+    return localStorage.getItem(key) === "1";
+  } catch {
+    return false;
+  }
+}
 
 function folderName(path: string): string {
   return path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
@@ -46,6 +59,13 @@ export default function CodeModule() {
   const [chatWidth, setChatWidth] = usePanelSize("code.chat", 380, 280, 760);
   const [previewWidth, setPreviewWidth] = usePanelSize("code.preview", 520, 280, 1200);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [sidebarView, setSidebarView] = useState<SidebarView>("files");
+  /** Ctrl+Maj+F : focus du champ de recherche. */
+  const [searchFocus, setSearchFocus] = useState(0);
+  const [terminalOpen, setTerminalOpen] = useState(() => storedFlag(TERMINAL_KEY));
+  const [terminalHeight, setTerminalHeight] = usePanelSize("code.terminal", 260, 120, 900);
+  /** Ligne à montrer après un clic sur un résultat de recherche. */
+  const [reveal, setReveal] = useState<{ path: string; line: number; nonce: number } | null>(null);
   const [fsRevision, setFsRevision] = useState(0);
   /** Onglet modifié dont la fermeture attend un second clic (modifications perdues). */
   const [closeArmed, setCloseArmed] = useState<string | null>(null);
@@ -110,8 +130,19 @@ export default function CodeModule() {
 
   // Ouvrir un dossier ne crée aucune conversation.
   useEffect(() => {
+    try {
+      localStorage.setItem(TERMINAL_KEY, terminalOpen ? "1" : "0");
+    } catch {
+      // Stockage indisponible : l'état vaut pour cette fenêtre.
+    }
+  }, [terminalOpen]);
+
+  useEffect(() => {
     if (!root) return;
     localStorage.setItem(STORAGE_KEY, root);
+    // Un autre projet : les terminaux ouverts dans l'ancien s'arrêtent.
+    closeTerminalsOutside(root);
+    setReveal(null);
     setOpenFiles([]);
     setDrafts({});
     setActivePath(null);
@@ -134,7 +165,15 @@ export default function CodeModule() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "p") {
+      const ctrl = event.ctrlKey || event.metaKey;
+      if (ctrl && event.shiftKey && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        setSidebarView("search");
+        setSearchFocus((n) => n + 1);
+      } else if (ctrl && (event.key === "`" || event.code === "Backquote")) {
+        event.preventDefault();
+        setTerminalOpen((open) => !open);
+      } else if (ctrl && event.key.toLowerCase() === "p") {
         event.preventDefault();
         setPaletteOpen(true);
       }
@@ -143,7 +182,7 @@ export default function CodeModule() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const openFile = useCallback(async (entry: Pick<FileEntry, "path">) => {
+  const openFile = useCallback(async (entry: Pick<FileEntry, "path">, line?: number) => {
     setLoadingFile(true);
     setError(null);
     try {
@@ -152,6 +191,7 @@ export default function CodeModule() {
         current.some((f) => f.path === file.path) ? current : [...current, file],
       );
       setActivePath(file.path);
+      if (line) setReveal({ path: file.path, line, nonce: Date.now() });
     } catch (e) {
       setError((e as { message?: string }).message ?? "Lecture impossible");
     } finally {
@@ -304,7 +344,21 @@ export default function CodeModule() {
         activePath={activePath}
         onOpenFile={(entry) => void openFile(entry)}
         onChangeRoot={() => void pickRoot()}
+        switcher={<SidebarSwitcher view={sidebarView} onChange={setSidebarView} />}
+        hidden={sidebarView !== "files"}
       />
+      <aside style={{ width: treeWidth }} className={cn("flex shrink-0 flex-col bg-bg-subtle", sidebarView !== "search" && "hidden")}>
+        <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border pl-2 pr-3">
+          <SidebarSwitcher view={sidebarView} onChange={setSidebarView} />
+          <span className="truncate text-caption font-medium text-text-subtle">Rechercher</span>
+        </div>
+        <SearchPanel
+          root={root}
+          active={sidebarView === "search"}
+          focusNonce={searchFocus}
+          onOpenMatch={(path, line) => void openFile({ path }, line)}
+        />
+      </aside>
       <ResizeHandle size={treeWidth} onResize={setTreeWidth} panel="before" label="Largeur de l'arborescence" defaultSize={240} />
 
       <div className="flex min-w-[240px] flex-1 flex-col">
@@ -386,6 +440,19 @@ export default function CodeModule() {
                 )}
               </>
             )}
+            <Tooltip side="bottom" label={terminalOpen ? "Masquer le terminal (Ctrl+`)" : "Terminal (Ctrl+`)"}>
+              <button
+                onClick={() => setTerminalOpen((value) => !value)}
+                aria-label={terminalOpen ? "Masquer le terminal" : "Afficher le terminal"}
+                aria-pressed={terminalOpen}
+                className={cn(
+                  "flex size-7 items-center justify-center rounded-sm transition-colors",
+                  terminalOpen ? "text-accent" : "text-text-subtle hover:text-text",
+                )}
+              >
+                <SquareTerminal size={14} strokeWidth={1.75} />
+              </button>
+            </Tooltip>
             <Tooltip
               side="bottom"
               label={
@@ -445,9 +512,26 @@ export default function CodeModule() {
                 if (active) setDrafts((current) => ({ ...current, [active.path]: content }));
               }}
               onSave={() => void save()}
+              reveal={reveal && active && samePath(reveal.path, active.path) ? reveal : null}
             />
           )}
         </div>
+
+        {terminalOpen && (
+          <>
+            <ResizeHandle
+              size={terminalHeight}
+              onResize={setTerminalHeight}
+              panel="after"
+              orientation="horizontal"
+              label="Hauteur du terminal"
+              defaultSize={260}
+            />
+            <div style={{ height: terminalHeight }} className="flex max-h-[70%] shrink-0 flex-col">
+              <TerminalPanel root={root} onHide={() => setTerminalOpen(false)} />
+            </div>
+          </>
+        )}
 
         <Slot name="code.editor.footer" props={{ root }} />
         {error && <p className="px-4 pb-2 text-footnote text-danger">{error}</p>}

@@ -361,7 +361,7 @@ export function Composer({
                 const next = adapter.models.find((m) => m.id === id);
                 if (next && next.id !== choice?.model.id) onModelChange(switchModel(next, choice?.effort ?? null));
               }}
-              className="min-w-0 max-w-48"
+              className="min-w-24 max-w-48"
               options={adapter.models.map((m) => ({
                 value: m.id,
                 label: m.label,

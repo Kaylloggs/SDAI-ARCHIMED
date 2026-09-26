@@ -246,13 +246,16 @@ Badge de risque : Low `--success` · Medium `--info` · High `--warning` · Crit
 ### 7.3.bis Module Code
 Trois colonnes élastiques : arborescence `clamp(180px, 18%, 264px)` · éditeur `min-width 280px` · assistant `clamp(300px, 30%, 440px)`, repliable. Onglets de fichiers en `text-footnote`, hauteur 28. L'éditeur (CodeMirror 6) n'a **pas** de thème propre : ses couleurs sont mappées sur les tokens (`--color-text`, `--color-accent`, `--font-mono`), donc il suit automatiquement le preset choisi.
 Un fichier glissé de l'arborescence vers le composer devient une **cible** (chip accent) ; un fichier glissé depuis Windows devient une **pièce jointe** (chip neutre). Pendant un survol de dépôt, le composer prend un anneau `--accent` et affiche l'action attendue.
+La colonne de gauche commence par une bascule à deux icônes (Fichiers · Rechercher, 24 px dans une pastille `--surface-1`). **Recherche** : champ mono 32 px avec trois bascules (casse, mot entier, expression régulière, `--accent-soft` quand actives), filtres repliés sous « Filtres », résultats groupés par fichier (nom en 500, dossier en `text-caption`, compteur en pastille), lignes en mono `text-footnote` avec les occurrences surlignées `--accent-soft` (`<mark>`). **Terminal** : panneau sous l'éditeur, séparé par une poignée horizontale (hauteur 120 à 900, défaut 260), en-tête de 32 px (onglets, `+`, effacer, masquer), police `Geist Mono` 13 px. Ses couleurs viennent des tokens du preset actif : fond `--bg`, texte `--text`, curseur `--accent`, ANSI rouge / vert / jaune / bleu = `--danger` / `--success` / `--warning` / `--info`, cyan et magenta = `color-mix` de ces tokens ; il est repeint au changement de preset.
 
 ### 7.4 Contrôles
 Boutons : hauteurs 28 (sm) / 32 (md) / 40 (lg). Variantes `primary` (accent), `secondary` (`--surface-2`), `ghost`, `danger`. Focus ring : 2 px `--accent` + offset 2 px `--bg`, toujours visible au clavier (`:focus-visible`).
 Icônes : `lucide-react`, trait 1.75, tailles 14 / 16 / 20 uniquement.
 **Barre de saisie — dictée** : bouton micro à côté des pièces jointes et des skills. À l'enregistrement, le bouton passe en rouge avec un halo pulsé ; le texte provisoire s'écrit en direct dans le champ et se fige à chaque fin de phrase.
 
-**Poignée de redimensionnement** : primitive `ResizeHandle` + `usePanelSize` (filet de 1 px, accent au survol et pendant le glisser, flèches au clavier, double clic = taille par défaut).
+**Poignée de redimensionnement** : primitive `ResizeHandle` + `usePanelSize` (filet de 1 px, accent au survol et pendant le glisser, flèches au clavier, double clic = taille par défaut). `orientation="horizontal"` pour une hauteur (panneau du bas, flèches ↑ ↓).
+
+**Réglage dans une bulle** : primitive `Popover` (bouton compact à l'allure de `Select`, panneau L3 glass dans un portail, au-dessus du bouton s'il manque de place dessous ; `Échap` ou un clic ailleurs ferme et rend le focus au bouton). Pour un réglage consulté rarement qui prendrait trop de place dans une barre. Exemple : l'**effort de réflexion** du composer, un bouton « jauge + niveau » qui ouvre le curseur (piste 6 px, poignée 16 px, niveaux extrêmes nommés dessous, une phrase d'explication).
 
 **Aperçu web** (`@/core/preview`) : en-tête de 40 px (pastille verte animée si serveur actif, sélecteur de page, recharger, ouvrir dans le navigateur, fermer), iframe sur fond blanc. Dans le Chat, une seule pastille discrète dans l'en-tête, visible uniquement s'il y a quelque chose à prévisualiser.
 

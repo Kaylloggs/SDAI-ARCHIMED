@@ -1,4 +1,4 @@
-import { FileCode2, FolderOpen, Globe, MessagesSquare, MousePointerClick, Search } from "lucide-react";
+import { FileCode2, FolderOpen, Globe, MessagesSquare, MousePointerClick, Search, SearchCode, SquareTerminal } from "lucide-react";
 import { defineTutorial } from "@/core/modules";
 
 export default defineTutorial({
@@ -25,6 +25,20 @@ export default defineTutorial({
       keys: ["Ctrl", "P"],
     },
     {
+      icon: SearchCode,
+      title: "Chercher dans tout le projet",
+      text: "La loupe en haut à gauche cherche un mot dans tous les fichiers. Un clic sur un résultat ouvre le fichier à la bonne ligne.",
+      area: "left",
+      keys: ["Ctrl", "Maj", "F"],
+    },
+    {
+      icon: SquareTerminal,
+      title: "Ouvrir le terminal",
+      text: "PowerShell s'ouvre sous l'éditeur, dans le dossier du projet. Il continue de tourner si vous changez de module.",
+      area: "center",
+      keys: ["Ctrl", "`"],
+    },
+    {
       icon: MessagesSquare,
       title: "Demander à l'IA",
       text: "Le panneau de droite est une conversation liée au projet. Décrivez ce que vous voulez changer.",
@@ -46,6 +60,7 @@ export default defineTutorial({
   tips: [
     "Les fichiers ouverts se mettent à jour seuls quand l'IA les modifie.",
     "Double-cliquez sur la séparation entre deux panneaux pour lui rendre sa taille.",
+    "Dans le terminal, Ctrl+C copie le texte sélectionné ; sans sélection, il arrête la commande en cours.",
     "Ctrl+V dans la zone de saisie joint les fichiers copiés dans l'Explorateur, ou une capture d'écran.",
   ],
 });
