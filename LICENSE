@@ -162,11 +162,12 @@ Article 6 — Droits que la loi Vous reconnaît
 
 Article 7 — Versions antérieures
 
-  Les exemplaires du Logiciel que le Titulaire a publiés sous licence MIT
-  avant le 26 septembre 2026 (versions publiées jusqu'à la version 0.5.0
-  incluse, et états du code source publiés avant cette date) restent soumis à
-  la licence MIT. La présente licence s'applique à tout ce que le Titulaire
-  publie à compter du 26 septembre 2026, à commencer par la version 0.6.0.
+  Les exemplaires du Logiciel que le Titulaire a publiés sous licence MIT,
+  à savoir les versions publiées jusqu'à la version 0.6.0 incluse et les états
+  du code source publiés avant l'ajout de la présente licence au dépôt
+  officiel le 26 septembre 2026, restent soumis à la licence MIT. La présente
+  licence s'applique à tout ce que le Titulaire publie après cet ajout, à
+  commencer par la version 0.7.0.
 
 
 Article 8 — Fin de la licence
@@ -368,11 +369,12 @@ Section 6 — Rights granted to You by law
 
 Section 7 — Earlier versions
 
-  Copies of the Software that the Licensor published under the MIT License
-  before 26 September 2026 (versions released up to and including 0.5.0, and
-  states of the source code published before that date) remain under the MIT
-  License. This license applies to everything the Licensor publishes from
-  26 September 2026 onwards, starting with version 0.6.0.
+  Copies of the Software that the Licensor published under the MIT License,
+  namely the versions released up to and including 0.6.0 and the states of
+  the source code published before this license was added to the official
+  repository on 26 September 2026, remain under the MIT License. This license
+  applies to everything the Licensor publishes after that addition, starting
+  with version 0.7.0.
 
 
 Section 8 — Termination

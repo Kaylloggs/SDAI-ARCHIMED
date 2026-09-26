@@ -4,7 +4,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
-## [0.6.0] - 2026-09-25
+## [0.7.0] - 2026-09-26
 
 ### Modifié — Licence
 - ARCHIMED passe de la licence MIT à la **Licence ARCHIMED 1.0** (fichier `LICENSE`, en français et
@@ -12,8 +12,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
   modifier pour son propre usage, personnel ou professionnel, et proposer des modifications au
   projet. Interdit sans accord écrit : redistribuer (d'origine ou modifié), vendre, intégrer à un
   autre produit. Ce qui est créé avec l'application (code, mods, images, fichiers générés dans les
-  projets) appartient à la personne. Les versions publiées avant le 26 septembre 2026 restent
-  sous licence MIT.
+  projets) appartient à la personne. Les versions jusqu'à la 0.6.0 incluse restent sous
+  licence MIT.
+- Les installeurs Windows (NSIS et MSI) affichent la licence, à accepter avant l'installation.
+  Le texte vient de `src-tauri/installer/LICENSE.rtf`, généré depuis `LICENSE` par
+  `scripts/license-rtf.mjs` (accents échappés pour le MSI) ; `pnpm check` vérifie qu'il est à jour.
+
+## [0.6.0] - 2026-09-25
 
 ### Ajouté — Module Image Maker (catégorie Création)
 - **Studio d'images par IA** : créer à partir d'une description (consigne libre ou structurée :

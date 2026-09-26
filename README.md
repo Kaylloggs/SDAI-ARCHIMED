@@ -338,6 +338,6 @@ pnpm tauri dev      # the first launch compiles Rust and takes a few minutes
 - **You may not** redistribute it (original or modified), sell it, or build it into another product, open or closed.
 - **What you create with it is yours**: code, mods, images, and the files the app generates in your projects.
 
-Versions released before 26 September 2026 (up to 0.5.0) remain under the MIT License. The license is written in French and English; the French text prevails.
+Versions up to and including 0.6.0 remain under the MIT License; this license applies from 0.7.0. The license is written in French and English; the French text prevails.
 
 <sub>Third-party: the token saver bundles the [Caveman](https://github.com/JuliusBrussee/caveman) skill (MIT); `jobagent` vendors [JobSpy](https://github.com/speedyapply/JobSpy) (MIT) with [GeoNames](https://www.geonames.org/) (CC BY 4.0) and [Natural Earth](https://www.naturalearthdata.com/) data; `mcstudio` templates ship the Gradle Wrapper (Apache 2.0). Minecraft is a trademark of Mojang/Microsoft; mods you build are subject to the Minecraft EULA. Claude, Antigravity and Codex belong to their owners; ARCHIMED is not affiliated with Anthropic, Google or OpenAI.</sub>
