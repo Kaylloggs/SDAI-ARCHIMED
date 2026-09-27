@@ -30,6 +30,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
   serveur MCP), Installations, Confidentialité (avec permissions).
 - Claude Code installé par le script officiel et Codex installé par npm sont détectés sans
   redémarrer ARCHIMED.
+- README (anglais et français) : nouvelle section « Parlez-lui » avec la vue de conversation
+  vocale dans les six thèmes, la pastille et la page Installations.
 
 ## [0.10.0] - 2026-09-27
 

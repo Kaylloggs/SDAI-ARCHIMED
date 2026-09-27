@@ -15,7 +15,7 @@ and put them to work: code, plan, search for a job, even build Minecraft mods.
 [![Free, source available](https://img.shields.io/badge/license-ARCHIMED%201.0-2ea043?style=for-the-badge)](LICENSE)
 [![Built with Tauri and Rust](https://img.shields.io/badge/Tauri%202-Rust-24C8DB?style=for-the-badge&logo=tauri&logoColor=white)](#-for-developers)
 
-### [⬇ Download for Windows](https://github.com/Kaylloggs/SDAI-ARCHIMED/releases/latest) &nbsp;·&nbsp; [Install guide](#-install-in-5-minutes) &nbsp;·&nbsp; [What's inside](#-whats-inside) &nbsp;·&nbsp; [FAQ](#-questions)
+### [⬇ Download for Windows](https://github.com/Kaylloggs/SDAI-ARCHIMED/releases/latest) &nbsp;·&nbsp; [Install guide](#-install-in-5-minutes) &nbsp;·&nbsp; [Talk to it](#-just-talk-to-it) &nbsp;·&nbsp; [What's inside](#-whats-inside) &nbsp;·&nbsp; [FAQ](#-questions)
 
 <img src="docs/images/chat.png" alt="ARCHIMED chat: Claude Code edits a website, asks before running the tests, and sums up what it did" width="920" />
 
@@ -79,6 +79,44 @@ The best way to show what ARCHIMED can do is to put two of its modules side by s
 </table>
 
 A job hunt and a game mod are about as far apart as two projects can be. If ARCHIMED handles both, it can grow into whatever you need next. Every feature is an independent **module**: keep the ones you use, remove the others in one click from the settings.
+
+<br />
+
+## 🎤 Just talk to it
+
+Press **Ctrl Shift Space**, or click the pill at the top of the window, and speak. ARCHIMED listens, answers out loud and does the work in your modules. Open the conversation full screen and it feels like Gemini Live, in the colours of your theme: a glow rises from the bottom with your voice, then with ARCHIMED's.
+
+<div align="center">
+<img src="docs/images/voice/live-hero.png" width="920" alt="Voice conversation full screen over the Planner: ARCHIMED says it added four cards to the Launch board, a Claude Code task runs at the top, round buttons for the microphone, pause, stop and end at the bottom" />
+</div>
+
+- **Talk like you would to a person.** Interrupt it whenever you want: it stops and listens. "Pause", "repeat" and "stop" work in French and English.
+- **It acts, it doesn't just chat.** "Add the four launch steps to my roadmap", "build my mod", "open Image Maker": the voice uses the same actions as the modules. Long jobs go to Claude Code, Codex or Antigravity while you keep working, and it tells you when they are done.
+- **You see where your words go.** Microphone, recognition, intelligence and voice each show **Local** or **Online**. A fully local mode (Whisper, Piper, Ollama) works without the internet.
+- **No more rights than typing.** Anything sensitive asks first, out loud, or with a sound and a Yes / No card if you'd rather it didn't read commands aloud.
+- **Set up in one click.** The **Installations** page installs the local voice, the AI agents, Ollama and Voicebox through each publisher's official channel. Agents sign in in their own window: ARCHIMED never sees your credentials.
+
+**Same conversation, six themes.** The glow, the buttons and the pill take the colours of the theme you pick.
+
+<table>
+<tr>
+<td width="33%"><img src="docs/images/voice/theme-archimed.png" alt="Archimède theme: brass glow while the person speaks, their words appear as they talk" /><p align="center"><b>Archimède</b><br /><sub>brass glow: it hears you, word by word</sub></p></td>
+<td width="33%"><img src="docs/images/voice/theme-light.png" alt="Papier theme: ARCHIMED answers that there are three meetings tomorrow morning" /><p align="center"><b>Papier</b><br /><sub>it answers out loud</sub></p></td>
+<td width="33%"><img src="docs/images/voice/theme-tokyo-neon.png" alt="Tokyo Néon theme: ARCHIMED builds the Minecraft mod, the tools it uses are listed under the request" /><p align="center"><b>Tokyo Néon</b><br /><sub>it uses a tool: building your mod</sub></p></td>
+</tr>
+<tr>
+<td width="33%"><img src="docs/images/voice/theme-nord.png" alt="Nord theme: ARCHIMED asks whether to delete three drafts, with No and Yes buttons" /><p align="center"><b>Nord</b><br /><sub>it asks before anything sensitive</sub></p></td>
+<td width="33%"><img src="docs/images/voice/theme-solar-terra.png" alt="Terra theme: ARCHIMED hands the Vite migration to Claude Code, microphone muted, the task shown at the top" /><p align="center"><b>Terra</b><br /><sub>a long job handed to Claude Code</sub></p></td>
+<td width="33%"><img src="docs/images/voice/theme-monochrome.png" alt="Encre theme: ARCHIMED opened Image Maker and listens for what comes next" /><p align="center"><b>Encre</b><br /><sub>done, listening for what's next</sub></p></td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/voice/pill-panel.png" alt="Panel under the voice pill: the written conversation, the tasks handed to Claude Code and where each step runs, local or online" /><p align="center"><sub>The pill: conversation, running tasks, where your data goes</sub></p></td>
+<td width="50%"><img src="docs/images/voice/installs.png" alt="Voice Installations page: fully local voice in one click, Claude Code installed, Codex, Antigravity, Ollama and Voicebox ready to install" /><p align="center"><sub>Installations: local voice, agents and tools in one click</sub></p></td>
+</tr>
+</table>
 
 <br />
 

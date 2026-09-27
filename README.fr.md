@@ -15,7 +15,7 @@ et mettez-les au travail : coder, planifier, chercher un emploi, et même créer
 [![Gratuit, code source disponible](https://img.shields.io/badge/licence-ARCHIMED%201.0-2ea043?style=for-the-badge)](LICENSE)
 [![Fait avec Tauri et Rust](https://img.shields.io/badge/Tauri%202-Rust-24C8DB?style=for-the-badge&logo=tauri&logoColor=white)](#-pour-les-développeurs)
 
-### [⬇ Télécharger pour Windows](https://github.com/Kaylloggs/SDAI-ARCHIMED/releases/latest) &nbsp;·&nbsp; [Installation](#-installation-en-5-minutes) &nbsp;·&nbsp; [Les modules](#-les-modules) &nbsp;·&nbsp; [FAQ](#-faq)
+### [⬇ Télécharger pour Windows](https://github.com/Kaylloggs/SDAI-ARCHIMED/releases/latest) &nbsp;·&nbsp; [Installation](#-installation-en-5-minutes) &nbsp;·&nbsp; [Parlez-lui](#-parlez-lui) &nbsp;·&nbsp; [Les modules](#-les-modules) &nbsp;·&nbsp; [FAQ](#-faq)
 
 <img src="docs/images/chat.png" alt="Le Chat d'ARCHIMED : Claude Code modifie un site, demande avant de lancer les tests, puis résume ce qu'il a fait" width="920" />
 
@@ -79,6 +79,44 @@ Le meilleur moyen de montrer ce que sait faire ARCHIMED, c'est de mettre deux de
 </table>
 
 Une recherche d'emploi et un mod de jeu vidéo, difficile de trouver deux projets plus éloignés. Si ARCHIMED sait faire les deux, il saura grandir avec ce dont vous aurez besoin ensuite. Chaque fonction est un **module** indépendant : gardez ceux qui vous servent, supprimez les autres d'un clic dans les réglages.
+
+<br />
+
+## 🎤 Parlez-lui
+
+Appuyez sur **Ctrl Maj Espace**, ou cliquez sur la pastille en haut de la fenêtre, et parlez. ARCHIMED écoute, répond à voix haute et agit dans vos modules. En plein écran, la conversation rappelle Gemini Live, aux couleurs de votre thème : une lueur monte du bas de l'écran avec votre voix, puis avec celle d'ARCHIMED.
+
+<div align="center">
+<img src="docs/images/voice/live-hero.png" width="920" alt="Conversation vocale en plein écran sur le Planner : ARCHIMED annonce quatre cartes ajoutées au tableau Lancement, une tâche Claude Code tourne en haut, des boutons ronds pour le micro, la pause, l'arrêt et la fin en bas" />
+</div>
+
+- **Parlez comme à quelqu'un.** Coupez-lui la parole quand vous voulez : il s'arrête et écoute. « Pause », « répète » et « stop » marchent en français comme en anglais.
+- **Il agit, il ne fait pas que discuter.** « Ajoute les quatre étapes du lancement à ma roadmap », « compile mon mod », « ouvre Image Maker » : la voix utilise les mêmes actions que les modules. Les longs travaux partent chez Claude Code, Codex ou Antigravity pendant que vous continuez, et il vous prévient quand c'est fini.
+- **Vous voyez où partent vos mots.** Micro, reconnaissance, intelligence et voix affichent chacun **Local** ou **En ligne**. Un mode entièrement local (Whisper, Piper, Ollama) marche sans internet.
+- **Pas plus de droits qu'au clavier.** Tout ce qui est sensible demande d'abord, à voix haute, ou par un son et une carte Oui / Non si vous préférez qu'il ne lise pas les commandes.
+- **Installé en un clic.** La page **Installations** installe la voix locale, les agents d'IA, Ollama et Voicebox par la voie officielle de chaque éditeur. Les agents se connectent dans leur propre fenêtre : ARCHIMED ne voit jamais vos identifiants.
+
+**La même conversation, six thèmes.** La lueur, les boutons et la pastille prennent les couleurs du thème choisi.
+
+<table>
+<tr>
+<td width="33%"><img src="docs/images/voice/theme-archimed.png" alt="Thème Archimède : lueur laiton pendant que la personne parle, ses mots s'affichent au fil de la phrase" /><p align="center"><b>Archimède</b><br /><sub>lueur laiton : il vous entend, mot à mot</sub></p></td>
+<td width="33%"><img src="docs/images/voice/theme-light.png" alt="Thème Papier : ARCHIMED répond qu'il y a trois réunions demain matin" /><p align="center"><b>Papier</b><br /><sub>il répond à voix haute</sub></p></td>
+<td width="33%"><img src="docs/images/voice/theme-tokyo-neon.png" alt="Thème Tokyo Néon : ARCHIMED compile le mod Minecraft, les outils utilisés sont listés sous la demande" /><p align="center"><b>Tokyo Néon</b><br /><sub>il utilise un outil : compiler votre mod</sub></p></td>
+</tr>
+<tr>
+<td width="33%"><img src="docs/images/voice/theme-nord.png" alt="Thème Nord : ARCHIMED demande s'il doit supprimer trois brouillons, avec les boutons Non et Oui" /><p align="center"><b>Nord</b><br /><sub>il demande avant tout geste sensible</sub></p></td>
+<td width="33%"><img src="docs/images/voice/theme-solar-terra.png" alt="Thème Terra : ARCHIMED confie la migration Vite à Claude Code, micro coupé, la tâche affichée en haut" /><p align="center"><b>Terra</b><br /><sub>un long travail confié à Claude Code</sub></p></td>
+<td width="33%"><img src="docs/images/voice/theme-monochrome.png" alt="Thème Encre : ARCHIMED a ouvert Image Maker et écoute la suite" /><p align="center"><b>Encre</b><br /><sub>c'est fait, il écoute la suite</sub></p></td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/voice/pill-panel.png" alt="Panneau sous la pastille vocale : la conversation écrite, les tâches confiées à Claude Code et où passe chaque étape, en local ou en ligne" /><p align="center"><sub>La pastille : conversation, tâches en cours, où passent vos données</sub></p></td>
+<td width="50%"><img src="docs/images/voice/installs.png" alt="Page Installations de Voice : voix entièrement locale en un clic, Claude Code installé, Codex, Antigravity, Ollama et Voicebox prêts à installer" /><p align="center"><sub>Installations : voix locale, agents et outils en un clic</sub></p></td>
+</tr>
+</table>
 
 <br />
 
