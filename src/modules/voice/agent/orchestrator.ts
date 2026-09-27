@@ -1,3 +1,4 @@
+import { getCurrentWindow, UserAttentionType } from "@tauri-apps/api/window";
 import { bus, type VoicePriority } from "@/core/bus/event-bus";
 import { currentContext } from "@/core/context";
 import { engineApi } from "@/core/engine/engine.api";
@@ -617,7 +618,7 @@ export class VoiceOrchestrator {
           ? `L'agent te pose une question : ${prompt.detail.questions[0]?.question ?? prompt.title}. Réponds dans la conversation.`
           : `L'agent demande : ${speakable(prompt.title)}. Tu confirmes ?`;
     if (prompt.detail?.type === "questions") {
-      this.say(question, "high", "notice", "agent");
+      this.announcePermission(question, "agent");
       return;
     }
     const answer = await this.confirm(question, "agent", true);
@@ -798,13 +799,43 @@ export class VoiceOrchestrator {
   /** Pose une question fermée (voix et boutons) ; « non » si personne ne répond. */
   confirm(question: string, source: string, allowAlways = false): Promise<Answer> {
     const id = uid();
-    useVoiceStore.getState().patch({ confirmation: { id, question, always: allowAlways, source }, panelOpen: !this.listening });
-    this.say(question, "high", "notice", "voice");
+    const spoken = this.settings.general.speakPermissions;
+    // Question non lue : le panneau s'ouvre toujours, avec ses boutons.
+    useVoiceStore.getState().patch({ confirmation: { id, question, always: allowAlways, source }, panelOpen: spoken ? !this.listening : true });
+    if (spoken) this.say(question, "high", "notice", "voice");
+    else this.signal();
     this.addTurn({ role: "system", text: question, source });
     return new Promise((resolve) => {
       this.resolvers.set(id, resolve);
       setTimeout(() => this.resolve(id, "no"), CONFIRM_TIMEOUT_MS);
     });
+  }
+
+  /**
+   * Demande de permission hors confirmation (tâche en attente, question de l'agent) : dite à
+   * voix haute, ou seulement signalée si « Dire les demandes de permission » est désactivé.
+   */
+  announcePermission(text: string, source: string): void {
+    if (this.settings.general.speakPermissions) {
+      this.say(text, "high", "notice", source);
+      return;
+    }
+    this.addTurn({ role: "notice", text, source, priority: "high" });
+    useVoiceStore.getState().patch({ panelOpen: true });
+    this.signal();
+  }
+
+  /** Signal discret à la place de la voix : un son, et la barre des tâches si ARCHIMED est en arrière-plan. */
+  private signal(): void {
+    if (this.settings.general.sounds) earcon("notice");
+    if (typeof document !== "undefined" && document.hasFocus()) return;
+    try {
+      void getCurrentWindow()
+        .requestUserAttention(UserAttentionType.Informational)
+        .catch(() => undefined);
+    } catch {
+      // Hors Tauri (aperçu navigateur) : pas de fenêtre à signaler.
+    }
   }
 
   resolve(id: string, answer: Answer): void {

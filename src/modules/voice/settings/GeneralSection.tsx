@@ -56,6 +56,12 @@ export function GeneralSection() {
             onChange={(progress) => update("general", { progress })}
           />
         </Row>
+        <Row
+          label="Dire les demandes de permission"
+          hint="Désactivé : rien n'est lu, un son retentit et le panneau s'ouvre avec les boutons Oui / Non. Vous pouvez toujours répondre à la voix."
+        >
+          <Switch label="Dire les demandes de permission" checked={g.speakPermissions} onChange={(speakPermissions) => update("general", { speakPermissions })} />
+        </Row>
         <Row label="Sons d'état" hint="Un son discret quand le micro s'ouvre, se coupe, ou en cas d'erreur.">
           <Switch label="Sons d'état" checked={g.sounds} onChange={(sounds) => update("general", { sounds })} />
         </Row>

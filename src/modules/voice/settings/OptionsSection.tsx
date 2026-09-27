@@ -217,6 +217,16 @@ export function PermissionsSection() {
           />
         </Row>
         <Row
+          label="Dire les demandes de permission"
+          hint="Désactivé : l'assistant ne lit plus la demande ; un son retentit et le panneau s'ouvre avec les boutons Oui / Non."
+        >
+          <Switch
+            label="Dire les demandes de permission"
+            checked={settings.general.speakPermissions}
+            onChange={(speakPermissions) => update("general", { speakPermissions })}
+          />
+        </Row>
+        <Row
           label="Répondre à une confirmation"
           hint="« Oui » accepte une fois, « oui toujours » accepte les demandes du même type jusqu'à la fin de la session, « non » refuse. Sans réponse en deux minutes : refusé."
         >

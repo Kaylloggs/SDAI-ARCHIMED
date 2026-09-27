@@ -4,6 +4,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté
+- **Voice › Général (et Permissions) : « Dire les demandes de permission »**. Désactivé,
+  l'assistant ne lit plus les demandes de permission (souvent des noms d'outils ou des commandes
+  difficiles à prononcer) : un son retentit, le panneau de la pastille s'ouvre avec les boutons
+  Oui / Non, et la barre des tâches clignote si ARCHIMED est en arrière-plan. On peut toujours
+  répondre à la voix.
+
 ## [0.10.0] - 2026-09-27
 
 ### Ajouté — Module Voice : assistant vocal

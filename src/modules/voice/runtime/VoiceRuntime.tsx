@@ -79,7 +79,7 @@ export default function VoiceRuntime() {
         const prompt = conversation?.pendingPromptId;
         if (conversation?.status === "awaiting" && prompt && !warned.has(prompt)) {
           warned.add(prompt);
-          voice.say(`La tâche « ${task.title} » attend ta permission dans le module Chat.`, "high", "notice", "task");
+          voice.announcePermission(`La tâche « ${task.title} » attend ta permission dans le module Chat.`, "task");
         }
       }
     });

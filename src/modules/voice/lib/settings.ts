@@ -22,6 +22,8 @@ export type VoiceSettings = {
     progress: "off" | "short" | "detailed";
     sounds: boolean;
     liveTranscript: boolean;
+    /** Lire à voix haute les demandes de permission (sinon : son + panneau avec les boutons). */
+    speakPermissions: boolean;
   };
   microphone: { deviceId: string | null; sensitivity: number; echoCancellation: boolean; noiseSuppression: boolean };
   speaker: { deviceId: string | null; volume: number };
@@ -56,6 +58,7 @@ export const DEFAULT_SETTINGS: VoiceSettings = {
     progress: "short",
     sounds: true,
     liveTranscript: true,
+    speakPermissions: true,
   },
   microphone: { deviceId: null, sensitivity: 0.6, echoCancellation: true, noiseSuppression: true },
   speaker: { deviceId: null, volume: 1 },
