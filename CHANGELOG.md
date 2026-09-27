@@ -4,6 +4,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.8.0] - 2026-09-27
+
 ### Ajouté — Mise à jour depuis l'application
 - Quand une nouvelle version est publiée sur GitHub, une pastille **« Mise à jour »** apparaît en haut
   à droite, à côté des boutons de la fenêtre. Un clic montre les nouveautés ; « Mettre à jour »
