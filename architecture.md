@@ -133,6 +133,14 @@ SDAI ARCHIMED/
 │       │   │                            # · paint-layer · prompt (consigne structurée) · ratio · format
 │       │   └── services/image.ts        # service `image.maker` (générer, modifier, détourer, agrandir, varier)
 │       ├── usage/                       # Crédits : module.config · index · api · lib/format · README
+│       ├── voice/                       # Voix (ADR 0016) : module.config · index (réglages, historique) · api · store
+│       │   ├── agent/                   # orchestrator (écoute → routeur/agent → parole) · tools (outils MCP exécutés ici)
+│       │   ├── audio/                   # capture (micro, AudioWorklet, VAD) · player (lecture, sons d'état)
+│       │   ├── engines/                 # stt (Windows, capture → Rust) · tts (système, moteurs distants)
+│       │   ├── lib/                     # router · chunker · speech-queue · vad · wav · privacy · prompt · settings · status
+│       │   ├── components/              # VoicePill (slot titlebar.center) · VoiceWave · VoicePanel · Transcript · controls
+│       │   ├── settings/                # sections des réglages (moteurs, modèles locaux, fournisseurs, MCP…)
+│       │   └── runtime/                 # VoiceRuntime (slot app.background) · instance (orchestrateur unique)
 │       ├── memory/                      # Mémoire : index · api · services/context · README
 │       ├── skills/                      # module.config · index · api · README
 │       ├── settings/                    # index + components/ (ThemeSection · EngineSection · ModulesSection)
@@ -176,6 +184,9 @@ SDAI ARCHIMED/
             ├── code/                    # arborescence, lecture/écriture de fichiers, détection de projet, watcher (code:fs-changed),
             │                            # recherche dans le projet (search.rs), terminal PowerShell en PTY (terminal.rs)
             ├── usage/                   # résumé du registre, compte et limites Claude
+            ├── voice/                   # matériel (hardware.rs), catalogue et téléchargements de modèles (catalog.rs, models.rs),
+            │                            # whisper-server et Piper (local.rs), fournisseurs en ligne (cloud.rs), Ollama,
+            │                            # serveur MCP d'ARCHIMED (mcp.rs), réglages et sessions vocales
             ├── memory/                  # notes.json (activables, par projet), bloc de contexte injecté
             ├── planner/                 # boards.json, roadmap.rs (parse/réécriture), ics.rs, watcher notify
             ├── mcstudio/                # projets de mods Minecraft : profiles/ (TOML + métadonnées officielles),
@@ -316,6 +327,7 @@ inscrite au journal d'audit (`modules.remove`). Les modules `required` ne se sup
 | Slot | `code.editor.footer` | code | bandeau sous l'éditeur. Props : `{ root }`. Ex : roadmap du projet (Planner) |
 | Slot | `statusbar.items` | shell | indicateurs globaux |
 | Slot | `app.background` | shell (AppShell) | composants invisibles montés en permanence (écoute du bus) |
+| Slot | `titlebar.center` | shell (TitleBar) | pastille compacte à gauche de la recherche (Ctrl K). Ex : pastille vocale |
 | Slot | `settings.sections` | settings | (auto : `manifest.settings`) |
 | Service | `code.project` | code | savoir si un dossier est un projet (consommé par le chat) |
 | Service | `code.open` | code | ouvrir un fichier ou dossier cité par l'IA dans l'éditeur (consommé par `core/chat/FileLink`) |
@@ -324,6 +336,11 @@ inscrite au journal d'audit (`modules.remove`). Les modules `required` ne se sup
 | Service | `image.maker` | image-maker | `generateImage`, `editImage`, `removeBackground`, `upscaleImage`, `createVariation` : chemins des images produites (projet « Demandes des autres modules ») |
 | Service | `tutorial.open` | tutorial | `open(moduleId)` ouvre le tutoriel d'un module (ou « Premiers pas ») ; consommé par le bouton d'aide de `core/shell/TitleBar` |
 | Manifest | `tutorial` | chaque module | tutoriel d'utilisation (`ModuleTutorial`, voir §5.5), lu par le module Tutoriel |
+| Manifest | `capabilities`, `actions` | chaque module | ce que le module sait faire et ses actions pour les agents (`agent-actions.ts`, voir §5.6) |
+| Contexte | `useModuleContext(id, ctx)` | chaque module | ce que la personne regarde (projet, fichier, sélection, image, objet) ; lu par `currentContext()` (§5.6) |
+| Service | `voice.speak` | voice | `speak(text, priority, source)` : faire parler l'assistant (`low` n'interrompt jamais, `critical` coupe la parole) |
+| Événement backend | `voice:model`, `voice:mcp-call` | voice | avancement d'un téléchargement de modèle ; outil MCP demandé par un agent |
+| Événement | `module.opened`, `voice.started/stopped/transcript/response/speaking/interrupted/speak`, `voice.task.started/completed/failed`, `agent.started/completed` | core, voice | module affiché ; vie de la session vocale et des tâches confiées ; début et fin d'une demande à un agent |
 | Service | `engine.session` | core | démarrer/envoyer/écouter une session |
 | Service | `system.fs` / `system.shell` | core | actions système passant par la policy |
 | Service | `notify.toast` | core | notifications UI |
@@ -358,6 +375,21 @@ avec « à venir ». Le bouton « ? » de la barre de titre ouvre le tutoriel du
 service `tutorial.open` ; absent si le module Tutoriel l'est.
 
 ---
+
+### 5.6 Actions des modules et contexte partagé (ADR 0016)
+- **Actions** : un module expose ce qu'un agent peut lui demander dans `agent-actions.ts`
+  (`defineActions`, chargé à la demande par `manifest.actions`). Chaque action a un nom
+  `snake_case`, une description, des paramètres typés (vérifiés par `checkArgs`), un risque
+  (`read`, `write`, `destructive`) et renvoie `{ ok, message, data?, open? }` avec une phrase
+  prononçable. `destructive` n'est jamais exécuté sans confirmation (voix ou bouton). Une action
+  longue rend la main tout de suite et annonce son résultat par `voice.speak`.
+- **Contexte** (`core/context`) : chaque écran publie ce qu'il affiche avec `useModuleContext`
+  (retiré au démontage). Rien n'est capturé à l'écran : seuls les champs choisis par le module.
+- **Serveur MCP d'ARCHIMED** (plugin `voice`) : HTTP sur 127.0.0.1, jeton aléatoire, origines web
+  refusées, déclaré dans `<données>/mcp/voice.json` et passé aux CLI par le moteur. Outils :
+  `speak`, `notify`, `get_voice_state`, `get_context`, `list_modules`, `open_module`,
+  `run_action`, `start_task`, `task_status` (exécutés par l'interface, `voice/agent/tools.ts`).
+  Les outils en lecture seule sont dans `READ_ONLY_TOOLS` (`engine/policy.rs`).
 
 ## 6. Moteur Multi-CLI
 

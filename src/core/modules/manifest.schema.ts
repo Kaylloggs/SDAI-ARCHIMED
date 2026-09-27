@@ -42,6 +42,8 @@ export const manifestSchema = z.object({
     )
     .optional(),
   settings: z.custom<unknown>((v) => typeof v === "object").optional(),
+  capabilities: z.array(z.string().regex(/^[a-z][a-z0-9_]*$/, "capacité en snake_case")).max(32).optional(),
+  actions: z.custom<unknown>((v) => typeof v === "function").optional(),
 });
 
 /**

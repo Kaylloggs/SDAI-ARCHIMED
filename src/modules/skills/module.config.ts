@@ -24,5 +24,7 @@ export default defineModule({
     { id: "skills.open", title: "Gérer les skills", run: "navigate" },
     { id: "skills.create", title: "Créer un skill", run: () => useUiStore.getState().openModule("skills", { create: true }) },
   ],
+  capabilities: ["list_skills", "toggle_skill", "create_skill"],
+  actions: () => import("./agent-actions"),
   tutorial,
 });

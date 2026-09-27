@@ -23,5 +23,7 @@ export default defineModule({
   commands: [
     { id: "image-maker.open", title: "Ouvrir Image Maker", run: "navigate" },
   ],
+  capabilities: ["create_image", "edit_image", "image_projects"],
+  actions: () => import("./agent-actions"),
   tutorial,
 });

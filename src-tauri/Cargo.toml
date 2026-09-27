@@ -74,8 +74,16 @@ windows = { version = "0.62", features = [
   # Ctrl+V de fichiers copiés dans l'Explorateur (core/clipboard.rs).
   "Win32_System_DataExchange",
   "Win32_UI_Shell",
+  # Voice : matériel (cartes graphiques, mémoire, processeur) pour conseiller des modèles.
+  "Win32_Graphics_Dxgi",
+  "Win32_Graphics_Dxgi_Common",
+  "Win32_System_SystemInformation",
+  "Win32_System_Registry",
 ] }
 windows-future = "0.3"
+# Voice : accès au micro accordé à la page de l'application (même version que Tauri/wry).
+webview2-com = "0.38"
+windows-core-webview = { package = "windows-core", version = "0.61" }
 keyring = { version = "3", features = ["windows-native"] }
 
 [profile.release]

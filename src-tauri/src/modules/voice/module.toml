@@ -1,0 +1,11 @@
+id = "voice"
+# Clés des fournisseurs de voix (Gestionnaire d'identifiants), effacées si le module est supprimé.
+credentials = ["voice-openai", "voice-groq", "voice-elevenlabs", "voice-custom"]
+commands = [
+  "voice_hardware_info", "voice_list_models", "voice_download_model", "voice_pause_model", "voice_delete_model", "voice_verify_model",
+  "voice_prepare_stt", "voice_transcribe", "voice_synthesize", "voice_list_voices",
+  "voice_providers", "voice_set_provider_key", "voice_clear_provider_key",
+  "voice_ollama_status", "voice_voicebox_status", "voice_local_chat", "voice_cancel_local_chat",
+  "voice_mcp_info", "voice_mcp_respond", "voice_bridge_ready", "voice_stop_engines",
+  "voice_get_settings", "voice_save_settings", "voice_list_sessions", "voice_get_session", "voice_save_session", "voice_delete_session",
+]

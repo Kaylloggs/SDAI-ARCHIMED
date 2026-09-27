@@ -16,5 +16,7 @@ export default defineModule({
   launchpad: { size: "lg", accent: true },
   consumes: ["voice.transcribe", "code.project"],
   commands: [{ id: "chat.open", title: "Ouvrir le chat", run: "navigate" }],
+  capabilities: ["converse", "delegate_task", "list_conversations"],
+  actions: () => import("./agent-actions"),
   tutorial,
 });

@@ -2,6 +2,7 @@ import { useCallback, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { AlertTriangle, CheckCircle2, Info, UploadCloud, X } from "lucide-react";
 import { useOsFileDrop } from "@/core/chat";
+import { useModuleContext } from "@/core/context";
 import { cn } from "@/core/lib/cn";
 import { enterUp } from "@/design-system/motion";
 import { IMAGE_FILE, pasteFrom } from "./clipboard";
@@ -10,11 +11,24 @@ import { ConnectionsDialog } from "./components/ConnectionsDialog";
 import { ExportDialog } from "./components/ExportDialog";
 import { ProjectList } from "./components/ProjectList";
 import { Studio } from "./components/Studio";
-import { useImageMaker } from "./store";
+import { currentNode, useImageMaker } from "./store";
 
 export default function ImageMakerModule() {
   const project = useImageMaker((s) => s.project);
   const ready = useImageMaker((s) => s.ready);
+  const node = useImageMaker(currentNode);
+
+  // Image affichée, pour la voix et les agents (« change le ciel »).
+  useModuleContext(
+    "image-maker",
+    project
+      ? {
+          project: { name: project.name },
+          image: node ? { path: node.file, description: node.prompt ?? node.label } : null,
+          details: { versions: project.nodes.length, width: node?.width ?? null, height: node?.height ?? null },
+        }
+      : null,
+  );
 
   useEffect(() => {
     void useImageMaker.getState().init();

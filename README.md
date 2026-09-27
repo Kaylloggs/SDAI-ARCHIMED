@@ -87,6 +87,7 @@ A job hunt and a game mod are about as far apart as two projects can be. If ARCH
 | | Module | What it does for you |
 |---|---|---|
 | 💬 | **Chat** · `chat` | Talk to Claude Code, Antigravity or Codex, with everything you expect from Claude Code: answers written live, visible reasoning, plan mode, to-do list, `/` commands and `@` file mentions, messages queued while the AI works, context gauge, and a **Changes** panel with the git diff of every file (review, commit, pull request in one click). Pick the model and how hard it should think, attach files, dictate with your voice (processed on your PC), approve actions on cards. |
+| 🎙️ | **Voice** · `voice` | Talk to ARCHIMED and hear it answer. Interrupt it any time, ask it to act in your modules ("add these tasks to my roadmap", "build my mod") or hand a long job to Claude Code, Codex or Antigravity while you keep working; it tells you when it is done. Every step shows whether it stays on your PC or goes online, and a fully local mode (Whisper, Piper, Ollama) works offline. Voice never gets more rights than typing: sensitive actions always ask first. |
 | 🧑‍💻 | **Code** · `code` | A code editor with the AI beside it. Open a folder, watch files update live as the AI edits them, preview the website it is building. |
 | 🗂️ | **Planner** · `planner` | Task boards and a calendar. A board can follow a `roadmap.md`, so the plan an AI writes becomes cards you can tick off. Export to your calendar. |
 | 🧠 | **Memory** · `memory` | Tell the AI once who you are and how you like to work. Notes can be global or per project, and you see exactly what is sent. |
@@ -252,6 +253,7 @@ Some features call an AI service directly with **your own key**. Paste it once i
 | **Google** (AI Studio, Gemini) | Images (Image Maker), textures (Mod Studio) | [aistudio.google.com](https://aistudio.google.com/apikey) |
 | **OpenRouter** | Images and textures, many models in one account | [openrouter.ai/keys](https://openrouter.ai/keys) |
 | **Higgsfield** | Images (Image Maker) | [cloud.higgsfield.ai](https://cloud.higgsfield.ai/) |
+| **OpenAI**, **Groq**, **ElevenLabs** | Online speech recognition and voices (Voice), optional: the local engines need no key | [platform.openai.com](https://platform.openai.com/api-keys) · [console.groq.com](https://console.groq.com/keys) · [elevenlabs.io](https://elevenlabs.io/app/settings/api-keys) |
 
 No key? Click **Account** in Image Maker. With a Higgsfield subscription, images are generated right in the app with your own credits: the official Higgsfield tool is installed once (you confirm first), and you sign in on Higgsfield's page in your browser. Or open Gemini (Nano Banana), ChatGPT or Higgsfield right inside ARCHIMED, create the image with your own subscription, and the downloaded file comes back into your project in one click. ARCHIMED never asks for your password.
 

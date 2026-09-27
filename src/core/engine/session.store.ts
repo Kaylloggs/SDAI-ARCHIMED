@@ -178,7 +178,9 @@ export const useSessionStore = create<Store>()(
           ),
         })),
 
-      appendUser: (id, text, attachments) =>
+      appendUser: (id, text, attachments) => {
+        const owner = get().sessions.find((s) => s.id === id);
+        if (owner) bus.emit("agent.started", { conversationId: id, origin: owner.origin, adapter: owner.adapter });
         set((state) => ({
           sessions: state.sessions.map((session) => {
             if (session.id !== id) return session;
@@ -199,7 +201,8 @@ export const useSessionStore = create<Store>()(
               timeline: [...session.timeline, item],
             };
           }),
-        })),
+        }));
+      },
 
       apply: (engineSessionId, event) => {
         const target = get().sessions.find((s) => s.engineSessionId === engineSessionId);
@@ -208,7 +211,10 @@ export const useSessionStore = create<Store>()(
         set((state) => ({
           sessions: state.sessions.map((session) => (session.id === target.id ? next : session)),
         }));
-        if (event.type === "turnCompleted") bus.emit("engine.turn.completed", turnSummary(next));
+        if (event.type === "turnCompleted") {
+          bus.emit("engine.turn.completed", turnSummary(next));
+          bus.emit("agent.completed", { conversationId: next.id, origin: next.origin, ok: event.ok });
+        }
       },
     }),
     {

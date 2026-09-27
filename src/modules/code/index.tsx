@@ -6,6 +6,7 @@ import { Badge, Button, EmptyState, ResizeHandle, Select, Tooltip, usePanelSize 
 import { PreviewPane, isHtmlFile, usePreviewTargets } from "@/core/preview";
 import { Composer, ConversationView, TodoPanel } from "@/core/chat";
 import { Slot } from "@/core/modules";
+import { useModuleContext } from "@/core/context";
 import { useAdapters } from "@/core/engine/useAdapters";
 import { useChat } from "@/core/engine/useChat";
 import { useAutoContinue } from "@/core/engine/useAutoContinue";
@@ -232,6 +233,18 @@ export default function CodeModule() {
   const active = openFiles.find((file) => file.path === activePath) ?? null;
   const activeDraft = active ? drafts[active.path] : undefined;
   const dirty = active !== null && activeDraft !== undefined && activeDraft !== active.content;
+
+  // Ce que la personne a sous les yeux, pour la voix et les agents (« explique ce fichier »).
+  useModuleContext(
+    "code",
+    root
+      ? {
+          project: { name: project?.name ?? root.split(/[\\/]/).filter(Boolean).at(-1) ?? root, path: root },
+          file: activePath,
+          details: { openFiles: openFiles.length, unsaved: dirty, language: active?.language ?? null },
+        }
+      : null,
+  );
 
   const save = useCallback(async () => {
     if (!active || activeDraft === undefined || activeDraft === active.content) return;

@@ -22,5 +22,7 @@ export default defineModule({
     "code.editor.footer": lazy(() => import("./slots/RoadmapFooter")),
   },
   commands: [{ id: "planner.open", title: "Ouvrir le Planner", run: "navigate" }],
+  capabilities: ["task_boards", "roadmap", "due_dates", "calendar_export"],
+  actions: () => import("./agent-actions"),
   tutorial,
 });

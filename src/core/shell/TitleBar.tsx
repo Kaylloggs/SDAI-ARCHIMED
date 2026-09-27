@@ -68,7 +68,7 @@ export function TitleBar() {
 
   return (
     <div data-tauri-drag-region className="flex h-10 shrink-0 items-center gap-3 pl-2">
-      <span data-tauri-drag-region className="min-w-0 truncate text-body-sm font-semibold">
+      <span data-tauri-drag-region className="min-w-12 max-w-56 shrink-0 truncate text-body-sm font-semibold">
         {active?.name ?? "SDAI ARCHIMED"}
       </span>
       {help && (
@@ -83,13 +83,14 @@ export function TitleBar() {
         </Tooltip>
       )}
 
-      <div data-tauri-drag-region className="flex flex-1 justify-center">
+      <div data-tauri-drag-region className="flex min-w-0 flex-1 items-center justify-center gap-2">
+        <Slot name="titlebar.center" />
         <button
           onClick={() => setPaletteOpen(true)}
-          className="glass-chrome flex h-8 w-80 items-center gap-2 rounded-full px-3 text-footnote text-text-subtle transition-colors hover:text-text-muted"
+          className="glass-chrome flex h-8 w-80 min-w-0 shrink items-center gap-2 rounded-full px-3 text-footnote text-text-subtle transition-colors hover:text-text-muted"
         >
-          <Search size={14} strokeWidth={1.75} />
-          <span className="flex-1 text-left">Rechercher une action, un module…</span>
+          <Search size={14} strokeWidth={1.75} className="shrink-0" />
+          <span className="min-w-0 flex-1 truncate text-left">Rechercher une action, un module…</span>
           <Kbd>Ctrl K</Kbd>
         </button>
       </div>

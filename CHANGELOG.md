@@ -4,6 +4,37 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Module Voice : assistant vocal
+- **Parler à ARCHIMED** : pastille à côté de la recherche (micro, vague animée par votre voix et
+  celle de l'assistant, état en clair), raccourcis `Ctrl+Maj+Espace` (ouvrir/couper le micro) et
+  `Ctrl+Espace` (maintenir pour parler), mot d'éveil en option. Le laiton signifie « micro ouvert ».
+- **Conversation naturelle** : réponse dite phrase par phrase pendant qu'elle s'écrit, coupure
+  de parole (l'assistant se tait quand vous parlez), commandes instantanées sans modèle (« stop »,
+  « attends », « continue », « répète », « plus lentement », « ouvre le Planner »,
+  « qu'est-ce que tu fais ? », « termine la session »), sous-titres, historique des sessions.
+- **Agir dans l'application** : l'agent (Claude Code, Codex ou Antigravity, détectés) reçoit les
+  outils d'ARCHIMED par MCP : lire ce que vous regardez, ouvrir un module, lancer une action d'un
+  module, confier une longue tâche en arrière-plan (résultat annoncé à la fin). Actions ajoutées
+  à Planner, Mémoire, Crédits, Code, Chat, Image Maker, Mod Studio, Skills et JobAgent.
+- **Mêmes droits qu'au clavier** : permissions de l'agent posées à voix haute, actions
+  sensibles toujours confirmées (« oui », « oui toujours », « non », ou boutons).
+- **Moteurs au choix** : reconnaissance Windows, Whisper local, OpenAI, Groq, ElevenLabs,
+  Voicebox ou serveur compatible ; voix du système, Piper local, OpenAI, ElevenLabs, Voicebox ou
+  serveur compatible (vitesse, hauteur, ton, stabilité). Chaque étape indique « Local » ou
+  « En ligne » ; mode local et fonctionnement hors ligne avec Whisper, Piper et Ollama.
+- **Modèles locaux** : analyse de la machine (processeur, mémoire, carte graphique), modèles
+  recommandés ou déconseillés, téléchargement avec pause et reprise, vérification SHA-256, test,
+  activation, suppression.
+- **Serveur MCP d'ARCHIMED** (sur cet ordinateur, protégé par jeton) : utilisable aussi par un
+  agent lancé hors d'ARCHIMED (configuration à copier).
+
+### Modifié
+- Barre de titre : le titre du module garde sa place dans une fenêtre étroite, la recherche
+  rétrécit.
+- Modules : nouveaux champs de manifeste `capabilities` et `actions` (`agent-actions.ts`) et
+  contexte partagé (`useModuleContext`) ; Code, Planner, Mod Studio et Image Maker publient ce qui
+  est affiché.
+
 ## [0.9.1] - 2026-09-27
 
 ### Modifié

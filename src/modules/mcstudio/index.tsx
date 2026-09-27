@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSessionStore } from "@/core/engine/session.store";
 import { useUiStore } from "@/core/stores/ui.store";
+import { useModuleContext } from "@/core/context";
 import { ProjectList } from "./components/ProjectList";
 import { NewProjectWizard } from "./components/wizard/NewProjectWizard";
 import { Workspace } from "./components/workspace/Workspace";
@@ -12,6 +13,17 @@ export default function McStudioModule() {
   const project = useMcStudioStore((s) => s.projects.find((p) => p.id === s.openId) ?? null);
 
   const handoff = useUiStore((s) => s.moduleParams["mcstudio"]);
+
+  // Projet ouvert, pour la voix et les agents (« ajoute une armure à mon mod »).
+  useModuleContext(
+    "mcstudio",
+    openId && project
+      ? {
+          project: { name: project.meta?.name ?? project.id, path: project.path },
+          details: { projectId: project.id, modId: project.meta?.modId ?? null },
+        }
+      : null,
+  );
 
   useEffect(() => {
     void useMcStudioStore.getState().refresh();

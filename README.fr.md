@@ -87,6 +87,7 @@ Une recherche d'emploi et un mod de jeu vidéo, difficile de trouver deux projet
 | | Module | Ce qu'il fait pour vous |
 |---|---|---|
 | 💬 | **Chat** · `chat` | Parlez à Claude Code, Antigravity ou Codex, avec tout ce qu'on attend de Claude Code : réponse écrite en direct, réflexion visible, mode plan, liste de tâches, commandes `/` et mentions de fichiers `@`, messages en file pendant que l'IA travaille, jauge de contexte, et un panneau **Modifications** avec le diff git de chaque fichier (relecture, commit, pull request en un clic). Choisissez le modèle et l'effort de réflexion, joignez des fichiers, dictez à la voix (traitée sur votre PC), validez les actions sur des cartes. |
+| 🎙️ | **Voice** · `voice` | Parlez à ARCHIMED et entendez-le répondre. Coupez-lui la parole quand vous voulez, demandez-lui d'agir dans vos modules (« ajoute ces tâches à ma roadmap », « compile mon mod ») ou de confier un long travail à Claude Code, Codex ou Antigravity pendant que vous continuez : il vous prévient à la fin. Chaque étape indique si elle reste sur votre PC ou part en ligne, et un mode entièrement local (Whisper, Piper, Ollama) fonctionne hors connexion. La voix n'a jamais plus de droits que le clavier : les actions sensibles demandent toujours votre accord. |
 | 🧑‍💻 | **Code** · `code` | Un éditeur de code avec l'IA à côté. Ouvrez un dossier, voyez les fichiers changer en direct pendant que l'IA les modifie, prévisualisez le site qu'elle construit. |
 | 🗂️ | **Planner** · `planner` | Des tableaux de tâches et un calendrier. Un tableau peut suivre un `roadmap.md` : le plan écrit par une IA devient des cartes à cocher. Export vers votre agenda. |
 | 🧠 | **Mémoire** · `memory` | Dites une fois à l'IA qui vous êtes et comment vous aimez travailler. Des notes globales ou par projet, et vous voyez exactement ce qui est envoyé. |
@@ -252,6 +253,7 @@ Certaines fonctions appellent directement un service d'IA avec **votre propre cl
 | **Google** (AI Studio, Gemini) | Images (Image Maker), textures (Mod Studio) | [aistudio.google.com](https://aistudio.google.com/apikey) |
 | **OpenRouter** | Images et textures, de nombreux modèles avec un seul compte | [openrouter.ai/keys](https://openrouter.ai/keys) |
 | **Higgsfield** | Images (Image Maker) | [cloud.higgsfield.ai](https://cloud.higgsfield.ai/) |
+| **OpenAI**, **Groq**, **ElevenLabs** | Reconnaissance et voix en ligne (Voice), en option : les moteurs locaux n'ont besoin d'aucune clé | [platform.openai.com](https://platform.openai.com/api-keys) · [console.groq.com](https://console.groq.com/keys) · [elevenlabs.io](https://elevenlabs.io/app/settings/api-keys) |
 
 Pas de clé ? Bouton **Compte** dans Image Maker. Avec un abonnement Higgsfield, les images se génèrent directement dans l'application avec vos crédits : l'outil officiel de Higgsfield s'installe une fois (vous confirmez avant), et vous vous connectez sur la page de Higgsfield dans votre navigateur. Ou ouvrez Gemini (Nano Banana), ChatGPT ou Higgsfield directement dans ARCHIMED, créez l'image avec votre abonnement : le fichier téléchargé revient dans votre projet en un clic. ARCHIMED ne demande jamais votre mot de passe.
 

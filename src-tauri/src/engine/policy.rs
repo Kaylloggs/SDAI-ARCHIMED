@@ -62,6 +62,9 @@ fn high_patterns() -> &'static Vec<Regex> {
 const READ_ONLY_TOOLS: &[&str] = &[
     "Read", "Glob", "Grep", "WebFetch", "WebSearch", "TodoWrite", "Task", "NotebookRead",
     "view_file", "list_dir", "grep_search", "codebase_search", "read_resource", "search_web",
+    // Outils d'ARCHIMED (module Voice) qui lisent ou parlent sans rien modifier.
+    "mcp__archimed__get_context", "mcp__archimed__list_modules", "mcp__archimed__get_voice_state",
+    "mcp__archimed__task_status", "mcp__archimed__speak", "mcp__archimed__notify",
 ];
 
 const EDIT_TOOLS: &[&str] = &[
@@ -187,6 +190,12 @@ pub fn evaluate_in(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn archimed_reading_tools_are_low_risk_but_actions_are_not() {
+        assert_eq!(classify("mcp__archimed__get_context", "{}").0, RiskLevel::Low);
+        assert_eq!(classify("mcp__archimed__run_action", "{}").0, RiskLevel::Medium);
+    }
 
     #[test]
     fn read_tools_are_low_risk() {

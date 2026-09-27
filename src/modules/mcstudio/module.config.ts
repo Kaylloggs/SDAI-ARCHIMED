@@ -16,5 +16,7 @@ export default defineModule({
   launchpad: { size: "md" },
   backend: { plugin: "mcstudio" },
   commands: [{ id: "mcstudio.open", title: "Ouvrir Mod Studio", run: "navigate" }],
+  capabilities: ["minecraft_mod", "build_mod", "textures", "models_3d"],
+  actions: () => import("./agent-actions"),
   tutorial,
 });

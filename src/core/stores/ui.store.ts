@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { bus } from "@/core/bus/event-bus";
 
 export type ModuleParams = Record<string, unknown>;
 
@@ -27,13 +28,18 @@ export const useUiStore = create<UiState>()(
       paletteOpen: false,
       rawTerminalOpen: false,
       moduleParams: {},
-      navigate: (moduleId) => set({ activeModuleId: moduleId, paletteOpen: false }),
-      openModule: (moduleId, params) =>
+      navigate: (moduleId) => {
+        set({ activeModuleId: moduleId, paletteOpen: false });
+        bus.emit("module.opened", { id: moduleId });
+      },
+      openModule: (moduleId, params) => {
         set((state) => ({
           activeModuleId: moduleId,
           paletteOpen: false,
           moduleParams: { ...state.moduleParams, [moduleId]: params },
-        })),
+        }));
+        bus.emit("module.opened", { id: moduleId, params });
+      },
       clearModuleParams: (moduleId) =>
         set((state) => {
           const { [moduleId]: _removed, ...rest } = state.moduleParams;

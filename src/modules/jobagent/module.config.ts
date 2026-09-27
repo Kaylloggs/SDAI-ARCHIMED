@@ -17,5 +17,7 @@ export default defineModule({
   launchpad: { size: "md" },
   backend: { plugin: "jobagent" },
   commands: [{ id: "jobagent.open", title: "Ouvrir JobAgent", run: "navigate" }],
+  capabilities: ["job_search", "applications", "cover_letter"],
+  actions: () => import("./agent-actions"),
   tutorial,
 });

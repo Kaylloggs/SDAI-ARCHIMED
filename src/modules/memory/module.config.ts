@@ -20,5 +20,7 @@ export default defineModule({
     "memory.context": () => import("./services/context"),
   },
   commands: [{ id: "memory.open", title: "Gérer la mémoire des IA", run: "navigate" }],
+  capabilities: ["remember", "recall", "forget"],
+  actions: () => import("./agent-actions"),
   tutorial,
 });

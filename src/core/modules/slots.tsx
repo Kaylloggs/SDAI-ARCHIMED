@@ -10,6 +10,8 @@ import { useEnabledModules } from "./useModules";
  *  - code.editor.footer   → { root: string }
  *  - app.background       → aucune ; composants invisibles montés en permanence
  *                           (écoute du bus : journal de la mémoire, etc.)
+ *  - titlebar.center      → aucune ; pastille compacte à côté de la recherche (Ctrl K),
+ *                           visible sur tous les écrans (ex. voix)
  * Un module contribue via `slots: { "chat.composer.actions": lazy(...) }`.
  */
 export const SLOT_NAMES = [
@@ -20,6 +22,7 @@ export const SLOT_NAMES = [
   "code.editor.footer",
   "statusbar.items",
   "app.background",
+  "titlebar.center",
 ] as const;
 
 export type SlotName = (typeof SLOT_NAMES)[number];

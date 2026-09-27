@@ -16,3 +16,16 @@ export {
   type TutorialArea,
 } from "./types";
 export { moduleFootprint, removeModule, restoreModule } from "./removal";
+export {
+  defineActions,
+  loadActions,
+  checkArgs,
+  describeModule,
+  findByName,
+  type ModuleAction,
+  type ModuleActions,
+  type ActionResult,
+  type ActionRisk,
+  type ActionParam,
+  type ActionContext,
+} from "./actions";

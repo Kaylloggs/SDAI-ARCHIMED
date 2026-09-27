@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { KanbanSquare, Loader2 } from "lucide-react";
 import { EmptyState } from "@/design-system/primitives";
 import { useUiStore } from "@/core/stores/ui.store";
+import { useModuleContext } from "@/core/context";
 import { usePlannerStore } from "./store";
 import { BoardSidebar } from "./components/BoardSidebar";
 import { BoardView } from "./components/BoardView";
@@ -25,6 +26,19 @@ export default function PlannerModule() {
   }, [handoff, loaded, setActive, clearParams]);
 
   const board = boards.find((b) => b.id === activeBoardId) ?? null;
+
+  // Tableau affiché, pour la voix et les agents (« ajoute une tâche ici »).
+  useModuleContext(
+    "planner",
+    board
+      ? {
+          object: { type: "tableau", name: board.name, id: board.id },
+          project: board.projectRoot ? { name: board.name, path: board.projectRoot } : undefined,
+          file: board.roadmapPath,
+          details: { cards: board.cards.length, done: board.cards.filter((c) => c.done).length },
+        }
+      : null,
+  );
 
   if (!loaded) {
     return (

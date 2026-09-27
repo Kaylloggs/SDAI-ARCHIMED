@@ -22,7 +22,33 @@ export type BusEvents = {
     answer: string;
     tools: Array<{ tool: string; input: unknown; ok?: boolean }>;
   };
+  /** Un module est affiché (navigation, commande vocale, agent). */
+  "module.opened": { id: string; params?: Record<string, unknown> };
+  /** Couche vocale (module Voice) : l'écoute démarre ou s'arrête. */
+  "voice.started": { sessionId: string };
+  "voice.stopped": { sessionId: string };
+  /** Phrase reconnue (`final` : phrase terminée). */
+  "voice.transcript": { text: string; final: boolean };
+  /** Réponse de l'assistant vocal (texte complet d'un tour). */
+  "voice.response": { text: string };
+  "voice.speaking": { text: string; priority: VoicePriority };
+  /** La personne a coupé la parole à l'assistant. */
+  "voice.interrupted": { text: string };
+  /**
+   * Faire parler l'assistant depuis n'importe quel module (sans dépendre du module Voice :
+   * ignoré s'il est absent). « Build terminé » → low ; « permission demandée » → high.
+   */
+  "voice.speak": { text: string; priority?: VoicePriority; source?: string };
+  /** Tâche confiée à un agent (voix ou outil MCP `start_task`). */
+  "voice.task.started": { taskId: string; title: string; agent: string };
+  "voice.task.completed": { taskId: string; title: string; summary: string };
+  "voice.task.failed": { taskId: string; title: string; error: string };
+  /** Un agent commence ou termine un tour (toutes origines). */
+  "agent.started": { conversationId: string; origin: string; adapter: string };
+  "agent.completed": { conversationId: string; origin: string; ok: boolean };
 };
+
+export type VoicePriority = "low" | "normal" | "high" | "critical";
 
 type Handler<K extends keyof BusEvents> = (payload: BusEvents[K]) => void;
 

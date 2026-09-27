@@ -22,5 +22,7 @@ export default defineModule({
     "code.open": () => import("./services/open"),
   },
   commands: [{ id: "code.open", title: "Ouvrir un projet dans Code", run: "navigate" }],
+  capabilities: ["open_project", "read_file", "search_code", "edit_code", "terminal"],
+  actions: () => import("./agent-actions"),
   tutorial,
 });

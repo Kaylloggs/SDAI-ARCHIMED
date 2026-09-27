@@ -108,6 +108,7 @@ src/modules/image-gen/
 ├── index.tsx            ← OBLIGATOIRE : page principale (export default, chargée en lazy)
 ├── README.md            ← OBLIGATOIRE : rôle, services fournis/consommés, commandes Rust
 ├── tutorial.ts          ← OBLIGATOIRE (sauf module requis) : tutoriel d'utilisation, voir §4.3
+├── agent-actions.ts     ← actions appelables par les agents et la voix (recommandé, voir §4.6)
 ├── api.ts               ← appels backend typés (seul endroit avec invoke)
 ├── store.ts             ← store zustand du module (préfixé par l'id)
 ├── types.ts
@@ -275,8 +276,18 @@ export const imageGenApi = {
 | Afficher de l'UI dans l'écran d'un autre module | **Slot** (`slots` / `<Slot name>`) | Bouton micro dans le composer du chat |
 | Réagir à un fait | **Bus d'événements** (`bus.emit` / `useBusEvent`) | `skills.changed` → le chat rafraîchit la liste |
 | Afficher un résultat riche dans le chat | **Card renderer** (`cards`) | Carte image pour l'outil `generate_image` |
+| Être piloté par un agent ou la voix | **Actions** (`capabilities`, `actions` → `agent-actions.ts`) | « Ajoute ces tâches à ma roadmap » → `planner.add_tasks` |
+| Dire ce que la personne regarde | **Contexte** (`useModuleContext(id, ctx)`) | Projet et fichier ouverts dans Code |
+| Faire parler l'assistant | Service `voice.speak` ou `bus.emit("voice.speak", …)` | Fin d'une compilation annoncée |
 
 Règle : **toujours coder le cas où le service/slot est absent.** `useService("voice.transcribe")` retourne `undefined` si le module est désactivé → le bouton ne s'affiche pas.
+
+**Actions** (`defineActions`) : nom `snake_case`, description d'une phrase, paramètres typés,
+risque honnête (`read`, `write`, `destructive` : supprimer, envoyer, payer → confirmation
+obligatoire). Le message de retour est une phrase prononçable qui dit ce qui a **vraiment** été
+fait ; une action ne prétend jamais avoir fait ce que l'API n'a pas confirmé. Une action longue
+rend la main tout de suite et annonce son résultat par `voice.speak`. La voix n'a jamais plus de
+droits que le clavier : une action ne contourne ni la policy ni les confirmations du module.
 
 Noms de slots, services et événements : `domaine.sujet.action` en minuscules. Les slots disponibles sont listés dans `src/core/modules/slots.ts` (source de vérité) et dans `architecture.md`.
 

@@ -16,5 +16,7 @@ export default defineModule({
   launchpad: { size: "sm" },
   backend: { plugin: "usage" },
   commands: [{ id: "usage.open", title: "Voir les crédits restants", run: "navigate" }],
+  capabilities: ["token_usage", "cost_estimate", "rate_limits"],
+  actions: () => import("./agent-actions"),
   tutorial,
 });

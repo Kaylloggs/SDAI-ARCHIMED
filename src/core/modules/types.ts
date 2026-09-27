@@ -113,6 +113,10 @@ export type ModuleManifest = {
   settings?: LazyPage;
   /** Tutoriel d'utilisation (données seulement, voir `ModuleTutorial`). */
   tutorial?: ModuleTutorial;
+  /** Ce que le module sait faire, en mots-clés (`create_image`, `run_build`…), pour les agents. */
+  capabilities?: string[];
+  /** Actions appelables par les agents (fichier `agent-actions.ts`, chargé à la demande). */
+  actions?: () => Promise<{ default: import("./actions").ModuleAction[] }>;
 };
 
 export type LoadedModule = ModuleManifest & {
