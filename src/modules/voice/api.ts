@@ -7,9 +7,11 @@ import type { VoiceModelEntry } from "@/core/ipc/bindings/VoiceModelEntry";
 import type { VoiceOption } from "@/core/ipc/bindings/VoiceOption";
 import type { VoiceProviderStatus } from "@/core/ipc/bindings/VoiceProviderStatus";
 import type { VoiceSessionSummary } from "@/core/ipc/bindings/VoiceSessionSummary";
+import type { VoiceToolStatus } from "@/core/ipc/bindings/VoiceToolStatus";
 import type { EnginePriority } from "./lib/settings";
 
-export type { HardwareInfo, LocalChatEvent, LocalServerStatus, McpInfo, VoiceModelEntry, VoiceOption, VoiceProviderStatus, VoiceSessionSummary };
+export type { HardwareInfo, LocalChatEvent, LocalServerStatus, McpInfo, VoiceModelEntry, VoiceOption, VoiceProviderStatus, VoiceSessionSummary, VoiceToolStatus };
+export type { VoiceInstallProgress } from "@/core/ipc/bindings/VoiceInstallProgress";
 export type { VoiceModelProgress } from "@/core/ipc/bindings/VoiceModelProgress";
 export type { McpCall } from "@/core/ipc/bindings/McpCall";
 
@@ -71,6 +73,14 @@ export const voiceApi = {
   session: (id: string) => call<unknown>("get_session", { id }),
   saveSession: (session: unknown) => call<void>("save_session", { session }),
   deleteSession: (id: string) => call<void>("delete_session", { id }),
+  /** Ollama et Voicebox : installés, lancés, installables d'un clic. */
+  tools: () => call<VoiceToolStatus[]>("tools"),
+  /** `ollama`, `voicebox`, `claude`, `codex` ; avancement par l'événement `voice:install`. */
+  installTool: (id: string) => call<string>("install_tool", { id }),
+  launchTool: (id: string) => call<void>("launch_tool", { id }),
+  /** Terminal ouvert sur la CLI d'un agent, pour s'y connecter soi-même. */
+  agentTerminal: (adapter: string) => call<void>("agent_terminal", { adapter }),
+  openSystemSpeech: () => call<void>("open_system_speech"),
 };
 
 export { Channel };

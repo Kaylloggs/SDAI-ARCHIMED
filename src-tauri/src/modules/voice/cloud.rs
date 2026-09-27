@@ -113,7 +113,7 @@ async fn failure(provider: &str, response: reqwest::Response) -> AppError {
         })
         .unwrap_or_else(|| body.chars().take(200).collect());
     let hint = match status.as_u16() {
-        401 | 403 => " Vérifiez la clé dans Voice › Fournisseurs.",
+        401 | 403 => " Vérifiez la clé dans Voice › Installations.",
         429 => " Limite atteinte : réessayez dans un moment.",
         _ => "",
     };

@@ -4,7 +4,7 @@ import { bus } from "@/core/bus/event-bus";
 import { useSessionStore } from "@/core/engine/session.store";
 import { useChat } from "@/core/engine/useChat";
 import { useEnabledModules } from "@/core/modules";
-import { voiceApi, type McpCall } from "../api";
+import { voiceApi, type McpCall, type VoiceModelProgress } from "../api";
 import { handleCall } from "../agent/tools";
 import { matches, parseShortcut } from "../lib/shortcuts";
 import { sttLocation } from "../lib/privacy";
@@ -48,6 +48,29 @@ export default function VoiceRuntime() {
       void voiceApi.bridgeReady(false).catch(() => undefined);
     };
   }, [voice]);
+
+  // « Installer et utiliser » : le modèle devient actif dès la fin de son installation,
+  // même si la page des réglages a été quittée entre-temps.
+  useEffect(() => {
+    let stop: (() => void) | null = null;
+    let cancelled = false;
+    void listen<VoiceModelProgress>("voice:model", ({ payload }) => {
+      const store = useVoiceStore.getState();
+      const activate = store.activateOnInstall[payload.id];
+      if (!activate || (payload.status !== "installed" && payload.status !== "failed")) return;
+      const rest = { ...store.activateOnInstall };
+      delete rest[payload.id];
+      store.patch({ activateOnInstall: rest });
+      if (payload.status === "installed") store.setSettings(activate);
+    }).then((unlisten) => {
+      if (cancelled) unlisten();
+      else stop = unlisten;
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, []);
 
   // N'importe quel module peut faire parler l'assistant (`bus.emit("voice.speak", …)`).
   useEffect(

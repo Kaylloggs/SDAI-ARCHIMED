@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { cn } from "@/core/lib/cn";
 import { useUiStore } from "@/core/stores/ui.store";
 import { ResizeHandle, usePanelSize } from "@/design-system/primitives";
-import { AgentsSection, McpSection, ProvidersSection } from "./settings/ConnectionsSection";
+import { AgentsSection, McpSection } from "./settings/ConnectionsSection";
 import { SttSection, TtsSection } from "./settings/EnginesSection";
 import { AudioSection, GeneralSection } from "./settings/GeneralSection";
-import { ModelsSection } from "./settings/ModelsSection";
+import { InstallsSection } from "./settings/InstallsSection";
 import { OverlaySection, PerformanceSection, PermissionsSection, PrivacySection, ShortcutsSection } from "./settings/OptionsSection";
 import { SECTION_GROUPS, SECTIONS, isSection, type SectionId } from "./settings/sections";
 import { HistorySection, SessionSection } from "./settings/SessionSections";
@@ -24,6 +24,7 @@ function initialSection(): SectionId {
   return "session";
 }
 
+/** Six pages de réglages : chacune regroupe les réglages qui vont ensemble. */
 function Content({ id, go }: { id: SectionId; go: (id: SectionId) => void }) {
   switch (id) {
     case "session":
@@ -31,31 +32,39 @@ function Content({ id, go }: { id: SectionId; go: (id: SectionId) => void }) {
     case "history":
       return <HistorySection />;
     case "general":
-      return <GeneralSection />;
+      return (
+        <>
+          <GeneralSection />
+          <ShortcutsSection />
+          <OverlaySection />
+        </>
+      );
     case "audio":
       return <AudioSection />;
-    case "stt":
-      return <SttSection go={go} />;
-    case "tts":
-      return <TtsSection go={go} />;
-    case "models":
-      return <ModelsSection />;
-    case "providers":
-      return <ProvidersSection />;
-    case "agents":
-      return <AgentsSection go={go} />;
-    case "mcp":
-      return <McpSection />;
-    case "shortcuts":
-      return <ShortcutsSection />;
-    case "overlay":
-      return <OverlaySection />;
+    case "engines":
+      return (
+        <>
+          <SttSection go={go} />
+          <TtsSection go={go} />
+          <PerformanceSection />
+        </>
+      );
+    case "intelligence":
+      return (
+        <>
+          <AgentsSection go={go} />
+          <McpSection />
+        </>
+      );
+    case "installs":
+      return <InstallsSection />;
     case "privacy":
-      return <PrivacySection />;
-    case "permissions":
-      return <PermissionsSection />;
-    case "performance":
-      return <PerformanceSection />;
+      return (
+        <>
+          <PrivacySection />
+          <PermissionsSection />
+        </>
+      );
   }
 }
 

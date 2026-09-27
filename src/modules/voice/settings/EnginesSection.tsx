@@ -8,6 +8,8 @@ import { systemVoices } from "../engines/tts";
 import { sttLocation, ttsLocation } from "../lib/privacy";
 import { STT_ENGINES, TTS_ENGINES, type SttEngineId, type TtsEngineId, type VoiceSettings } from "../lib/settings";
 import { orchestrator } from "../runtime/instance";
+import { message as errorText, ModelInstallButton, recommended, useModelCatalog } from "./install";
+import { ToolRows } from "./InstallParts";
 import type { SectionId } from "./sections";
 import { useVoiceSettings } from "./useVoiceSettings";
 
@@ -42,7 +44,7 @@ function KeyNotice({ engine, providers, go }: { engine: string; providers: Voice
   return (
     <p className="flex items-center gap-2 py-2.5 text-footnote text-warning">
       Clé {status.name} absente.
-      <Button size="sm" variant="ghost" onClick={() => go("providers")}>
+      <Button size="sm" variant="ghost" onClick={() => go("installs")}>
         Ajouter la clé
       </Button>
     </p>
@@ -101,12 +103,7 @@ export function SttSection({ go }: { go: (id: SectionId) => void }) {
           (installed === null ? (
             <p className="py-3 text-footnote text-text-subtle">Recherche des modèles installés…</p>
           ) : installed.length === 0 ? (
-            <div className="flex items-center gap-3 py-3">
-              <p className="flex-1 text-footnote text-warning">Aucun modèle Whisper installé sur cette machine.</p>
-              <Button size="sm" variant="secondary" onClick={() => go("models")}>
-                Installer un modèle
-              </Button>
-            </div>
+            <SuggestModel kind="stt" empty="Aucun modèle Whisper installé sur cette machine." go={go} />
           ) : (
             <>
               <Row label="Modèle Whisper" hint="Les modèles plus gros sont plus précis et plus lents.">
@@ -148,6 +145,8 @@ export function SttSection({ go }: { go: (id: SectionId) => void }) {
           </Row>
         )}
         <KeyNotice engine={stt.engine} providers={providers} go={go} />
+        {stt.engine === "windows" && <SystemSpeech text="La langue de reconnaissance doit être installée dans Windows (Paramètres › Heure et langue › Voix)." />}
+        {stt.engine === "voicebox" && <ToolRows only="voicebox" />}
 
         <Row
           label="Moteur de secours"
@@ -231,16 +230,14 @@ export function TtsSection({ go }: { go: (id: SectionId) => void }) {
                 ? tts.engine === "piper"
                   ? "Aucune voix Piper installée."
                   : tts.engine === "system"
-                    ? "Aucune voix système pour cette langue : installez-en une dans les paramètres de langue de Windows."
+                    ? "Aucune voix système pour cette langue : ajoutez-en une (bouton ci-dessous)."
                     : "Ce moteur ne propose pas de liste de voix : indiquez son nom ci-dessous."
                 : undefined
           }
         >
           <div className="flex items-center gap-1">
             {tts.engine === "piper" && !loading && voices.length === 0 ? (
-              <Button size="sm" variant="secondary" onClick={() => go("models")}>
-                Installer une voix
-              </Button>
+              <SuggestModel kind="tts" compact go={go} onDone={reload} />
             ) : tts.engine === "custom" ? (
               <TextInput label="Nom de la voix" value={tts.voice ?? ""} placeholder="ff_siwis" onChange={(voice) => update("tts", { voice: voice || null })} />
             ) : (
@@ -260,6 +257,8 @@ export function TtsSection({ go }: { go: (id: SectionId) => void }) {
           </div>
         </Row>
         <KeyNotice engine={tts.engine} providers={providers} go={go} />
+        {tts.engine === "system" && <SystemSpeech text="Ajoutez des voix (dont les voix naturelles) dans les réglages de voix du système." />}
+        {tts.engine === "voicebox" && <ToolRows only="voicebox" />}
 
         <Row label="Vitesse">
           <Slider label="Vitesse" value={tts.speed} min={0.6} max={2} step={0.05} onChange={(speed) => update("tts", { speed })} format={(v) => `×${v.toFixed(2)}`} />
@@ -316,35 +315,98 @@ export function TtsSection({ go }: { go: (id: SectionId) => void }) {
         </div>
       </Group>
 
-      <Group
-        title="Voix personnelles"
-        description="Une voix clonée se crée dans Voicebox (sur votre machine) ou dans votre compte ElevenLabs, jamais par ARCHIMED. Ne clonez que votre propre voix, ou celle d'une personne qui vous a donné son accord explicite."
-      >
-        {custom.length > 0 ? (
-          <ul className="divide-y divide-border">
-            {custom.map((v) => (
-              <li key={v.id} className="flex items-center gap-2 py-2.5">
-                <span className="min-w-0 flex-1 truncate text-body-sm">{v.name}</span>
-                {tts.voice === v.id ? (
-                  <Badge tone="success">
-                    <Check size={11} strokeWidth={2} /> Utilisée
-                  </Badge>
-                ) : (
-                  <Button size="sm" variant="ghost" onClick={() => update("tts", { voice: v.id })}>
-                    Utiliser
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="py-3 text-footnote text-text-subtle">
-            {tts.engine === "voicebox" || tts.engine === "elevenlabs"
-              ? "Aucune voix personnelle dans ce moteur pour l'instant."
-              : "Choisissez Voicebox ou ElevenLabs comme moteur pour utiliser vos voix personnelles."}
-          </p>
-        )}
-      </Group>
+      {(tts.engine === "voicebox" || tts.engine === "elevenlabs") && (
+        <Group
+          title="Voix personnelles"
+          description="Une voix clonée se crée dans Voicebox (sur votre machine) ou dans votre compte ElevenLabs, jamais par ARCHIMED. Ne clonez que votre propre voix, ou celle d'une personne qui vous a donné son accord explicite."
+        >
+          {custom.length > 0 ? (
+            <ul className="divide-y divide-border">
+              {custom.map((v) => (
+                <li key={v.id} className="flex items-center gap-2 py-2.5">
+                  <span className="min-w-0 flex-1 truncate text-body-sm">{v.name}</span>
+                  {tts.voice === v.id ? (
+                    <Badge tone="success">
+                      <Check size={11} strokeWidth={2} /> Utilisée
+                    </Badge>
+                  ) : (
+                    <Button size="sm" variant="ghost" onClick={() => update("tts", { voice: v.id })}>
+                      Utiliser
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="py-3 text-footnote text-text-subtle">
+              {tts.engine === "voicebox" || tts.engine === "elevenlabs"
+                ? "Aucune voix personnelle dans ce moteur pour l'instant."
+                : "Choisissez Voicebox ou ElevenLabs comme moteur pour utiliser vos voix personnelles."}
+            </p>
+          )}
+        </Group>
+      )}
     </>
+  );
+}
+
+/** Modèle conseillé pour cette machine, installé et mis en service d'un clic. */
+function SuggestModel({
+  kind,
+  empty,
+  compact,
+  go,
+  onDone,
+}: {
+  kind: "stt" | "tts";
+  empty?: string;
+  compact?: boolean;
+  go: (id: SectionId) => void;
+  onDone?: () => void;
+}) {
+  const { settings } = useVoiceSettings();
+  const { models, progress } = useModelCatalog();
+  const [error, setError] = useState<string | null>(null);
+  const pick = models ? recommended(models, kind, settings.general.language) : null;
+  const status = pick ? (progress[pick.id]?.status ?? pick.status) : null;
+  useEffect(() => {
+    if (status === "installed") onDone?.();
+  }, [status, onDone]);
+  if (!pick) {
+    return (
+      <Button size="sm" variant="secondary" onClick={() => go("installs")}>
+        Voir les modèles
+      </Button>
+    );
+  }
+  const button = <ModelInstallButton entry={pick} progress={progress[pick.id]} onError={setError} compact={compact} />;
+  if (compact) return button;
+  return (
+    <div className="space-y-1 py-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="min-w-0 flex-1 text-footnote text-warning">
+          {empty} Conseillé ici : {pick.name}.
+        </p>
+        {button}
+      </div>
+      {error && (
+        <p role="alert" className="text-footnote text-danger">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Accès direct aux réglages de voix du système (langues, voix naturelles). */
+function SystemSpeech({ text }: { text: string }) {
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <div className="flex flex-wrap items-center gap-3 py-3">
+      <p className="min-w-0 flex-1 text-footnote text-text-subtle">{error ?? text}</p>
+      <Button size="sm" variant="ghost" onClick={() => void voiceApi.openSystemSpeech().catch((e) => setError(errorText(e)))}>
+        Ouvrir les réglages de voix
+      </Button>
+    </div>
   );
 }

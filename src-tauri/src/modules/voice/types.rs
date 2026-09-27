@@ -220,3 +220,33 @@ pub struct VoiceSessionSummary {
     pub updated_at: i64,
     pub turns: u32,
 }
+
+/// Outil local proposé par la voix (Ollama, Voicebox) et ce qu'on peut en faire d'un clic.
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/core/ipc/bindings/")]
+pub struct VoiceToolStatus {
+    pub id: String,
+    pub name: String,
+    pub installed: bool,
+    pub running: bool,
+    /// Installation en un clic possible sur ce système (winget, release vérifiée).
+    pub can_install: bool,
+    /// Installé et lançable depuis ARCHIMED.
+    pub can_launch: bool,
+    /// Page officielle de téléchargement.
+    pub page: String,
+}
+
+/// Avancement d'une installation (événement `voice:install`).
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/core/ipc/bindings/", rename = "VoiceInstallProgress")]
+pub struct InstallProgress {
+    pub id: String,
+    pub step: String,
+    #[ts(type = "number")]
+    pub received: u64,
+    #[ts(type = "number")]
+    pub total: u64,
+}

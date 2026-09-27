@@ -78,14 +78,19 @@ impl CliAdapter for ClaudeAdapter {
         &["claude"]
     }
 
-    /// Claude Desktop embarque la CLI hors PATH : on prend la version la plus récente.
+    /// Installeur officiel (`~/.local/bin`, pas encore dans le PATH d'ARCHIMED juste après
+    /// l'installation), puis la CLI embarquée par Claude Desktop (la version la plus récente).
     fn extra_locations(&self) -> Vec<PathBuf> {
+        let exe = if cfg!(windows) { "claude.exe" } else { "claude" };
+        let native = std::env::var_os("USERPROFILE")
+            .or_else(|| std::env::var_os("HOME"))
+            .map(|home| PathBuf::from(home).join(".local").join("bin").join(exe));
         let Some(appdata) = std::env::var_os("APPDATA").map(PathBuf::from) else {
-            return Vec::new();
+            return native.into_iter().collect();
         };
         let root = appdata.join("Claude").join("claude-code");
         let Ok(entries) = std::fs::read_dir(&root) else {
-            return Vec::new();
+            return native.into_iter().collect();
         };
         let mut versions: Vec<PathBuf> = entries
             .filter_map(|entry| entry.ok())
@@ -93,10 +98,9 @@ impl CliAdapter for ClaudeAdapter {
             .filter(|path| path.join("claude.exe").exists())
             .collect();
         versions.sort();
-        versions
+        native
             .into_iter()
-            .rev()
-            .map(|path| path.join("claude.exe"))
+            .chain(versions.into_iter().rev().map(|path| path.join("claude.exe")))
             .collect()
     }
 

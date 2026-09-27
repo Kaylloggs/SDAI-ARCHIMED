@@ -75,6 +75,8 @@ type State = {
   /** Phrase en cours de lecture (sous-titres). */
   caption: string;
   panelOpen: boolean;
+  /** Modèles à activer dès la fin de leur installation (« Installer et utiliser »). */
+  activateOnInstall: Record<string, (s: VoiceSettings) => VoiceSettings>;
   setSettings: (update: (s: VoiceSettings) => VoiceSettings) => void;
   load: () => Promise<void>;
   patch: (partial: Partial<Omit<State, "setSettings" | "load" | "patch" | "updateSession">>) => void;
@@ -95,6 +97,7 @@ export const useVoiceStore = create<State>()((set, get) => ({
   confirmation: null,
   caption: "",
   panelOpen: false,
+  activateOnInstall: {},
   setSettings: (update) => {
     const settings = update(get().settings);
     set({ settings });

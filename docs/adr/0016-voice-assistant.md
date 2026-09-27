@@ -54,6 +54,14 @@ avec consentement.
 8. **Voicebox** est utilisé comme serveur (profils, synthèse, reconnaissance), sans reprise de
    son code ; ARCHIMED ne crée pas de clone de voix et le rappelle dans les réglages.
 
+9. **Installations en un clic** (ajout du 2026-09-27). Tout ce que la voix propose s'installe
+   depuis ses réglages, par la voie officielle et vérifiable : `winget` (Ollama, Node.js), le
+   script d'Anthropic (Claude Code), `npm` (Codex), la dernière release GitHub de Voicebox
+   (installeur lancé seulement si son SHA-256 correspond à celui publié par GitHub), les modèles
+   du catalogue (§7). Antigravity n'a pas d'installation scriptable connue : bouton vers sa page.
+   La connexion aux agents se fait dans un terminal ouvert sur leur CLI : ARCHIMED ne voit ni ne
+   stocke leurs identifiants. Les réglages sont regroupés en six pages.
+
 ## Conséquences
 
 - La voix a exactement les droits d'un message écrit : même moteur, mêmes permissions, mêmes

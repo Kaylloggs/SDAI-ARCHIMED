@@ -186,7 +186,8 @@ SDAI ARCHIMED/
             ├── usage/                   # résumé du registre, compte et limites Claude
             ├── voice/                   # matériel (hardware.rs), catalogue et téléchargements de modèles (catalog.rs, models.rs),
             │                            # whisper-server et Piper (local.rs), fournisseurs en ligne (cloud.rs), Ollama,
-            │                            # serveur MCP d'ARCHIMED (mcp.rs), réglages et sessions vocales
+            │                            # serveur MCP d'ARCHIMED (mcp.rs), installations en un clic (installer.rs :
+            │                            # winget, release GitHub vérifiée, scripts officiels), réglages et sessions vocales
             ├── memory/                  # notes.json (activables, par projet), bloc de contexte injecté
             ├── planner/                 # boards.json, roadmap.rs (parse/réécriture), ics.rs, watcher notify
             ├── mcstudio/                # projets de mods Minecraft : profiles/ (TOML + métadonnées officielles),
@@ -339,7 +340,7 @@ inscrite au journal d'audit (`modules.remove`). Les modules `required` ne se sup
 | Manifest | `capabilities`, `actions` | chaque module | ce que le module sait faire et ses actions pour les agents (`agent-actions.ts`, voir §5.6) |
 | Contexte | `useModuleContext(id, ctx)` | chaque module | ce que la personne regarde (projet, fichier, sélection, image, objet) ; lu par `currentContext()` (§5.6) |
 | Service | `voice.speak` | voice | `speak(text, priority, source)` : faire parler l'assistant (`low` n'interrompt jamais, `critical` coupe la parole) |
-| Événement backend | `voice:model`, `voice:mcp-call` | voice | avancement d'un téléchargement de modèle ; outil MCP demandé par un agent |
+| Événement backend | `voice:model`, `voice:install`, `voice:mcp-call` | voice | avancement d'un téléchargement de modèle ; d'une installation d'outil ; outil MCP demandé par un agent |
 | Événement | `module.opened`, `voice.started/stopped/transcript/response/speaking/interrupted/speak`, `voice.task.started/completed/failed`, `agent.started/completed` | core, voice | module affiché ; vie de la session vocale et des tâches confiées ; début et fin d'une demande à un agent |
 | Service | `engine.session` | core | démarrer/envoyer/écouter une session |
 | Service | `system.fs` / `system.shell` | core | actions système passant par la policy |

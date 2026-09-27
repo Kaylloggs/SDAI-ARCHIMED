@@ -8,12 +8,14 @@ use tauri::{AppHandle, Runtime, State};
 use crate::core::{AppError, AppResult};
 
 use super::cloud;
+use super::installer;
 use super::local::Priority;
 use super::mcp::McpReply;
 use super::ollama;
 use super::service::{SpeakRequest, TranscribeRequest, VoiceService};
 use super::types::{
     HardwareInfo, LocalChatEvent, LocalServerStatus, McpInfo, ModelEntry, VoiceOption, VoiceProviderStatus, VoiceSessionSummary,
+    VoiceToolStatus,
 };
 
 #[tauri::command]
@@ -205,4 +207,58 @@ pub async fn voice_save_session(voice: State<'_, VoiceService>, session: Value) 
 #[tauri::command]
 pub async fn voice_delete_session(voice: State<'_, VoiceService>, id: String) -> AppResult<()> {
     voice.delete_session(&id)
+}
+
+/// Ollama et Voicebox : installés, lancés, installables d'un clic.
+#[tauri::command]
+pub async fn voice_tools(voice: State<'_, VoiceService>) -> AppResult<Vec<VoiceToolStatus>> {
+    let (ollama, voicebox) = tokio::join!(ollama::status(&voice.http), cloud::voicebox_status(&voice.http, cloud::VOICEBOX_URL));
+    let (ollama, voicebox) = (ollama.running, voicebox.running);
+    tokio::task::spawn_blocking(move || installer::tools(ollama, voicebox))
+        .await
+        .map_err(|e| AppError::internal(e.to_string()))
+}
+
+/// Installe un outil proposé (`ollama`, `voicebox`, `claude`, `codex`) après le clic de la personne.
+#[tauri::command]
+pub async fn voice_install_tool<R: Runtime>(app: AppHandle<R>, voice: State<'_, VoiceService>, id: String) -> AppResult<String> {
+    let tmp = voice.models.root().join("tmp");
+    installer::install(&app, &voice.http, &tmp, &id).await
+}
+
+#[tauri::command]
+pub async fn voice_launch_tool(id: String) -> AppResult<()> {
+    installer::launch(&id)
+}
+
+/// Ouvre un terminal sur la CLI d'un agent pour que la personne s'y connecte elle-même.
+#[tauri::command]
+pub async fn voice_agent_terminal(config: State<'_, crate::core::config::ConfigStore>, adapter: String) -> AppResult<()> {
+    let overrides = config.snapshot().await.binary_overrides;
+    let binary = tokio::task::spawn_blocking(move || {
+        crate::engine::adapters::build_all()
+            .into_iter()
+            .find(|a| a.id() == adapter)
+            .and_then(|a| crate::engine::adapters::resolve_binary(a.as_ref(), &overrides))
+    })
+    .await
+    .map_err(|e| AppError::internal(e.to_string()))?
+    .ok_or_else(|| AppError::not_found("CLI introuvable : installez-la, ou redémarrez ARCHIMED si vous venez de l'installer."))?;
+    installer::open_terminal(&binary)
+}
+
+/// Réglages de voix du système : langues de reconnaissance et voix de synthèse.
+#[tauri::command]
+pub async fn voice_open_system_speech<R: Runtime>(app: AppHandle<R>) -> AppResult<()> {
+    use tauri_plugin_opener::OpenerExt;
+    let target = if cfg!(windows) {
+        "ms-settings:speech"
+    } else if cfg!(target_os = "macos") {
+        "x-apple.systempreferences:com.apple.preference.universalaccess?SpokenContent"
+    } else {
+        return Err(AppError::invalid("Réglez les voix dans les paramètres d'accessibilité de votre système."));
+    };
+    app.opener()
+        .open_url(target, None::<&str>)
+        .map_err(|e| AppError::internal(format!("Réglages du système inaccessibles : {e}")))
 }

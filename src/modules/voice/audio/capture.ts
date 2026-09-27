@@ -70,7 +70,7 @@ export class MicCapture {
         name === "NotAllowedError"
           ? "Accès au micro refusé : autorisez-le pour ARCHIMED dans les paramètres de confidentialité du système."
           : name === "NotFoundError" || name === "OverconstrainedError"
-            ? "Je n'arrive pas à accéder au microphone sélectionné : branchez-le ou choisissez-en un autre dans Voice › Micro."
+            ? "Je n'arrive pas à accéder au microphone sélectionné : branchez-le ou choisissez-en un autre dans Voice › Micro et son."
             : `Micro indisponible (${(error as Error)?.message ?? name}).`,
       );
       throw error;

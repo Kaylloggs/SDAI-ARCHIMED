@@ -8,7 +8,7 @@
 //! Le décodeur est volontairement tolérant : tout événement inconnu est ignoré plutôt
 //! que de casser la session. À revalider avec `codex exec --help` lors de l'installation.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
@@ -40,6 +40,17 @@ impl CliAdapter for CodexAdapter {
 
     fn binary_names(&self) -> &'static [&'static str] {
         &["codex"]
+    }
+
+    /// Installation par `npm install -g` : pas encore dans le PATH d'ARCHIMED juste après.
+    fn extra_locations(&self) -> Vec<PathBuf> {
+        if !cfg!(windows) {
+            return Vec::new();
+        }
+        std::env::var_os("APPDATA")
+            .map(|appdata| PathBuf::from(appdata).join("npm").join("codex.cmd"))
+            .into_iter()
+            .collect()
     }
 
     fn closes_stdin_after_message(&self) -> bool {

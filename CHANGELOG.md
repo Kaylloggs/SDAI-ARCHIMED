@@ -5,11 +5,25 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 ## [Non publié]
 
 ### Ajouté
+- **Voice › Installations : tout s'installe en un clic.** « Tout installer » met en place la
+  reconnaissance et la voix locales conseillées pour votre machine et votre langue ; Claude Code
+  (script officiel), Codex (npm, Node.js installé si besoin), Ollama et son modèle conseillé,
+  Voicebox (installeur vérifié par son empreinte SHA-256) s'installent d'un bouton ; « Se
+  connecter » ouvre un terminal sur l'agent pour s'y connecter ; accès direct aux réglages de voix
+  du système et aux pages « Obtenir une clé » des services en ligne. Les mêmes boutons apparaissent
+  là où l'option est choisie.
 - **Voice › Général (et Permissions) : « Dire les demandes de permission »**. Désactivé,
   l'assistant ne lit plus les demandes de permission (souvent des noms d'outils ou des commandes
   difficiles à prononcer) : un son retentit, le panneau de la pastille s'ouvre avec les boutons
   Oui / Non, et la barre des tâches clignote si ARCHIMED est en arrière-plan. On peut toujours
   répondre à la voix.
+
+### Modifié
+- **Réglages de Voice regroupés en six pages** au lieu de treize : Général (avec raccourcis et
+  pastille), Micro et son, Moteurs (reconnaissance, voix, performances), Intelligence (agents,
+  serveur MCP), Installations, Confidentialité (avec permissions).
+- Claude Code installé par le script officiel et Codex installé par npm sont détectés sans
+  redémarrer ARCHIMED.
 
 ## [0.10.0] - 2026-09-27
 

@@ -13,6 +13,7 @@ mod catalog;
 mod cloud;
 mod commands;
 mod hardware;
+mod installer;
 mod local;
 mod mcp;
 mod models;
@@ -52,6 +53,11 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::voice_get_session,
             commands::voice_save_session,
             commands::voice_delete_session,
+            commands::voice_tools,
+            commands::voice_install_tool,
+            commands::voice_launch_tool,
+            commands::voice_agent_terminal,
+            commands::voice_open_system_speech,
         ])
         .setup(|app, _api| {
             let paths = crate::core::paths::Paths::resolve(app)?;

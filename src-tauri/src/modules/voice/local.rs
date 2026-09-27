@@ -141,7 +141,7 @@ impl WhisperServer {
             if let Ok(Some(status)) = child.try_wait() {
                 return Err(AppError::new(
                     AppErrorCode::ProcessCrashed,
-                    format!("whisper.cpp s'est arrêté au démarrage ({status}) : modèle abîmé ? Vérifiez-le dans Voice › Modèles locaux."),
+                    format!("whisper.cpp s'est arrêté au démarrage ({status}) : modèle abîmé ? Vérifiez-le dans Voice › Installations."),
                 ));
             }
             let ready = http

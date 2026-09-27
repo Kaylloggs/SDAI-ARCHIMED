@@ -135,7 +135,7 @@ impl VoiceService {
 
     fn required_key(&self, provider: &str, name: &str) -> AppResult<String> {
         self.key(provider)?.ok_or_else(|| {
-            AppError::new(AppErrorCode::PermissionDenied, format!("Clé {name} absente : ajoutez-la dans Voice › Fournisseurs."))
+            AppError::new(AppErrorCode::PermissionDenied, format!("Clé {name} absente : ajoutez-la dans Voice › Installations."))
         })
     }
 
@@ -192,7 +192,7 @@ impl VoiceService {
         which::which(fallback).map_err(|_| {
             AppError::new(
                 AppErrorCode::NotFound,
-                format!("Outil local absent : téléchargez-le dans Voice › Modèles locaux ({fallback})."),
+                format!("Outil local absent : téléchargez-le dans Voice › Installations ({fallback})."),
             )
         })
     }
@@ -200,7 +200,7 @@ impl VoiceService {
     fn model_file(&self, id: &str) -> AppResult<PathBuf> {
         self.models.entry_path(id).ok_or_else(|| {
             let name = catalog::find(id).map(|i| i.name).unwrap_or(id);
-            AppError::new(AppErrorCode::NotFound, format!("Modèle « {name} » non installé : téléchargez-le dans Voice › Modèles locaux."))
+            AppError::new(AppErrorCode::NotFound, format!("Modèle « {name} » non installé : téléchargez-le dans Voice › Installations."))
         })
     }
 
@@ -288,13 +288,13 @@ impl VoiceService {
             }
             "elevenlabs" => {
                 let key = self.required_key("elevenlabs", "ElevenLabs")?;
-                let voice = request.voice.as_deref().ok_or_else(|| AppError::invalid("Choisissez une voix ElevenLabs dans Voice › Voix."))?;
+                let voice = request.voice.as_deref().ok_or_else(|| AppError::invalid("Choisissez une voix ElevenLabs dans Voice › Moteurs."))?;
                 let model = request.model.as_deref().unwrap_or("eleven_flash_v2_5");
                 cloud::elevenlabs_speech(&self.http, &key, voice, model, text, request.speed, request.expressive).await
             }
             "voicebox" => {
                 let base = cloud::check_base(request.base_url.as_deref().unwrap_or(cloud::VOICEBOX_URL))?;
-                let profile = request.voice.as_deref().ok_or_else(|| AppError::invalid("Choisissez un profil Voicebox dans Voice › Voix."))?;
+                let profile = request.voice.as_deref().ok_or_else(|| AppError::invalid("Choisissez un profil Voicebox dans Voice › Moteurs."))?;
                 cloud::voicebox_speech(&self.http, &base, profile, text, request.language.as_deref(), request.instructions.as_deref()).await
             }
             other => Err(AppError::invalid(format!("Moteur de voix inconnu : {other}"))),
@@ -452,7 +452,7 @@ mod tests {
             priority: Priority::Normal,
         };
         let error = service.synthesize(request).await.unwrap_err();
-        assert!(error.message.contains("Voice › Modèles locaux"), "{}", error.message);
+        assert!(error.message.contains("Voice › Installations"), "{}", error.message);
         let _ = std::fs::remove_dir_all(root);
     }
 }

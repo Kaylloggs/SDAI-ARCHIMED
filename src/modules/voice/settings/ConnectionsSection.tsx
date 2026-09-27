@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, Copy, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { Check, Copy, ExternalLink, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { useAdapters } from "@/core/engine/useAdapters";
 import type { AutoMode } from "@/core/engine/types";
 import { Badge, Button, Select } from "@/design-system/primitives";
 import { voiceApi, type LocalServerStatus, type McpInfo, type VoiceProviderStatus } from "../api";
+import { AgentRows, ToolRows } from "./InstallParts";
 import { Group, LocationTag, Row, Segmented, Switch, TextInput } from "../components/controls";
-import { VOICEBOX_URL } from "../lib/settings";
 import type { SectionId } from "./sections";
 import { useVoiceSettings } from "./useVoiceSettings";
 
@@ -18,7 +19,14 @@ const PROVIDER_HINTS: Record<string, string> = {
   custom: "Clé facultative du serveur compatible OpenAI indiqué dans Reconnaissance ou Voix.",
 };
 
-function ProviderRow({ provider, onChanged }: { provider: VoiceProviderStatus; onChanged: () => void }) {
+/** Pages où créer une clé chez chaque fournisseur. */
+const KEY_PAGES: Record<string, string> = {
+  openai: "https://platform.openai.com/api-keys",
+  groq: "https://console.groq.com/keys",
+  elevenlabs: "https://elevenlabs.io/app/settings/api-keys",
+};
+
+export function ProviderRow({ provider, onChanged }: { provider: VoiceProviderStatus; onChanged: () => void }) {
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +71,11 @@ function ProviderRow({ provider, onChanged }: { provider: VoiceProviderStatus; o
           </Button>
         ) : (
           <>
+            {KEY_PAGES[provider.id] && (
+              <Button size="sm" variant="ghost" onClick={() => void openUrl(KEY_PAGES[provider.id]!)} icon={<ExternalLink size={13} strokeWidth={1.75} />}>
+                Obtenir une clé
+              </Button>
+            )}
             <TextInput label={`Clé ${provider.name}`} type="password" value={value} placeholder="Coller la clé" onChange={setValue} onEnter={() => void save()} className="w-56" />
             <Button
               size="sm"
@@ -78,61 +91,6 @@ function ProviderRow({ provider, onChanged }: { provider: VoiceProviderStatus; o
       </div>
       {error && <p role="alert" className="text-footnote text-danger">{error}</p>}
     </div>
-  );
-}
-
-function ServerRow({ name, status, hint }: { name: string; status: LocalServerStatus | null | "loading"; hint: string }) {
-  return (
-    <Row label={name} hint={status && status !== "loading" && status.running && status.models.length > 0 ? `${hint} ${status.models.length} modèle(s) : ${status.models.slice(0, 4).join(", ")}${status.models.length > 4 ? "…" : ""}.` : hint}>
-      {status === "loading" ? (
-        <Loader2 size={14} className="animate-spin text-text-subtle" aria-label="Recherche" />
-      ) : status?.running ? (
-        <Badge tone="success">Lancé{status.version ? ` · ${status.version}` : ""}</Badge>
-      ) : (
-        <Badge tone="neutral">Non détecté</Badge>
-      )}
-    </Row>
-  );
-}
-
-export function ProvidersSection() {
-  const [providers, setProviders] = useState<VoiceProviderStatus[] | null>(null);
-  const [ollama, setOllama] = useState<LocalServerStatus | null | "loading">("loading");
-  const [voicebox, setVoicebox] = useState<LocalServerStatus | null | "loading">("loading");
-
-  const refresh = useCallback(() => {
-    void voiceApi.providers().then(setProviders).catch(() => setProviders([]));
-    setOllama("loading");
-    setVoicebox("loading");
-    void voiceApi.ollama().then(setOllama).catch(() => setOllama(null));
-    void voiceApi.voicebox(VOICEBOX_URL).then(setVoicebox).catch(() => setVoicebox(null));
-  }, []);
-  useEffect(refresh, [refresh]);
-
-  return (
-    <>
-      <Group
-        title="Services en ligne"
-        description="Chaque clé est vérifiée auprès du fournisseur, puis gardée dans le coffre du système (Gestionnaire d'identification sous Windows), jamais dans un fichier ; elle n'est envoyée qu'au service concerné."
-      >
-        {providers === null ? (
-          <p className="py-3 text-footnote text-text-subtle">Chargement…</p>
-        ) : (
-          providers.map((provider) => <ProviderRow key={provider.id} provider={provider} onChanged={refresh} />)
-        )}
-      </Group>
-      <Group
-        title="Serveurs sur cet ordinateur"
-        actions={
-          <Button size="sm" variant="ghost" onClick={refresh} icon={<RefreshCw size={13} strokeWidth={1.75} />}>
-            Rechercher
-          </Button>
-        }
-      >
-        <ServerRow name="Ollama" status={ollama} hint="Modèles de langage locaux (ollama.com)." />
-        <ServerRow name="Voicebox" status={voicebox} hint={`Studio de voix local, profils et voix personnelles (${VOICEBOX_URL}).`} />
-      </Group>
-    </>
   );
 }
 
@@ -202,8 +160,8 @@ export function AgentsSection({ go }: { go: (id: SectionId) => void }) {
             />
           </Row>
         )}
-        <Row label="Modèle local" hint={ollama?.running ? "Modèle Ollama utilisé en mode « Modèle local »." : "Ollama n'est pas lancé : installez-le (ollama.com) puis un modèle dans Modèles locaux."}>
-          {ollama?.running && ollama.models.length > 0 ? (
+        {ollama?.running && ollama.models.length > 0 ? (
+          <Row label="Modèle local" hint="Modèle Ollama utilisé en mode « Modèle local ».">
             <Select
               label="Modèle local"
               value={agent.localModel}
@@ -211,18 +169,27 @@ export function AgentsSection({ go }: { go: (id: SectionId) => void }) {
               onChange={(localModel) => update("agent", { localModel })}
               className="w-56"
             />
-          ) : (
-            <Button size="sm" variant="secondary" onClick={() => go("models")}>
-              Modèles locaux
-            </Button>
-          )}
-        </Row>
-        {installed.length === 0 && !loading && (
-          <p className="py-3 text-footnote text-warning">
-            Aucune CLI d'IA détectée. Installez Claude Code, Codex ou Antigravity (ou indiquez leur chemin dans Réglages › Moteur) ; la voix ne simule
-            jamais un agent absent.
-          </p>
+          </Row>
+        ) : (
+          // Modèle local : Ollama à installer ou à lancer, puis le modèle conseillé, d'un clic.
+          <ToolRows only="ollama" />
         )}
+      </Group>
+
+      <Group
+        title="Agents sur cet ordinateur"
+        description={
+          installed.length === 0 && !loading
+            ? "Aucun agent installé : installez-en un ici. La voix ne simule jamais un agent absent."
+            : "Installer un autre agent, ou se reconnecter à l'un d'eux."
+        }
+        actions={
+          <Button size="sm" variant="ghost" onClick={() => go("installs")}>
+            Toutes les installations
+          </Button>
+        }
+      >
+        <AgentRows />
       </Group>
 
       <Group title="Actions de l'agent" description="Même règle qu'au clavier : la voix ne donne jamais plus de droits qu'un message écrit.">

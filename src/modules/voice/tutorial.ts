@@ -38,7 +38,7 @@ export default defineTutorial({
     {
       icon: Cpu,
       title: "Travailler hors ligne",
-      text: "Modèles locaux propose Whisper et Piper selon votre machine. Avec eux, rien ne quitte l'ordinateur.",
+      text: "Installations › « Tout installer » met en place Whisper et Piper choisis pour votre machine. Avec eux, rien ne quitte l'ordinateur.",
       area: "center",
     },
   ],
