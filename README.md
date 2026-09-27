@@ -279,7 +279,6 @@ No. ARCHIMED has no server. Your conversations, settings and projects stay in <c
 <summary><b>How do I update ARCHIMED?</b></summary>
 <br />
 Nothing to do by hand: from version 0.8.0, ARCHIMED checks at startup (then every six hours) whether a new version is published. If so, an <b>Update</b> button appears at the top right. One click shows what's new; <b>Update</b> downloads the version, checks that the file is the one published on GitHub, then ARCHIMED closes, installs and reopens. Your conversations, settings, skills and keys stay in place. The portable version is replaced where it is. <b>Settings → Updates</b> shows the installed version and lets you check by hand.<br /><br />
-Still on an older version (0.7.0 or before)? Download the latest one once from the <a href="https://github.com/Kaylloggs/SDAI-ARCHIMED/releases/latest">releases page</a> and install it over the old one: your data is kept, and the button takes over from then on.<br /><br />
 Built your own version with your own modules? The button then offers <b>Merge and rebuild</b>: the new version is merged into your code, your modules are kept, then everything is rebuilt and reinstalled (see <a href="#-add-your-own-module">Add your own module</a>).
 </details>
 
