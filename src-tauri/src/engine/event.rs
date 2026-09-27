@@ -81,6 +81,35 @@ pub enum PromptDetail {
     Json {
         value: serde_json::Value,
     },
+    /// Plan proposé en mode plan (Claude `ExitPlanMode`), en Markdown.
+    Plan {
+        plan: String,
+    },
+    /// Questions à choix posées par l'agent (Claude `AskUserQuestion`).
+    Questions {
+        questions: Vec<Question>,
+    },
+}
+
+/// Question à choix posée par l'agent.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Question {
+    pub question: String,
+    #[serde(default)]
+    pub header: String,
+    #[serde(default)]
+    pub options: Vec<QuestionOption>,
+    #[serde(default)]
+    pub multi_select: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct QuestionOption {
+    pub label: String,
+    #[serde(default)]
+    pub description: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -137,6 +166,18 @@ pub enum EngineEvent {
     MessageDelta { message_id: String, text: String },
     #[serde(rename_all = "camelCase")]
     MessageCompleted { message_id: String },
+    /// Réflexion du modèle (texte visible, souvent résumé), au fil de l'eau.
+    #[serde(rename_all = "camelCase")]
+    ThinkingDelta { message_id: String, text: String },
+    /// Taille du contexte de la conversation (dernier appel au modèle) et fenêtre maximale.
+    #[serde(rename_all = "camelCase")]
+    ContextUsage { used: u64, window: Option<u64> },
+    /// Informations de démarrage de la CLI : commandes `/…` disponibles, mode de permission.
+    #[serde(rename_all = "camelCase")]
+    SessionInfo {
+        slash_commands: Vec<String>,
+        permission_mode: Option<String>,
+    },
     /// Ce que fait l'agent en ce moment (affiché en direct : « Réflexion… »).
     #[serde(rename_all = "camelCase")]
     Activity {
@@ -251,12 +292,15 @@ pub struct SessionOptions {
     pub append_system_prompt: Option<String>,
     /// Outils refusés d'office (noms de la CLI), quand elle le permet.
     pub disallowed_tools: Vec<String>,
+    /// Mode plan : l'agent explore et propose un plan, sans rien modifier, avant d'agir.
+    pub plan_mode: bool,
 }
 
 /// Aucune consigne : conversations du Chat, appels internes, tests.
 pub static DEFAULT_SESSION_OPTIONS: SessionOptions = SessionOptions {
     append_system_prompt: None,
     disallowed_tools: Vec::new(),
+    plan_mode: false,
 };
 
 /// Options de lancement d'une CLI (voir `CliAdapter::spawn_args`).

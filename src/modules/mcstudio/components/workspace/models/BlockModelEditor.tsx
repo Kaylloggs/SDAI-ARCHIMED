@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } fr
 import { Matrix4 } from "three";
 import { Box, Cone, Copy, Cylinder, Folder, Globe, Group, ImagePlus, Layers, Move3d, Palette, Pickaxe, Scale3d, Shapes, Trash2, Ungroup } from "lucide-react";
 import { cn } from "@/core/lib/cn";
-import { Button, Select } from "@/design-system/primitives";
+import { Button, Select, ResizeHandle, usePanelSize } from "@/design-system/primitives";
 import type { ModelInfo } from "@/core/ipc/bindings/ModelInfo";
 import type { ProjectSummary } from "@/core/ipc/bindings/ProjectSummary";
 import { errorText, mcstudioApi } from "../../../api";
@@ -104,6 +104,7 @@ export function BlockModelEditor({
   onSaved: () => void;
   onDirty: (dirty: boolean) => void;
 }) {
+  const [panelWidth, setPanelWidth] = usePanelSize("mcstudio.blockInspector", 300, 240, 560);
   const modId = project.meta?.modId ?? "";
   const studio = useStudio<BlockModel>(project.id);
   const { model, textures } = studio;
@@ -823,7 +824,8 @@ export function BlockModelEditor({
           </div>
         </div>
 
-        <aside aria-label="Structure et réglages du modèle" className="w-[300px] shrink-0 overflow-y-auto border-l border-border">
+        <ResizeHandle size={panelWidth} onResize={setPanelWidth} panel="after" label="Largeur du panneau du modèle" defaultSize={300} />
+        <aside style={{ width: panelWidth }} aria-label="Structure et réglages du modèle" className="shrink-0 overflow-y-auto border-l border-border">
           {tool?.kind === "shape" && (
             <ShapePanel
               value={tool.draft}

@@ -9,6 +9,7 @@ pub mod modules;
 pub mod paths;
 pub mod process;
 pub mod updater;
+pub mod workspace;
 pub mod usage;
 
 pub use error::{AppError, AppResult};

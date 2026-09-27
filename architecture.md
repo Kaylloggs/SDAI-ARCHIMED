@@ -464,7 +464,8 @@ modifier l'entrée (ex : corriger une commande) avant d'autoriser.
 
 ### 7.3 N2 — Décodage du flux structuré
 Une ligne = un objet JSON. Le décodeur de l'adaptateur mappe :
-`system/init` → `SessionStarted` · `stream_event` (deltas) → `MessageDelta` · `assistant` avec `tool_use` → `ToolCall` · `user` avec `tool_result` → `ToolResult` · `result` → `MessageCompleted` + `Usage`.
+`system/init` → `SessionStarted` + `SessionInfo` (commandes `/` annoncées, mode) · `stream_event` (`--include-partial-messages` : `text_delta` → `MessageDelta`, `thinking_delta` → `ThinkingDelta` ; sous-agents exclus) · `assistant` avec `tool_use` → `ToolCall` · `user` avec `tool_result` → `ToolResult` · `result` → `MessageCompleted` + `Usage` + `ContextUsage` (fenêtre lue dans `modelUsage.<modèle>.contextWindow`).
+Mode plan : `--permission-mode plan` (`SessionOptions.plan_mode`). `ExitPlanMode` et `AskUserQuestion` passent par `can_use_tool` et deviennent des cartes dédiées (`PromptDetail::Plan`, `PromptDetail::Questions`), jamais tranchées par le Mode Auto ; les réponses repartent dans `updatedInput` (ADR 0015).
 Lignes non-JSON ou types inconnus → loggés en `debug`, **jamais** de crash (tolérance aux évolutions de CLI). Chaque adaptateur a des tests sur des flux enregistrés (`tests/fixtures/streams/`).
 
 ### 7.4 N3 — Pipeline PTY (`engine/pty_session.rs`, `engine/parser/`)
@@ -555,6 +556,12 @@ Côté frontend, `card-registry` choisit le composant : `Permission` + `Diff` �
 - **Fin de réponse** : `TurnCompleted` ajoute un élément `turn` à la timeline, rendu par `TurnFooter` (durée, tokens dont cache et réflexion, coût estimé), et diffuse `engine.turn.completed` sur le bus (résumé : demande, réponse, outils).
 - **Registre** : chaque `TurnCompleted` et `RateLimit` est aussi écrit par le moteur dans `usage/ledger.jsonl` et `usage/limits.json` (`core/usage.rs`).
 
+### 7.7.ter Outils de conversation (ADR 0015)
+- **Zone de saisie** (`core/chat/Composer.tsx`) : menu `/` (`slash.ts` : commandes d'ARCHIMED exécutées par le module, commandes de la CLI envoyées telles quelles), menu `@` (`mentions.ts`, fichiers de `workspace_files`, joints au message), mode plan (`Maj+Tab`), file d'attente (`queue` de la conversation, envoyée par `useMessageQueue` à la fin du tour), `↑` pour reprendre le dernier message.
+- **Conversation** : `ThinkingBlock`, `TodoPanel` (dernier `TodoWrite`, `todos.ts`), cartes d'outils par type (`describeTool`), copie Markdown (`transcript.ts`), jauge de contexte.
+- **Dossier de travail** (`core/workspace.rs`, lecture seule, `workspace.api.ts`) : `workspace_git_status` (branche, avance/retard, fichiers et lignes), `workspace_file_diff` (`HEAD` ↔ disque, 1 Mo max), `workspace_files` (liste pour `@`, gardée 20 s). Commit et pull request sont demandés à l'agent.
+- **Attention** (`useAttention.ts`) : fenêtre en arrière-plan → `requestUserAttention` à la fin d'un tour ou quand une question attend.
+
 ### 7.8 Passage de relais entre modules
 `useUiStore.openModule(moduleId, params)` ouvre un module en lui transmettant un contexte ;
 le module cible lit `moduleParams[id]` puis appelle `clearModuleParams(id)`.
@@ -595,7 +602,8 @@ arrête son processus puis efface son entrée.
 - **Via ARCHIMED directement** (`system/*`, exposé au frontend et aux modules) : `fs` (lecture, écriture, déplacement, corbeille, watcher), `shell` (PowerShell supervisé, sortie streamée), `net` (téléchargement avec progression, vérification de taille/type).
 - Tauri : les capabilities de `system.json` donnent un scope large (`$HOME/**`, lecteurs locaux) ; la **restriction réelle est la policy**, pas le scope.
 
-- **Mises à jour de l'application (ADR 0013)** : `core/updater.rs` lit la dernière release du dépôt (`Cargo.toml` → `repository`) sur l'API GitHub au démarrage puis toutes les 6 h, et la compare à la version de l'exécutable. Sur demande de la personne seulement : relecture de la release côté Rust, téléchargement du fichier de cette installation (installeur NSIS `*_x64-setup.exe`, ou `SDAI-Archimed.exe` pour la version portable) dans `<données>/updates/` ou à côté de l'exécutable, vérification de l'empreinte SHA-256 publiée par GitHub, puis installeur lancé en mode passif (`/P /UPDATE /R`) ou échange des exécutables (l'ancien devient `.old`), et fermeture propre (conversations écrites avant). Rien en build de développement. **Version compilée depuis le code source** (`build.rs` : `ARCHIMED_BUILD=source`, hors `build.ps1 -Publish`) : jamais remplacée par le fichier officiel sans confirmation, car elle peut contenir les modules de la personne ; « Fusionner et recompiler » lance `scripts/update-from-source.ps1` (fusion du tag dans son code, conflits mécaniques réglés par `scripts/merge-conflicts.mjs`, recompilation, installation).
+- **Mises à jour de l'application (ADR 0013)** : `core/updater/mod.rs` lit la dernière release du dépôt (`Cargo.toml` → `repository`) sur l'API GitHub au démarrage puis toutes les 6 h, et la compare à la version de l'exécutable. Sur demande de la personne seulement : relecture de la release côté Rust, téléchargement du fichier de cette installation (installeur NSIS `*_x64-setup.exe`, ou `SDAI-Archimed.exe` pour la version portable) dans `<données>/updates/` ou à côté de l'exécutable, vérification de l'empreinte SHA-256 publiée par GitHub, puis installeur lancé en mode passif (`/P /UPDATE /R`) ou échange des exécutables (l'ancien devient `.old`), et fermeture propre (conversations écrites avant). Rien en build de développement. **Version compilée depuis le code source** (`build.rs` : `ARCHIMED_BUILD=source`, hors `build.ps1 -Publish`) : jamais remplacée par le fichier officiel sans confirmation, car elle peut contenir les modules de la personne ; « Fusionner et recompiler » lance `scripts/update-from-source.ps1` (fusion du tag dans son code, conflits mécaniques réglés par `scripts/merge-conflicts.mjs`, recompilation, installation).
+- **Modules créés dans le code source (ADR 0014)** : `core/updater/local.rs` relit `src/modules/` du dossier suivi (celui du build, de Réglages, ou inscrit par `pnpm new:module`) toutes les 20 s et compare aux modules compilés (`ARCHIMED_MODULES`) : nouveau, modifié depuis la référence, prêt (manifeste complet, textes du modèle remplacés, rien d'écrit depuis 30 s). Pastille bleue « Mise à jour » → `update-from-source.ps1 -Local` (recompilation et installation).
 
 ---
 

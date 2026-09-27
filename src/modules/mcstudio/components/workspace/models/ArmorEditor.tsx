@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Select } from "@/design-system/primitives";
+import { Button, Select, ResizeHandle, usePanelSize } from "@/design-system/primitives";
 import type { ModelInfo } from "@/core/ipc/bindings/ModelInfo";
 import type { ProjectSummary } from "@/core/ipc/bindings/ProjectSummary";
 import { errorText } from "../../../api";
@@ -28,6 +28,7 @@ export function ArmorEditor({
   info: ModelInfo;
   onDirty: (dirty: boolean) => void;
 }) {
+  const [panelWidth, setPanelWidth] = usePanelSize("mcstudio.armorInspector", 300, 240, 560);
   const studio = useStudio<null>(project.id);
   const { textures } = studio;
   const [shown, setShown] = useState<Shown>("all");
@@ -148,7 +149,8 @@ export function ArmorEditor({
             )}
           </div>
         </div>
-        <aside aria-label="Pièces et couches de l'armure" className="w-[300px] shrink-0 overflow-y-auto border-l border-border">
+        <ResizeHandle size={panelWidth} onResize={setPanelWidth} panel="after" label="Largeur du panneau de l'armure" defaultSize={300} />
+        <aside style={{ width: panelWidth }} aria-label="Pièces et couches de l'armure" className="shrink-0 overflow-y-auto border-l border-border">
           <PanelSection title="Pièces">
             <Select
               label="Pièces montrées"

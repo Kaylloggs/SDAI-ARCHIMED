@@ -86,7 +86,7 @@ Une recherche d'emploi et un mod de jeu vidéo, difficile de trouver deux projet
 
 | | Module | Ce qu'il fait pour vous |
 |---|---|---|
-| 💬 | **Chat** · `chat` | Parlez à Claude Code, Antigravity ou Codex. Choisissez le modèle et l'effort de réflexion, joignez des fichiers, dictez à la voix (traitée sur votre PC), validez les actions sur des cartes. |
+| 💬 | **Chat** · `chat` | Parlez à Claude Code, Antigravity ou Codex, avec tout ce qu'on attend de Claude Code : réponse écrite en direct, réflexion visible, mode plan, liste de tâches, commandes `/` et mentions de fichiers `@`, messages en file pendant que l'IA travaille, jauge de contexte, et un panneau **Modifications** avec le diff git de chaque fichier (relecture, commit, pull request en un clic). Choisissez le modèle et l'effort de réflexion, joignez des fichiers, dictez à la voix (traitée sur votre PC), validez les actions sur des cartes. |
 | 🧑‍💻 | **Code** · `code` | Un éditeur de code avec l'IA à côté. Ouvrez un dossier, voyez les fichiers changer en direct pendant que l'IA les modifie, prévisualisez le site qu'elle construit. |
 | 🗂️ | **Planner** · `planner` | Des tableaux de tâches et un calendrier. Un tableau peut suivre un `roadmap.md` : le plan écrit par une IA devient des cartes à cocher. Export vers votre agenda. |
 | 🧠 | **Mémoire** · `memory` | Dites une fois à l'IA qui vous êtes et comment vous aimez travailler. Des notes globales ou par projet, et vous voyez exactement ce qui est envoyé. |
@@ -106,6 +106,8 @@ ARCHIMED est fait de blocs : chaque fonction ci-dessus est un module dans son pr
 2. **Créez le module** : `pnpm new:module meteo` copie un modèle prêt à remplir dans `src/modules/meteo/`.
 3. **Remplissez-le** : son nom et son icône dans `module.config.ts`, son écran dans `index.tsx`, son tutoriel pas à pas dans `tutorial.ts`.
 4. **Essayez-le et compilez** : `pnpm tauri dev` pour tester, puis `.\build.ps1`. Votre propre version (installeur et `.exe` portable) arrive dans `release/`.
+
+**Un bouton Mise à jour bleu pour votre module.** Dès que votre module est terminé (fichiers remplis, plus rien d'écrit depuis 30 secondes), un bouton **Mise à jour** bleu apparaît en haut à droite de l'application que vous utilisez : un clic recompile ARCHIMED avec votre module et le réinstalle. Conversations, réglages et clés sont gardés.
 
 **Les mises à jour gardent votre module.** Quand une nouvelle version sort, le bouton **Mise à jour** de votre version la fusionne dans votre code source (les dossiers de vos modules ne sont pas touchés), recompile et réinstalle, dans une fenêtre PowerShell qui montre chaque étape. Si vos propres modifications touchent les mêmes lignes que la nouvelle version, rien n'est changé et elle vous dit quels fichiers.
 

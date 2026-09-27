@@ -24,6 +24,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .manage(SessionManager::default())
         .manage(core::dictation::DictationService::default())
+        .manage(core::workspace::FileIndex::default())
         .setup(|app| {
             let paths = core::paths::Paths::resolve(app.handle())?;
             paths.ensure_all()?;
@@ -71,6 +72,9 @@ pub fn run() {
             core::updater::updater_local_status,
             core::updater::updater_set_source_dir,
             core::updater::updater_local_rebuild,
+            core::workspace::workspace_git_status,
+            core::workspace::workspace_file_diff,
+            core::workspace::workspace_files,
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de SDAI ARCHIMED");

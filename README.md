@@ -86,7 +86,7 @@ A job hunt and a game mod are about as far apart as two projects can be. If ARCH
 
 | | Module | What it does for you |
 |---|---|---|
-| 💬 | **Chat** · `chat` | Talk to Claude Code, Antigravity or Codex. Pick the model and how hard it should think, attach files, dictate with your voice (processed on your PC), approve actions on cards. |
+| 💬 | **Chat** · `chat` | Talk to Claude Code, Antigravity or Codex, with everything you expect from Claude Code: answers written live, visible reasoning, plan mode, to-do list, `/` commands and `@` file mentions, messages queued while the AI works, context gauge, and a **Changes** panel with the git diff of every file (review, commit, pull request in one click). Pick the model and how hard it should think, attach files, dictate with your voice (processed on your PC), approve actions on cards. |
 | 🧑‍💻 | **Code** · `code` | A code editor with the AI beside it. Open a folder, watch files update live as the AI edits them, preview the website it is building. |
 | 🗂️ | **Planner** · `planner` | Task boards and a calendar. A board can follow a `roadmap.md`, so the plan an AI writes becomes cards you can tick off. Export to your calendar. |
 | 🧠 | **Memory** · `memory` | Tell the AI once who you are and how you like to work. Notes can be global or per project, and you see exactly what is sent. |
@@ -106,6 +106,8 @@ ARCHIMED is made of blocks: each feature above is a module in its own folder, an
 2. **Create the module**: `pnpm new:module weather` copies a ready-made template into `src/modules/weather/`.
 3. **Fill it in**: its name and icon in `module.config.ts`, its screen in `index.tsx`, its step-by-step guide in `tutorial.ts`.
 4. **Try it and build it**: `pnpm tauri dev` to test, then `.\build.ps1`. Your own version (installer and portable `.exe`) lands in `release/`.
+
+**A blue Update button for your module.** As soon as your module is finished (files filled in, nothing written for 30 seconds), a blue **Update** button appears at the top right of the app you are using: one click rebuilds ARCHIMED with your module and reinstalls it. Your conversations, settings and keys are kept.
 
 **Updates keep your module.** When a new version comes out, the **Update** button of your build merges it into your source code (your module folders are left untouched), rebuilds and reinstalls, in a PowerShell window that shows each step. If your own changes touch the same lines as the new version, nothing is changed and it tells you which files.
 

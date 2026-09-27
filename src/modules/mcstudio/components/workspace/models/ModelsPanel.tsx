@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Box, Loader2, PawPrint, Plus, Shield, Sword } from "lucide-react";
 import { cn } from "@/core/lib/cn";
-import { Button } from "@/design-system/primitives";
+import { Button, ResizeHandle, usePanelSize } from "@/design-system/primitives";
 import type { ModelInfo } from "@/core/ipc/bindings/ModelInfo";
 import type { ModelKind } from "@/core/ipc/bindings/ModelKind";
 import type { ProjectSummary } from "@/core/ipc/bindings/ProjectSummary";
@@ -155,6 +155,7 @@ function NewModelForm({
  * armures, avec l'éditeur du modèle choisi.
  */
 export function ModelsPanel({ project }: { project: ProjectSummary }) {
+  const [panelWidth, setPanelWidth] = usePanelSize("mcstudio.models", 256, 200, 480);
   const [models, setModels] = useState<ModelInfo[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [adding, setAdding] = useState<Creatable | null>(null);
@@ -186,7 +187,7 @@ export function ModelsPanel({ project }: { project: ProjectSummary }) {
 
   return (
     <div className="flex h-full min-h-0">
-      <aside aria-label="Modèles du mod" className="w-[256px] shrink-0 space-y-5 overflow-y-auto border-r border-border p-4">
+      <aside style={{ width: panelWidth }} aria-label="Modèles du mod" className="shrink-0 space-y-5 overflow-y-auto border-r border-border p-4">
         {error && (
           <p role="alert" className="text-footnote text-danger">
             {error}
@@ -273,6 +274,7 @@ export function ModelsPanel({ project }: { project: ProjectSummary }) {
             );
           })}
       </aside>
+      <ResizeHandle size={panelWidth} onResize={setPanelWidth} panel="before" label="Largeur de la liste des modèles" defaultSize={256} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         {pending && (

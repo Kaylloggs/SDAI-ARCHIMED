@@ -158,9 +158,47 @@ export function useChat() {
     async (chat: ChatSession, promptId: string, payload: PromptAnswer) => {
       if (!chat.engineSessionId) return;
       await engineApi.answerPrompt(chat.engineSessionId, promptId, payload);
+      // Plan approuvé : la CLI quitte le mode plan d'elle-même ; les relances suivantes aussi.
+      const prompt = chat.timeline.find((item) => item.kind === "prompt" && item.id === promptId);
+      if (prompt?.kind === "prompt" && prompt.prompt.detail?.type === "plan" && payload.optionId === "allow") {
+        const current = useSessionStore.getState().sessions.find((s) => s.id === chat.id);
+        useSessionStore.getState().patch(chat.id, { options: { ...current?.options, planMode: false } });
+      }
     },
     [],
   );
+
+  /**
+   * Mode plan (Claude) : l'agent explore et propose un plan, sans rien modifier, avant d'agir.
+   * Le processus en cours est arrêté ; le prochain message le relance dans le bon mode, en
+   * gardant la conversation.
+   */
+  const setPlanMode = useCallback(async (chat: ChatSession, planMode: boolean) => {
+    if (Boolean(chat.options?.planMode) === planMode) return;
+    if (chat.engineSessionId) {
+      await engineApi.stopSession(chat.engineSessionId).catch(() => undefined);
+    }
+    useSessionStore.getState().patch(chat.id, {
+      options: { ...chat.options, planMode },
+      engineSessionId: null,
+      status: "idle",
+      activity: null,
+      turnStartedAt: null,
+    });
+  }, []);
+
+  /** Message écrit pendant que l'agent travaille : envoyé à la fin de son tour. */
+  const enqueue = useCallback((chat: ChatSession, text: string, attachments: string[] = [], targets: string[] = []) => {
+    const current = useSessionStore.getState().sessions.find((s) => s.id === chat.id);
+    useSessionStore.getState().patch(chat.id, {
+      queue: [...(current?.queue ?? []), { id: crypto.randomUUID(), text, attachments, targets }],
+    });
+  }, []);
+
+  const unqueue = useCallback((chat: ChatSession, id: string) => {
+    const current = useSessionStore.getState().sessions.find((s) => s.id === chat.id);
+    useSessionStore.getState().patch(chat.id, { queue: (current?.queue ?? []).filter((m) => m.id !== id) });
+  }, []);
 
   const setAutoMode = useCallback(async (chat: ChatSession, mode: AutoMode) => {
     useSessionStore.getState().patch(chat.id, { autoMode: mode });
@@ -238,6 +276,9 @@ export function useChat() {
     patch: store.patch,
     send,
     answer,
+    setPlanMode,
+    enqueue,
+    unqueue,
     setAutoMode,
     setModel,
     setAdapter,

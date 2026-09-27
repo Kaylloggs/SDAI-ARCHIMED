@@ -194,4 +194,26 @@ describe("session.store", () => {
     );
     expect(session.usage).toEqual({ inputTokens: 13, outputTokens: 7, costUsd: 0.02 });
   });
+
+  it("affiche la réflexion au fil de l'eau puis la clôt quand l'agent répond", () => {
+    let session = apply(
+      { type: "thinkingDelta", messageId: "m1", text: "Je " },
+      { type: "thinkingDelta", messageId: "m1", text: "regarde" },
+    );
+    expect(session.timeline).toEqual([{ kind: "thinking", id: "m1:thinking", text: "Je regarde", done: false }]);
+    session = apply({ type: "messageDelta", messageId: "m1", text: "Voilà" });
+    expect(session.timeline[0]).toMatchObject({ kind: "thinking", done: true });
+    expect(session.timeline[1]).toMatchObject({ kind: "assistant", text: "Voilà" });
+  });
+
+  it("retient la taille du contexte et les commandes de la CLI", () => {
+    let session = apply({ type: "contextUsage", used: 90_000, window: null });
+    expect(session.context).toEqual({ used: 90_000, window: null });
+    session = apply({ type: "contextUsage", used: 91_000, window: 1_000_000 });
+    expect(session.context).toEqual({ used: 91_000, window: 1_000_000 });
+    session = apply({ type: "contextUsage", used: 92_000, window: null });
+    expect(session.context?.window).toBe(1_000_000);
+    session = apply({ type: "sessionInfo", slashCommands: ["compact", "review"], permissionMode: "default" });
+    expect(session.slashCommands).toEqual(["compact", "review"]);
+  });
 });

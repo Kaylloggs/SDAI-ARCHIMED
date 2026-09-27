@@ -5,8 +5,12 @@
 //! Permissions : `--permission-prompt-tool stdio` → la CLI envoie un
 //! `control_request { subtype: "can_use_tool" }` sur stdout et attend un
 //! `control_response` sur stdin (protocole vérifié, architecture.md §7.2).
+//! Réponses mot à mot : `--include-partial-messages` (`stream_event`), le message complet
+//! arrive ensuite et ne sert plus qu'aux outils et à la fin du texte.
+//! Mode plan : `--permission-mode plan` ; le plan revient par `ExitPlanMode`, les questions
+//! par `AskUserQuestion` (cartes dédiées, jamais tranchées par le Mode Auto).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
@@ -14,7 +18,7 @@ use serde_json::{json, Value};
 use crate::engine::event::{
     effort_label, ActivityPhase, EffortOption, EngineEvent, InteractivePrompt, LaunchOptions,
     ModelInfo, OptionVariant, PromptAnswer, PromptDetail, PromptKind, PromptOption, PromptSource,
-    RateWindow, TransportKind,
+    Question, RateWindow, RiskLevel, TransportKind,
 };
 use crate::engine::policy;
 
@@ -43,6 +47,14 @@ struct Pending {
 pub struct ClaudeAdapter {
     /// prompt_id → control_request en attente.
     pending: HashMap<String, Pending>,
+    /// Message en cours de diffusion (`stream_event` / `message_start`).
+    streaming: Option<String>,
+    /// Messages dont le texte, ou la réflexion, est déjà arrivé mot à mot.
+    streamed_text: HashSet<String>,
+    streamed_thinking: HashSet<String>,
+    /// Taille du contexte au dernier appel, fenêtre du modèle (fin de tour).
+    context_used: u64,
+    context_window: Option<u64>,
 }
 
 impl CliAdapter for ClaudeAdapter {
@@ -141,10 +153,11 @@ impl CliAdapter for ClaudeAdapter {
             "--output-format",
             "stream-json",
             "--verbose",
+            "--include-partial-messages",
             "--permission-prompt-tool",
             "stdio",
             "--permission-mode",
-            "default",
+            if session.plan_mode { "plan" } else { "default" },
         ]
         .iter()
         .map(|s| s.to_string())
@@ -222,10 +235,11 @@ impl CliAdapter for ClaudeAdapter {
 
         match value.get("type").and_then(Value::as_str) {
             Some("system") => decode_system(&value),
-            Some("assistant") => decode_assistant(&value),
+            Some("stream_event") => self.decode_stream(&value),
+            Some("assistant") => self.decode_assistant(&value),
             Some("user") => decode_tool_results(&value),
             Some("control_request") => self.decode_control_request(&value, ctx),
-            Some("result") => decode_result(&value),
+            Some("result") => self.decode_result(&value),
             Some("rate_limit_event") => decode_rate_limit(&value),
             _ => Vec::new(),
         }
@@ -272,6 +286,179 @@ impl CliAdapter for ClaudeAdapter {
 }
 
 impl ClaudeAdapter {
+    /// Diffusion mot à mot (`--include-partial-messages`). Les sous-agents (outil `Task`)
+    /// travaillent en coulisse : seul leur rapport final compte, via le résultat de l'outil.
+    fn decode_stream(&mut self, value: &Value) -> Vec<EngineEvent> {
+        if value.get("parent_tool_use_id").is_some_and(|p| !p.is_null()) {
+            return Vec::new();
+        }
+        let Some(event) = value.get("event") else { return Vec::new() };
+        match event.get("type").and_then(Value::as_str) {
+            Some("message_start") => {
+                self.streaming = event
+                    .get("message")
+                    .and_then(|m| m.get("id"))
+                    .and_then(Value::as_str)
+                    .map(str::to_string);
+                Vec::new()
+            }
+            Some("content_block_start") => {
+                match event.get("content_block").and_then(|b| b.get("type")).and_then(Value::as_str) {
+                    Some("thinking" | "redacted_thinking") => {
+                        vec![EngineEvent::Activity { phase: ActivityPhase::Thinking, label: None }]
+                    }
+                    Some("text") => vec![EngineEvent::Activity { phase: ActivityPhase::Responding, label: None }],
+                    _ => Vec::new(),
+                }
+            }
+            Some("content_block_delta") => {
+                let Some(message_id) = self.streaming.clone() else { return Vec::new() };
+                let delta = event.get("delta").unwrap_or(&Value::Null);
+                match delta.get("type").and_then(Value::as_str) {
+                    Some("text_delta") => {
+                        let text = delta.get("text").and_then(Value::as_str).unwrap_or_default();
+                        if text.is_empty() {
+                            return Vec::new();
+                        }
+                        self.streamed_text.insert(message_id.clone());
+                        vec![EngineEvent::MessageDelta { message_id, text: text.to_string() }]
+                    }
+                    Some("thinking_delta") => {
+                        let text = delta.get("thinking").and_then(Value::as_str).unwrap_or_default();
+                        if text.is_empty() {
+                            return Vec::new();
+                        }
+                        self.streamed_thinking.insert(message_id.clone());
+                        vec![EngineEvent::ThinkingDelta { message_id, text: text.to_string() }]
+                    }
+                    _ => Vec::new(),
+                }
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// Message complet : outils, fin du texte (déjà diffusé mot à mot, ou en entier si la CLI
+    /// ne diffuse pas), réflexion non diffusée, taille du contexte.
+    fn decode_assistant(&mut self, value: &Value) -> Vec<EngineEvent> {
+        let subagent = value.get("parent_tool_use_id").is_some_and(|p| !p.is_null());
+        let message = value.get("message").unwrap_or(&Value::Null);
+        let message_id = message
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or("msg")
+            .to_string();
+        let Some(content) = message.get("content").and_then(Value::as_array) else {
+            return Vec::new();
+        };
+
+        let mut events = Vec::new();
+        if !subagent {
+            if let Some(usage) = message.get("usage") {
+                let count = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0);
+                let used = count("input_tokens") + count("cache_read_input_tokens") + count("cache_creation_input_tokens");
+                if used > 0 {
+                    self.context_used = used;
+                    events.push(EngineEvent::ContextUsage { used, window: self.context_window });
+                }
+            }
+        }
+        for block in content {
+            match block.get("type").and_then(Value::as_str) {
+                Some("thinking") | Some("redacted_thinking") => {
+                    if subagent {
+                        continue;
+                    }
+                    events.push(EngineEvent::Activity { phase: ActivityPhase::Thinking, label: None });
+                    let text = block.get("thinking").and_then(Value::as_str).unwrap_or_default();
+                    if !text.is_empty() && !self.streamed_thinking.contains(&message_id) {
+                        events.push(EngineEvent::ThinkingDelta { message_id: message_id.clone(), text: text.to_string() });
+                    }
+                }
+                Some("text") => {
+                    if subagent {
+                        continue;
+                    }
+                    if self.streamed_text.contains(&message_id) {
+                        events.push(EngineEvent::MessageCompleted { message_id: message_id.clone() });
+                        continue;
+                    }
+                    if let Some(text) = block.get("text").and_then(Value::as_str) {
+                        if !text.is_empty() {
+                            events.push(EngineEvent::Activity { phase: ActivityPhase::Responding, label: None });
+                            events.push(EngineEvent::MessageDelta { message_id: message_id.clone(), text: text.to_string() });
+                            events.push(EngineEvent::MessageCompleted { message_id: message_id.clone() });
+                        }
+                    }
+                }
+                Some("tool_use") => {
+                    let name = block.get("name").and_then(Value::as_str).unwrap_or("outil");
+                    let summary = payload_of(block.get("input").unwrap_or(&Value::Null));
+                    events.push(EngineEvent::Activity {
+                        phase: ActivityPhase::Tool,
+                        label: Some(if summary.is_empty() || summary == "null" {
+                            name.to_string()
+                        } else {
+                            format!("{name} · {}", summary.chars().take(120).collect::<String>())
+                        }),
+                    });
+                    events.push(EngineEvent::ToolCall {
+                        call_id: block.get("id").and_then(Value::as_str).unwrap_or("tool").to_string(),
+                        tool: name.to_string(),
+                        input: block.get("input").cloned().unwrap_or(Value::Null),
+                    });
+                }
+                _ => {}
+            }
+        }
+        events
+    }
+
+    fn decode_result(&mut self, value: &Value) -> Vec<EngineEvent> {
+            // Fenêtre de contexte du modèle (`modelUsage.<modèle>.contextWindow`).
+            if let Some(window) = value
+                .get("modelUsage")
+                .and_then(Value::as_object)
+                .and_then(|models| models.values().filter_map(|m| m.get("contextWindow").and_then(Value::as_u64)).max())
+            {
+                self.context_window = Some(window);
+            }
+        let usage = value.get("usage").unwrap_or(&Value::Null);
+        let count = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0);
+        let is_error = value.get("is_error").and_then(Value::as_bool) == Some(true);
+
+        let mut events = vec![EngineEvent::TurnCompleted {
+            duration_ms: value.get("duration_ms").and_then(Value::as_u64),
+            input_tokens: count("input_tokens"),
+            output_tokens: count("output_tokens"),
+            thinking_tokens: usage
+                .get("output_tokens_details")
+                .and_then(|details| details.get("thinking_tokens"))
+                .and_then(Value::as_u64)
+                .unwrap_or(0),
+            cache_tokens: count("cache_creation_input_tokens") + count("cache_read_input_tokens"),
+            cost_usd: value.get("total_cost_usd").and_then(Value::as_f64),
+            ok: !is_error,
+        }];
+
+        if self.context_used > 0 {
+            events.push(EngineEvent::ContextUsage { used: self.context_used, window: self.context_window });
+        }
+        if is_error {
+            events.push(EngineEvent::Error {
+                code: "CLI_ERROR".to_string(),
+                message: value
+                    .get("result")
+                    .and_then(Value::as_str)
+                    .unwrap_or("Erreur de la CLI")
+                    .to_string(),
+                recoverable: true,
+            });
+        }
+
+        events
+    }
+
     fn decode_control_request(&mut self, value: &Value, ctx: &DecodeCtx) -> Vec<EngineEvent> {
         let request = value.get("request");
         let subtype = request
@@ -311,6 +498,10 @@ impl ClaudeAdapter {
             Pending { request_id: request_id.to_string(), input: input.clone() },
         );
 
+        if let Some(prompt) = interactive_tool(&tool, &input, &prompt_id, ctx.session_id) {
+            return vec![EngineEvent::Prompt { prompt }];
+        }
+
         let detail = detail_for(&tool, &input);
         let title = if description.is_empty() {
             format!("{tool} — autoriser ?")
@@ -346,6 +537,57 @@ impl ClaudeAdapter {
 
         vec![EngineEvent::Prompt { prompt }]
     }
+}
+
+/// Outils qui demandent une réponse et non une autorisation : plan à approuver, questions.
+fn interactive_tool(tool: &str, input: &Value, prompt_id: &str, session_id: &str) -> Option<InteractivePrompt> {
+    let (title, detail, options, free_text) = match tool {
+        "ExitPlanMode" => (
+            "Plan proposé".to_string(),
+            PromptDetail::Plan {
+                plan: input.get("plan").and_then(Value::as_str).unwrap_or_default().to_string(),
+            },
+            vec![
+                PromptOption::new("deny", "Continuer à planifier", OptionVariant::Default),
+                PromptOption::new("allow", "Approuver et exécuter", OptionVariant::Primary),
+            ],
+            true,
+        ),
+        "AskUserQuestion" => {
+            let questions: Vec<Question> = input
+                .get("questions")
+                .cloned()
+                .and_then(|value| serde_json::from_value(value).ok())
+                .unwrap_or_default();
+            if questions.is_empty() {
+                return None;
+            }
+            (
+                if questions.len() == 1 { "Question de l'agent".to_string() } else { format!("{} questions de l'agent", questions.len()) },
+                PromptDetail::Questions { questions },
+                vec![
+                    PromptOption::new("deny", "Ignorer", OptionVariant::Default),
+                    PromptOption::new("allow", "Répondre", OptionVariant::Primary),
+                ],
+                true,
+            )
+        }
+        _ => return None,
+    };
+    Some(InteractivePrompt {
+        prompt_id: prompt_id.to_string(),
+        session_id: session_id.to_string(),
+        kind: PromptKind::Choice,
+        tool: Some(tool.to_string()),
+        title,
+        detail: Some(detail),
+        options,
+        default_option: Some("allow".to_string()),
+        allow_free_text: free_text,
+        risk: RiskLevel::Low,
+        source: PromptSource::Protocol,
+        raw_excerpt: None,
+    })
 }
 
 fn detail_for(tool: &str, input: &Value) -> PromptDetail {
@@ -387,16 +629,26 @@ fn detail_for(tool: &str, input: &Value) -> PromptDetail {
 /// `system/init` porte le `session_id` réutilisable avec `--resume`.
 fn decode_system(value: &Value) -> Vec<EngineEvent> {
     match value.get("subtype").and_then(Value::as_str) {
-        // `init` porte le `session_id` réutilisable avec `--resume`.
-        Some("init") => value
-            .get("session_id")
-            .and_then(Value::as_str)
-            .map(|id| {
-                vec![EngineEvent::CliSession {
-                    cli_session_id: id.to_string(),
-                }]
-            })
-            .unwrap_or_default(),
+        // `init` porte le `session_id` réutilisable avec `--resume`, les commandes `/…`
+        // disponibles (intégrées, du projet, skills) et le mode de permission.
+        Some("init") => {
+            let mut events: Vec<EngineEvent> = value
+                .get("session_id")
+                .and_then(Value::as_str)
+                .map(|id| EngineEvent::CliSession { cli_session_id: id.to_string() })
+                .into_iter()
+                .collect();
+            let slash_commands = value
+                .get("slash_commands")
+                .and_then(Value::as_array)
+                .map(|list| list.iter().filter_map(Value::as_str).map(str::to_string).collect())
+                .unwrap_or_default();
+            events.push(EngineEvent::SessionInfo {
+                slash_commands,
+                permission_mode: value.get("permissionMode").and_then(Value::as_str).map(str::to_string),
+            });
+            events
+        }
         // Émis pendant la réflexion du modèle (contenu non exposé).
         Some("thinking_tokens") => vec![EngineEvent::Activity {
             phase: ActivityPhase::Thinking,
@@ -404,72 +656,6 @@ fn decode_system(value: &Value) -> Vec<EngineEvent> {
         }],
         _ => Vec::new(),
     }
-}
-
-fn decode_assistant(value: &Value) -> Vec<EngineEvent> {
-    let message = value.get("message").unwrap_or(&Value::Null);
-    let message_id = message
-        .get("id")
-        .and_then(Value::as_str)
-        .unwrap_or("msg")
-        .to_string();
-    let Some(content) = message.get("content").and_then(Value::as_array) else {
-        return Vec::new();
-    };
-
-    let mut events = Vec::new();
-    for block in content {
-        match block.get("type").and_then(Value::as_str) {
-            Some("thinking") | Some("redacted_thinking") => events.push(EngineEvent::Activity {
-                phase: ActivityPhase::Thinking,
-                label: None,
-            }),
-            Some("text") => {
-                if let Some(text) = block.get("text").and_then(Value::as_str) {
-                    if !text.is_empty() {
-                        events.push(EngineEvent::Activity {
-                            phase: ActivityPhase::Responding,
-                            label: None,
-                        });
-                        events.push(EngineEvent::MessageDelta {
-                            message_id: message_id.clone(),
-                            text: text.to_string(),
-                        });
-                        events.push(EngineEvent::MessageCompleted {
-                            message_id: message_id.clone(),
-                        });
-                    }
-                }
-            }
-            Some("tool_use") => {
-                let name = block.get("name").and_then(Value::as_str).unwrap_or("outil");
-                let summary = payload_of(block.get("input").unwrap_or(&Value::Null));
-                events.push(EngineEvent::Activity {
-                    phase: ActivityPhase::Tool,
-                    label: Some(if summary.is_empty() || summary == "null" {
-                        name.to_string()
-                    } else {
-                        format!("{name} · {}", summary.chars().take(120).collect::<String>())
-                    }),
-                });
-                events.push(EngineEvent::ToolCall {
-                    call_id: block
-                        .get("id")
-                        .and_then(Value::as_str)
-                        .unwrap_or("tool")
-                        .to_string(),
-                    tool: block
-                        .get("name")
-                        .and_then(Value::as_str)
-                        .unwrap_or("outil")
-                        .to_string(),
-                    input: block.get("input").cloned().unwrap_or(Value::Null),
-                });
-            }
-            _ => {}
-        }
-    }
-    events
 }
 
 fn decode_tool_results(value: &Value) -> Vec<EngineEvent> {
@@ -501,40 +687,6 @@ fn decode_tool_results(value: &Value) -> Vec<EngineEvent> {
             },
         })
         .collect()
-}
-
-fn decode_result(value: &Value) -> Vec<EngineEvent> {
-    let usage = value.get("usage").unwrap_or(&Value::Null);
-    let count = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0);
-    let is_error = value.get("is_error").and_then(Value::as_bool) == Some(true);
-
-    let mut events = vec![EngineEvent::TurnCompleted {
-        duration_ms: value.get("duration_ms").and_then(Value::as_u64),
-        input_tokens: count("input_tokens"),
-        output_tokens: count("output_tokens"),
-        thinking_tokens: usage
-            .get("output_tokens_details")
-            .and_then(|details| details.get("thinking_tokens"))
-            .and_then(Value::as_u64)
-            .unwrap_or(0),
-        cache_tokens: count("cache_creation_input_tokens") + count("cache_read_input_tokens"),
-        cost_usd: value.get("total_cost_usd").and_then(Value::as_f64),
-        ok: !is_error,
-    }];
-
-    if is_error {
-        events.push(EngineEvent::Error {
-            code: "CLI_ERROR".to_string(),
-            message: value
-                .get("result")
-                .and_then(Value::as_str)
-                .unwrap_or("Erreur de la CLI")
-                .to_string(),
-            recoverable: true,
-        });
-    }
-
-    events
 }
 
 /// `rate_limit_event` : utilisation des fenêtres d'abonnement (Claude Pro/Max).
@@ -625,6 +777,7 @@ mod tests {
         let session = crate::engine::event::SessionOptions {
             append_system_prompt: Some("Projet Fabric 1.21.1".into()),
             disallowed_tools: vec!["WebFetch".into(), "WebSearch".into()],
+            ..Default::default()
         };
         let args = ClaudeAdapter::default().spawn_args(LaunchOptions {
             session: &session,
@@ -823,5 +976,63 @@ mod tests {
         assert!(matches!(events[0], EngineEvent::Activity { phase: ActivityPhase::Responding, .. }));
         assert!(matches!(events[1], EngineEvent::MessageDelta { .. }));
         assert!(matches!(events[2], EngineEvent::MessageCompleted { .. }));
+    }
+
+    #[test]
+    fn streams_text_and_thinking_word_by_word_without_duplicates() {
+        let mut adapter = ClaudeAdapter::default();
+        let ctx = ctx();
+        let line = |v: serde_json::Value| v.to_string();
+        adapter.decode_line(&line(json!({"type":"stream_event","event":{"type":"message_start","message":{"id":"m1"}}})), &ctx);
+        let thinking = adapter.decode_line(&line(json!({"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"Je regarde"}}})), &ctx);
+        assert!(matches!(&thinking[0], EngineEvent::ThinkingDelta { message_id, text } if message_id == "m1" && text == "Je regarde"));
+        let text = adapter.decode_line(&line(json!({"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"Bon"}}})), &ctx);
+        assert!(matches!(&text[0], EngineEvent::MessageDelta { text, .. } if text == "Bon"));
+        // Le message complet ne répète ni le texte ni la réflexion : il clôt le texte.
+        let full = adapter.decode_line(&line(json!({"type":"assistant","message":{"id":"m1","usage":{"input_tokens":10,"cache_read_input_tokens":90000},"content":[
+            {"type":"thinking","thinking":"Je regarde"},{"type":"text","text":"Bonjour"}]}})), &ctx);
+        assert!(!full.iter().any(|e| matches!(e, EngineEvent::MessageDelta { .. } | EngineEvent::ThinkingDelta { .. })));
+        assert!(full.iter().any(|e| matches!(e, EngineEvent::MessageCompleted { message_id } if message_id == "m1")));
+        assert!(full.iter().any(|e| matches!(e, EngineEvent::ContextUsage { used: 90010, window: None })));
+        // Fin de tour : fenêtre du modèle connue.
+        let result = adapter.decode_line(&line(json!({"type":"result","usage":{},"modelUsage":{"claude-opus-5-5":{"contextWindow":1000000}}})), &ctx);
+        assert!(result.iter().any(|e| matches!(e, EngineEvent::ContextUsage { used: 90010, window: Some(1_000_000) })));
+        // Sous-agent : ni texte ni diffusion dans la conversation principale.
+        let sub = adapter.decode_line(&line(json!({"type":"assistant","parent_tool_use_id":"t1","message":{"id":"m9","content":[{"type":"text","text":"rapport"}]}})), &ctx);
+        assert!(sub.is_empty());
+    }
+
+    #[test]
+    fn plan_mode_and_questions_become_dedicated_cards() {
+        let session = crate::engine::event::SessionOptions { plan_mode: true, ..Default::default() };
+        let args = ClaudeAdapter::default().spawn_args(LaunchOptions { session: &session, ..LaunchOptions::new(None, None) });
+        assert!(args.windows(2).any(|w| w[0] == "--permission-mode" && w[1] == "plan"));
+        assert!(args.contains(&"--include-partial-messages".to_string()));
+
+        let mut adapter = ClaudeAdapter::default();
+        let plan = adapter.decode_line(&json!({"type":"control_request","request_id":"r1","request":{"subtype":"can_use_tool","tool_name":"ExitPlanMode","input":{"plan":"1. Lire\n2. Corriger"}}}).to_string(), &ctx());
+        let EngineEvent::Prompt { prompt } = &plan[0] else { panic!("carte attendue") };
+        assert!(matches!(&prompt.detail, Some(PromptDetail::Plan { plan }) if plan.starts_with("1. Lire")));
+        assert_eq!(prompt.options[1].id, "allow");
+
+        let asked = adapter.decode_line(&json!({"type":"control_request","request_id":"r2","request":{"subtype":"can_use_tool","tool_name":"AskUserQuestion","input":{"questions":[
+            {"question":"Quel format ?","header":"Format","multiSelect":false,"options":[{"label":"PDF","description":"Pour imprimer"},{"label":"Word"}]}]}}}).to_string(), &ctx());
+        let EngineEvent::Prompt { prompt } = &asked[0] else { panic!("carte attendue") };
+        let Some(PromptDetail::Questions { questions }) = &prompt.detail else { panic!("questions attendues") };
+        assert_eq!(questions[0].options[1].label, "Word");
+        // Les réponses repartent dans l'entrée de l'outil.
+        let answer = PromptAnswer {
+            option_id: Some("allow".into()),
+            text: None,
+            edited_input: Some(json!({"questions": [], "answers": {"Quel format ?": "PDF"}})),
+        };
+        let AnswerAction::Stdin(sent) = adapter.encode_answer(prompt, &answer, true) else { panic!("réponse attendue") };
+        assert!(sent.contains("\"answers\":{\"Quel format ?\":\"PDF\"}"));
+    }
+
+    #[test]
+    fn init_lists_slash_commands() {
+        let events = decode_system(&json!({"type":"system","subtype":"init","session_id":"abc","permissionMode":"plan","slash_commands":["compact","review","mon-skill"]}));
+        assert!(events.iter().any(|e| matches!(e, EngineEvent::SessionInfo { slash_commands, permission_mode } if slash_commands.len() == 3 && permission_mode.as_deref() == Some("plan"))));
     }
 }

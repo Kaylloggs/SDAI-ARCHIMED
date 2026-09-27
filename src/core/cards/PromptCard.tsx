@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   ShieldAlert,
   ShieldCheck,
@@ -7,12 +9,14 @@ import {
   FileDiff,
   MessageCircleQuestion,
   Sparkles,
+  ListChecks,
 } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import type { InteractivePrompt, ResolvedBy, RiskLevel } from "@/core/engine/types";
 import { Badge, Button, Kbd } from "@/design-system/primitives";
 import { enterCard } from "@/design-system/motion";
 import { DiffView } from "./DiffView";
+import { QuestionsForm } from "./QuestionsForm";
 
 const riskLabel: Record<RiskLevel, { label: string; tone: "success" | "info" | "warning" | "danger" }> = {
   low: { label: "Risque faible", tone: "success" },
@@ -23,6 +27,8 @@ const riskLabel: Record<RiskLevel, { label: string; tone: "success" | "info" | "
 
 function PromptIcon({ prompt }: { prompt: InteractivePrompt }) {
   const detail = prompt.detail?.type;
+  if (detail === "plan") return <ListChecks size={16} strokeWidth={1.75} />;
+  if (detail === "questions") return <MessageCircleQuestion size={16} strokeWidth={1.75} />;
   if (detail === "diff") return <FileDiff size={16} strokeWidth={1.75} />;
   if (detail === "command") return <Terminal size={16} strokeWidth={1.75} />;
   if (prompt.kind === "permission") {
@@ -48,6 +54,8 @@ export function PromptCard({ prompt, resolvedBy, resolvedOptionId, onAnswer }: P
   const [confirming, setConfirming] = useState<string | null>(null);
   const resolved = Boolean(resolvedBy);
   const risk = riskLabel[prompt.risk];
+  // Plan et questions : une réponse, pas une autorisation (pas de niveau de risque).
+  const conversational = prompt.detail?.type === "plan" || prompt.detail?.type === "questions";
 
   const answer = (optionId: string) => {
     // Une action critique exige un second clic explicite (design.md §7.3).
@@ -63,7 +71,7 @@ export function PromptCard({ prompt, resolvedBy, resolvedOptionId, onAnswer }: P
   };
 
   useEffect(() => {
-    if (resolved) return;
+    if (resolved || prompt.detail?.type === "questions") return;
     const onKey = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
       const index = Number.parseInt(event.key, 10);
@@ -94,14 +102,41 @@ export function PromptCard({ prompt, resolvedBy, resolvedOptionId, onAnswer }: P
           <PromptIcon prompt={prompt} />
         </span>
         <h3 className="min-w-0 flex-1 text-title-3 font-semibold">{prompt.title}</h3>
-        <Badge tone={risk.tone}>{risk.label}</Badge>
+        {!conversational && <Badge tone={risk.tone}>{risk.label}</Badge>}
         {prompt.source.type === "screen" && (
           <Badge tone="neutral">écran · {Math.round(prompt.source.confidence * 100)}%</Badge>
         )}
       </header>
 
-      {prompt.detail && (
+      {prompt.detail?.type === "questions" && !resolved ? (
+        <QuestionsForm
+          questions={prompt.detail.questions}
+          disabled={busy}
+          onSkip={() => {
+            setBusy(true);
+            onAnswer({ optionId: "deny", text: "La personne a préféré ne pas répondre : continue avec ton meilleur choix." });
+          }}
+          onSubmit={(answers) => {
+            setBusy(true);
+            const questions = prompt.detail?.type === "questions" ? prompt.detail.questions : [];
+            onAnswer({ optionId: "allow", editedInput: { questions, answers } });
+          }}
+        />
+      ) : prompt.detail && prompt.detail.type !== "questions" && (
         <div className="selectable border-b border-border px-4 py-3">
+          {prompt.detail.type === "plan" && (
+            <div
+              className={cn(
+                "max-h-[420px] overflow-y-auto text-body-sm leading-6 text-text",
+                "[&_h1]:pt-2 [&_h1]:text-title-3 [&_h1]:font-semibold [&_h2]:pt-2 [&_h2]:font-semibold [&_h3]:pt-1.5 [&_h3]:font-semibold",
+                "[&_p]:py-0.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:py-px",
+                "[&_code]:rounded-xs [&_code]:bg-surface-2 [&_code]:px-1 [&_code]:font-mono [&_code]:text-footnote",
+                "[&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-bg [&_pre]:p-2.5",
+              )}
+            >
+              <Markdown remarkPlugins={[remarkGfm]}>{prompt.detail.plan}</Markdown>
+            </div>
+          )}
           {prompt.detail.type === "diff" && (
             <DiffView path={prompt.detail.path} before={prompt.detail.before} after={prompt.detail.after} />
           )}
@@ -126,6 +161,7 @@ export function PromptCard({ prompt, resolvedBy, resolvedOptionId, onAnswer }: P
         </div>
       )}
 
+      {(resolved || prompt.detail?.type !== "questions") && (
       <footer className="flex flex-wrap items-center gap-2 px-4 py-3">
         {resolved ? (
           <span className="flex items-center gap-1.5 text-footnote text-text-subtle">
@@ -142,10 +178,11 @@ export function PromptCard({ prompt, resolvedBy, resolvedOptionId, onAnswer }: P
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && text.trim()) {
                     setBusy(true);
-                    onAnswer({ text });
+                    // Plan : une remarque veut dire « continue à planifier en tenant compte de ceci ».
+                    onAnswer(prompt.detail?.type === "plan" ? { optionId: "deny", text } : { text });
                   }
                 }}
-                placeholder="Votre réponse…"
+                placeholder={prompt.detail?.type === "plan" ? "Ce qu'il faut changer dans le plan… (Entrée)" : "Votre réponse…"}
                 className="h-8 flex-1 rounded-md border border-border bg-bg px-2.5 text-body-sm outline-none placeholder:text-text-subtle focus:border-border-strong"
               />
             )}
@@ -163,7 +200,11 @@ export function PromptCard({ prompt, resolvedBy, resolvedOptionId, onAnswer }: P
                           ? "danger"
                           : "secondary"
                   }
-                  onClick={() => answer(option.id)}
+                  onClick={() =>
+                    prompt.detail?.type === "plan" && option.id === "deny" && text.trim()
+                      ? (setBusy(true), onAnswer({ optionId: "deny", text }))
+                      : answer(option.id)
+                  }
                 >
                   {confirming === option.id ? `Confirmer : ${option.label}` : option.label}
                   <Kbd>{index + 1}</Kbd>
@@ -173,6 +214,7 @@ export function PromptCard({ prompt, resolvedBy, resolvedOptionId, onAnswer }: P
           </>
         )}
       </footer>
+      )}
     </motion.div>
   );
 }

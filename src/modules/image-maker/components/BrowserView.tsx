@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/core/lib/cn";
-import { Button } from "@/design-system/primitives";
+import { Button, ResizeHandle, usePanelSize } from "@/design-system/primitives";
 import type { AccountSite } from "@/core/ipc/bindings/AccountSite";
 import type { BrowserAction } from "@/core/ipc/bindings/BrowserAction";
 import type { BrowserBounds } from "@/core/ipc/bindings/BrowserBounds";
@@ -211,6 +211,7 @@ function NavButton({ label, onClick, children }: { label: string; onClick: () =>
 
 /** Panneau de droite en mode site : préparer la demande, puis importer ce qui a été téléchargé. */
 export function BrowserSide() {
+  const [panelWidth, setPanelWidth] = usePanelSize("imagemaker.browserSide", 320, 240, 560);
   const site = useImageMaker((s) => s.browser);
   const received = useImageMaker((s) => s.received);
   const node = useImageMaker((s) => currentNode(s));
@@ -220,67 +221,70 @@ export function BrowserSide() {
   const info = SITE_INFO[site ?? "gemini"];
 
   return (
-    <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border" aria-label="Depuis le site">
-      <div className="space-y-5 p-4">
-        <section className="space-y-2">
-          <Label>Préparer</Label>
-          <div className="flex flex-col items-start gap-1">
-            <Button size="sm" variant="ghost" icon={<Copy size={14} />} disabled={!prompt} onClick={() => void copyPrompt(prompt)}>
-              Copier la demande
-            </Button>
-            <Button size="sm" variant="ghost" icon={<Copy size={14} />} disabled={!node} onClick={() => node && void copyImage(node)}>
-              Copier l'image affichée
-            </Button>
-          </div>
-          <p className="text-footnote text-text-subtle">
-            Collez-les dans {info.name}. L'image ne part sur le site que si vous l'y collez vous-même.
-          </p>
-        </section>
-
-        <section className="space-y-2" aria-labelledby="im-received">
-          <Label>
-            <span id="im-received">Images reçues</span>
-          </Label>
-          {node && (
-            <Switch checked={attach} onChange={setAttach}>
-              Nouvelle version de l'image affichée
-            </Switch>
-          )}
-          {images.length === 0 ? (
-            <p className="flex items-start gap-2 text-footnote text-text-muted">
-              <ImageDown size={16} className="mt-0.5 shrink-0 text-text-subtle" />
-              Téléchargez l'image sur le site : elle arrive ici. Vous pouvez aussi la copier sur le site puis la coller avec Ctrl+V.
+    <>
+      <ResizeHandle size={panelWidth} onResize={setPanelWidth} panel="after" label="Largeur du panneau « Depuis le site »" defaultSize={320} />
+      <aside style={{ width: panelWidth }} className="flex shrink-0 flex-col overflow-y-auto border-l border-border" aria-label="Depuis le site">
+        <div className="space-y-5 p-4">
+          <section className="space-y-2">
+            <Label>Préparer</Label>
+            <div className="flex flex-col items-start gap-1">
+              <Button size="sm" variant="ghost" icon={<Copy size={14} />} disabled={!prompt} onClick={() => void copyPrompt(prompt)}>
+                Copier la demande
+              </Button>
+              <Button size="sm" variant="ghost" icon={<Copy size={14} />} disabled={!node} onClick={() => node && void copyImage(node)}>
+                Copier l'image affichée
+              </Button>
+            </div>
+            <p className="text-footnote text-text-subtle">
+              Collez-les dans {info.name}. L'image ne part sur le site que si vous l'y collez vous-même.
             </p>
-          ) : (
-            <ul className="space-y-1.5">
-              {images.map((file) => (
-                <li key={file.path} className="flex items-center gap-2 rounded-md bg-surface-2 px-2.5 py-2 text-footnote">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-text" title={file.path}>
-                      {file.name}
-                    </p>
-                    <p className="text-caption text-text-subtle">{file.imported ? "Importée" : ago(file.at)}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant={file.imported ? "ghost" : "primary"}
-                    icon={<Plus size={14} />}
-                    onClick={() => void useImageMaker.getState().importReceived(file.path, attach)}
-                  >
-                    Importer
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+          </section>
 
-        <p className="flex items-start gap-1.5 text-footnote text-text-subtle">
-          <ShieldCheck size={14} className="mt-0.5 shrink-0" />
-          Le site s'affiche dans une vue séparée : il n'a aucun accès à ARCHIMED, et ARCHIMED ne lit rien de ce que vous y tapez.
-          Si le site refuse la connexion ici, ouvrez-le dans votre navigateur (bouton à droite de l'adresse).
-        </p>
-      </div>
-    </aside>
+          <section className="space-y-2" aria-labelledby="im-received">
+            <Label>
+              <span id="im-received">Images reçues</span>
+            </Label>
+            {node && (
+              <Switch checked={attach} onChange={setAttach}>
+                Nouvelle version de l'image affichée
+              </Switch>
+            )}
+            {images.length === 0 ? (
+              <p className="flex items-start gap-2 text-footnote text-text-muted">
+                <ImageDown size={16} className="mt-0.5 shrink-0 text-text-subtle" />
+                Téléchargez l'image sur le site : elle arrive ici. Vous pouvez aussi la copier sur le site puis la coller avec Ctrl+V.
+              </p>
+            ) : (
+              <ul className="space-y-1.5">
+                {images.map((file) => (
+                  <li key={file.path} className="flex items-center gap-2 rounded-md bg-surface-2 px-2.5 py-2 text-footnote">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-text" title={file.path}>
+                        {file.name}
+                      </p>
+                      <p className="text-caption text-text-subtle">{file.imported ? "Importée" : ago(file.at)}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant={file.imported ? "ghost" : "primary"}
+                      icon={<Plus size={14} />}
+                      onClick={() => void useImageMaker.getState().importReceived(file.path, attach)}
+                    >
+                      Importer
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <p className="flex items-start gap-1.5 text-footnote text-text-subtle">
+            <ShieldCheck size={14} className="mt-0.5 shrink-0" />
+            Le site s'affiche dans une vue séparée : il n'a aucun accès à ARCHIMED, et ARCHIMED ne lit rien de ce que vous y tapez.
+            Si le site refuse la connexion ici, ouvrez-le dans votre navigateur (bouton à droite de l'adresse).
+          </p>
+        </div>
+      </aside>
+    </>
   );
 }

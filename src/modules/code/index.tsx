@@ -4,12 +4,13 @@ import { Code2, FolderOpen, Globe, Loader2, PanelRight, Plus, Save, Search, Squa
 import { cn } from "@/core/lib/cn";
 import { Badge, Button, EmptyState, ResizeHandle, Select, Tooltip, usePanelSize } from "@/design-system/primitives";
 import { PreviewPane, isHtmlFile, usePreviewTargets } from "@/core/preview";
-import { Composer, ConversationView } from "@/core/chat";
+import { Composer, ConversationView, TodoPanel } from "@/core/chat";
 import { Slot } from "@/core/modules";
 import { useAdapters } from "@/core/engine/useAdapters";
 import { useChat } from "@/core/engine/useChat";
 import { useAutoContinue } from "@/core/engine/useAutoContinue";
-import { useSessionStore } from "@/core/engine/session.store";
+import { useMessageQueue } from "@/core/engine/useMessageQueue";
+import { useSessionStore, type ChatSession } from "@/core/engine/session.store";
 import { engineApi } from "@/core/engine/engine.api";
 import { useUiStore } from "@/core/stores/ui.store";
 import type { AutoMode, PromptAnswer } from "@/core/engine/types";
@@ -111,6 +112,14 @@ export default function CodeModule() {
   const session = projectSessions.find((s) => s.id === sessionId) ?? null;
   // Réponse coupée en route (agent arrêté après une action) : relancée automatiquement.
   useAutoContinue(session, chat.continueTurn);
+  // Messages écrits pendant que l'agent travaille : envoyés à la fin de son tour.
+  const { send: sendChat } = chat;
+  const sendQueued = useCallback(
+    (target: ChatSession, text: string, attachments: string[], targeted: string[]) =>
+      sendChat(target, text, attachments, targeted).catch((e) => setError((e as { message?: string }).message ?? "Envoi impossible")),
+    [sendChat],
+  );
+  useMessageQueue(session, sendQueued);
   const adapterId = session?.adapter ?? draft.adapter;
   const adapter = adapters.find((a) => a.id === adapterId);
 
@@ -698,6 +707,8 @@ export default function CodeModule() {
             )}
           </div>
 
+          {session && <TodoPanel timeline={session.timeline} running={["starting", "running", "awaiting"].includes(session.status)} />}
+
           {installed.length > 0 && (
             <Composer
               adapters={adapters}
@@ -723,6 +734,13 @@ export default function CodeModule() {
               running={Boolean(session && ["starting", "running", "awaiting"].includes(session.status))}
               onStop={() => session && void chat.stop(session)}
               onSend={(text, attachments, targeted) => void handleSend(text, attachments, targeted)}
+              queue={session?.queue}
+              onQueue={session ? (text, attachments, targeted) => chat.enqueue(session, text, attachments, targeted) : undefined}
+              onUnqueue={session ? (id) => chat.unqueue(session, id) : undefined}
+              planMode={Boolean(session?.options?.planMode)}
+              onPlanModeChange={session?.adapter === "claude" ? (value) => void chat.setPlanMode(session, value) : undefined}
+              slashCommands={session?.slashCommands}
+              cwd={root}
             />
           )}
         </section>

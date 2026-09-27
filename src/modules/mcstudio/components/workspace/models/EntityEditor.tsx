@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bone, Box, Code2, Cone, Copy, Cylinder, Globe, Grid2x2, LayoutGrid, Move3d, Palette, Pickaxe, Plus, Scale3d, Trash2 } from "lucide-react";
 import { cn } from "@/core/lib/cn";
-import { Button, Select } from "@/design-system/primitives";
+import { Button, Select, ResizeHandle, usePanelSize } from "@/design-system/primitives";
 import type { EntityCube } from "@/core/ipc/bindings/EntityCube";
 import type { EntityModel } from "@/core/ipc/bindings/EntityModel";
 import type { EntitySaved } from "@/core/ipc/bindings/EntitySaved";
@@ -107,6 +107,7 @@ export function EntityEditor({
   onSaved: (saved: EntitySaved) => void;
   onDirty: (dirty: boolean) => void;
 }) {
+  const [panelWidth, setPanelWidth] = usePanelSize("mcstudio.entityInspector", 300, 240, 560);
   const studio = useStudio<EntityModel>(project.id);
   const { model, textures } = studio;
   const texturePath = info.textures[0] ?? "";
@@ -705,7 +706,8 @@ export function EntityEditor({
           )}
         </div>
 
-        <aside aria-label="Structure et réglages du modèle" className="w-[300px] shrink-0 overflow-y-auto border-l border-border">
+        <ResizeHandle size={panelWidth} onResize={setPanelWidth} panel="after" label="Largeur du panneau du modèle" defaultSize={300} />
+        <aside style={{ width: panelWidth }} aria-label="Structure et réglages du modèle" className="shrink-0 overflow-y-auto border-l border-border">
           {tool?.kind === "shape" && (
             <ShapePanel
               value={tool.draft}

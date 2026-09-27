@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Box, LayoutPanelTop, Loader2, Plus, Sword, Trash2 } from "lucide-react";
 import { cn } from "@/core/lib/cn";
-import { Button, Select } from "@/design-system/primitives";
+import { Button, Select, ResizeHandle, usePanelSize } from "@/design-system/primitives";
 import type { AssetKind } from "@/core/ipc/bindings/AssetKind";
 import type { BlockSound } from "@/core/ipc/bindings/BlockSound";
 import type { GuiPreset } from "@/core/ipc/bindings/GuiPreset";
@@ -327,6 +327,7 @@ function rows(list: TextureInfo[]): TextureInfo[] {
  * par son code), et l'atelier de la texture choisie.
  */
 export function TexturesPanel({ project }: { project: ProjectSummary }) {
+  const [panelWidth, setPanelWidth] = usePanelSize("mcstudio.textures", 272, 200, 480);
   const [textures, setTextures] = useState<TextureInfo[] | null>(null);
   const [selected, setSelected] = useState<string>("icon");
   const [adding, setAdding] = useState<NewKind | null>(null);
@@ -415,7 +416,7 @@ export function TexturesPanel({ project }: { project: ProjectSummary }) {
 
   return (
     <div className="flex h-full min-h-0">
-      <aside aria-label="Textures du mod" className="w-[272px] shrink-0 space-y-5 overflow-y-auto border-r border-border p-4">
+      <aside style={{ width: panelWidth }} aria-label="Textures du mod" className="shrink-0 space-y-5 overflow-y-auto border-r border-border p-4">
         {error && (
           <p role="alert" className="text-footnote text-danger">
             {error}
@@ -538,6 +539,7 @@ export function TexturesPanel({ project }: { project: ProjectSummary }) {
           </section>
         )}
       </aside>
+      <ResizeHandle size={panelWidth} onResize={setPanelWidth} panel="before" label="Largeur de la liste des textures" defaultSize={272} />
       <div className="min-w-0 flex-1 overflow-hidden">
         {current && textures && (
           <TextureStudio

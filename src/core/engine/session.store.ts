@@ -13,6 +13,8 @@ import type {
 export type TimelineItem =
   | { kind: "user"; id: string; text: string; attachments?: string[] }
   | { kind: "assistant"; id: string; text: string; done: boolean }
+  /** Réflexion du modèle (texte visible, souvent résumé), repliée dans la conversation. */
+  | { kind: "thinking"; id: string; text: string; done: boolean }
   | { kind: "tool"; id: string; tool: string; input: unknown; output?: string; ok?: boolean }
   | { kind: "prompt"; id: string; prompt: InteractivePrompt; resolvedBy?: ResolvedBy; optionId?: string | null }
   | { kind: "error"; id: string; message: string; code: string }
@@ -45,12 +47,16 @@ export type SessionOrigin = "chat" | "code" | (string & {});
 export type SessionOptions = {
   appendSystemPrompt?: string | null;
   disallowedTools?: string[];
+  /** Mode plan (Claude) : l'agent explore et propose un plan avant de modifier quoi que ce soit. */
+  planMode?: boolean;
 };
 
 /**
  * Une conversation persistée. Son identité (`id`) survit à l'arrêt du processus CLI :
  * `engineSessionId` pointe vers la session backend vivante, ou `null` si elle est terminée.
  */
+export type QueuedMessage = { id: string; text: string; attachments: string[]; targets: string[] };
+
 export type ChatSession = {
   id: string;
   origin: SessionOrigin;
@@ -75,6 +81,12 @@ export type ChatSession = {
   activity: { phase: ActivityPhase; label: string | null; since: number } | null;
   /** Début du tour en cours, pour mesurer la durée si la CLI ne la fournit pas. */
   turnStartedAt: number | null;
+  /** Taille du contexte (dernier appel au modèle) et fenêtre maximale, si la CLI les donne. */
+  context?: { used: number; window: number | null };
+  /** Commandes `/…` annoncées par la CLI au démarrage (intégrées, du projet, skills). */
+  slashCommands?: string[];
+  /** Messages écrits pendant que l'agent travaillait, envoyés un par un à la fin du tour. */
+  queue?: QueuedMessage[];
 };
 
 type Store = {
@@ -261,7 +273,20 @@ export function turnSummary(session: ChatSession) {
   };
 }
 
+/** La réflexion en cours se termine dès que l'agent répond ou agit. */
+function closeThinking(session: ChatSession): ChatSession {
+  if (!session.timeline.some((item) => item.kind === "thinking" && !item.done)) return session;
+  return {
+    ...session,
+    timeline: session.timeline.map((item) => (item.kind === "thinking" && !item.done ? { ...item, done: true } : item)),
+  };
+}
+
 function reduce(session: ChatSession, event: EngineEvent): ChatSession {
+  // La réflexion en cours se clôt dès que l'agent écrit, agit ou finit son tour.
+  if (event.type === "messageDelta" || event.type === "toolCall" || event.type === "turnCompleted") {
+    session = closeThinking(session);
+  }
   const timeline = session.timeline;
   const touched = { updatedAt: Date.now() };
 
@@ -312,6 +337,29 @@ function reduce(session: ChatSession, event: EngineEvent): ChatSession {
 
     case "sessionStarted":
       return { ...session, ...touched, status: "running", model: event.model || session.model };
+
+    case "thinkingDelta": {
+      const id = `${event.messageId}:thinking`;
+      const index = timeline.findIndex((item) => item.kind === "thinking" && item.id === id);
+      if (index === -1) {
+        return {
+          ...session,
+          ...touched,
+          status: "running",
+          timeline: [...timeline, { kind: "thinking", id, text: event.text, done: false }],
+        };
+      }
+      const existing = timeline[index] as Extract<TimelineItem, { kind: "thinking" }>;
+      const updated = [...timeline];
+      updated[index] = { ...existing, text: existing.text + event.text };
+      return { ...session, ...touched, timeline: updated };
+    }
+
+    case "contextUsage":
+      return { ...session, context: { used: event.used, window: event.window ?? session.context?.window ?? null } };
+
+    case "sessionInfo":
+      return event.slashCommands.length > 0 ? { ...session, slashCommands: event.slashCommands } : session;
 
     case "messageDelta": {
       session = { ...session, activity: { phase: "responding", label: null, since: session.activity?.since ?? Date.now() } };

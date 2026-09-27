@@ -4,6 +4,54 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Chat au niveau de Claude Code
+- **Réponse en direct** : le texte s'écrit mot à mot, et la **réflexion** du modèle s'affiche
+  repliée au-dessus de la réponse (Claude Code).
+- **Mode plan** (bouton sous la zone de saisie, `Maj+Tab` ou `/plan`) : l'agent explore sans rien
+  modifier et propose un plan ; « Approuver le plan », ou écrire ce qu'il faut changer.
+- **Questions à choix** de l'agent : options à cocher (une ou plusieurs) et réponse libre.
+- **Liste de tâches** au-dessus de la zone de saisie : tâche en cours et progression, liste
+  complète au clic.
+- **Commandes `/`** : celles d'ARCHIMED (`/nouveau`, `/plan`, `/modifications`, `/copier`,
+  `/renommer`) et celles de la CLI (`/compact`, `/review`, `/init`, vos skills…).
+- **Mentions `@`** : `@nom` propose les fichiers du dossier de travail ; le fichier choisi est
+  joint au message.
+- **File d'attente** : écrire pendant que l'agent travaille met le message en attente ; il part à
+  la fin du tour (retirable). Arrêter l'agent rend ces messages à la zone de saisie.
+- **Jauge de contexte** en haut à droite ; au-delà de 60 %, un clic résume la conversation
+  (`/compact`).
+- **Panneau Modifications** (bouton de la branche git) : fichiers modifiés depuis le dernier
+  commit, lignes ajoutées et retirées, diff de chaque fichier ; « Relire », « Commit » et
+  « Pull request » demandent à l'agent de le faire.
+- **Cartes d'action plus claires** : diff pour les fichiers modifiés, terminal pour les commandes,
+  recherche, web, sous-agents, liste de tâches.
+- **Conversations** : recherche, groupes par date (Aujourd'hui, Hier, 7 derniers jours, Plus
+  ancien), renommage par double-clic, point de couleur quand l'agent travaille, attend une
+  réponse ou s'est arrêté sur une erreur. Copie de la conversation en Markdown, « Réessayer »
+  sous la dernière réponse, `↑` pour reprendre le dernier message.
+- **Barre des tâches** : ARCHIMED clignote quand un agent a fini ou attend une réponse pendant
+  que vous êtes dans une autre fenêtre.
+- Le module **Code** profite aussi de la file d'attente, du mode plan, des commandes `/`, des
+  mentions `@` et de la liste de tâches (ADR 0015).
+
+### Ajouté — Intégrer vos propres modules
+- Quand vous créez (ou modifiez) un module dans le code source d'ARCHIMED, une pastille bleue
+  **« Mise à jour »** apparaît à côté de celle des nouvelles versions dès que le module est
+  terminé (fichiers remplis, plus rien d'écrit depuis 30 s). « Intégrer » recompile ARCHIMED avec
+  vos modules et le réinstalle ; conversations, réglages et clés sont gardés.
+- Le dossier du code suivi est celui du build, celui inscrit par `pnpm new:module`, ou celui
+  choisi dans **Réglages › Mises à jour** (ADR 0014).
+
+### Modifié
+- **Panneaux redimensionnables** : liste des conversations et terminal brut (Chat), listes et
+  détail du Planner, liste des tutoriels, panneau « Depuis le site » d'Image Maker, listes et
+  inspecteurs de Mod Studio. Glisser le filet, double-clic pour revenir à la taille par défaut ;
+  la taille est mémorisée.
+- La barre sous la zone de saisie passe sur deux lignes quand la place manque, au lieu de faire
+  se chevaucher les boutons.
+- La conversation ne redescend plus toute seule quand on remonte pour relire ; elle reste collée
+  en bas sinon, même quand la zone de saisie grandit.
+
 ## [0.8.0] - 2026-09-27
 
 ### Ajouté — Mise à jour depuis l'application

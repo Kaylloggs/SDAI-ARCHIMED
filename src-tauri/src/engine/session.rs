@@ -436,6 +436,13 @@ fn record_usage(adapter: &str, model: &str, event: &EngineEvent) {
 
 /// Décide si le Mode Auto peut répondre seul. `None` = demander à l'utilisateur.
 fn try_auto_resolve(prompt: &InteractivePrompt, mode: AutoMode, cwd: Option<&str>) -> Option<bool> {
+    // Un plan à approuver ou des questions posées attendent toujours la personne.
+    if matches!(
+        prompt.detail,
+        Some(super::event::PromptDetail::Plan { .. } | super::event::PromptDetail::Questions { .. })
+    ) {
+        return None;
+    }
     let target = match &prompt.detail {
         Some(super::event::PromptDetail::Diff { path, .. }) => Some(path.as_str()),
         _ => None,
@@ -448,6 +455,8 @@ fn try_auto_resolve(prompt: &InteractivePrompt, mode: AutoMode, cwd: Option<&str
             super::event::PromptDetail::Diff { path, .. } => path.clone(),
             super::event::PromptDetail::Text { text } => text.clone(),
             super::event::PromptDetail::Json { value } => value.to_string(),
+            super::event::PromptDetail::Plan { plan } => plan.clone(),
+            super::event::PromptDetail::Questions { .. } => String::new(),
         })
         .unwrap_or_default();
 

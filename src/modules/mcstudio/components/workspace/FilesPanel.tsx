@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { CodeEditor, FileTree, languageOfPath, type TreeChanges, type TreeEntry } from "@/core/editor";
-import { Button, ContextMenu, EmptyState, type ContextMenuItem } from "@/design-system/primitives";
+import { Button, ContextMenu, EmptyState, type ContextMenuItem, ResizeHandle, usePanelSize } from "@/design-system/primitives";
 import type { ProjectSummary } from "@/core/ipc/bindings/ProjectSummary";
 import { errorText, mcstudioApi } from "../../api";
 import { useEditorStore, type OpenFile } from "../../editor";
@@ -180,6 +180,7 @@ function TabBar({
  * son ouverture n'est jamais écrasé sans le demander.
  */
 export function FilesPanel({ project }: { project: ProjectSummary }) {
+  const [panelWidth, setPanelWidth] = usePanelSize("mcstudio.files", 260, 180, 480);
   const id = project.id;
   const editor = useEditorStore((s) => s.editors[id]);
   const report = useEditorStore((s) => s.reports[id]);
@@ -305,7 +306,7 @@ export function FilesPanel({ project }: { project: ProjectSummary }) {
 
   return (
     <div className="flex h-full min-h-0">
-      <aside aria-label="Explorateur du projet" className="flex w-[260px] shrink-0 flex-col border-r border-border bg-bg-subtle">
+      <aside style={{ width: panelWidth }} aria-label="Explorateur du projet" className="flex shrink-0 flex-col border-r border-border bg-bg-subtle">
         <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-border px-2">
           <span className="flex-1 truncate px-1 text-caption font-semibold uppercase tracking-[0.04em] text-text-subtle">
             {project.meta?.modId ?? "Projet"}
@@ -352,6 +353,7 @@ export function FilesPanel({ project }: { project: ProjectSummary }) {
           />
         </div>
       </aside>
+      <ResizeHandle size={panelWidth} onResize={setPanelWidth} panel="before" label="Largeur de l'explorateur" defaultSize={260} />
 
       <section aria-label="Éditeur" className="flex min-w-0 flex-1 flex-col">
         {tabs.length > 0 && (

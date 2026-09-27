@@ -51,11 +51,24 @@ export type PromptOption = {
   shortcut: string | null;
 };
 
+export type QuestionOption = { label: string; description: string };
+
+/** Question à choix posée par l'agent (Claude `AskUserQuestion`). */
+export type Question = {
+  question: string;
+  header: string;
+  options: QuestionOption[];
+  multiSelect: boolean;
+};
+
 export type PromptDetail =
   | { type: "diff"; path: string; before: string | null; after: string }
   | { type: "command"; line: string; cwd: string | null }
   | { type: "text"; text: string }
-  | { type: "json"; value: unknown };
+  | { type: "json"; value: unknown }
+  /** Plan proposé en mode plan (Markdown). */
+  | { type: "plan"; plan: string }
+  | { type: "questions"; questions: Question[] };
 
 export type PromptSource =
   | { type: "protocol" }
@@ -88,6 +101,9 @@ export type EngineEvent =
   | { type: "cliSession"; cliSessionId: string }
   | { type: "messageDelta"; messageId: string; text: string }
   | { type: "messageCompleted"; messageId: string }
+  | { type: "thinkingDelta"; messageId: string; text: string }
+  | { type: "contextUsage"; used: number; window: number | null }
+  | { type: "sessionInfo"; slashCommands: string[]; permissionMode: string | null }
   | { type: "activity"; phase: ActivityPhase; label: string | null }
   | {
       type: "turnCompleted";

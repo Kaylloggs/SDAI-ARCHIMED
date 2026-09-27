@@ -3,7 +3,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { Brush, Crop, Info, Loader2, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/core/lib/cn";
-import { Badge, Button } from "@/design-system/primitives";
+import { Badge, Button, ResizeHandle, usePanelSize } from "@/design-system/primitives";
 import { pageFade } from "@/design-system/motion";
 import type { CropRect } from "@/core/ipc/bindings/CropRect";
 import type { TextureDraft } from "@/core/ipc/bindings/TextureDraft";
@@ -52,7 +52,15 @@ export type SaveState = "idle" | "pending" | "saving" | "saved";
 
 /** Colonne de droite : ce que la texture donnera en jeu. */
 function Rail({ children }: { children: ReactNode }) {
-  return <aside aria-label="Aperçus" className="w-[184px] shrink-0 space-y-4 overflow-y-auto overflow-x-hidden border-l border-border p-3">{children}</aside>;
+  const [width, setWidth] = usePanelSize("mcstudio.previews", 184, 150, 360);
+  return (
+    <>
+      <ResizeHandle size={width} onResize={setWidth} panel="after" label="Largeur des aperçus" defaultSize={184} />
+      <aside style={{ width }} aria-label="Aperçus" className="shrink-0 space-y-4 overflow-y-auto overflow-x-hidden border-l border-border p-3">
+        {children}
+      </aside>
+    </>
+  );
 }
 
 function RailItem({ title, children }: { title: string; children: ReactNode }) {

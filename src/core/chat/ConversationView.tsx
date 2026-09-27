@@ -1,9 +1,9 @@
-import { useEffect, useRef, type ComponentProps, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import Markdown, { type Components } from "react-markdown";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import remarkGfm from "remark-gfm";
 import { motion } from "motion/react";
-import { AlertTriangle, Paperclip } from "lucide-react";
+import { AlertTriangle, Check, Copy, Paperclip, RotateCcw } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { PromptCard } from "@/core/cards/PromptCard";
 import type { ChatSession } from "@/core/engine/session.store";
@@ -13,6 +13,51 @@ import { Slot } from "@/core/modules";
 import { ActivityGroup, LiveActivity, TurnFooter, groupTimeline } from "./ActivityViews";
 import { FileLink, ResolvedPathsProvider, useResolvedPath } from "./FileLink";
 import { decodeLinkTarget } from "./paths";
+import { ThinkingBlock } from "./ThinkingBlock";
+
+/** Copie dans le presse-papiers, avec un « Copié » passager. */
+function CopyButton({ text, label = "Copier", compact = false }: { text: () => string; label?: string; compact?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void navigator.clipboard
+          .writeText(text())
+          .then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          })
+          .catch(() => undefined);
+      }}
+      aria-label={copied ? "Copié" : label}
+      title={copied ? "Copié" : label}
+      className="flex h-6 items-center gap-1 rounded-xs px-1.5 text-caption text-text-subtle transition-colors hover:bg-surface-2 hover:text-text"
+    >
+      {copied ? <Check size={12} strokeWidth={1.75} className="text-success" /> : <Copy size={12} strokeWidth={1.75} />}
+      {!compact && <span>{copied ? "Copié" : label}</span>}
+    </button>
+  );
+}
+
+/** Bloc de code : langage en haut à gauche, bouton Copier en haut à droite. */
+function CodeBlock({ children, ...props }: ComponentProps<"pre">) {
+  const ref = useRef<HTMLPreElement>(null);
+  const child = Array.isArray(children) ? children[0] : children;
+  const className = (child as { props?: { className?: string } } | undefined)?.props?.className ?? "";
+  const language = /language-([\w+#-]+)/.exec(className)?.[1];
+  return (
+    <div className="group/code relative my-2">
+      <div className="absolute right-1.5 top-1.5 flex items-center gap-1 opacity-0 transition-opacity group-hover/code:opacity-100 focus-within:opacity-100">
+        {language && <span className="font-mono text-caption text-text-subtle">{language}</span>}
+        <CopyButton text={() => ref.current?.innerText ?? ""} compact />
+      </div>
+      <pre ref={ref} {...props}>
+        {children}
+      </pre>
+    </div>
+  );
+}
 
 function textOf(children: ReactNode): string {
   if (typeof children === "string") return children;
@@ -60,7 +105,7 @@ function MarkdownLink({ href = "", children }: ComponentProps<"a">) {
 /** react-markdown vide par défaut les URL `file:` ; on les garde (aucune n'est suivie telle quelle). */
 const keepUrl = (url: string) => (/^\s*(?:javascript|data|vbscript):/i.test(url) ? "" : url);
 
-const MARKDOWN_COMPONENTS: Components = { code: InlineCode, a: MarkdownLink };
+const MARKDOWN_COMPONENTS: Components = { code: InlineCode, a: MarkdownLink, pre: CodeBlock };
 
 type Props = {
   session: ChatSession;
@@ -68,14 +113,48 @@ type Props = {
   onAnswer: (promptId: string, answer: PromptAnswer) => void;
   /** Colonne étroite (panneau latéral du module Code). */
   compact?: boolean;
+  /** Renvoie la dernière demande (bouton « Réessayer » sous la dernière réponse). */
+  onRetry?: () => void;
 };
 
-export function ConversationView({ session, agentName, onAnswer, compact = false }: Props) {
+export function ConversationView({ session, agentName, onAnswer, compact = false, onRetry }: Props) {
+  const lastAssistant = [...session.timeline].reverse().find((item) => item.kind === "assistant")?.id;
+  const idle = session.status === "idle" || session.status === "ended" || session.status === "error";
   const endRef = useRef<HTMLDivElement>(null);
+  /** La personne lit le bas de la conversation : la suite s'affiche d'elle-même. */
+  const pinned = useRef(true);
+  const last = session.timeline.at(-1);
+
+  // Défilement suivi tant que la personne est en bas ; remonter pour relire l'arrête.
+  useEffect(() => {
+    const scroller = endRef.current?.closest<HTMLElement>(".overflow-y-auto");
+    if (!scroller) return;
+    const onScroll = () => {
+      pinned.current = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 96;
+    };
+    // Zone rétrécie (liste de tâches, file d'attente, saisie sur deux lignes) : le bas reste visible.
+    const observer = new ResizeObserver(() => {
+      if (pinned.current) scroller.scrollTop = scroller.scrollHeight;
+    });
+    observer.observe(scroller);
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      observer.disconnect();
+      scroller.removeEventListener("scroll", onScroll);
+    };
+  }, []);
 
   useEffect(() => {
+    // Un message envoyé ramène toujours en bas.
+    if (last?.kind === "user") pinned.current = true;
+    if (pinned.current) endRef.current?.scrollIntoView({ block: "end" });
+  }, [session.timeline.length, last, session.activity?.label]);
+
+  // Autre conversation : on part du bas.
+  useEffect(() => {
+    pinned.current = true;
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [session.timeline.length, session.timeline.at(-1), session.activity?.label]);
+  }, [session.id]);
 
   return (
     <div
@@ -94,7 +173,7 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
                 variants={enterUp}
                 initial="hidden"
                 animate="visible"
-                className="flex justify-end"
+                className="group/user flex flex-col items-end gap-1"
               >
                 <div className="selectable min-w-0 max-w-[80%] space-y-2 rounded-lg bg-surface-2 px-3.5 py-2.5">
                   <p className="whitespace-pre-wrap text-message">{item.text}</p>
@@ -113,8 +192,14 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
                     </ul>
                   )}
                 </div>
+                <div className="opacity-0 transition-opacity group-hover/user:opacity-100 focus-within:opacity-100">
+                  <CopyButton text={() => item.text} compact />
+                </div>
               </motion.div>
             );
+
+          case "thinking":
+            return <ThinkingBlock key={item.id} text={item.text} done={item.done} />;
 
           case "assistant":
             return (
@@ -140,7 +225,19 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
                   )}
                 </div>
                 {item.done && (
-                  <div className="flex flex-wrap items-center gap-2 pt-2 empty:hidden">
+                  <div className="flex flex-wrap items-center gap-1 pt-2">
+                    <CopyButton text={() => item.text} />
+                    {onRetry && idle && item.id === lastAssistant && (
+                      <button
+                        type="button"
+                        onClick={onRetry}
+                        title="Renvoyer votre dernière demande"
+                        className="flex h-6 items-center gap-1 rounded-xs px-1.5 text-caption text-text-subtle transition-colors hover:bg-surface-2 hover:text-text"
+                      >
+                        <RotateCcw size={12} strokeWidth={1.75} />
+                        Réessayer
+                      </button>
+                    )}
                     <Slot name="chat.message.actions" props={{ text: item.text, cwd: session.cwd }} />
                   </div>
                 )}

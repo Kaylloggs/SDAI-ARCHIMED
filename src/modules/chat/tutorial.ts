@@ -1,4 +1,4 @@
-import { Bot, FolderOpen, Paperclip, ShieldCheck, SquarePen, Zap } from "lucide-react";
+import { AtSign, Bot, FolderOpen, GitBranch, ListChecks, Paperclip, ShieldCheck, SquarePen, Zap } from "lucide-react";
 import { defineTutorial } from "@/core/modules";
 
 export default defineTutorial({
@@ -29,10 +29,28 @@ export default defineTutorial({
       area: "bottom",
     },
     {
+      icon: AtSign,
+      title: "Commandes / et fichiers @",
+      text: "Tapez / pour les commandes (nouvelle conversation, mode plan, copier…, et celles de l'assistant comme /compact). Tapez @ puis un nom pour citer un fichier du dossier : il est joint au message.",
+      area: "bottom",
+    },
+    {
+      icon: ListChecks,
+      title: "Mode plan",
+      text: "Le bouton Plan (ou Maj+Tab) demande à Claude Code d'explorer et de proposer un plan sans rien modifier. Approuvez-le, ou écrivez ce qu'il faut changer.",
+      area: "bottom",
+    },
+    {
       icon: ShieldCheck,
       title: "Répondre aux demandes de l'IA",
       text: "Avant d'agir, l'IA affiche une carte qui montre ce qui va changer. Autorisez, refusez ou modifiez.",
       area: "center",
+    },
+    {
+      icon: GitBranch,
+      title: "Voir les modifications",
+      text: "Dans un projet git, le bouton de la branche, en haut à droite, ouvre les fichiers modifiés et leurs différences. Relire, Commit et Pull request le demandent à l'assistant.",
+      area: "right",
     },
     {
       icon: Zap,
@@ -42,8 +60,9 @@ export default defineTutorial({
     },
   ],
   tips: [
-    "Entrée envoie, Maj + Entrée passe à la ligne.",
-    "Échap arrête l'IA en pleine réponse ; le message suivant reprend la même conversation.",
+    "Entrée envoie, Maj + Entrée passe à la ligne ; ↑ dans une zone vide reprend votre dernier message.",
+    "Échap arrête l'IA. Écrire pendant qu'elle travaille met le message en file : il part à la fin de sa réponse.",
     "Le micro dicte votre message avec la reconnaissance vocale de Windows, sans consommer de tokens.",
+    "La jauge en haut à droite montre le contexte utilisé ; proche du plein, un clic résume la conversation.",
   ],
 });

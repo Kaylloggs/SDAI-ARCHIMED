@@ -2,7 +2,7 @@ import { useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { CalendarPlus, Check, FileText, Trash2, X } from "lucide-react";
 import { cn } from "@/core/lib/cn";
-import { Badge, Button } from "@/design-system/primitives";
+import { Badge, Button, ResizeHandle, usePanelSize } from "@/design-system/primitives";
 import { googleCalendarUrl } from "../lib/calendar";
 import { MarkdownNotes } from "./MarkdownNotes";
 import { InlineMarkdown, plainText } from "./InlineMarkdown";
@@ -28,6 +28,7 @@ function shift(days: number): string {
 
 /** Panneau de détail d'une carte. Pas de `<input type="date">` : son calendrier est dessiné par le système. */
 export function CardPanel({ board, card, onChange, onToggleDone, onDelete, onClose }: Props) {
+  const [panelWidth, setPanelWidth] = usePanelSize("planner.card", 320, 260, 640);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [titleEditing, setTitleEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState(card.title);
@@ -48,163 +49,166 @@ export function CardPanel({ board, card, onChange, onToggleDone, onDelete, onClo
   };
 
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-l border-border bg-bg-subtle">
-      <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-3">
-        <span className="text-caption font-medium text-text-subtle">Carte</span>
-        {fromRoadmap && (
-          <Badge tone="accent">
-            <FileText size={10} strokeWidth={1.75} />
-            roadmap
-          </Badge>
-        )}
-        <button aria-label="Fermer" onClick={onClose} className="ml-auto text-text-subtle hover:text-text">
-          <X size={14} strokeWidth={1.75} />
-        </button>
-      </header>
-
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-        {titleEditing && !fromRoadmap ? (
-          <textarea
-            autoFocus
-            value={titleDraft}
-            rows={2}
-            onChange={(event) => setTitleDraft(event.target.value)}
-            onBlur={commitTitle}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                commitTitle();
-              }
-              if (event.key === "Escape") {
-                setTitleDraft(card.title);
-                setTitleEditing(false);
-              }
-            }}
-            placeholder="Titre (Markdown accepté)"
-            className="selectable w-full resize-none rounded-md border border-border-strong bg-surface-1 px-2 py-1 font-mono text-body outline-none"
-          />
-        ) : (
-          <button
-            onClick={() => {
-              if (fromRoadmap) return;
-              setTitleDraft(card.title);
-              setTitleEditing(true);
-            }}
-            title={fromRoadmap ? "Le titre vient du roadmap.md : modifiez-le dans le fichier." : "Modifier le titre"}
-            className="selectable block w-full text-left text-title-3 font-semibold"
-          >
-            <InlineMarkdown>{card.title}</InlineMarkdown>
+    <>
+      <ResizeHandle size={panelWidth} onResize={setPanelWidth} panel="after" label="Largeur du détail de la carte" defaultSize={320} />
+      <aside style={{ width: panelWidth }} className="flex shrink-0 flex-col border-l border-border bg-bg-subtle">
+        <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-3">
+          <span className="text-caption font-medium text-text-subtle">Carte</span>
+          {fromRoadmap && (
+            <Badge tone="accent">
+              <FileText size={10} strokeWidth={1.75} />
+              roadmap
+            </Badge>
+          )}
+          <button aria-label="Fermer" onClick={onClose} className="ml-auto text-text-subtle hover:text-text">
+            <X size={14} strokeWidth={1.75} />
           </button>
-        )}
+        </header>
 
-        <Button variant={card.done ? "secondary" : "primary"} size="sm" onClick={onToggleDone}>
-          <Check size={13} strokeWidth={2} />
-          {card.done ? "Rouvrir" : "Marquer comme terminée"}
-        </Button>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+          {titleEditing && !fromRoadmap ? (
+            <textarea
+              autoFocus
+              value={titleDraft}
+              rows={2}
+              onChange={(event) => setTitleDraft(event.target.value)}
+              onBlur={commitTitle}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  commitTitle();
+                }
+                if (event.key === "Escape") {
+                  setTitleDraft(card.title);
+                  setTitleEditing(false);
+                }
+              }}
+              placeholder="Titre (Markdown accepté)"
+              className="selectable w-full resize-none rounded-md border border-border-strong bg-surface-1 px-2 py-1 font-mono text-body outline-none"
+            />
+          ) : (
+            <button
+              onClick={() => {
+                if (fromRoadmap) return;
+                setTitleDraft(card.title);
+                setTitleEditing(true);
+              }}
+              title={fromRoadmap ? "Le titre vient du roadmap.md : modifiez-le dans le fichier." : "Modifier le titre"}
+              className="selectable block w-full text-left text-title-3 font-semibold"
+            >
+              <InlineMarkdown>{card.title}</InlineMarkdown>
+            </button>
+          )}
 
-        <section className="space-y-1.5">
-          <p className="text-caption font-medium text-text-subtle">Échéance</p>
-          <input
-            value={dueDraft}
-            placeholder="AAAA-MM-JJ"
-            onChange={(event) => setDueDraft(event.target.value)}
-            onBlur={() => {
-              if (!dueDraft) setDue(null);
-              else if (validDue) setDue(dueDraft);
-              else setDueDraft(card.due ?? "");
-            }}
-            className={cn(
-              "h-8 w-full rounded-md border bg-surface-1 px-2.5 font-mono text-body-sm outline-none",
-              dueDraft && !validDue ? "border-danger/60" : "border-border focus:border-border-strong",
-            )}
-          />
-          <div className="flex flex-wrap gap-1">
-            {[
-              ["Aujourd'hui", 0],
-              ["Demain", 1],
-              ["+1 semaine", 7],
-            ].map(([label, days]) => (
-              <Button key={label} size="sm" variant="ghost" onClick={() => setDue(shift(days as number))}>
-                {label}
-              </Button>
-            ))}
+          <Button variant={card.done ? "secondary" : "primary"} size="sm" onClick={onToggleDone}>
+            <Check size={13} strokeWidth={2} />
+            {card.done ? "Rouvrir" : "Marquer comme terminée"}
+          </Button>
+
+          <section className="space-y-1.5">
+            <p className="text-caption font-medium text-text-subtle">Échéance</p>
+            <input
+              value={dueDraft}
+              placeholder="AAAA-MM-JJ"
+              onChange={(event) => setDueDraft(event.target.value)}
+              onBlur={() => {
+                if (!dueDraft) setDue(null);
+                else if (validDue) setDue(dueDraft);
+                else setDueDraft(card.due ?? "");
+              }}
+              className={cn(
+                "h-8 w-full rounded-md border bg-surface-1 px-2.5 font-mono text-body-sm outline-none",
+                dueDraft && !validDue ? "border-danger/60" : "border-border focus:border-border-strong",
+              )}
+            />
+            <div className="flex flex-wrap gap-1">
+              {[
+                ["Aujourd'hui", 0],
+                ["Demain", 1],
+                ["+1 semaine", 7],
+              ].map(([label, days]) => (
+                <Button key={label} size="sm" variant="ghost" onClick={() => setDue(shift(days as number))}>
+                  {label}
+                </Button>
+              ))}
+              {card.due && (
+                <Button size="sm" variant="ghost" onClick={() => setDue(null)}>
+                  Effacer
+                </Button>
+              )}
+            </div>
             {card.due && (
-              <Button size="sm" variant="ghost" onClick={() => setDue(null)}>
-                Effacer
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() =>
+                  void openUrl(
+                    googleCalendarUrl({
+                      title: plainText(card.title),
+                      date: card.due!,
+                      details: `Tableau « ${board.name} »${card.notes ? `\n\n${card.notes}` : ""}`,
+                    }),
+                  )
+                }
+              >
+                <CalendarPlus size={13} strokeWidth={1.75} />
+                Ajouter à Google Agenda
               </Button>
             )}
-          </div>
-          {card.due && (
+          </section>
+
+          <section className="space-y-1.5">
+            <p className="text-caption font-medium text-text-subtle">Étiquettes</p>
+            <input
+              defaultValue={card.labels.join(", ")}
+              placeholder="urgent, design…"
+              onBlur={(event) =>
+                onChange({
+                  ...card,
+                  labels: event.target.value.split(",").map((l) => l.trim()).filter(Boolean),
+                })
+              }
+              className="h-8 w-full rounded-md border border-border bg-surface-1 px-2.5 text-body-sm outline-none placeholder:text-text-subtle focus:border-border-strong"
+            />
+          </section>
+
+          {(card.subtasks?.length ?? 0) > 0 && (
+            <section className="space-y-1.5">
+              <p className="text-caption font-medium text-text-subtle">Sous-tâches (roadmap)</p>
+              <ul className="space-y-1">
+                {card.subtasks!.map((subtask) => (
+                  <li key={subtask.title} className="flex items-center gap-2 text-body-sm">
+                    <span
+                      className={cn(
+                        "flex size-3.5 items-center justify-center rounded-full border",
+                        subtask.done ? "border-accent bg-accent text-accent-fg" : "border-border-strong",
+                      )}
+                    >
+                      {subtask.done && <Check size={8} strokeWidth={3} />}
+                    </span>
+                    <span className={cn(subtask.done && "text-text-subtle line-through")}>{subtask.title}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <MarkdownNotes value={card.notes} onChange={(notes) => onChange({ ...card, notes })} />
+        </div>
+
+        {!fromRoadmap && (
+          <footer className="border-t border-border p-3">
             <Button
               size="sm"
-              variant="secondary"
-              onClick={() =>
-                void openUrl(
-                  googleCalendarUrl({
-                    title: plainText(card.title),
-                    date: card.due!,
-                    details: `Tableau « ${board.name} »${card.notes ? `\n\n${card.notes}` : ""}`,
-                  }),
-                )
-              }
+              variant={confirmDelete ? "danger" : "ghost"}
+              onClick={() => (confirmDelete ? onDelete() : setConfirmDelete(true))}
             >
-              <CalendarPlus size={13} strokeWidth={1.75} />
-              Ajouter à Google Agenda
+              <Trash2 size={13} strokeWidth={1.75} />
+              {confirmDelete ? "Confirmer la suppression" : "Supprimer la carte"}
             </Button>
-          )}
-        </section>
-
-        <section className="space-y-1.5">
-          <p className="text-caption font-medium text-text-subtle">Étiquettes</p>
-          <input
-            defaultValue={card.labels.join(", ")}
-            placeholder="urgent, design…"
-            onBlur={(event) =>
-              onChange({
-                ...card,
-                labels: event.target.value.split(",").map((l) => l.trim()).filter(Boolean),
-              })
-            }
-            className="h-8 w-full rounded-md border border-border bg-surface-1 px-2.5 text-body-sm outline-none placeholder:text-text-subtle focus:border-border-strong"
-          />
-        </section>
-
-        {(card.subtasks?.length ?? 0) > 0 && (
-          <section className="space-y-1.5">
-            <p className="text-caption font-medium text-text-subtle">Sous-tâches (roadmap)</p>
-            <ul className="space-y-1">
-              {card.subtasks!.map((subtask) => (
-                <li key={subtask.title} className="flex items-center gap-2 text-body-sm">
-                  <span
-                    className={cn(
-                      "flex size-3.5 items-center justify-center rounded-full border",
-                      subtask.done ? "border-accent bg-accent text-accent-fg" : "border-border-strong",
-                    )}
-                  >
-                    {subtask.done && <Check size={8} strokeWidth={3} />}
-                  </span>
-                  <span className={cn(subtask.done && "text-text-subtle line-through")}>{subtask.title}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+          </footer>
         )}
-
-        <MarkdownNotes value={card.notes} onChange={(notes) => onChange({ ...card, notes })} />
-      </div>
-
-      {!fromRoadmap && (
-        <footer className="border-t border-border p-3">
-          <Button
-            size="sm"
-            variant={confirmDelete ? "danger" : "ghost"}
-            onClick={() => (confirmDelete ? onDelete() : setConfirmDelete(true))}
-          >
-            <Trash2 size={13} strokeWidth={1.75} />
-            {confirmDelete ? "Confirmer la suppression" : "Supprimer la carte"}
-          </Button>
-        </footer>
-      )}
-    </aside>
+      </aside>
+    </>
   );
 }
