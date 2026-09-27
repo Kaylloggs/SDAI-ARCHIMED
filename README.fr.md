@@ -40,6 +40,8 @@ Les assistants IA comme **Claude Code**, **Google Antigravity** ou **OpenAI Code
 </tr>
 </table>
 
+Et il se met à jour tout seul : quand une nouvelle version sort, un bouton **Mise à jour** apparaît en haut à droite, et un clic l'installe sans rien perdre (conversations, réglages, clés, et même vos propres modules).
+
 ```mermaid
 flowchart LR
     you(["🙂 Vous"]) --> app["ARCHIMED<br/>cartes · validations · modules"]

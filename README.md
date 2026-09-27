@@ -40,6 +40,8 @@ AI assistants such as **Claude Code**, **Google Antigravity** or **OpenAI Codex*
 </tr>
 </table>
 
+And it keeps itself up to date: when a new version comes out, an **Update** button appears at the top right, and one click installs it without losing anything (conversations, settings, keys, and even your own modules).
+
 ```mermaid
 flowchart LR
     you(["🙂 You"]) --> app["ARCHIMED<br/>cards · approvals · modules"]
