@@ -21,7 +21,7 @@ describe("identifiants dérivés du nom", () => {
     expect(suggestModId("Épées & Boucliers")).toBe("epeesboucliers");
     expect(suggestModId("3D Blocks")).toBe("mod3dblocks");
     expect(suggestMainClass("dragon realms")).toBe("DragonRealms");
-    expect(suggestPackage("Alix Seara", "dragonrealms")).toBe("com.alixseara.dragonrealms");
+    expect(suggestPackage("Camille Martin", "dragonrealms")).toBe("com.camillemartin.dragonrealms");
     expect(suggestPackage("", "dragonrealms")).toBe("com.example.dragonrealms");
   });
 
@@ -47,13 +47,13 @@ describe("identifiants dérivés du nom", () => {
 
 describe("assistant de création", () => {
   it("suit le nom tant que les champs ne sont pas modifiés à la main", () => {
-    let draft = withDerived({ ...emptyDraft, name: "Dragon Realms", author: "Alix" });
+    let draft = withDerived({ ...emptyDraft, name: "Dragon Realms", author: "Camille" });
     expect(draft.modId).toBe("dragonrealms");
-    expect(draft.pkg).toBe("com.alix.dragonrealms");
+    expect(draft.pkg).toBe("com.camille.dragonrealms");
     draft = withDerived({ ...draft, modId: "dragons", edited: { ...draft.edited, modId: true } });
     draft = withDerived({ ...draft, name: "Autre nom" });
     expect(draft.modId).toBe("dragons");
-    expect(draft.pkg).toBe("com.alix.dragons");
+    expect(draft.pkg).toBe("com.camille.dragons");
     expect(draft.mainClass).toBe("AutreNom");
   });
 

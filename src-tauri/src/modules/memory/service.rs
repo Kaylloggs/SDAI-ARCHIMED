@@ -429,11 +429,11 @@ mod tests {
 
     #[test]
     fn parses_text_and_markdown_lists() {
-        let raw = "# Moi\n\n- Je m'appelle Alix\n* Je code en TypeScript\n  et en Rust\n1. Réponses en français\n---\nJ'aime les interfaces sobres\n\n## Vide\n- \n";
+        let raw = "# Moi\n\n- Je m'appelle Camille\n* Je code en TypeScript\n  et en Rust\n1. Réponses en français\n---\nJ'aime les interfaces sobres\n\n## Vide\n- \n";
         assert_eq!(
             parse_text_import(raw),
             vec![
-                "Je m'appelle Alix",
+                "Je m'appelle Camille",
                 "Je code en TypeScript et en Rust",
                 "Réponses en français",
                 "J'aime les interfaces sobres",

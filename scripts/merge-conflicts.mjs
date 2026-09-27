@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Règle les conflits « mécaniques » d'une fusion de la version officielle dans une copie
  * personnelle d'ARCHIMED (scripts/update-from-source.ps1, ADR 0013), sans jamais toucher au
@@ -10,9 +9,13 @@
  * Tout autre conflit reste à régler : le script le signale (code de sortie 1).
  *
  *   node scripts/merge-conflicts.mjs          (pendant une fusion en conflit)
+ *
+ * Pas de ligne `#!` en tête : extraite sous Windows avec des fins de ligne CRLF, elle empêche
+ * Vitest d'importer le fichier.
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const VERSION_FILES = new Set(["package.json", "src-tauri/tauri.conf.json", "src-tauri/Cargo.toml"]);
@@ -104,4 +107,6 @@ function main() {
   }
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main();
+// Lancé directement (et non importé par les tests) ; chemins Windows comparés sans la casse.
+const invoked = process.argv[1] && resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase();
+if (invoked) main();

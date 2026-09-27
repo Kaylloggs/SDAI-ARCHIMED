@@ -42,7 +42,7 @@ export function suggestMainClass(name: string): string {
   return safe.slice(0, 64);
 }
 
-/** Auteur « Alix Seara », mod `dragonrealms` → `com.alixseara.dragonrealms`. */
+/** Auteur « Camille Martin », mod `dragonrealms` → `com.camillemartin.dragonrealms`. */
 export function suggestPackage(author: string, modId: string): string {
   const owner = words(author).join("").toLowerCase().replace(/^[^a-z]+/, "");
   const segment = owner && !JAVA_KEYWORDS.has(owner) ? owner : "example";

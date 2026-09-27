@@ -165,6 +165,7 @@ Pick the look that suits you in **Settings → Theme**. The whole app follows, d
 - **Bring your own API keys.** Some modules can use your own key from **OpenRouter**, **Google** (AI Studio) or **Higgsfield**, for example to generate images and textures. You only pay for what you use, directly to the provider.
 - **Secrets stay secret.** API keys and passwords are kept in the Windows Credential Manager or encrypted by Windows, never in a plain file.
 - **Learn as you go.** The **Tutorial**, just above Settings in the menu, walks through the app and every module step by step on a miniature of the screen. The **?** next to a module's name opens its guide.
+- **Always up to date, in one click.** When a new version is out, an **Update** button appears at the top right, next to the window buttons. It shows what's new, downloads the version, checks the file and reinstalls ARCHIMED: your conversations, settings, skills and keys are kept. If you added your own modules, they are kept too.
 - **Light on your wallet and your PC.** A built-in token saver cuts AI usage, and the app is a small native program, not a full browser.
 
 <br />
@@ -266,6 +267,14 @@ Yes, free. The source code is public: you may use, copy and modify ARCHIMED for 
 <summary><b>Does ARCHIMED send my data anywhere?</b></summary>
 <br />
 No. ARCHIMED has no server. Your conversations, settings and projects stay in <code>%APPDATA%\com.sdai.archimed\</code>. The only traffic is between the assistant you chose and its own service, exactly as when you use it in a terminal, plus the API providers whose key you added yourself.
+</details>
+
+<details>
+<summary><b>How do I update ARCHIMED?</b></summary>
+<br />
+Nothing to do by hand: from version 0.8.0, ARCHIMED checks at startup (then every six hours) whether a new version is published. If so, an <b>Update</b> button appears at the top right. One click shows what's new; <b>Update</b> downloads the version, checks that the file is the one published on GitHub, then ARCHIMED closes, installs and reopens. Your conversations, settings, skills and keys stay in place. The portable version is replaced where it is. <b>Settings → Updates</b> shows the installed version and lets you check by hand.<br /><br />
+Still on an older version (0.7.0 or before)? Download the latest one once from the <a href="https://github.com/Kaylloggs/SDAI-ARCHIMED/releases/latest">releases page</a> and install it over the old one: your data is kept, and the button takes over from then on.<br /><br />
+Built your own version with your own modules? The button then offers <b>Merge and rebuild</b>: the new version is merged into your code, your modules are kept, then everything is rebuilt and reinstalled (see <a href="#-add-your-own-module">Add your own module</a>).
 </details>
 
 <details>
