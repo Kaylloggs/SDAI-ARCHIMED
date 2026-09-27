@@ -151,6 +151,10 @@ if (Test-Path (Join-Path $BridgeDir 'Cargo.toml')) {
 # ---------------------------------------------------------------- 5 bis. Version
 $BumpKind = if ($PSBoundParameters.ContainsKey('Bump')) { $Bump } elseif ($DebugBuild) { 'none' } else { 'patch' }
 if ($Publish -and $DebugBuild) { Fail '-Publish exige un build release (sans -DebugBuild).' }
+# Origine du build (build.rs -> ARCHIMED_BUILD) : seule une release publiee est "officielle" et
+# se met a jour en remplacant l'executable ; un build local (avec vos modules) se met a jour
+# en fusionnant la version officielle dans votre code puis en recompilant (ADR 0013).
+$env:ARCHIMED_OFFICIAL_BUILD = if ($Publish) { '1' } else { '0' }
 if ($BumpKind -ne 'none') {
     Write-Step "Nouvelle version ($BumpKind)"
     $bumpOutput = node (Join-Path $Root 'scripts\bump-version.mjs') $BumpKind

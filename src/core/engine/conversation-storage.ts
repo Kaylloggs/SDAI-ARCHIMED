@@ -11,6 +11,22 @@ import { invokeCore } from "@/core/ipc";
  */
 const SAVE_DELAY = 500;
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
+/** Dernier état en attente d'écriture, par nom de stockage. */
+const pending = new Map<string, string>();
+
+function save(name: string, value: string): Promise<void> {
+  pending.delete(name);
+  return invokeCore<void>("engine_save_conversations", { state: value })
+    .then(() => local()?.removeItem(name)) // migration terminée : libère le localStorage
+    .catch(() => local()?.setItem(name, value));
+}
+
+/** Écrit tout de suite ce qui attend encore (avant une fermeture ou une mise à jour). */
+export async function flushConversations(): Promise<void> {
+  const waiting = [...pending.entries()];
+  for (const [name] of waiting) clearTimeout(timers.get(name));
+  await Promise.all(waiting.map(([name, value]) => save(name, value)));
+}
 
 function local(): Storage | null {
   try {
@@ -33,18 +49,16 @@ export const conversationStorage: StateStorage = {
 
   setItem: (name, value) => {
     clearTimeout(timers.get(name));
+    pending.set(name, value);
     timers.set(
       name,
-      setTimeout(() => {
-        invokeCore<void>("engine_save_conversations", { state: value })
-          .then(() => local()?.removeItem(name)) // migration terminée : libère le localStorage
-          .catch(() => local()?.setItem(name, value));
-      }, SAVE_DELAY),
+      setTimeout(() => void save(name, value), SAVE_DELAY),
     );
   },
 
   removeItem: (name) => {
     clearTimeout(timers.get(name));
+    pending.delete(name);
     local()?.removeItem(name);
     void invokeCore<void>("engine_save_conversations", {
       state: JSON.stringify({ state: { sessions: [], activeId: null }, version: 1 }),

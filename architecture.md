@@ -595,6 +595,8 @@ arrête son processus puis efface son entrée.
 - **Via ARCHIMED directement** (`system/*`, exposé au frontend et aux modules) : `fs` (lecture, écriture, déplacement, corbeille, watcher), `shell` (PowerShell supervisé, sortie streamée), `net` (téléchargement avec progression, vérification de taille/type).
 - Tauri : les capabilities de `system.json` donnent un scope large (`$HOME/**`, lecteurs locaux) ; la **restriction réelle est la policy**, pas le scope.
 
+- **Mises à jour de l'application (ADR 0013)** : `core/updater.rs` lit la dernière release du dépôt (`Cargo.toml` → `repository`) sur l'API GitHub au démarrage puis toutes les 6 h, et la compare à la version de l'exécutable. Sur demande de la personne seulement : relecture de la release côté Rust, téléchargement du fichier de cette installation (installeur NSIS `*_x64-setup.exe`, ou `SDAI-Archimed.exe` pour la version portable) dans `<données>/updates/` ou à côté de l'exécutable, vérification de l'empreinte SHA-256 publiée par GitHub, puis installeur lancé en mode passif (`/P /UPDATE /R`) ou échange des exécutables (l'ancien devient `.old`), et fermeture propre (conversations écrites avant). Rien en build de développement. **Version compilée depuis le code source** (`build.rs` : `ARCHIMED_BUILD=source`, hors `build.ps1 -Publish`) : jamais remplacée par le fichier officiel sans confirmation, car elle peut contenir les modules de la personne ; « Fusionner et recompiler » lance `scripts/update-from-source.ps1` (fusion du tag dans son code, conflits mécaniques réglés par `scripts/merge-conflicts.mjs`, recompilation, installation).
+
 ---
 
 ## 10. Gestionnaire de Skills
@@ -613,6 +615,7 @@ arrête son processus puis efface son entrée.
 | Donnée | Emplacement |
 |---|---|
 | Réglages | `%APPDATA%\com.sdai.archimed\settings.json` (tauri-plugin-store) |
+| Mises à jour téléchargées (effacées au lancement suivant) | `%APPDATA%\com.sdai.archimed\updates\` ; version portable : `.<exe>.update` puis `<exe>.old` à côté de l'exécutable |
 | Secrets | Gestionnaire d'identifiants Windows (`keyring`) |
 | Conversations (titre, origine, agent, modèle, dossier, timeline, id de reprise) | `%APPDATA%\com.sdai.archimed\sessions\conversations.json` (atomique, regroupé toutes les 500 ms ; migré depuis l'ancien `localStorage`) |
 | Thème choisi | `localStorage`, clé `archimed.theme` |

@@ -16,6 +16,10 @@ type Props = {
   width?: number;
   disabled?: boolean;
   className?: string;
+  /** Flèche du bouton (masquée pour un bouton-pastille). */
+  chevron?: boolean;
+  /** Bord du bouton auquel s'aligne le panneau. */
+  align?: "start" | "end";
   children: ReactNode;
 };
 
@@ -25,7 +29,18 @@ type Props = {
  * s'il manque de place en dessous ; Échap ou un clic ailleurs le ferme et le focus revient au
  * bouton.
  */
-export function Popover({ label, value, icon, title, width = 280, disabled, className, children }: Props) {
+export function Popover({
+  label,
+  value,
+  icon,
+  title,
+  width = 280,
+  disabled,
+  className,
+  chevron = true,
+  align = "start",
+  children,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -79,7 +94,9 @@ export function Popover({ label, value, icon, title, width = 280, disabled, clas
   const spaceBelow = rect ? window.innerHeight - rect.bottom : 0;
   const spaceAbove = rect ? rect.top : 0;
   const openAbove = rect ? spaceBelow < 240 && spaceAbove > spaceBelow : false;
-  const left = rect ? Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)) : 0;
+  const anchor = rect ? (align === "end" ? rect.right - width : rect.left) : 0;
+  const left = rect ? Math.max(8, Math.min(anchor, window.innerWidth - width - 8)) : 0;
+  const origin = align === "end" ? "right" : "left";
 
   return (
     <>
@@ -102,12 +119,14 @@ export function Popover({ label, value, icon, title, width = 280, disabled, clas
       >
         {icon}
         <span className="truncate">{value}</span>
-        <ChevronDown
-          size={12}
-          strokeWidth={1.75}
-          aria-hidden
-          className={cn("shrink-0 text-text-subtle transition-transform", open && "rotate-180")}
-        />
+        {chevron && (
+          <ChevronDown
+            size={12}
+            strokeWidth={1.75}
+            aria-hidden
+            className={cn("shrink-0 text-text-subtle transition-transform", open && "rotate-180")}
+          />
+        )}
       </button>
 
       {createPortal(
@@ -127,8 +146,8 @@ export function Popover({ label, value, icon, title, width = 280, disabled, clas
                 left,
                 width,
                 ...(openAbove
-                  ? { bottom: Math.max(8, window.innerHeight - rect.top + 6), transformOrigin: "bottom left" }
-                  : { top: rect.bottom + 6, transformOrigin: "top left" }),
+                  ? { bottom: Math.max(8, window.innerHeight - rect.top + 6), transformOrigin: `bottom ${origin}` }
+                  : { top: rect.bottom + 6, transformOrigin: `top ${origin}` }),
               }}
               className="glass z-50 rounded-md p-3"
             >

@@ -32,6 +32,9 @@ pub fn run() {
             core::usage::init(&paths.usage());
             engine::adapters::declarative::init_user_dir(&paths.adapters());
             app.manage(ConfigStore::load(&paths.data));
+            let updater = core::updater::Updater::new(&paths);
+            updater.cleanup();
+            app.manage(updater);
             Ok(())
         });
 
@@ -61,6 +64,10 @@ pub fn run() {
             core::clipboard::clipboard_save_file,
             core::modules::modules_footprint,
             core::modules::modules_remove,
+            core::updater::updater_check,
+            core::updater::updater_install,
+            core::updater::updater_cancel,
+            core::updater::updater_rebuild,
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de SDAI ARCHIMED");

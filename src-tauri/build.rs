@@ -196,5 +196,36 @@ fn main() {
     }
 
     println!("cargo:rerun-if-changed=src/modules");
+    write_provenance();
     tauri_build::try_build(attributes).expect("échec de tauri-build");
+}
+
+/// Origine du build, lue par la mise à jour intégrée (core/updater.rs, ADR 0013) :
+/// - `ARCHIMED_BUILD` : `official` pour les releases publiées (`build.ps1 -Publish`, action
+///   « Release »), sinon `source` (version compilée par la personne, peut-être avec ses modules) ;
+/// - `ARCHIMED_SOURCE_DIR` : dossier du code source compilé (mise à jour par recompilation) ;
+/// - `ARCHIMED_MODULES` : modules présents (`src/modules/<id>/`), séparés par des virgules.
+fn write_provenance() {
+    println!("cargo:rerun-if-env-changed=ARCHIMED_OFFICIAL_BUILD");
+    println!("cargo:rerun-if-changed=../src/modules");
+    let official = std::env::var("ARCHIMED_OFFICIAL_BUILD").is_ok_and(|v| v == "1");
+    println!("cargo:rustc-env=ARCHIMED_BUILD={}", if official { "official" } else { "source" });
+
+    let manifest = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR absent");
+    let root = Path::new(&manifest).parent().map(Path::to_path_buf).unwrap_or_default();
+    let root = fs::canonicalize(&root).unwrap_or(root).display().to_string();
+    let root = root.strip_prefix(r"\\?\").unwrap_or(&root).to_string();
+    println!("cargo:rustc-env=ARCHIMED_SOURCE_DIR={root}");
+
+    let mut modules: Vec<String> = fs::read_dir(Path::new(&root).join("src").join("modules"))
+        .map(|entries| {
+            entries
+                .flatten()
+                .filter(|e| e.path().join("module.config.ts").is_file())
+                .map(|e| e.file_name().to_string_lossy().to_string())
+                .collect()
+        })
+        .unwrap_or_default();
+    modules.sort();
+    println!("cargo:rustc-env=ARCHIMED_MODULES={}", modules.join(","));
 }

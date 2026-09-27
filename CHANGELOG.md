@@ -4,6 +4,23 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Mise à jour depuis l'application
+- Quand une nouvelle version est publiée sur GitHub, une pastille **« Mise à jour »** apparaît en haut
+  à droite, à côté des boutons de la fenêtre. Un clic montre les nouveautés ; « Mettre à jour »
+  télécharge la version, vérifie son empreinte SHA-256 (publiée par GitHub), puis l'installe et
+  rouvre ARCHIMED. Conversations, réglages, skills et clés sont gardés. Fonctionne avec
+  l'installeur et avec la version portable (`SDAI-Archimed.exe`, remplacé sur place).
+- Vérification au démarrage puis toutes les six heures ; **Réglages › Mises à jour** montre la
+  version en cours et permet de vérifier à la main. Rien n'est installé sans accord, ni vérifié en
+  build de développement (`pnpm tauri dev`). La mise à jour intégrée fonctionne à partir de cette
+  version : depuis la 0.7.0, il faut installer celle-ci à la main une dernière fois (ADR 0013).
+- **Vos modules sont gardés.** Une version compilée depuis le code source (avec vos propres
+  modules) n'est jamais remplacée par le fichier officiel sans votre accord : « Fusionner et
+  recompiler » fusionne la nouvelle version dans votre code (vos modules et modifications
+  restent), règle seul les conflits de numéros de version et de fichiers de verrouillage,
+  annule tout en cas de vrai conflit, puis recompile et réinstalle, dans une fenêtre PowerShell
+  qui montre l'avancement (`scripts/update-from-source.ps1`).
+
 ### Ajouté — Skills : atelier de création (Skill Maker)
 - **« Créer un skill »** : décrivez ce que le skill doit faire (quand s'en servir, résultat
   attendu, exemples joints), ou **partez d'une conversation** déjà menée dans Chat ou Code : une

@@ -9,6 +9,7 @@ import { ThemeSection } from "./components/ThemeSection";
 import { EngineSection } from "./components/EngineSection";
 import { TokenSaverSection } from "./components/TokenSaverSection";
 import { ModulesSection } from "./components/ModulesSection";
+import { UpdateSection } from "./components/UpdateSection";
 
 const FALLBACK_VERSION = packageInfo.version;
 
@@ -74,6 +75,13 @@ export default function SettingsModule() {
         description="Désactiver un module le met de côté en gardant tout. Le supprimer le retire de l'application et met ses données à la Corbeille."
       >
         <ModulesSection />
+      </Section>
+
+      <Section
+        title="Mises à jour"
+        description="ARCHIMED vérifie au démarrage, puis toutes les six heures, si une nouvelle version est publiée sur GitHub. Rien n'est installé sans votre accord."
+      >
+        <UpdateSection version={version} />
       </Section>
 
       <Section

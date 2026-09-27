@@ -105,6 +105,8 @@ ARCHIMED is made of blocks: each feature above is a module in its own folder, an
 3. **Fill it in**: its name and icon in `module.config.ts`, its screen in `index.tsx`, its step-by-step guide in `tutorial.ts`.
 4. **Try it and build it**: `pnpm tauri dev` to test, then `.\build.ps1`. Your own version (installer and portable `.exe`) lands in `release/`.
 
+**Updates keep your module.** When a new version comes out, the **Update** button of your build merges it into your source code (your module folders are left untouched), rebuilds and reinstalls, in a PowerShell window that shows each step. If your own changes touch the same lines as the new version, nothing is changed and it tells you which files.
+
 Your build is for your own use: the [license](LICENSE) does not allow sharing or selling it. To offer a module to everyone, propose it to the project with a pull request.
 
 You don't have to write it alone: open the project folder in the **Code** module and ask the AI to *"create a weather module following guidelines.md"*. The **Tutorial** in the app shows the same steps, with commands to copy.
