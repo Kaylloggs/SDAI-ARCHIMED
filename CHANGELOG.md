@@ -4,6 +4,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.10.0] - 2026-09-27
+
 ### Ajouté — Module Voice : assistant vocal
 - **Parler à ARCHIMED** : pastille à côté de la recherche (micro, vague animée par votre voix et
   celle de l'assistant, état en clair), raccourcis `Ctrl+Maj+Espace` (ouvrir/couper le micro) et
