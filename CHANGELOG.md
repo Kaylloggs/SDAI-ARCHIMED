@@ -4,6 +4,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Modifié
+- **Barre sous la zone de saisie sur une seule ligne** : agent, modèle, effort, petites icônes
+  (dossier, fichiers, skills, dictée, terminal), mode plan, Mode Auto et envoi tiennent sur une
+  ligne dès que la place le permet. Sinon, seules les petites icônes passent en dessous ; l'envoi
+  reste toujours à droite. Envoyer, arrêter et mettre en file deviennent des boutons carrés, le
+  Mode Auto affiche un libellé court (« Manuel », « Auto », « Auto complet »), le libellé complet
+  reste dans l'info-bulle.
+
 ## [0.9.0] - 2026-09-27
 
 ### Ajouté — Chat au niveau de Claude Code

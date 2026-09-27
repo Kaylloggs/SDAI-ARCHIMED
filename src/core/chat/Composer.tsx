@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   ArrowUp,
@@ -19,7 +19,7 @@ import {
 import { cn } from "@/core/lib/cn";
 import { Slot } from "@/core/modules";
 import type { AdapterInfo, AutoMode } from "@/core/engine/types";
-import { Button, Kbd, Select, Tooltip } from "@/design-system/primitives";
+import { Button, Select, Tooltip } from "@/design-system/primitives";
 import { useUiStore } from "@/core/stores/ui.store";
 import { FILE_DRAG_TYPE, useOsFileDrop } from "./useOsFileDrop";
 import { onPasteFiles } from "./paste";
@@ -50,6 +50,16 @@ const AUTO_LABELS: Record<AutoMode, string> = {
   smart: "Auto intelligent",
   full: "Auto complet",
 };
+
+/** Libellés courts du bouton (le libellé complet est dans l'info-bulle). */
+const AUTO_SHORT: Record<AutoMode, string> = {
+  off: "Manuel",
+  smart: "Auto",
+  full: "Auto complet",
+};
+
+/** Espace entre les éléments de la barre (`gap-1.5`). */
+const TOOLBAR_GAP = 6;
 
 export function baseName(path: string): string {
   return path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
@@ -156,6 +166,38 @@ export function Composer({
   /** Menu fermé à la main (Échap) pour ce texte. */
   const [menuClosedFor, setMenuClosedFor] = useState<string | null>(null);
   const [files, setFiles] = useState<string[] | null>(null);
+  // Barre d'outils : les petites icônes passent en dessous seulement quand tout ne tient pas.
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const selectsRef = useRef<HTMLDivElement>(null);
+  const iconsRef = useRef<HTMLDivElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  /**
+   * `inline` : tout sur une ligne. `icons` : les petites icônes passent en dessous. `split` :
+   * même les sélecteurs et l'envoi ne tiennent pas ensemble, icônes et envoi en dessous.
+   */
+  const [layout, setLayout] = useState<"inline" | "icons" | "split">("inline");
+  useLayoutEffect(() => {
+    const row = toolbarRef.current;
+    const parts = [selectsRef.current, iconsRef.current, actionsRef.current];
+    if (!row || parts.some((part) => !part)) return;
+    // Largeur propre de chaque groupe : elle ne dépend pas de la disposition choisie.
+    const measure = () => {
+      const [selects, icons, actions] = parts.map((part) => part?.offsetWidth ?? 0) as [number, number, number];
+      const width = row.clientWidth;
+      setLayout(
+        selects + icons + actions + TOOLBAR_GAP * 2 <= width
+          ? "inline"
+          : selects + actions + TOOLBAR_GAP <= width
+            ? "icons"
+            : "split",
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(row);
+    for (const part of parts) if (part) observer.observe(part);
+    return () => observer.disconnect();
+  }, []);
 
   // Message préparé ailleurs (par exemple une candidature à faire relire) : il arrive dans
   // la zone de saisie, prêt à être modifié, jamais envoyé sans l'accord de la personne.
@@ -523,146 +565,153 @@ export function Composer({
         />
         </div>
 
-        {/* Outils à gauche, modes et envoi à droite ; trop étroit, la ligne passe sur deux. */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2">
-          <div className="contents">
-          <Select
-            label="Agent"
-            value={adapterId}
-            title={
-              locked
-                ? "Changer d'agent : le nouvel agent ne connaîtra pas les messages précédents"
-                : "Agent"
-            }
-            icon={<Bot size={13} strokeWidth={1.75} className="shrink-0 text-text-subtle" />}
-            onChange={onAdapterChange}
-            options={adapters.map((a) => ({
-              value: a.id,
-              label: a.name,
-              disabled: !a.installed,
-              hint: a.installed ? undefined : "non installé",
-            }))}
-          />
+        {/*
+          Une seule ligne quand tout tient : choix de l'agent, petites icônes, modes et envoi.
+          Sinon les petites icônes passent en dessous ; l'envoi reste toujours à droite.
+        */}
+        <div ref={toolbarRef} className="flex flex-wrap items-center gap-1.5 pt-2">
+          <div className={cn("shrink-0", layout === "split" && "w-full")}>
+            <div ref={selectsRef} className="flex w-max items-center gap-1.5">
+              <Select
+                label="Agent"
+                value={adapterId}
+                title={
+                  locked
+                    ? "Changer d'agent : le nouvel agent ne connaîtra pas les messages précédents"
+                    : "Agent"
+                }
+                icon={<Bot size={13} strokeWidth={1.75} className="shrink-0 text-text-subtle" />}
+                onChange={onAdapterChange}
+                options={adapters.map((a) => ({
+                  value: a.id,
+                  label: a.name,
+                  disabled: !a.installed,
+                  hint: a.installed ? undefined : "non installé",
+                }))}
+              />
 
-          {adapter && adapter.models.length > 0 && (
-            <Select
-              label="Modèle"
-              value={choice?.model.id ?? ""}
-              onChange={(id) => {
-                const next = adapter.models.find((m) => m.id === id);
-                if (next && next.id !== choice?.model.id) onModelChange(switchModel(next, choice?.effort ?? null));
-              }}
-              className="min-w-24 max-w-48"
-              options={adapter.models.map((m) => ({
-                value: m.id,
-                label: m.label,
-                // Un seul niveau (« Thinking »…) : pas de curseur, le niveau reste lisible ici.
-                hint: m.efforts.length === 1 ? m.efforts[0]?.label : undefined,
-              }))}
-            />
-          )}
-
-          {choice && choice.model.efforts.length > 1 && (
-            <EffortSlider
-              efforts={choice.model.efforts}
-              value={choice.effort}
-              onChange={(effort) => onModelChange(effort.id)}
-            />
-          )}
-
-          {onCwdChange && (
-            <button
-              onClick={() => void pickFolder()}
-              title={cwd ? `Dossier de travail : ${cwd}` : "Choisir le dossier de travail"}
-              aria-label="Dossier de travail"
-              className="flex h-7 min-w-0 max-w-52 items-center gap-1.5 rounded-sm border border-border bg-surface-1 px-2 text-footnote text-text-muted hover:text-text"
-            >
-              <FolderOpen size={13} strokeWidth={1.75} className="shrink-0" />
-              <span className="hidden truncate @3xl:inline">{cwd ? baseName(cwd) : "dossier par défaut"}</span>
-            </button>
-          )}
-
-          <button
-            onClick={() => void pickAttachments()}
-            title="Ajouter des fichiers (PDF, images, documents…)"
-            aria-label="Ajouter des fichiers"
-            className="flex size-7 items-center justify-center rounded-sm text-text-subtle hover:bg-surface-2 hover:text-text"
-          >
-            <Paperclip size={14} strokeWidth={1.75} />
-          </button>
-
-          <Slot name="chat.composer.actions" props={{ cwd, adapter: adapterId, insertText }} />
-
-          <Tooltip
-            side="bottom"
-            label={
-              dictation.error ? (
-                <span className="text-danger">{dictation.error}</span>
-              ) : dictation.recording ? (
-                "Arrêter la dictée"
-              ) : (
-                `Dicter le message — reconnaissance vocale de Windows, aucun token${
-                  dictation.device ? ` · micro : ${dictation.device}` : ""
-                }`
-              )
-            }
-          >
-            <button
-              onClick={dictation.toggle}
-              aria-label={dictation.recording ? "Arrêter la dictée" : "Dicter le message"}
-              aria-pressed={dictation.recording}
-              className={cn(
-                "flex size-7 items-center justify-center rounded-sm transition-colors",
-                dictation.recording
-                  ? "bg-danger-soft text-danger"
-                  : dictation.error
-                    ? "text-danger hover:bg-surface-2"
-                    : "text-text-subtle hover:bg-surface-2 hover:text-text",
+              {adapter && adapter.models.length > 0 && (
+                <Select
+                  label="Modèle"
+                  value={choice?.model.id ?? ""}
+                  onChange={(id) => {
+                    const next = adapter.models.find((m) => m.id === id);
+                    if (next && next.id !== choice?.model.id) onModelChange(switchModel(next, choice?.effort ?? null));
+                  }}
+                  className="min-w-24 max-w-48"
+                  options={adapter.models.map((m) => ({
+                    value: m.id,
+                    label: m.label,
+                    // Un seul niveau (« Thinking »…) : pas de curseur, le niveau reste lisible ici.
+                    hint: m.efforts.length === 1 ? m.efforts[0]?.label : undefined,
+                  }))}
+                />
               )}
-            >
-              {dictation.recording ? (
-                <span className="relative flex size-3.5 items-center justify-center">
-                  <span
-                    className="absolute inline-flex size-full rounded-full bg-danger transition-transform duration-100"
-                    style={{
-                      // Échelle pilotée par le niveau d'entrée : immobile = micro muet.
-                      transform: `scale(${1 + Math.min(dictation.level * 6, 1.1)})`,
-                      opacity: 0.25 + Math.min(dictation.level * 3, 0.45),
-                    }}
-                  />
-                  <Mic size={14} strokeWidth={2} className="relative" />
-                </span>
-              ) : (
-                <Mic size={14} strokeWidth={1.75} />
-              )}
-            </button>
-          </Tooltip>
 
-          {!compact && (
-            <button
-              onClick={toggleRawTerminal}
-              title="Terminal brut"
-              aria-label="Terminal brut"
-              className="hidden size-7 items-center justify-center rounded-sm text-text-subtle hover:bg-surface-2 hover:text-text @xl:flex"
-            >
-              <TerminalSquare size={14} strokeWidth={1.75} />
-            </button>
-          )}
+              {choice && choice.model.efforts.length > 1 && (
+                <EffortSlider
+                  efforts={choice.model.efforts}
+                  value={choice.effort}
+                  onChange={(effort) => onModelChange(effort.id)}
+                />
+              )}
+            </div>
           </div>
 
-          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          <div className={cn("shrink-0", layout === "icons" && "order-last w-full")}>
+            <div ref={iconsRef} className="flex w-max items-center gap-1.5">
+            {onCwdChange && (
+              <button
+                onClick={() => void pickFolder()}
+                title={cwd ? `Dossier de travail : ${cwd}` : "Choisir le dossier de travail"}
+                aria-label="Dossier de travail"
+                className="flex size-7 items-center justify-center rounded-sm text-text-subtle hover:bg-surface-2 hover:text-text"
+              >
+                <FolderOpen size={14} strokeWidth={1.75} />
+              </button>
+            )}
+
+            <button
+              onClick={() => void pickAttachments()}
+              title="Ajouter des fichiers (PDF, images, documents…)"
+              aria-label="Ajouter des fichiers"
+              className="flex size-7 items-center justify-center rounded-sm text-text-subtle hover:bg-surface-2 hover:text-text"
+            >
+              <Paperclip size={14} strokeWidth={1.75} />
+            </button>
+
+            <Slot name="chat.composer.actions" props={{ cwd, adapter: adapterId, insertText }} />
+
+            <Tooltip
+              side="bottom"
+              label={
+                dictation.error ? (
+                  <span className="text-danger">{dictation.error}</span>
+                ) : dictation.recording ? (
+                  "Arrêter la dictée"
+                ) : (
+                  `Dicter le message — reconnaissance vocale de Windows, aucun token${
+                    dictation.device ? ` · micro : ${dictation.device}` : ""
+                  }`
+                )
+              }
+            >
+              <button
+                onClick={dictation.toggle}
+                aria-label={dictation.recording ? "Arrêter la dictée" : "Dicter le message"}
+                aria-pressed={dictation.recording}
+                className={cn(
+                  "flex size-7 items-center justify-center rounded-sm transition-colors",
+                  dictation.recording
+                    ? "bg-danger-soft text-danger"
+                    : dictation.error
+                      ? "text-danger hover:bg-surface-2"
+                      : "text-text-subtle hover:bg-surface-2 hover:text-text",
+                )}
+              >
+                {dictation.recording ? (
+                  <span className="relative flex size-3.5 items-center justify-center">
+                    <span
+                      className="absolute inline-flex size-full rounded-full bg-danger transition-transform duration-100"
+                      style={{
+                        // Échelle pilotée par le niveau d'entrée : immobile = micro muet.
+                        transform: `scale(${1 + Math.min(dictation.level * 6, 1.1)})`,
+                        opacity: 0.25 + Math.min(dictation.level * 3, 0.45),
+                      }}
+                    />
+                    <Mic size={14} strokeWidth={2} className="relative" />
+                  </span>
+                ) : (
+                  <Mic size={14} strokeWidth={1.75} />
+                )}
+              </button>
+            </Tooltip>
+
+            {!compact && (
+              <button
+                onClick={toggleRawTerminal}
+                title="Terminal brut"
+                aria-label="Terminal brut"
+                className="flex size-7 items-center justify-center rounded-sm text-text-subtle hover:bg-surface-2 hover:text-text"
+              >
+                <TerminalSquare size={14} strokeWidth={1.75} />
+              </button>
+            )}
+            </div>
+          </div>
+
+          <div ref={actionsRef} className="ml-auto flex shrink-0 items-center gap-1.5">
             {onPlanModeChange && (
               <button
                 onClick={() => onPlanModeChange(!planMode)}
                 aria-pressed={Boolean(planMode)}
                 title="Mode plan : l'agent explore et propose un plan, sans rien modifier, avant d'agir (Maj+Tab)"
                 className={cn(
-                  "flex h-7 items-center gap-1.5 rounded-sm border px-2 text-footnote transition-colors",
+                  "flex size-7 items-center justify-center rounded-sm border transition-colors",
                   planMode ? "border-transparent bg-info-soft text-info" : "border-border text-text-subtle hover:text-text-muted",
                 )}
               >
                 <ListChecks size={13} strokeWidth={1.75} />
-                <span className="hidden @3xl:inline">Plan</span>
               </button>
             )}
             <button
@@ -679,13 +728,12 @@ export function Composer({
               )}
             >
               <Sparkles size={13} strokeWidth={1.75} />
-              <span className="hidden @md:inline">{AUTO_LABELS[autoMode]}</span>
+              <span className="whitespace-nowrap">{AUTO_SHORT[autoMode]}</span>
             </button>
 
             {running && onQueue && text.trim() && (
-              <Button variant="primary" size="sm" onClick={submit} title="Envoyer à la fin du tour (Entrée)" aria-label="Mettre en file">
+              <Button variant="primary" size="sm" onClick={submit} title="Mettre en file : envoyé à la fin du tour (Entrée)" aria-label="Mettre en file" className="w-8 px-0">
                 <ListPlus size={14} strokeWidth={1.75} />
-                {!compact && "En file"}
               </Button>
             )}
             {running && onStop ? (
@@ -695,15 +743,21 @@ export function Composer({
                 onClick={onStop}
                 aria-label="Arrêter la réponse"
                 title="Arrêter la réponse (Échap)"
-                className="border-danger/40 text-danger hover:bg-danger-soft"
+                className="w-8 border-danger/40 px-0 text-danger hover:bg-danger-soft"
               >
                 <Square size={11} strokeWidth={2.5} className="fill-current" />
-                {!compact && "Arrêter"}
               </Button>
             ) : (
-              <Button variant="primary" size="sm" disabled={!text.trim() || busy} onClick={submit}>
-                <ArrowUp size={14} strokeWidth={2} />
-                {!compact && <Kbd>⏎</Kbd>}
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={!text.trim() || busy}
+                onClick={submit}
+                aria-label="Envoyer"
+                title="Envoyer (Entrée)"
+                className="w-8 px-0"
+              >
+                <ArrowUp size={15} strokeWidth={2} />
               </Button>
             )}
           </div>
