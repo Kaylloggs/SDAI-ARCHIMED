@@ -279,7 +279,6 @@ Non. ARCHIMED n'a pas de serveur. Vos conversations, réglages et projets resten
 <summary><b>Comment mettre ARCHIMED à jour ?</b></summary>
 <br />
 Rien à faire à la main : à partir de la version 0.8.0, ARCHIMED vérifie au démarrage (puis toutes les six heures) si une nouvelle version est publiée. Si c'est le cas, un bouton <b>Mise à jour</b> apparaît en haut à droite. Un clic affiche les nouveautés, <b>Mettre à jour</b> télécharge la version, vérifie que le fichier est bien celui publié sur GitHub, puis ARCHIMED se ferme, s'installe et se rouvre. Vos conversations, réglages, skills et clés restent en place. La version portable est remplacée sur place. <b>Réglages → Mises à jour</b> montre la version installée et permet de vérifier à la main.<br /><br />
-Vous avez une version plus ancienne (0.7.0 ou avant) ? Téléchargez la dernière une fois depuis la <a href="https://github.com/Kaylloggs/SDAI-ARCHIMED/releases/latest">page des versions</a> et installez-la par-dessus : vos données sont gardées, et le bouton prend le relais ensuite.<br /><br />
 Vous avez compilé votre propre version avec vos modules ? Le bouton propose alors <b>Fusionner et recompiler</b> : la nouvelle version est fusionnée dans votre code, vos modules sont gardés, puis tout est recompilé et réinstallé (voir <a href="#-ajouter-votre-propre-module">Ajouter votre propre module</a>).
 </details>
 
