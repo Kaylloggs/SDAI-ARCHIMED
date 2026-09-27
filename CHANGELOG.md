@@ -4,6 +4,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.11.0] - 2026-09-27
+
 ### Ajouté
 - **Nouvelle vue de conversation vocale**, inspirée de Gemini Live et aux couleurs du thème
   choisi : une lueur au bas de l'écran qui suit votre voix (couleur d'accent) et celle de
