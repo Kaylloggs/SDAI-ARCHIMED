@@ -4,6 +4,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.9.1] - 2026-09-27
+
 ### Modifié
 - **Barre sous la zone de saisie sur une seule ligne** : agent, modèle, effort, petites icônes
   (dossier, fichiers, skills, dictée, terminal), mode plan, Mode Auto et envoi tiennent sur une
