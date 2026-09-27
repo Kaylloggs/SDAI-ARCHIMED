@@ -163,7 +163,7 @@ export class VoiceOrchestrator {
     const store = useVoiceStore.getState();
     if (!store.session) {
       const session = this.newSession();
-      store.patch({ session, error: null });
+      store.patch({ session, error: null, ...(this.settings.overlay.immersive ? { liveOpen: true, panelOpen: false } : {}) });
       bus.emit("voice.started", { sessionId: session.id });
     }
     if (this.stt) return;
@@ -230,7 +230,7 @@ export class VoiceOrchestrator {
       if (conversation && this.chat) void this.chat.remove(conversation);
       bus.emit("voice.stopped", { sessionId: session.id });
     }
-    useVoiceStore.getState().patch({ session: null, status: "off", partial: "", tools: [], caption: "", confirmation: null });
+    useVoiceStore.getState().patch({ session: null, status: "off", partial: "", tools: [], caption: "", confirmation: null, liveOpen: false });
     void voiceApi.stopEngines().catch(() => undefined);
   }
 

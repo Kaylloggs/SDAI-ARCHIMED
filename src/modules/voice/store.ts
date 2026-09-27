@@ -75,6 +75,8 @@ type State = {
   /** Phrase en cours de lecture (sous-titres). */
   caption: string;
   panelOpen: boolean;
+  /** Vue de conversation plein écran ouverte. */
+  liveOpen: boolean;
   /** Modèles à activer dès la fin de leur installation (« Installer et utiliser »). */
   activateOnInstall: Record<string, (s: VoiceSettings) => VoiceSettings>;
   setSettings: (update: (s: VoiceSettings) => VoiceSettings) => void;
@@ -97,6 +99,7 @@ export const useVoiceStore = create<State>()((set, get) => ({
   confirmation: null,
   caption: "",
   panelOpen: false,
+  liveOpen: false,
   activateOnInstall: {},
   setSettings: (update) => {
     const settings = update(get().settings);

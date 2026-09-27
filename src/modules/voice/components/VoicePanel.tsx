@@ -1,4 +1,4 @@
-import { Settings2, X } from "lucide-react";
+import { Maximize2, Settings2, X } from "lucide-react";
 import { useUiStore } from "@/core/stores/ui.store";
 import { Button } from "@/design-system/primitives";
 import { statusSentence, waveMode } from "../lib/status";
@@ -39,6 +39,16 @@ export function VoicePanel({ onClose }: { onClose: () => void }) {
           <p className="truncate text-body-sm font-semibold">{session?.title ?? "Parlez à ARCHIMED"}</p>
           <p className="truncate text-footnote text-text-muted">{statusSentence(status, tool)}</p>
         </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => useVoiceStore.getState().patch({ liveOpen: true, panelOpen: false })}
+          aria-label="Plein écran"
+          title="Plein écran"
+          className="px-1.5"
+        >
+          <Maximize2 size={14} strokeWidth={1.75} />
+        </Button>
         <Button size="sm" variant="ghost" onClick={openSettings} aria-label="Réglages de la voix" className="px-1.5">
           <Settings2 size={14} strokeWidth={1.75} />
         </Button>

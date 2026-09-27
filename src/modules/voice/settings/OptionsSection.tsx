@@ -112,6 +112,9 @@ export function OverlaySection() {
       <Row label="Vague animée" hint="Désactivée, la vague garde une forme fixe par état. Suit aussi le réglage « Réduire les animations » du système.">
         <Switch label="Vague animée" checked={o.animations} onChange={(animations) => update("overlay", { animations })} />
       </Row>
+      <Row label="Plein écran à chaque conversation" hint="Une nouvelle session ouvre la vue de conversation plein écran (lueur, phrase en grand). Échap la réduit en pastille.">
+        <Switch label="Plein écran à chaque conversation" checked={o.immersive} onChange={(immersive) => update("overlay", { immersive })} />
+      </Row>
       <Row label="Sous-titres" hint="Sous la pastille, ce que dit l'assistant et ce qu'il entend, panneau fermé.">
         <Switch label="Sous-titres" checked={o.captions} onChange={(captions) => update("overlay", { captions })} />
       </Row>

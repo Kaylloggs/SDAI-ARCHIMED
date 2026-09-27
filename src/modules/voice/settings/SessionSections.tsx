@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, Copy, History, Loader2, MessageCircle, RotateCcw, Trash2 } from "lucide-react";
+import { Check, Copy, History, Loader2, Maximize2, RotateCcw, Trash2 } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Button, EmptyState } from "@/design-system/primitives";
 import { voiceApi, type VoiceSessionSummary } from "../api";
-import { ConfirmCard, PrivacyStrip, TaskList } from "../components/SessionParts";
+import { TaskList } from "../components/SessionParts";
 import { Transcript } from "../components/Transcript";
-import { VoiceControls } from "../components/VoiceControls";
-import { VoiceWave } from "../components/VoiceWave";
+import { VoiceStage } from "../components/VoiceStage";
 import { agentName } from "../lib/agents";
-import { statusSentence, waveMode } from "../lib/status";
 import { orchestrator } from "../runtime/instance";
 import { useVoiceStore, type VoiceSession } from "../store";
 
@@ -42,69 +40,29 @@ function asText(session: VoiceSession): string {
 }
 
 export function SessionSection() {
-  const status = useVoiceStore((s) => s.status);
-  const micOn = useVoiceStore((s) => s.micOn);
   const session = useVoiceStore((s) => s.session);
-  const settings = useVoiceStore((s) => s.settings);
-  const partial = useVoiceStore((s) => s.partial);
-  const caption = useVoiceStore((s) => s.caption);
-  const tools = useVoiceStore((s) => s.tools);
-  const error = useVoiceStore((s) => s.error);
-  const confirmation = useVoiceStore((s) => s.confirmation);
-  const tool = tools.at(-1) ?? null;
-
+  const done = session?.tasks.filter((t) => t.status !== "running") ?? [];
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 rounded-md border border-border bg-surface-1 p-4">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-text-muted">
-          <VoiceWave mode={micOn && waveMode(status) === "rest" ? "input" : waveMode(status)} animate={settings.overlay.animations} className={micOn ? "text-accent" : undefined} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-body font-semibold">{session?.title ?? "Aucune session"}</p>
-          <p className="truncate text-footnote text-text-muted">
-            {statusSentence(status, tool)}
-            {session && ` · ${agentName(session.agent)}${session.brain === "local" ? " (modèle local d'abord)" : ""}`}
-          </p>
-        </div>
-        <div className="w-80 shrink-0">
-          <VoiceControls />
-        </div>
+      <div className="h-[min(640px,calc(100vh-240px))] min-h-[460px]">
+        <VoiceStage variant="page" />
       </div>
-
-      {error && (
-        <p role="alert" className="rounded-sm bg-danger-soft px-3 py-2 text-footnote text-text">
-          {error}
-        </p>
-      )}
-      {confirmation && <ConfirmCard confirmation={confirmation} />}
-
-      {session && (session.turns.length > 0 || partial || caption) ? (
-        <Transcript
-          turns={session.turns}
-          partial={partial}
-          caption={caption}
-          tools={status === "tool" || status === "thinking" ? tools : []}
-          className="max-h-[52vh] rounded-md border border-border bg-surface-1 p-4"
-        />
-      ) : (
-        <EmptyState
-          icon={<MessageCircle size={20} strokeWidth={1.75} />}
-          title={session ? "Parlez, la conversation s'affiche ici" : "Aucune session en cours"}
-          description="Demandez une action, une explication ou une longue tâche : l'assistant répond à voix haute, agit dans vos modules et vous demande votre accord avant toute action sensible."
-        />
-      )}
-
-      {session && session.tasks.length > 0 && (
-        <section className="space-y-2" aria-label="Tâches confiées">
-          <h2 className="text-title-3 font-semibold">Tâches confiées</h2>
-          <TaskList tasks={session.tasks} />
+      <div className="flex justify-end">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => useVoiceStore.getState().patch({ liveOpen: true })}
+          icon={<Maximize2 size={13} strokeWidth={1.75} />}
+        >
+          Plein écran
+        </Button>
+      </div>
+      {done.length > 0 && (
+        <section className="space-y-2" aria-label="Tâches terminées">
+          <h2 className="text-title-3 font-semibold">Tâches terminées</h2>
+          <TaskList tasks={done} />
         </section>
       )}
-
-      <section className="space-y-2 rounded-md border border-border bg-surface-1 p-4" aria-label="Confidentialité">
-        <h2 className="text-body-sm font-semibold">Où passent vos données</h2>
-        <PrivacyStrip settings={settings} agent={session?.agent ?? settings.agent.adapter} />
-      </section>
     </div>
   );
 }

@@ -5,6 +5,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 ## [Non publié]
 
 ### Ajouté
+- **Nouvelle vue de conversation vocale**, inspirée de Gemini Live et aux couleurs du thème
+  choisi : une lueur au bas de l'écran qui suit votre voix (couleur d'accent) et celle de
+  l'assistant, la phrase en cours en grand, de grands boutons ronds (micro, pause, arrêter,
+  terminer), la conversation écrite en panneau latéral. En plein écran (bouton « Plein écran » du
+  panneau de la pastille, ou à chaque conversation avec le réglage Affichage), et sur la page
+  Session du module Voice. Échap la réduit.
 - **Voice › Installations : tout s'installe en un clic.** « Tout installer » met en place la
   reconnaissance et la voix locales conseillées pour votre machine et votre langue ; Claude Code
   (script officiel), Codex (npm, Node.js installé si besoin), Ollama et son modèle conseillé,

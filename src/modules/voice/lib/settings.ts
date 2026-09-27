@@ -43,7 +43,13 @@ export type VoiceSettings = {
   };
   agent: { brain: Brain; adapter: string; model: string | null; localModel: string; autoMode: AutoMode };
   privacy: { localOnly: boolean; allowCloudFallback: boolean };
-  overlay: { mini: boolean; animations: boolean; captions: boolean };
+  overlay: {
+    mini: boolean;
+    animations: boolean;
+    captions: boolean;
+    /** Vue de conversation plein écran à chaque nouvelle session. */
+    immersive: boolean;
+  };
   shortcuts: { toggle: string; pushToTalk: string };
   performance: { priority: EnginePriority; preload: boolean };
   mcp: { shareTools: boolean };
@@ -78,7 +84,7 @@ export const DEFAULT_SETTINGS: VoiceSettings = {
   },
   agent: { brain: "cli", adapter: "claude", model: null, localModel: "qwen2.5:3b", autoMode: "smart" },
   privacy: { localOnly: false, allowCloudFallback: false },
-  overlay: { mini: false, animations: true, captions: true },
+  overlay: { mini: false, animations: true, captions: true, immersive: false },
   shortcuts: { toggle: "Ctrl+Shift+Space", pushToTalk: "Ctrl+Space" },
   performance: { priority: "normal", preload: true },
   mcp: { shareTools: true },

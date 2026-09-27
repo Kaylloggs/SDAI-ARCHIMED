@@ -4,11 +4,13 @@ import { AnimatePresence, motion } from "motion/react";
 import { Mic, Square } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { duration, ease, popIn } from "@/design-system/motion";
+import { useUiStore } from "@/core/stores/ui.store";
 import { Tooltip } from "@/design-system/primitives";
 import { busy, statusLabel, statusSentence, waveMode, type WaveMode } from "../lib/status";
 import { shortcutLabel } from "../lib/shortcuts";
 import { orchestrator } from "../runtime/instance";
 import { useVoiceStore } from "../store";
+import { VoiceLive } from "./VoiceLive";
 import { VoicePanel } from "./VoicePanel";
 import { VoiceWave } from "./VoiceWave";
 
@@ -35,6 +37,9 @@ export default function VoicePill() {
   const confirmation = useVoiceStore((s) => s.confirmation);
   const error = useVoiceStore((s) => s.error);
   const open = useVoiceStore((s) => s.panelOpen);
+  const live = useVoiceStore((s) => s.liveOpen);
+  // La page Voice affiche déjà la conversation en grand : pas de sous-titres en double.
+  const onVoicePage = useUiStore((s) => s.activeModuleId === "voice");
   const overlay = useVoiceStore((s) => s.settings.overlay);
   const toggleKeys = useVoiceStore((s) => s.settings.shortcuts.toggle);
   const [rect, setRect] = useState<DOMRect | null>(null);
@@ -169,7 +174,8 @@ export default function VoicePill() {
         document.body,
       )}
 
-      <Caption visible={showCaption} anchor={pillRef} />
+      <Caption visible={showCaption && !live && !onVoicePage} anchor={pillRef} />
+      <VoiceLive />
     </>
   );
 }
