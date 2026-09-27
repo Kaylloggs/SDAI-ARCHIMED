@@ -1,2 +1,2 @@
 id = "skills"
-commands = ["list", "set_enabled", "import_from_path", "open_folder", "library_path"]
+commands = ["list", "set_enabled", "import_from_path", "open_folder", "library_path", "draft_create", "draft_list", "draft_info", "draft_delete", "draft_files", "draft_read", "draft_write", "draft_check", "draft_changes", "draft_prepare_run", "draft_save"]

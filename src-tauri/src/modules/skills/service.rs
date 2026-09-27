@@ -128,7 +128,9 @@ fn build_skill(
 ) -> AppResult<Skill> {
     let id = folder_name(path);
     let content = std::fs::read_to_string(path.join("SKILL.md")).unwrap_or_default();
-    let (name, description) = parse_frontmatter(&content);
+    let header = super::frontmatter::parse(&content);
+    let name = header.get("name").filter(|n| !n.is_empty()).map(str::to_string);
+    let description = header.get("description").map(str::to_string);
 
     Ok(Skill {
         name: name.unwrap_or_else(|| id.clone()),
@@ -139,32 +141,6 @@ fn build_skill(
         enabled,
         targets,
     })
-}
-
-/// Lit `name:` et `description:` du frontmatter YAML d'un SKILL.md.
-fn parse_frontmatter(content: &str) -> (Option<String>, Option<String>) {
-    let mut name = None;
-    let mut description = None;
-    let mut in_front = false;
-
-    for line in content.lines().take(40) {
-        if line.trim() == "---" {
-            if in_front {
-                break;
-            }
-            in_front = true;
-            continue;
-        }
-        if !in_front {
-            continue;
-        }
-        if let Some(value) = line.strip_prefix("name:") {
-            name = Some(value.trim().trim_matches('"').to_string());
-        } else if let Some(value) = line.strip_prefix("description:") {
-            description = Some(value.trim().trim_matches('"').to_string());
-        }
-    }
-    (name, description)
 }
 
 #[cfg(windows)]
@@ -202,23 +178,4 @@ fn copy_dir(from: &Path, to: &Path) -> AppResult<()> {
         }
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::parse_frontmatter;
-
-    #[test]
-    fn reads_name_and_description() {
-        let content = "---\nname: mon-skill\ndescription: fait des choses\n---\n\ncorps";
-        let (name, description) = parse_frontmatter(content);
-        assert_eq!(name.as_deref(), Some("mon-skill"));
-        assert_eq!(description.as_deref(), Some("fait des choses"));
-    }
-
-    #[test]
-    fn tolerates_missing_frontmatter() {
-        let (name, description) = parse_frontmatter("pas de frontmatter");
-        assert!(name.is_none() && description.is_none());
-    }
 }

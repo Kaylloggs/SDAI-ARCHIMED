@@ -4,6 +4,23 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté — Skills : atelier de création (Skill Maker)
+- **« Créer un skill »** : décrivez ce que le skill doit faire (quand s'en servir, résultat
+  attendu, exemples joints), ou **partez d'une conversation** déjà menée dans Chat ou Code : une
+  IA (Claude Code, Antigravity ou Codex) écrit le skill dans un brouillon, pose ses questions si
+  besoin, et propose des demandes de test. Le skill peut être écrit en français ou en anglais.
+- **Vérification automatique** après chaque réponse de l'IA : format de l'en-tête (`name`,
+  `description`), description assez précise pour déclencher le skill, corps de moins de 500 lignes,
+  fichiers cités introuvables, fichiers jamais cités, clés d'API ou mots de passe, commandes
+  risquées. Un clic ouvre le fichier à la ligne ; « Corriger avec l'IA » lui renvoie la liste.
+- **Tests** : chaque demande de test part dans une conversation neuve qui dispose du skill ; vous
+  jugez le résultat (« Réussi », « À revoir », remarque) puis renvoyez vos avis à l'atelier.
+- **Fichiers** modifiables à la main (`Ctrl+S`), **Modifications** comparées à la version de la
+  bibliothèque quand on améliore un skill existant (bouton « Améliorer » sur chaque skill).
+- **Enregistrer dans la bibliothèque** seulement quand il n'y a plus d'erreur, avec activation
+  pour les IA en option ; un skill du même nom est remplacé après confirmation, et une copie de
+  l'ancien est gardée (ADR 0012).
+
 ### Ajouté — Code : terminal et recherche dans le projet
 - **Terminal intégré** (``Ctrl+` ``) : PowerShell 7, ou Windows PowerShell, ouvert dans le dossier du
   projet, sous l'éditeur, avec plusieurs onglets, une hauteur réglable et les couleurs du thème.

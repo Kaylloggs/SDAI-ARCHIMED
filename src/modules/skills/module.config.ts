@@ -1,12 +1,13 @@
 import { lazy } from "react";
 import { Boxes } from "lucide-react";
 import { defineModule } from "@/core/modules";
+import { useUiStore } from "@/core/stores/ui.store";
 import tutorial from "./tutorial";
 
 export default defineModule({
   id: "skills",
   name: "Skills",
-  description: "Importer, activer et synchroniser les compétences des CLI.",
+  description: "Créer, importer, activer et synchroniser les compétences des CLI.",
   version: "0.1.0",
   icon: Boxes,
   category: "ai",
@@ -19,6 +20,9 @@ export default defineModule({
     // Choisir un skill depuis la barre de chat (Chat et Code).
     "chat.composer.actions": lazy(() => import("./slots/ComposerSkills")),
   },
-  commands: [{ id: "skills.open", title: "Gérer les skills", run: "navigate" }],
+  commands: [
+    { id: "skills.open", title: "Gérer les skills", run: "navigate" },
+    { id: "skills.create", title: "Créer un skill", run: () => useUiStore.getState().openModule("skills", { create: true }) },
+  ],
   tutorial,
 });

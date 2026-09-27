@@ -88,7 +88,7 @@ A job hunt and a game mod are about as far apart as two projects can be. If ARCH
 | 🧑‍💻 | **Code** · `code` | A code editor with the AI beside it. Open a folder, watch files update live as the AI edits them, preview the website it is building. |
 | 🗂️ | **Planner** · `planner` | Task boards and a calendar. A board can follow a `roadmap.md`, so the plan an AI writes becomes cards you can tick off. Export to your calendar. |
 | 🧠 | **Memory** · `memory` | Tell the AI once who you are and how you like to work. Notes can be global or per project, and you see exactly what is sent. |
-| 🧩 | **Skills** · `skills` | A library of skills (reusable instructions) you can switch on for each assistant. |
+| 🧩 | **Skills** · `skills` | A library of skills (reusable instructions) you can switch on for each assistant, and a workshop to create one: describe it or pick a past conversation, an AI writes it, ARCHIMED checks it, you try it on test requests before saving. |
 | 💼 | **Job Agent** · `jobagent` | Job search on seven boards, world map, cover letters and batch applications after confirmation. |
 | ⛏️ | **Mod Studio** · `mcstudio` | Minecraft mods: 3D models, AI textures, AI coding assistant, one-click build, game and server testing, version porting. |
 | 🎨 | **Image Maker** · `image-maker` | An AI image studio: create from a description, change only the area you select, extend to 16:9, sharpen, make variations, remove the background, export. Works with OpenRouter, Google AI Studio and Higgsfield; the original is never lost. |

@@ -604,6 +604,7 @@ arrête son processus puis efface son entrée.
 - **Activer** = créer une jonction NTFS (pas besoin de droits admin) de la bibliothèque vers le dossier de skills de chaque CLI cible (`~/.claude/skills/<id>`, dossier défini dans l'adaptateur pour les autres). **Désactiver** = supprimer la jonction (la bibliothèque est conservée).
 - **Importer** : dossier, `.zip`, URL Git (clone), ou **« Demander à l'IA »** : une session est lancée avec pour consigne de récupérer le skill dans `skills\_incoming\` ; ARCHIMED valide ensuite le frontmatter (`name`, `description`) avant installation.
 - **Import en masse** : bouton « Ouvrir le dossier » (opener) ; un watcher `notify` détecte les ajouts et les propose à l'indexation (`skills.changed`).
+- **Atelier (Skill Maker, ADR 0012)** : une IA écrit le skill dans un **brouillon** (`modules/skills/drafts/<id>/` : `skill/`, `tests.json`, `source/`, `runs/<n>/`), dossier de travail de sa conversation (`origin: "skills"`). Après chaque tour, ARCHIMED relit et **vérifie** le skill (`check.rs` : format du frontmatter, description, taille, liens cassés, secrets, commandes risquées). Les **essais** lancent une conversation neuve par demande de test, dans `runs/<n>/`, avec le chemin du `SKILL.md` en consigne. Rien n'entre dans la bibliothèque sans « Enregistrer » ; un skill remplacé est d'abord copié dans `modules/skills/backups/`.
 
 ---
 

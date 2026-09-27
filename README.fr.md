@@ -88,7 +88,7 @@ Une recherche d'emploi et un mod de jeu vidéo, difficile de trouver deux projet
 | 🧑‍💻 | **Code** · `code` | Un éditeur de code avec l'IA à côté. Ouvrez un dossier, voyez les fichiers changer en direct pendant que l'IA les modifie, prévisualisez le site qu'elle construit. |
 | 🗂️ | **Planner** · `planner` | Des tableaux de tâches et un calendrier. Un tableau peut suivre un `roadmap.md` : le plan écrit par une IA devient des cartes à cocher. Export vers votre agenda. |
 | 🧠 | **Mémoire** · `memory` | Dites une fois à l'IA qui vous êtes et comment vous aimez travailler. Des notes globales ou par projet, et vous voyez exactement ce qui est envoyé. |
-| 🧩 | **Skills** · `skills` | Une bibliothèque de skills (consignes réutilisables) à activer pour chaque assistant. |
+| 🧩 | **Skills** · `skills` | Une bibliothèque de skills (consignes réutilisables) à activer pour chaque assistant, et un atelier pour en créer : décrivez-le ou partez d'une conversation, une IA l'écrit, ARCHIMED le vérifie, vous l'essayez sur des demandes de test avant de l'enregistrer. |
 | 💼 | **Job Agent** · `jobagent` | Recherche d'emploi sur sept sites, carte du monde, lettres de motivation et candidatures par lot après confirmation. |
 | ⛏️ | **Mod Studio** · `mcstudio` | Mods Minecraft : modèles 3D, textures par IA, assistant de code, compilation en un clic, test en jeu et sur serveur, portage de version. |
 | 🎨 | **Image Maker** · `image-maker` | Un studio d'images par IA : créer à partir d'une description, changer seulement la zone sélectionnée, étendre en 16:9, affiner, faire des variantes, retirer le fond, exporter. Avec OpenRouter, Google AI Studio et Higgsfield ; l'original n'est jamais perdu. |
