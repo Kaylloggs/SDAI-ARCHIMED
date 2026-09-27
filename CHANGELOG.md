@@ -4,6 +4,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.9.0] - 2026-09-27
+
 ### Ajouté — Chat au niveau de Claude Code
 - **Réponse en direct** : le texte s'écrit mot à mot, et la **réflexion** du modèle s'affiche
   repliée au-dessus de la réponse (Claude Code).
