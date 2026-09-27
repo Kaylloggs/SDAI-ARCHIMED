@@ -68,6 +68,9 @@ pub fn run() {
             core::updater::updater_install,
             core::updater::updater_cancel,
             core::updater::updater_rebuild,
+            core::updater::updater_local_status,
+            core::updater::updater_set_source_dir,
+            core::updater::updater_local_rebuild,
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de SDAI ARCHIMED");

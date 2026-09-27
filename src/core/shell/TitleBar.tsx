@@ -5,7 +5,7 @@ import { cn } from "@/core/lib/cn";
 import { Slot, useService } from "@/core/modules";
 import { useEnabledModules } from "@/core/modules/useModules";
 import { useUiStore } from "@/core/stores/ui.store";
-import { UpdateButton } from "@/core/updater";
+import { LocalUpdateButton, UpdateButton } from "@/core/updater";
 import { Kbd, Tooltip } from "@/design-system/primitives";
 
 /** Service `tutorial.open` : fourni par le module de tutoriel s'il est présent. */
@@ -98,7 +98,9 @@ export function TitleBar() {
         <Slot name="statusbar.items" />
       </div>
 
-      {/* N'apparaît que lorsqu'une nouvelle version est publiée sur GitHub. */}
+      {/* N'apparaissent que s'il y a quelque chose à installer : vos modules (bleu), une
+          nouvelle version publiée sur GitHub (laiton). */}
+      <LocalUpdateButton />
       <UpdateButton />
 
       <div className="glass-chrome flex items-center gap-0.5 rounded-full p-0.5">

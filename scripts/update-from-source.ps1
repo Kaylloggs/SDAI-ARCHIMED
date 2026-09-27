@@ -29,13 +29,17 @@ param(
     # Executable a remplacer (version portable).
     [string]$Target = '',
     [ValidateSet('installer', 'portable', 'none')]
-    [string]$Kind = 'none'
+    [string]$Kind = 'none',
+    # Mise a jour locale : integrer VOS nouveaux modules. -Tag sert alors seulement a ne jamais
+    # recompiler une version plus ancienne que celle installee.
+    [switch]$Local
 )
 
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
-try { $Host.UI.RawUI.WindowTitle = "ARCHIMED - mise a jour vers $Tag" } catch { }
+$Title = if ($Local) { 'ARCHIMED - integration de vos modules' } else { "ARCHIMED - mise a jour vers $Tag" }
+try { $Host.UI.RawUI.WindowTitle = $Title } catch { }
 
 function Write-Step([string]$Message) { Write-Host "`n==> $Message" -ForegroundColor Cyan }
 function Write-Ok([string]$Message) { Write-Host "    [ok] $Message" -ForegroundColor Green }
@@ -58,7 +62,7 @@ function Get-NormalizedUrl([string]$Url) {
 }
 
 # ---------------------------------------------------------------- 1. Verifications
-Write-Step "Mise a jour du code source vers $Tag"
+Write-Step $(if ($Local) { 'Integration de vos modules' } else { "Mise a jour du code source vers $Tag" })
 if ($Tag -notmatch '^v\d+\.\d+\.\d+$') { Stop-Update "Version inattendue : $Tag" }
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) { Stop-Update 'git est introuvable : installez Git for Windows (https://git-scm.com).' }
 if (-not (Test-Path (Join-Path $Root '.git'))) { Stop-Update "$Root n'est pas une copie git du projet : recuperez le code avec git clone." }
@@ -82,37 +86,53 @@ if (-not $remote) {
     if ($added.Code -ne 0) { Stop-Update "Ajout du depot officiel impossible : $($added.Output)" }
     Write-Ok "depot officiel ajoute (remote $remote)"
 }
+function ConvertTo-Version([string]$Text) {
+    $clean = $Text.Trim().TrimStart('v', 'V')
+    try { return [version]$clean } catch { return $null }
+}
+$codeVersion = ConvertTo-Version ((Get-Content (Join-Path $Root 'src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json).version)
+$tagVersion = ConvertTo-Version $Tag
+$skipMerge = $false
 $fetch = Invoke-Git @('fetch', '--no-tags', $remote, "+refs/tags/$($Tag):refs/tags/$($Tag)")
-if ($fetch.Code -ne 0) { Stop-Update "Telechargement de $Tag impossible : $($fetch.Output)" }
-Write-Ok "$Tag recupere depuis $remote"
-
-# ---------------------------------------------------------------- 3. Vos modifications
-$before = (& git rev-parse HEAD).Trim()
-$dirty = & git status --porcelain
-if ($dirty) {
-    Write-Step 'Modifications non enregistrees dans git'
-    $dirty | Select-Object -First 25 | ForEach-Object { Write-Host "    $_" }
-    $answer = Read-Host "`nLes enregistrer dans un commit avant la mise a jour ? Rien n'est perdu. [O/n]"
-    if ($answer -match '^(n|non|no)$') { Stop-Update 'Mise a jour annulee : rien n''a ete modifie.' }
-    $staged = Invoke-Git @('add', '-A')
-    if ($staged.Code -ne 0) { Stop-Update "git add : $($staged.Output)" }
-    $saved = Invoke-Git @('commit', '-q', '-m', "Mes modifications avant la mise a jour vers $Tag")
-    if ($saved.Code -ne 0) { Stop-Update "git commit : $($saved.Output)" }
-    Write-Ok 'modifications enregistrees (commit)'
+if ($fetch.Code -ne 0) {
+    # Hors ligne : sans danger si le code est deja au niveau de la version demandee.
+    if ($codeVersion -and $tagVersion -and $codeVersion -ge $tagVersion) {
+        Write-Warn "$Tag injoignable ($($fetch.Output)) ; votre code est deja en $codeVersion : on continue."
+        $skipMerge = $true
+    } else {
+        Stop-Update "Telechargement de $Tag impossible : $($fetch.Output)"
+    }
+} else {
+    Write-Ok "$Tag recupere depuis $remote"
 }
 
-# ---------------------------------------------------------------- 4. Fusion
+# ---------------------------------------------------------------- 3. Fusion (et vos modifications)
+$before = (& git rev-parse HEAD).Trim()
 Write-Step "Fusion de $Tag dans votre code"
-if ((Invoke-Git @('merge-base', '--is-ancestor', $Tag, 'HEAD')).Code -eq 0) {
+if ($skipMerge -or (Invoke-Git @('merge-base', '--is-ancestor', $Tag, 'HEAD')).Code -eq 0) {
+    # Rien a fusionner : vos fichiers (nouveaux modules compris) sont compiles tels quels.
     Write-Ok "$Tag est deja dans votre code"
 } else {
+    $dirty = & git status --porcelain
+    if ($dirty) {
+        Write-Step 'Modifications non enregistrees dans git'
+        $dirty | Select-Object -First 25 | ForEach-Object { Write-Host "    $_" }
+        $answer = Read-Host "`nLes enregistrer dans un commit avant la fusion ? Rien n'est perdu. [O/n]"
+        if ($answer -match '^(n|non|no)$') { Stop-Update 'Mise a jour annulee : rien n''a ete modifie.' }
+        $staged = Invoke-Git @('add', '-A')
+        if ($staged.Code -ne 0) { Stop-Update "git add : $($staged.Output)" }
+        $saved = Invoke-Git @('commit', '-q', '-m', "Mes modifications avant la mise a jour vers $Tag")
+        if ($saved.Code -ne 0) { Stop-Update "git commit : $($saved.Output)" }
+        Write-Ok 'modifications enregistrees (commit)'
+        $before = (& git rev-parse HEAD).Trim()
+    }
     $merge = Invoke-Git @('merge', '--no-edit', '-m', "Mise a jour vers $Tag (ARCHIMED)", $Tag)
     if ($merge.Code -ne 0) {
         if ((Invoke-Git @('rev-parse', '-q', '--verify', 'MERGE_HEAD')).Code -ne 0) {
             Stop-Update "Fusion impossible : $($merge.Output)"
         }
         Write-Warn 'conflits : reglage des numeros de version et des fichiers de verrouillage'
-        & node (Join-Path $Root 'scripts\merge-conflicts.mjs')
+        & node (Join-Path $Root 'scripts/merge-conflicts.mjs')
         if ($LASTEXITCODE -ne 0) {
             Invoke-Git @('merge', '--abort') | Out-Null
             Stop-Update ("Vos modifications touchent les memes lignes que la nouvelle version (fichiers ci-dessus). " +
@@ -138,8 +158,8 @@ if ($LASTEXITCODE -ne 0) {
     Stop-Update ("La compilation a echoue (messages ci-dessus). Le code est fusionne : corrigez puis relancez " +
         ".\build.ps1 -Bump none, ou revenez en arriere avec git reset --hard $before.")
 }
-$version = (Get-Content (Join-Path $Root 'src-tauri\tauri.conf.json') -Raw | ConvertFrom-Json).version
-$outDir = Join-Path $Root "release\$version"
+$version = (Get-Content (Join-Path $Root 'src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json).version
+$outDir = Join-Path $Root "release/$version"
 $setup = Get-ChildItem -Path $outDir -Filter '*-setup.exe' -File -ErrorAction SilentlyContinue | Select-Object -First 1
 $portable = Join-Path $outDir 'SDAI-Archimed.exe'
 

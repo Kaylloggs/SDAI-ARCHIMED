@@ -221,7 +221,8 @@ fn write_provenance() {
         .map(|entries| {
             entries
                 .flatten()
-                .filter(|e| e.path().join("module.config.ts").is_file())
+                // `_template` (modèle de `pnpm new:module`) n'est pas un module.
+                .filter(|e| e.path().join("module.config.ts").is_file() && !e.file_name().to_string_lossy().starts_with('_'))
                 .map(|e| e.file_name().to_string_lossy().to_string())
                 .collect()
         })

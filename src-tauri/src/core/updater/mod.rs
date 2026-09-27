@@ -15,9 +15,12 @@
 //!   fichier officiel reste possible, sur confirmation explicite seulement.
 //! - Build de développement (`pnpm tauri dev`) : rien n'est vérifié ni installé.
 
+mod local;
+
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
@@ -156,9 +159,15 @@ pub struct Updater {
     http: Option<reqwest::Client>,
     /// Installeurs téléchargés (`<données>/updates/`).
     dir: PathBuf,
+    /// `<données>/updater.json` : code source suivi (mise à jour locale).
+    config: PathBuf,
+    /// Dernière version publiée connue (tag), pour ne jamais recompiler plus ancien.
+    latest_tag: Mutex<Option<String>>,
     busy: AtomicBool,
     cancelled: AtomicBool,
 }
+
+pub use local::LocalStatus;
 
 impl Updater {
     pub fn new(paths: &Paths) -> Self {
@@ -171,6 +180,8 @@ impl Updater {
         Self {
             http,
             dir: paths.data.join("updates"),
+            config: paths.data.join("updater.json"),
+            latest_tag: Mutex::new(None),
             busy: AtomicBool::new(false),
             cancelled: AtomicBool::new(false),
         }
@@ -235,7 +246,17 @@ impl Updater {
             return Ok(status);
         }
         let release = self.latest().await?;
+        if let Ok(mut latest) = self.latest_tag.lock() {
+            *latest = Some(release.tag_name.clone());
+        }
         status.available = evaluate(&release, CURRENT, kind, arch())?.map(|(update, _)| update);
+        if let Some(source) = status.source.as_mut() {
+            // Code suivi choisi ailleurs (Réglages, `pnpm new:module`) : c'est lui qui sera fusionné.
+            if let Some((dir, true)) = self.source_dir() {
+                source.dir = dir.display().to_string();
+                source.ready = source_ready(&dir);
+            }
+        }
         if let (Some(source), Some(_)) = (status.source.as_mut(), status.available.as_ref()) {
             // Sans réponse de GitHub, on ne prétend pas savoir : `None`.
             source.custom_modules = self
@@ -432,11 +453,14 @@ impl Updater {
     /// recompilation et installation, dans une fenêtre PowerShell (ARCHIMED reste ouvert
     /// jusqu'à la fin, puis le script le ferme).
     pub async fn rebuild(&self, version: &str) -> AppResult<()> {
-        let source = source_build().ok_or_else(|| AppError::invalid("Cette version n'a pas été compilée depuis le code source."))?;
-        if !source.ready {
+        if !is_source_build() {
+            return Err(AppError::invalid("Cette version n'a pas été compilée depuis le code source."));
+        }
+        let dir = self.source_dir().map(|(dir, _)| dir).unwrap_or_else(|| PathBuf::from(SOURCE_DIR));
+        if !source_ready(&dir) {
             return Err(AppError::not_found(format!(
                 "Code source introuvable ({}) : mettez à jour votre copie du code (git pull), puis recompilez.",
-                source.dir
+                dir.display()
             )));
         }
         let release = self.latest().await?;
@@ -449,13 +473,110 @@ impl Updater {
                 update.version
             )));
         }
-        let outcome = launch_source_update(&source.dir, &release.tag_name);
+        let outcome = launch_source_update(&dir, &release.tag_name, false);
         super::audit::record(
             "app.update.source",
             &format!("{CURRENT} -> {version}"),
             if outcome.is_ok() { "started" } else { "failed" },
             "user",
         );
+        outcome
+    }
+
+    /// Code source suivi : celui choisi par la personne (ou `pnpm new:module`), sinon celui de
+    /// la compilation pour une version compilée depuis le code. `bool` : choisi.
+    fn source_dir(&self) -> Option<(PathBuf, bool)> {
+        let config = local::read_config(&self.config);
+        if let Some(dir) = config.source_dir.map(PathBuf::from).filter(|dir| local::is_archimed_source(dir)) {
+            return Some((dir, true));
+        }
+        let embedded = PathBuf::from(SOURCE_DIR);
+        (is_source_build() && local::is_archimed_source(&embedded)).then_some((embedded, false))
+    }
+
+    /// Modules nouveaux ou modifiés dans le code source, pas encore dans cet exécutable.
+    pub fn local_status(&self) -> LocalStatus {
+        let quiet_ms = u64::try_from(local::QUIET.as_millis()).unwrap_or(30_000);
+        let mut config = local::read_config(&self.config);
+        let chosen = config.source_dir.clone();
+        let empty = |valid: bool| LocalStatus {
+            source_dir: chosen.clone(),
+            configured: chosen.is_some(),
+            valid,
+            modules: Vec::new(),
+            quiet_ms,
+        };
+        // En développement, Vite et `cargo` prennent déjà les modules en compte.
+        if install_kind() == InstallKind::Dev {
+            return empty(chosen.is_some());
+        }
+        let Some((dir, configured)) = self.source_dir() else {
+            return empty(false);
+        };
+        let scanned = local::scan(&dir);
+        let stamp = local::exe_stamp();
+        let key = dir.display().to_string();
+        let baseline = match config.baseline.as_ref() {
+            Some(baseline) if baseline.stamp == stamp && baseline.dir == key => baseline.modules.clone(),
+            _ => {
+                // Nouvel exécutable ou nouveau dossier : point de départ des « modifiés ».
+                let built_here = is_source_build() && same_dir(&dir, Path::new(SOURCE_DIR));
+                let modules = local::baseline_for(&scanned, stamp, built_here);
+                config.baseline = Some(local::Baseline { stamp, dir: key.clone(), modules: modules.clone() });
+                local::write_config(&self.config, &config);
+                modules
+            }
+        };
+        LocalStatus {
+            source_dir: Some(key),
+            configured,
+            valid: true,
+            modules: local::classify(&scanned, &compiled_modules(), &baseline, stamp, local::now_ms()),
+            quiet_ms,
+        }
+    }
+
+    /// Choisit (ou oublie, `None`) le dossier du code source suivi.
+    pub fn set_source_dir(&self, dir: Option<String>) -> AppResult<LocalStatus> {
+        if let Some(dir) = dir.as_deref() {
+            if !local::is_archimed_source(Path::new(dir)) {
+                return Err(AppError::invalid(
+                    "Ce dossier ne contient pas le code d'ARCHIMED (src/modules et src-tauri/tauri.conf.json).",
+                ));
+            }
+        }
+        let mut config = local::read_config(&self.config);
+        config.source_dir = dir;
+        config.baseline = None;
+        local::write_config(&self.config, &config);
+        Ok(self.local_status())
+    }
+
+    /// Recompile ARCHIMED avec les modules du code source, puis l'installe (fenêtre PowerShell).
+    /// Le code est d'abord mis au niveau de la version installée ou publiée la plus récente :
+    /// on ne recompile jamais une version plus ancienne.
+    pub fn local_rebuild(&self) -> AppResult<()> {
+        let status = self.local_status();
+        let Some((dir, _)) = self.source_dir() else {
+            return Err(AppError::not_found("Code source d'ARCHIMED introuvable : choisissez son dossier dans Réglages › Mises à jour."));
+        };
+        if !status.modules.iter().any(|m| m.ready) {
+            return Err(AppError::invalid("Aucun module prêt à intégrer."));
+        }
+        if !source_ready(&dir) {
+            return Err(AppError::not_found(format!(
+                "{} n'est pas une copie git complète du projet (dossier .git ou script de mise à jour absent).",
+                dir.display()
+            )));
+        }
+        let latest = self.latest_tag.lock().ok().and_then(|tag| tag.clone());
+        let tag = match latest {
+            Some(tag) if is_newer(CURRENT, &tag) => tag,
+            _ => format!("v{CURRENT}"),
+        };
+        let names = status.modules.iter().filter(|m| m.ready).map(|m| m.id.as_str()).collect::<Vec<_>>().join(", ");
+        let outcome = launch_source_update(&dir, &tag, true);
+        super::audit::record("app.update.local", &names, if outcome.is_ok() { "started" } else { "failed" }, "user");
         outcome
     }
 
@@ -519,6 +640,21 @@ pub async fn updater_rebuild(updater: State<'_, Updater>, version: String) -> Ap
 #[tauri::command]
 pub fn updater_cancel(updater: State<'_, Updater>) {
     updater.cancel();
+}
+
+#[tauri::command]
+pub async fn updater_local_status(updater: State<'_, Updater>) -> AppResult<LocalStatus> {
+    Ok(updater.local_status())
+}
+
+#[tauri::command]
+pub async fn updater_set_source_dir(updater: State<'_, Updater>, dir: Option<String>) -> AppResult<LocalStatus> {
+    updater.set_source_dir(dir)
+}
+
+#[tauri::command]
+pub async fn updater_local_rebuild(updater: State<'_, Updater>) -> AppResult<()> {
+    updater.local_rebuild()
 }
 
 // ── Règles pures (testées) ───────────────────────────────────────────────────
@@ -635,18 +771,27 @@ fn source_build() -> Option<SourceBuild> {
     if !is_source_build() {
         return None;
     }
-    let dir = Path::new(SOURCE_DIR);
     Some(SourceBuild {
         dir: SOURCE_DIR.to_string(),
-        ready: dir.join(".git").exists() && dir.join(SOURCE_SCRIPT).is_file(),
+        ready: source_ready(Path::new(SOURCE_DIR)),
         custom_modules: None,
     })
+}
+
+/// Copie git du projet avec son script de mise à jour.
+fn source_ready(dir: &Path) -> bool {
+    dir.join(".git").exists() && dir.join(SOURCE_SCRIPT).is_file()
+}
+
+fn same_dir(a: &Path, b: &Path) -> bool {
+    let norm = |p: &Path| p.display().to_string().replace('\\', "/").trim_end_matches('/').to_lowercase();
+    norm(a) == norm(b)
 }
 
 /// Fenêtre PowerShell visible : la personne suit la fusion et la compilation, et répond si
 /// le script lui demande d'enregistrer ses modifications.
 #[cfg(windows)]
-fn launch_source_update(dir: &str, tag: &str) -> AppResult<()> {
+fn launch_source_update(dir: &Path, tag: &str, local: bool) -> AppResult<()> {
     use std::os::windows::process::CommandExt;
     const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
     let exe = std::env::current_exe()?;
@@ -657,7 +802,7 @@ fn launch_source_update(dir: &str, tag: &str) -> AppResult<()> {
     };
     std::process::Command::new("powershell.exe")
         .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
-        .arg(Path::new(dir).join(SOURCE_SCRIPT))
+        .arg(dir.join(SOURCE_SCRIPT))
         .args(["-Tag", tag, "-Upstream"])
         .arg(format!("{}.git", REPOSITORY.trim_end_matches('/')))
         .arg("-AppPid")
@@ -665,6 +810,7 @@ fn launch_source_update(dir: &str, tag: &str) -> AppResult<()> {
         .arg("-Target")
         .arg(&exe)
         .args(["-Kind", kind])
+        .args(if local { &["-Local"][..] } else { &[][..] })
         .current_dir(dir)
         .creation_flags(CREATE_NEW_CONSOLE)
         .spawn()
@@ -673,7 +819,7 @@ fn launch_source_update(dir: &str, tag: &str) -> AppResult<()> {
 }
 
 #[cfg(not(windows))]
-fn launch_source_update(_dir: &str, _tag: &str) -> AppResult<()> {
+fn launch_source_update(_dir: &Path, _tag: &str, _local: bool) -> AppResult<()> {
     Err(AppError::invalid("La recompilation automatique n'existe que sous Windows."))
 }
 

@@ -78,6 +78,34 @@ pub async fn ping() -> AppResult<String> {
 }
 
 console.log(`\nProchaine étape : compléter ${`src/modules/${id}/index.tsx`} puis lancer pnpm check.`);
+if (registerSource(root)) {
+  console.log("ARCHIMED (version installée) suit ce dossier : quand le module sera terminé, un bouton");
+  console.log("« Mise à jour » bleu apparaîtra en haut à droite pour l'intégrer en un clic.");
+}
+
+/**
+ * Indique à la version installée d'ARCHIMED où est ce code source (`updater.json`, lu par
+ * core/updater) : elle repère alors les nouveaux modules et propose de les intégrer.
+ */
+function registerSource(dir) {
+  const appData = process.env.APPDATA;
+  if (!appData) return false;
+  const dataDir = join(appData, "com.sdai.archimed");
+  // ARCHIMED n'a jamais été lancé sur ce PC : rien à prévenir.
+  if (!existsSync(dataDir)) return false;
+  const file = join(dataDir, "updater.json");
+  let config = {};
+  try {
+    config = JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    config = {};
+  }
+  if (config.sourceDir !== dir) {
+    config.sourceDir = dir;
+    writeFileSync(file, `${JSON.stringify(config, null, 2)}\n`);
+  }
+  return true;
+}
 
 function valueOf(flag) {
   const index = rest.indexOf(flag);

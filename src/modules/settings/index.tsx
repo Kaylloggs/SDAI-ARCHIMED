@@ -9,7 +9,7 @@ import { ThemeSection } from "./components/ThemeSection";
 import { EngineSection } from "./components/EngineSection";
 import { TokenSaverSection } from "./components/TokenSaverSection";
 import { ModulesSection } from "./components/ModulesSection";
-import { UpdateSection } from "./components/UpdateSection";
+import { SourceFolderSection, UpdateSection } from "./components/UpdateSection";
 
 const FALLBACK_VERSION = packageInfo.version;
 
@@ -79,9 +79,12 @@ export default function SettingsModule() {
 
       <Section
         title="Mises à jour"
-        description="ARCHIMED vérifie au démarrage, puis toutes les six heures, si une nouvelle version est publiée sur GitHub. Rien n'est installé sans votre accord."
+        description="ARCHIMED vérifie au démarrage, puis toutes les six heures, si une nouvelle version est publiée sur GitHub, et repère les modules que vous créez dans votre code source. Rien n'est installé sans votre accord."
       >
-        <UpdateSection version={version} />
+        <div className="flex flex-col gap-2">
+          <UpdateSection version={version} />
+          <SourceFolderSection />
+        </div>
       </Section>
 
       <Section
