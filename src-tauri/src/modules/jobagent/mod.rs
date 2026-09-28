@@ -8,6 +8,7 @@ mod assets;
 mod commands;
 mod engine;
 mod letters;
+mod placeholders;
 mod secrets;
 mod service;
 

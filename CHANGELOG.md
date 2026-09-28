@@ -17,6 +17,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
   tâche » dans Voice › Intelligence.
 
 ### Corrigé
+- **Job Agent : plus de « Bonjour [name] » dans les mails.** Le modèle laissait parfois un
+  champ à remplir quand il ne connaissait pas le destinataire. La consigne l'interdit désormais,
+  et chaque texte rédigé est nettoyé : la salutation devient « Bonjour, » (« Hello, » en
+  anglais), l'entreprise et le poste sont repris de l'annonce, les autres champs (« [Votre
+  nom] », « [Téléphone] ») sont retirés. Le même nettoyage s'applique à l'envoi, pour les
+  brouillons rédigés avant.
 - **Voice ouvre Code sur le bon dossier.** Après la création ou la modification d'un projet
   (par l'assistant ou une tâche confiée), « ouvre-le dans Code » ou l'ouverture de Code par
   l'assistant affiche le dossier du projet, pas le dernier dossier ouvert.

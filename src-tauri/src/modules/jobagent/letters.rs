@@ -107,7 +107,10 @@ fn prompt(request: &LetterRequest) -> String {
 
     let mut sections = vec![format!(
         "Tu rédiges {quoi}, en {langue}. Rends uniquement le texte final, sans commentaire, \
-sans titre ajouté, sans balise de code."
+sans titre ajouté, sans balise de code. Le texte part tel quel : aucun champ à remplir \
+(rien entre crochets, accolades ou chevrons, comme [Nom] ou [Entreprise]). Le nom du \
+destinataire est inconnu : commence par « Bonjour, » (« Hello, » en anglais), sans nom. \
+Signe avec le nom écrit en tête du CV ; sans CV, ne signe pas."
     )];
 
     sections.push(format!(
@@ -242,13 +245,11 @@ pub async fn write(request: LetterRequest) -> AppResult<LetterResult> {
 
     let usage = result.get("usage").cloned().unwrap_or_default();
     let count = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let field = |key: &str| request.offer.get(key).and_then(Value::as_str).unwrap_or("");
+    let response = result.get("response").and_then(Value::as_str).unwrap_or_default();
     Ok(LetterResult {
-        text: result
-            .get("response")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .trim()
-            .to_string(),
+        // Un champ à remplir échappé au modèle (« Bonjour [name] ») ne part jamais.
+        text: super::placeholders::clean(response, field("company"), field("title")),
         input_tokens: count("input_tokens"),
         output_tokens: count("output_tokens"),
     })

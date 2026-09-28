@@ -253,6 +253,13 @@ impl JobAgentService {
     /// pièces jointes ; les identifiants sont ajoutés ici, jamais transmis par l'interface.
     pub async fn send_application(&self, mut message: Value) -> AppResult<Value> {
         let settings = read_json(&self.mail_file)?.unwrap_or_else(|| json!({}));
+        // Dernier filet : un brouillon rédigé avant la correction peut encore porter
+        // « Bonjour [name] ». L'entreprise et le poste, inconnus ici, gardent une formule neutre.
+        for key in ["subject", "body"] {
+            if let Some(text) = message.get(key).and_then(Value::as_str) {
+                message[key] = Value::String(super::placeholders::clean(text, "", ""));
+            }
+        }
         message["smtp"] = self.smtp()?;
         if message.get("from").and_then(Value::as_str).unwrap_or_default().is_empty() {
             message["from"] = settings

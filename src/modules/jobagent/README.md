@@ -209,6 +209,12 @@ est tenu par le skill **humanizer** de Claude Code, dont les règles sont inject
 prompt (`~/.claude/skills/humanizer/SKILL.md`) ; à défaut, un jeu de consignes équivalent
 prend le relais.
 
+Aucun champ à remplir ne part (`placeholders.rs`) : le prompt interdit les crochets et impose
+« Bonjour, » sans nom (destinataire inconnu), puis chaque texte rédigé est nettoyé
+(« Bonjour [name] » → « Bonjour, », « [Entreprise] » et « [Poste] » remplis depuis l'annonce,
+« [Votre nom] » ou « [Téléphone] » retirés avec leur ligne). `send_application` refait ce
+nettoyage sur l'objet et le corps, pour les brouillons plus anciens.
+
 ## Commandes Rust
 
 `status` · `install_engine` · `search` · `cancel_search` · `offer_detail` · `sources` ·
