@@ -4,6 +4,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.14.0] - 2026-09-28
+
 ### Ajouté
 - **L'assistant vocal peut faire tout ce que vous faites dans le logiciel.** Chaque module a sa
   base de commandes, lue dans son code : plus de 170 commandes au total. Planner : modifier une
