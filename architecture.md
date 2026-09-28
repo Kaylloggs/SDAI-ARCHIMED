@@ -165,6 +165,7 @@ SDAI ARCHIMED/
         ├── core/                        # error.rs (AppError) · paths.rs · config.rs (overrides)
         │                                # · dictation.rs (reconnaissance vocale Windows, locale + vumètre)
         │                                # · mcp.rs (serveurs MCP déclarés par les modules)
+        │                                # · commands_catalog.rs (copie sur disque de la base de commandes des modules)
         │                                # · audit.rs (audit.jsonl) · usage.rs (registre de consommation) · mod.rs
         │                                # · clipboard.rs (Ctrl+V : chemins CF_HDROP de l'Explorateur, images collées)
         │                                # · install.rs (installations en un clic : winget, npm, commandes longues,
@@ -342,10 +343,11 @@ inscrite au journal d'audit (`modules.remove`). Les modules `required` ne se sup
 | Service | `image.maker` | image-maker | `generateImage`, `editImage`, `removeBackground`, `upscaleImage`, `createVariation` : chemins des images produites (projet « Demandes des autres modules ») |
 | Service | `tutorial.open` | tutorial | `open(moduleId)` ouvre le tutoriel d'un module (ou « Premiers pas ») ; consommé par le bouton d'aide de `core/shell/TitleBar` |
 | Manifest | `tutorial` | chaque module | tutoriel d'utilisation (`ModuleTutorial`, voir §5.5), lu par le module Tutoriel |
-| Manifest | `capabilities`, `actions` | chaque module | ce que le module sait faire et ses actions pour les agents (`agent-actions.ts`, voir §5.6) |
+| Manifest | `capabilities`, `actions` | chaque module | ce que le module sait faire et sa base de commandes pour les agents (`agent-actions.ts`, obligatoire, voir §5.6) |
 | Contexte | `useModuleContext(id, ctx)` | chaque module | ce que la personne regarde (projet, fichier, sélection, image, objet) ; lu par `currentContext()` (§5.6) |
 | Service | `voice.speak` | voice | `speak(text, priority, source)` : faire parler l'assistant (`low` n'interrompt jamais, `critical` coupe la parole) |
 | Événement backend | `voice:model`, `voice:install`, `voice:mcp-call` | voice | avancement d'un téléchargement de modèle ; d'une installation d'outil ; outil MCP demandé par un agent |
+| Événement | `module.data.changed` | core | une commande d'agent a modifié les données d'un module : sa page les relit |
 | Événement | `module.opened`, `voice.started/stopped/transcript/response/speaking/interrupted/speak`, `voice.task.started/completed/failed`, `agent.started/completed` | core, voice | module affiché ; vie de la session vocale et des tâches confiées ; début et fin d'une demande à un agent |
 | Service | `engine.session` | core | démarrer/envoyer/écouter une session |
 | Service | `system.fs` / `system.shell` | core | actions système passant par la policy |
@@ -391,11 +393,23 @@ service `tutorial.open` ; absent si le module Tutoriel l'est.
   longue rend la main tout de suite et annonce son résultat par `voice.speak`.
 - **Contexte** (`core/context`) : chaque écran publie ce qu'il affiche avec `useModuleContext`
   (retiré au démontage). Rien n'est capturé à l'écran : seuls les champs choisis par le module.
+- **Base de commandes** (ADR 0017, `core/modules/commands.ts`) : chaque module actif a la sienne,
+  construite depuis son code : les actions de `agent-actions.ts` (obligatoire, `pnpm check`),
+  `open` (afficher le module) et les commandes de la palette qui agissent (`ui_…`).
+  `loadCommands` ne lit que les modules activés : un module désactivé ou supprimé n'a plus de
+  commandes. `searchCommands` trouve la commande décrite en français ou en anglais (racines,
+  synonymes, nom de la commande et début de sa description d'abord). `runCommand` vérifie les
+  arguments, exécute, et émet `module.data.changed` après une modification. Copie sur le disque,
+  un fichier par module actif : `<données>/commands/<module>.json` (`core/commands_catalog.rs`,
+  commande `commands_sync`, appelée par `useCommandCatalogSync` dans `AppShell` à chaque
+  changement de modules), les fichiers des modules désactivés ou supprimés sont effacés.
 - **Serveur MCP d'ARCHIMED** (plugin `voice`) : HTTP sur 127.0.0.1, jeton aléatoire, origines web
-  refusées, déclaré dans `<données>/mcp/voice.json` et passé aux CLI par le moteur. Outils :
-  `speak`, `notify`, `get_voice_state`, `get_context`, `list_modules`, `open_module`,
-  `run_action`, `start_task`, `task_status` (exécutés par l'interface, `voice/agent/tools.ts`).
-  Les outils en lecture seule sont dans `READ_ONLY_TOOLS` (`engine/policy.rs`).
+  refusées, déclaré dans `<données>/mcp/voice.json` et passé aux CLI par le moteur (Claude, Codex :
+  `--mcp-config` ; Antigravity : configuration personnelle, §6). Outils : `speak`, `notify`,
+  `get_voice_state`, `get_context`, `list_modules` (vue d'ensemble), `search_commands`,
+  `open_module`, `run_action`, `start_task`, `task_status` (exécutés par l'interface,
+  `voice/agent/tools.ts`). Les outils en lecture seule sont dans `READ_ONLY_TOOLS`
+  (`engine/policy.rs`).
 
 ## 6. Moteur Multi-CLI
 
@@ -420,7 +434,7 @@ pub trait CliAdapter: Send + Sync {
 | CLI | Binaire | Transport principal | Permissions | Modèles | Switch de modèle |
 |---|---|---|---|---|---|
 | Claude Code | `claude` | Structured : `-p --input-format stream-json --output-format stream-json --verbose` | `--permission-prompt-tool stdio` → `control_request`/`control_response` (§7.2) | `--model <id>` (Fable 5.1, Opus 5.5, Opus 5, Sonnet 5, Haiku 4.5) + `--effort` (sauf Haiku) | relance avec `--resume <session_id> --model <nouveau>` |
-| Antigravity | `agy` | Structured : `--input-format stream-json --output-format stream-json -p=` (**`-p` attend une valeur : `-p=` en dernier**) ; entrée `{"event":"user","message":{…}}` | refus a posteriori en headless (`permission check failed for <kind> "<cible>"`) → carte Autoriser / Toujours / Refuser ; autoriser écrit `<kind>(<cible>)` dans `~/.gemini/antigravity-cli/settings.json` (`permissions.allow`), relance `--conversation <id>` et demande de reprendre (règle ponctuelle retirée en fin de tour) | `agy models`, `--model` | relance avec `--conversation <id> --model <nouveau>` |
+| Antigravity | `agy` | Structured : `--input-format stream-json --output-format stream-json -p=` (**`-p` attend une valeur : `-p=` en dernier**) ; entrée `{"event":"user","message":{…}}` | refus a posteriori en headless (`permission check failed for <kind> "<cible>"`) → carte Autoriser / Toujours / Refuser ; autoriser écrit `<kind>(<cible>)` dans `~/.gemini/antigravity-cli/settings.json` (`permissions.allow`), relance `--conversation <id>` et demande de reprendre (règle ponctuelle retirée en fin de tour). Serveurs MCP des modules : pas de `--mcp-config`, ils sont inscrits avant chaque lancement dans `~/.gemini/config/mcp_config.json` (et `~/.gemini/antigravity-cli/mcp_config.json` s'il existe), au format `serverUrl` + `headers`, avec la règle `mcp(<serveur>/*)` ; retirés à la fermeture d'ARCHIMED (`adapters/antigravity/mcp.rs`) | `agy models`, `--model` | relance avec `--conversation <id> --model <nouveau>` |
 | Codex (expérimental) | `codex` | Structured one-shot : `codex exec --json -` | aucune (à valider) | `--model` | nouveau processus à chaque message |
 | Déclaratif (`adapters/*.toml`) | via TOML | **PTY** (ConPTY) | questions lues à l'écran (§7.4) | TOML | `resume_args` |
 

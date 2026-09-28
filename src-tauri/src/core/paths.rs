@@ -46,6 +46,11 @@ impl Paths {
         self.data.join("mcp")
     }
 
+    /// Base de commandes des modules actifs (voir `core::commands_catalog`).
+    pub fn commands(&self) -> PathBuf {
+        self.data.join("commands")
+    }
+
     pub fn module_dir(&self, module_id: &str) -> PathBuf {
         self.data.join("modules").join(module_id)
     }

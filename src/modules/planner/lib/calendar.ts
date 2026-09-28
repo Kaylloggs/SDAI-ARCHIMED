@@ -1,3 +1,6 @@
+/** Vue du tableau mémorisée (colonnes ou calendrier), aussi choisie par les agents. */
+export const VIEW_KEY = "archimed.planner.view";
+
 /**
  * Lien « Ajouter à Google Agenda » pré-rempli (événement journée entière).
  * Aucune authentification : Google ouvre sa page de création, l'utilisateur valide.

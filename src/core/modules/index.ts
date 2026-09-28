@@ -28,4 +28,19 @@ export {
   type ActionRisk,
   type ActionParam,
   type ActionContext,
+  type ChatControls,
 } from "./actions";
+export {
+  loadCommands,
+  runCommand,
+  searchCommands,
+  withBuiltins,
+  catalogOf,
+  commandInfo,
+  syncCommandCatalogs,
+  type ModuleCommands,
+  type CommandInfo,
+  type CommandCatalog,
+  type CommandMatch,
+} from "./commands";
+export { useCommandCatalogSync } from "./useCommandCatalog";

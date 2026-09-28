@@ -8,3 +8,8 @@ Messagerie multi-CLI au niveau de Claude Code (ADR 0015) : agent et modèle, ré
 - **Fichiers clés** : `components/SessionList.tsx` (conversations : recherche, groupes par date, renommage, état), `components/HeaderTools.tsx` (jauge de contexte, branche git, copie), `components/ChangesPanel.tsx` (modifications git et diffs), `components/ProjectBanner.tsx` (proposition d'ouvrir le module Code), `components/RawTerminalDrawer.tsx`, `lib/useGitStatus.ts`, `lib/sessions.ts`, `lib/changes.ts`.
 - **Panneaux redimensionnables** : liste (`chat.sessions`), aperçu (`chat.preview`), modifications (`chat.changes`), terminal brut (`chat.raw`).
 - **UI partagée** : `@/core/chat` (`Composer`, `ConversationView`, `TodoPanel`) et `@/core/engine/useChat`, `useMessageQueue`, `useAttention` — également utilisés par le module `code`.
+
+## Commandes pour les agents
+`agent-actions.ts` (base de commandes, ADR 0017 ; `open` ajoutée d'office). Tout ce que fait la liste des conversations et la barre du Chat.
+
+`list_conversations`, `open_conversation`, `read_conversation`, `new_conversation`, `send_message`, `prepare_message`, `stop_conversation`, `answer_prompt`, `rename_conversation`, `set_conversation_options`, `copy_conversation`, `last_answer`, `delete_conversation`.

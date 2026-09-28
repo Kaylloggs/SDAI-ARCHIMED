@@ -484,12 +484,7 @@ Assistant : `agent_prepare` · `agent_instructions` · `agent_changes` · `agent
 
 ## Actions pour les agents (voix, MCP)
 
-`agent-actions.ts` : `list_projects`, `open_project`, `create_project` (nom, loader, version de
-Minecraft ; par défaut Fabric et la version la plus récente déjà compilée par un profil
-vérifié, identifiants déduits du nom comme dans l'assistant de création, `lib/target.ts`),
-`add_item`, `add_block`, `add_recipe` (générateurs du module), `build_project` (rend la main tout
-de suite, résultat annoncé par `voice.speak`). L'agent vocal passe par elles pour toute demande
-de mod avant de compléter le code dans le dossier du projet.
+`agent-actions.ts` (base de commandes, ADR 0017) : Projets, contenu (objets, blocs, recettes), compilation, jeu et serveur de test, fichiers, textures (générées ou importées, pixel art ou image d'origine), points de restauration, export, portage. `list_projects`, `open_project`, `create_project`, `add_item`, `add_block`, `add_recipe`, `build_project`, `run_game`, `server_command`, `cancel_build`, `build_history`, `check_project`, `project_stats`, `list_files`, `read_file`, `write_file`, `create_folder`, `rename_file`, `trash_file`, `list_textures`, `generate_texture`, `import_texture`, `delete_textures`, `list_snapshots`, `create_snapshot`, `restore_snapshot`, `export_project`, `import_project`, `duplicate_project`, `port_project`, `remove_project`. `build_project` et `run_game` rendent la main tout de suite (résultat annoncé par `voice.speak`). L'agent vocal passe par elles pour toute demande de mod avant de compléter le code dans le dossier du projet.
 
 ## Données
 

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { KanbanSquare, Loader2 } from "lucide-react";
 import { EmptyState } from "@/design-system/primitives";
 import { useUiStore } from "@/core/stores/ui.store";
@@ -6,11 +6,14 @@ import { useModuleContext } from "@/core/context";
 import { usePlannerStore } from "./store";
 import { BoardSidebar } from "./components/BoardSidebar";
 import { BoardView } from "./components/BoardView";
+import { VIEW_KEY } from "./lib/calendar";
 
 export default function PlannerModule() {
   const { boards, activeBoardId, loaded, load, setActive } = usePlannerStore();
   const handoff = useUiStore((s) => s.moduleParams["planner"]);
   const clearParams = useUiStore((s) => s.clearModuleParams);
+  /** Change à chaque vue demandée de l'extérieur (agents) : le tableau la relit. */
+  const [viewRequest, setViewRequest] = useState(0);
 
   useEffect(() => {
     void load();
@@ -19,8 +22,17 @@ export default function PlannerModule() {
   // Ouverture ciblée depuis un autre module (ex : bandeau roadmap du module Code).
   useEffect(() => {
     const boardId = typeof handoff?.["boardId"] === "string" ? (handoff["boardId"] as string) : null;
-    if (loaded && boardId) {
-      setActive(boardId);
+    const view = handoff?.["view"] === "calendar" || handoff?.["view"] === "board" ? (handoff["view"] as string) : null;
+    if (loaded && (boardId || view)) {
+      if (boardId) setActive(boardId);
+      if (view) {
+        try {
+          localStorage.setItem(VIEW_KEY, view);
+        } catch {
+          // stockage indisponible : la vue reste celle affichée
+        }
+        setViewRequest((n) => n + 1);
+      }
       clearParams("planner");
     }
   }, [handoff, loaded, setActive, clearParams]);
@@ -52,7 +64,7 @@ export default function PlannerModule() {
     <div className="flex h-full">
       <BoardSidebar />
       {board ? (
-        <BoardView key={board.id} board={board} />
+        <BoardView key={`${board.id}:${viewRequest}`} board={board} />
       ) : (
         <div className="flex flex-1 items-center justify-center">
           <EmptyState

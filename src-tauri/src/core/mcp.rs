@@ -65,6 +65,15 @@ pub fn merged() -> Option<String> {
     Some(target.display().to_string())
 }
 
+/// Serveurs déclarés dans un fichier au format `{ "mcpServers": { … } }` (vide s'il est absent
+/// ou illisible), pour les CLI qui les reçoivent autrement que par une option.
+pub fn servers_in(path: Option<&str>) -> Map<String, Value> {
+    path.and_then(|path| std::fs::read_to_string(path).ok())
+        .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+        .and_then(|value| value.get("mcpServers").and_then(Value::as_object).cloned())
+        .unwrap_or_default()
+}
+
 /// Fichiers de déclaration présents, dans un ordre stable.
 fn declarations(dir: &std::path::Path) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(dir) else {
@@ -74,8 +83,9 @@ fn declarations(dir: &std::path::Path) -> Vec<PathBuf> {
         .flatten()
         .map(|entry| entry.path())
         .filter(|path| {
+            // Fichiers `_…` : écrits par le core (fusion, suivi), pas des déclarations.
             path.extension().is_some_and(|ext| ext == "json")
-                && path.file_name().is_some_and(|name| name != MERGED)
+                && path.file_name().is_some_and(|name| !name.to_string_lossy().starts_with('_'))
         })
         .collect();
     files.sort();

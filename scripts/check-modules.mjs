@@ -9,6 +9,8 @@
  *   README, puisqu'on ne peut ni les désactiver ni les supprimer
  * - chaque module non requis a un tutoriel (`tutorial` dans module.config.ts), affiché par le
  *   module Tutoriel
+ * - chaque module a sa base de commandes pour les agents : `agent-actions.ts` déclaré dans le
+ *   manifeste (`actions`), avec au moins une commande propre au module
  *
  * Les modules privés (dossier ignoré par git) échappent au contrôle de documentation :
  * ils ne doivent laisser aucune trace dans les fichiers publiés.
@@ -56,6 +58,19 @@ for (const id of frontModules) {
     errors.push(
       `modules/${id}: tutoriel manquant → créer tutorial.ts (modèle : src/modules/_template) et l'ajouter au manifest (\`tutorial\`)`,
     );
+  }
+
+  // Base de commandes : ce que la personne fait dans le module, un agent doit pouvoir le faire.
+  const actionsFile = join(dir, "agent-actions.ts");
+  if (!existsSync(actionsFile)) {
+    errors.push(`modules/${id}: base de commandes manquante → créer agent-actions.ts (modèle : src/modules/_template)`);
+  } else {
+    if (!/^\s*actions:\s*\(\)\s*=>\s*import\("\.\/agent-actions"\)/m.test(config)) {
+      errors.push(`modules/${id}: agent-actions.ts non déclaré → ajouter \`actions: () => import("./agent-actions")\` au manifest`);
+    }
+    if (!/name:\s*"[a-z][a-z0-9_]*"/.test(readFileSync(actionsFile, "utf8"))) {
+      errors.push(`modules/${id}: agent-actions.ts sans commande (defineActions([...]))`);
+    }
   }
 
   for (const file of walk(dir)) {

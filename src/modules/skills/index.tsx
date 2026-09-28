@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Boxes, FolderOpen, Loader2, PenLine, RefreshCw, Sparkles, Wand2 } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Badge, Button, Card, EmptyState, SectionHeader } from "@/design-system/primitives";
-import { bus } from "@/core/bus/event-bus";
+import { bus, useBusEvent } from "@/core/bus/event-bus";
 import { useSessionStore } from "@/core/engine/session.store";
 import { useUiStore } from "@/core/stores/ui.store";
 import { errorText, skillsApi, type DraftInfo, type Skill } from "./api";
@@ -49,12 +49,31 @@ export default function SkillsModule() {
     void refresh();
   }, [refresh]);
 
+  // Une commande d'agent a changé la bibliothèque : la liste suit.
+  useBusEvent(
+    "module.data.changed",
+    useCallback((event: { module: string }) => {
+      if (event.module === SELF) void refresh();
+    }, [refresh]),
+  );
+
   // Palette (« Créer un skill ») ou conversation rouverte depuis l'accueil : son dossier
   // désigne le brouillon.
   useEffect(() => {
     if (handoff?.["create"] === true) {
       useUiStore.getState().clearModuleParams(SELF);
       setMaker({ fresh: true });
+      return;
+    }
+    // Agents : reprise d'un brouillon ou amélioration d'un skill.
+    if (typeof handoff?.["draftId"] === "string") {
+      useUiStore.getState().clearModuleParams(SELF);
+      setMaker({ draftId: handoff["draftId"] as string });
+      return;
+    }
+    if (typeof handoff?.["improveId"] === "string") {
+      useUiStore.getState().clearModuleParams(SELF);
+      setMaker({ improve: { id: handoff["improveId"] as string, name: String(handoff["improveName"] ?? handoff["improveId"]) } });
       return;
     }
     const conversationId = handoff?.["conversationId"];

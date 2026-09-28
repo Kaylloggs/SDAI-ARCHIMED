@@ -1,7 +1,7 @@
 import { Suspense, createElement, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Slot } from "@/core/modules";
+import { Slot, useCommandCatalogSync } from "@/core/modules";
 import { useEnabledModules } from "@/core/modules/useModules";
 import { useUiStore } from "@/core/stores/ui.store";
 import { pageFade } from "@/design-system/motion";
@@ -19,6 +19,7 @@ export function AppShell() {
   const modules = useEnabledModules();
   const { activeModuleId, navigate } = useUiStore();
   const active = modules.find((m) => m.id === activeModuleId) ?? modules[0];
+  useCommandCatalogSync();
 
   // Fenêtre affichée seulement une fois le premier rendu prêt (design.md §8).
   useEffect(() => {

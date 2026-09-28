@@ -46,6 +46,8 @@ export const useTerminals = create<Store>((set) => ({
 
 const runtimes = new Map<string, Runtime>();
 let counter = 0;
+/** Commandes tapées pour la personne (agents) en attendant que le shell démarre. */
+const pendingInput = new Map<string, string[]>();
 
 /** Ouvre un nouveau terminal pour `root` et le rend actif. */
 export function createTerminal(root: string): string {
@@ -176,6 +178,8 @@ async function start(key: string): Promise<void> {
     }
     runtime.backendId = info.id;
     useTerminals.getState().set(key, { status: "running", title: numbered(tab.title, info.shell) });
+    for (const line of pendingInput.get(key) ?? []) void codeApi.terminalWrite(info.id, line).catch(() => undefined);
+    pendingInput.delete(key);
   } catch (error) {
     const message = (error as { message?: string }).message ?? "Lancement impossible";
     useTerminals.getState().set(key, { status: "error", error: message });
@@ -189,6 +193,19 @@ function numbered(title: string, shell: string): string {
   return index ? `${shell} (${index})` : shell;
 }
 
+/**
+ * Tape une commande dans le terminal du projet (créé s'il n'y en a pas) et la valide. Si le
+ * shell n'a pas encore démarré (panneau pas encore affiché), elle part dès qu'il est prêt.
+ */
+export function runInTerminal(root: string, command: string): string {
+  const key = useTerminals.getState().active[root] ?? createTerminal(root);
+  const runtime = runtimes.get(key);
+  const line = `${command.replace(/[\r\n]+$/, "")}\r`;
+  if (runtime?.backendId) void codeApi.terminalWrite(runtime.backendId, line).catch(() => undefined);
+  else pendingInput.set(key, [...(pendingInput.get(key) ?? []), line]);
+  return key;
+}
+
 /** Ferme le terminal et arrête ce qui y tourne. */
 export function closeTerminal(key: string): void {
   const runtime = runtimes.get(key);
@@ -199,6 +216,7 @@ export function closeTerminal(key: string): void {
     runtime.host.remove();
     runtimes.delete(key);
   }
+  pendingInput.delete(key);
   useTerminals.setState((state) => {
     const closing = state.tabs.find((tab) => tab.key === key);
     const tabs = state.tabs.filter((tab) => tab.key !== key);

@@ -20,6 +20,8 @@ export default defineModule({
   provides: {
     "tutorial.open": () => import("./services/open"),
   },
+  capabilities: ["tutorials", "explain_modules"],
+  actions: () => import("./agent-actions"),
   commands: [
     { id: "tutorial.start", title: "Tutoriel : premiers pas", run: () => open(START_TOPIC) },
     { id: "tutorial.create-module", title: "Tutoriel : créer un module", run: () => open(CREATE_MODULE_TOPIC) },

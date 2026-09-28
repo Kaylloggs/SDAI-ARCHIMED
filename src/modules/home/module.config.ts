@@ -14,4 +14,6 @@ export default defineModule({
   required: true,
   page: lazy(() => import("./index")),
   launchpad: false,
+  capabilities: ["recent_work"],
+  actions: () => import("./agent-actions"),
 });

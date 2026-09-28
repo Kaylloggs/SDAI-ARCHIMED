@@ -3,7 +3,9 @@ import { usageApi } from "./api";
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
-/** Actions du module Crédits pour les agents (voix, MCP). */
+const PERIODS = ["1", "7", "30"];
+
+/** Commandes du module Crédits : consommation, limites d'abonnement, compte Claude, période affichée. */
 export default defineActions([
   {
     name: "usage_summary",
@@ -34,5 +36,39 @@ export default defineActions([
         data: { days, adapters, limits },
       };
     },
+  },
+  {
+    name: "refresh_claude_limits",
+    description: "Actualise les limites d'abonnement de Claude (pourcentage utilisé, date de remise à zéro).",
+    risk: "write",
+    run: async () => {
+      const limits = await usageApi.refreshClaudeLimits();
+      const windows = limits.windows.map((w) => ({ id: w.id, usedPercent: Math.round(w.utilization * 100), resetsAt: w.resetsAt }));
+      return {
+        ok: true,
+        message: windows.length === 0 ? "Limites actualisées, aucune fenêtre signalée." : `Limites de Claude : ${windows.map((w) => `${w.id} ${w.usedPercent} pour cent`).join(", ")}.`,
+        data: { status: limits.status, windows },
+      };
+    },
+  },
+  {
+    name: "claude_account",
+    description: "Compte Claude connecté : abonnement et méthode de connexion (jamais d'identifiant secret).",
+    risk: "read",
+    run: async () => {
+      const account = await usageApi.claudeAccount();
+      return {
+        ok: true,
+        message: account.loggedIn ? `Claude est connecté${account.subscriptionType ? `, abonnement ${account.subscriptionType}` : ""}.` : "Claude n'est pas connecté.",
+        data: { loggedIn: account.loggedIn ?? false, authMethod: account.authMethod ?? null, subscriptionType: account.subscriptionType ?? null },
+      };
+    },
+  },
+  {
+    name: "show_period",
+    description: "Affiche la consommation des dernières 24 heures (1), des 7 ou des 30 derniers jours.",
+    params: { days: { type: "string", enum: PERIODS, description: "Période en jours.", required: true } },
+    risk: "read",
+    run: async (args) => ({ ok: true, message: `Consommation des ${String(args.days)} derniers jours affichée.`, open: { module: "usage", params: { days: String(args.days) } } }),
   },
 ]);

@@ -19,3 +19,8 @@
 - **Recherche dans le projet** (`Ctrl+Maj+F`, ou la loupe en tête de la colonne de gauche) : texte cherché dans tous les fichiers (`search.rs`), options casse / mot entier / expression régulière, filtres « inclure » et « exclure » (`*.ts`, `src/`, `**/generated/**`). Résultats groupés par fichier ; un clic ouvre le fichier et sélectionne la ligne, `↑` `↓` passent d'un résultat à l'autre. Dépendances, builds, dossiers cachés, fichiers binaires et de plus de 2 Mo sont sautés ; au-delà de 2 000 occurrences ou de 10 s, la liste est marquée tronquée. Une nouvelle recherche interrompt la précédente.
 - **Terminal** (``Ctrl+` ``, ou le bouton terminal de la barre d'onglets) : PowerShell 7 (ou Windows PowerShell) ouvert dans le dossier du projet, sous l'éditeur, hauteur réglable, plusieurs onglets (`terminal.rs`, xterm.js, couleurs du preset actif). Ce qui s'y tape part directement au shell ; aucune IA n'y écrit. Les terminaux continuent de tourner quand on change de module ou qu'on masque le panneau ; ils s'arrêtent (avec ce qu'ils ont lancé) quand on les ferme ou qu'on ouvre un autre projet. `Ctrl+C` copie la sélection s'il y en a une, sinon interrompt la commande ; Entrée relance un shell terminé. Voir l'[ADR 0011](../../../docs/adr/0011-code-terminal-and-project-search.md).
 - **Slots exposés** : `code.editor.footer`.
+
+## Commandes pour les agents
+`agent-actions.ts` (base de commandes, ADR 0017 ; `open` ajoutée d'office). Ouvrir, parcourir, chercher, lire et écrire ; lancer une commande dans le terminal intégré.
+
+`open_project`, `search_text`, `read_file`, `open_file`, `list_dir`, `find_files`, `write_file`, `run_in_terminal`.

@@ -108,7 +108,7 @@ src/modules/image-gen/
 ├── index.tsx            ← OBLIGATOIRE : page principale (export default, chargée en lazy)
 ├── README.md            ← OBLIGATOIRE : rôle, services fournis/consommés, commandes Rust
 ├── tutorial.ts          ← OBLIGATOIRE (sauf module requis) : tutoriel d'utilisation, voir §4.3
-├── agent-actions.ts     ← actions appelables par les agents et la voix (recommandé, voir §4.6)
+├── agent-actions.ts     ← OBLIGATOIRE : base de commandes des agents et de la voix, voir §4.6
 ├── api.ts               ← appels backend typés (seul endroit avec invoke)
 ├── store.ts             ← store zustand du module (préfixé par l'id)
 ├── types.ts
@@ -282,7 +282,16 @@ export const imageGenApi = {
 
 Règle : **toujours coder le cas où le service/slot est absent.** `useService("voice.transcribe")` retourne `undefined` si le module est désactivé → le bouton ne s'affiche pas.
 
-**Actions** (`defineActions`) : nom `snake_case`, description d'une phrase, paramètres typés,
+**Base de commandes** (`agent-actions.ts`, obligatoire, vérifié par `pnpm check`) : **tout ce que
+la personne peut faire dans le module, un agent doit pouvoir le faire avec une commande** (créer,
+modifier chaque champ, déplacer, supprimer, exporter…). Ajouter un geste à l'interface, c'est
+ajouter sa commande. La base est lue dans le code : rien à enregistrer ailleurs ; elle disparaît
+avec le module désactivé ou supprimé (ADR 0017). La commande `open` et celles de la palette
+sont ajoutées d'office. Une commande qui modifie des données émet `module.data.changed` : la
+page du module, si elle est ouverte, les relit (`useBusEvent`).
+
+**Actions** (`defineActions`) : nom `snake_case`, description d'une phrase qui commence par ce
+que fait la commande avec les mots de la personne (la recherche `search_commands` s'en sert), paramètres typés,
 risque honnête (`read`, `write`, `destructive` : supprimer, envoyer, payer → confirmation
 obligatoire). Le message de retour est une phrase prononçable qui dit ce qui a **vraiment** été
 fait ; une action ne prétend jamais avoir fait ce que l'API n'a pas confirmé. Une action longue
@@ -297,6 +306,7 @@ Noms de slots, services et événements : `domaine.sujet.action` en minuscules. 
 - [ ] Le module fonctionne **seul** et l'app fonctionne **sans lui** (tester en renommant le dossier en `_image-gen`).
 - [ ] `README.md` du module rempli (template fourni).
 - [ ] `tutorial.ts` écrit et relu dans le module Tutoriel (vérifié par `pnpm check` et `pnpm test`).
+- [ ] `agent-actions.ts` couvre tout ce que la personne peut faire dans le module (vérifié par `pnpm check` ; base chargée et bien formée : `catalog.test.ts`).
 - [ ] États vide / chargement / erreur conçus (voir `design.md` §9).
 - [ ] Aucun token de design en dur, aucune chaîne UI en dur hors `i18n/`.
 - [ ] Types Rust exportés via `ts-rs` et bindings régénérés (`pnpm gen:bindings`).

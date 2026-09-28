@@ -6,6 +6,8 @@ import { formatDuration, formatTokens } from "@/core/chat/activity";
 import { Badge, Button, Card, EmptyState, SectionHeader, Select } from "@/design-system/primitives";
 import { usageApi, type AdapterLimits, type ClaudeAccount, type Totals, type UsageSummary } from "./api";
 import { formatCost, observedAgo, resetIn, windowLabel, windowTone } from "./lib/format";
+import { useBusEvent } from "@/core/bus/event-bus";
+import { useUiStore } from "@/core/stores/ui.store";
 
 const PERIODS = [
   { value: "1", label: "Dernières 24 h" },
@@ -99,6 +101,23 @@ export default function UsageModule() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Période demandée par un agent (« montre la consommation du mois »).
+  const handoff = useUiStore((s) => s.moduleParams["usage"]);
+  const clearParams = useUiStore((s) => s.clearModuleParams);
+  useEffect(() => {
+    const wanted = handoff?.["days"];
+    if (wanted === "1" || wanted === "7" || wanted === "30") {
+      setDays(wanted);
+      clearParams("usage");
+    }
+  }, [handoff, clearParams]);
+  useBusEvent(
+    "module.data.changed",
+    useCallback((event: { module: string }) => {
+      if (event.module === "usage") void load();
+    }, [load]),
+  );
 
   const claudeInstalled = adapters.some((a) => a.id === "claude" && a.installed);
   useEffect(() => {

@@ -65,6 +65,7 @@ pub fn run() {
             engine_commands::engine_dictation_device,
             core::clipboard::clipboard_file_paths,
             core::clipboard::clipboard_save_file,
+            core::commands_catalog::commands_sync,
             core::modules::modules_footprint,
             core::modules::modules_remove,
             core::updater::updater_check,
@@ -78,6 +79,12 @@ pub fn run() {
             core::workspace::workspace_file_diff,
             core::workspace::workspace_files,
         ])
-        .run(tauri::generate_context!())
-        .expect("erreur au lancement de SDAI ARCHIMED");
+        .build(tauri::generate_context!())
+        .expect("erreur au lancement de SDAI ARCHIMED")
+        .run(|_, event| {
+            // Les serveurs MCP d'ARCHIMED inscrits chez Antigravity ne valent plus sans lui.
+            if let tauri::RunEvent::Exit = event {
+                engine::adapters::antigravity::forget_mcp();
+            }
+        });
 }

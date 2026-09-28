@@ -73,3 +73,8 @@ Les images arrivent dans le projet « Demandes des autres modules » (retouchabl
 ## Ajouter un fournisseur
 
 Une variante dans `ProviderId`, un fichier dans `src-tauri/src/core/imaging/` qui implémente `ImageProvider` (état, clé, modèles et capacités, génération, annulation), une ligne dans `Imaging::new`, un compte `image-maker-<fournisseur>` dans `module.toml`, et son nom et son site dans `lib/format.ts`.
+
+## Commandes pour les agents
+`agent-actions.ts` (base de commandes, ADR 0017 ; `open` ajoutée d'office). Projets, versions, génération et retouches par IA (confirmées : souvent payantes), transformations locales, file, export.
+
+`list_projects`, `open_project`, `create_project`, `rename_project`, `delete_project`, `list_images`, `select_image`, `undo`, `rename_image`, `set_favorite`, `delete_image`, `import_images`, `export_images`, `prepare_image`, `generate_image`, `edit_image`, `transform_image`, `list_models`, `choose_model`, `list_jobs`, `manage_job`.

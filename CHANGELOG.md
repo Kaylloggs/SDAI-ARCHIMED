@@ -4,6 +4,28 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté
+- **L'assistant vocal peut faire tout ce que vous faites dans le logiciel.** Chaque module a sa
+  base de commandes, lue dans son code : plus de 170 commandes au total. Planner : modifier une
+  carte (titre, notes, échéance, étiquettes, fait), la déplacer, la supprimer, gérer colonnes et
+  tableaux, vue calendrier, export d'agenda. Chat : nouvelle conversation, envoyer, arrêter,
+  répondre à une demande, changer d'agent, de modèle ou de dossier. Code : ouvrir un fichier,
+  écrire, lancer une commande dans le terminal. Image Maker : générer, retoucher, transformer,
+  exporter. Mod Studio : lancer le jeu ou le serveur de test, fichiers, textures, points de
+  restauration, portage. JobAgent, Mémoire, Skills, Réglages (thème, modules, assistants IA,
+  mises à jour), Crédits, Tutoriel, Voix. L'assistant cherche la commande qu'il lui faut
+  (outil `search_commands`) avant d'agir ou de dire que c'est impossible.
+- **Base de commandes tenue à jour toute seule.** Un module créé ou modifié arrive avec ses
+  commandes ; un module désactivé ou supprimé n'en a plus. Une copie par module est écrite dans
+  `<données>/commands/`. Tout nouveau module doit fournir la sienne (`pnpm check`).
+
+### Corrigé
+- **Antigravity peut piloter ARCHIMED.** Il ne recevait pas les outils d'ARCHIMED (créer un
+  tableau, lancer une commande d'un module…) : ils sont maintenant inscrits dans sa configuration
+  personnelle au lancement et retirés à la fermeture, avec l'autorisation nécessaire en mode sans
+  interface.
+- Une page ouverte (Mémoire, Skills, Crédits) se met à jour quand l'assistant modifie ses données.
+
 ## [0.13.0] - 2026-09-28
 
 ### Ajouté

@@ -19,3 +19,8 @@ Gestionnaire de compétences : indexation de la bibliothèque locale, activation
 - **Enregistrement** : `draft_save` refuse un skill avec erreurs ; un skill existant du même nom est copié dans `modules/skills/backups/<nom>-<date>/` avant d'être remplacé (le dossier est vidé, pas supprimé : les jonctions des CLI restent valides).
 - **Commandes** : `draft_create`, `draft_list`, `draft_info`, `draft_delete` (Corbeille), `draft_files`, `draft_read`, `draft_write` (limitées à `skill/`, `tests.json`, `source/`), `draft_check`, `draft_changes`, `draft_prepare_run`, `draft_save`.
 - **Accueil** : une conversation de l'atelier rouverte depuis l'accueil (`conversationId`) rouvre son brouillon.
+
+## Commandes pour les agents
+`agent-actions.ts` (base de commandes, ADR 0017 ; `open` ajoutée d'office). Bibliothèque (activer, importer) et atelier : écrire un skill directement, brouillons, vérification, enregistrement.
+
+`list_skills`, `set_skill_enabled`, `import_skill`, `open_skills_folder`, `write_skill`, `list_drafts`, `open_maker`, `check_draft`, `save_draft`, `delete_draft`.

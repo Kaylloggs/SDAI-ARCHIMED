@@ -17,12 +17,20 @@ export type ActionParam = {
   required?: boolean;
 };
 
+/** Commandes des conversations d'agents (voir `useChat`), fournies par l'appelant. */
+export type ChatControls = Pick<
+  ReturnType<typeof import("@/core/engine/useChat").useChat>,
+  "createSession" | "setActive" | "patch" | "send" | "answer" | "stop" | "remove" | "enqueue" | "setPlanMode" | "setAutoMode" | "setModel" | "setAdapter" | "setCwd"
+>;
+
 /** Contexte courant de l'application (voir `@/core/context`). */
 export type ActionContext = {
   /** Module affiché, projet, fichier, sélection… */
   context: import("@/core/context").AppContextSnapshot;
   /** Affiche un module (la conversation vocale continue). */
   openModule: (moduleId: string, params?: Record<string, unknown>) => void;
+  /** Conversations d'agents (envoyer, arrêter, changer de modèle…), si l'appelant les a. */
+  chat?: ChatControls;
 };
 
 export type ActionResult = {

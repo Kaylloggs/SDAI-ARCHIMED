@@ -22,6 +22,8 @@ export type BusEvents = {
     answer: string;
     tools: Array<{ tool: string; input: unknown; ok?: boolean }>;
   };
+  /** Une commande d'agent a modifié les données d'un module : sa page, si elle est ouverte, les relit. */
+  "module.data.changed": { module: string; command: string };
   /** Un module est affiché (navigation, commande vocale, agent). */
   "module.opened": { id: string; params?: Record<string, unknown> };
   /** Couche vocale (module Voice) : l'écoute démarre ou s'arrête. */

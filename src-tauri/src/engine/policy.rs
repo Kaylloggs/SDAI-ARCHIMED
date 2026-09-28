@@ -63,7 +63,8 @@ const READ_ONLY_TOOLS: &[&str] = &[
     "Read", "Glob", "Grep", "WebFetch", "WebSearch", "TodoWrite", "Task", "NotebookRead",
     "view_file", "list_dir", "grep_search", "codebase_search", "read_resource", "search_web",
     // Outils d'ARCHIMED (module Voice) qui lisent ou parlent sans rien modifier.
-    "mcp__archimed__get_context", "mcp__archimed__list_modules", "mcp__archimed__get_voice_state",
+    "mcp__archimed__get_context", "mcp__archimed__list_modules", "mcp__archimed__search_commands",
+    "mcp__archimed__get_voice_state",
     "mcp__archimed__task_status", "mcp__archimed__speak", "mcp__archimed__notify",
 ];
 

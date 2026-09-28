@@ -1,6 +1,6 @@
 import type { VoicePriority } from "@/core/bus/event-bus";
 import { currentContext } from "@/core/context";
-import { checkArgs, describeModule, loadActions, type LoadedModule, type ModuleActions } from "@/core/modules";
+import { checkArgs, commandInfo, loadCommands, runCommand, searchCommands, type LoadedModule, type ModuleCommands } from "@/core/modules";
 import { useUiStore } from "@/core/stores/ui.store";
 import { voiceApi, type McpCall, type McpReply } from "../api";
 import { privacyRows } from "../lib/privacy";
@@ -18,12 +18,12 @@ export type ToolDeps = {
   modules: () => LoadedModule[];
 };
 
-let actionsCache: { key: string; value: Promise<ModuleActions[]> } | null = null;
+let actionsCache: { key: string; value: Promise<ModuleCommands[]> } | null = null;
 
-/** Actions des modules actifs (rechargées quand la liste des modules change). */
-export function moduleActions(modules: LoadedModule[]): Promise<ModuleActions[]> {
+/** Base de commandes des modules actifs (rechargée quand la liste des modules change). */
+export function moduleActions(modules: LoadedModule[]): Promise<ModuleCommands[]> {
   const key = modules.map((m) => m.id).join(",");
-  if (actionsCache?.key !== key) actionsCache = { key, value: loadActions(modules) };
+  if (actionsCache?.key !== key) actionsCache = { key, value: loadCommands(modules) };
   return actionsCache.value;
 }
 
@@ -74,12 +74,37 @@ export async function runTool(call: McpCall, deps: ToolDeps): Promise<McpReply> 
       };
     }
     case "list_modules": {
-      const withActions = await moduleActions(modules);
-      const list = modules.map((module) => {
-        const entry = withActions.find((e) => e.module.id === module.id);
-        return entry ? describeModule(entry) : describeModule({ module, actions: [] });
-      });
-      return { ok: true, text: `${list.length} modules actifs.`, data: { modules: list } };
+      // Vue d'ensemble : le détail d'une commande (paramètres) vient de search_commands.
+      const entries = await moduleActions(modules);
+      const list = entries.map(({ module, actions }) => ({
+        id: module.id,
+        name: module.name,
+        description: module.description,
+        capabilities: module.capabilities ?? [],
+        commands: actions.map((a) => a.name),
+      }));
+      return {
+        ok: true,
+        text: `${list.length} modules actifs. Cherche la commande voulue avec search_commands (module, query), puis lance-la avec run_action.`,
+        data: { modules: list },
+      };
+    }
+    case "search_commands": {
+      const entries = await moduleActions(modules);
+      const moduleId = str(args.module) || undefined;
+      if (moduleId && !entries.some((e) => e.module.id === moduleId)) {
+        return { ok: false, text: `Module inconnu ou désactivé : ${moduleId}. Modules actifs : ${entries.map((e) => e.module.id).join(", ")}.` };
+      }
+      const limit = typeof args.limit === "number" && args.limit > 0 ? Math.min(args.limit, 50) : 12;
+      const found = searchCommands(entries, { module: moduleId, query: str(args.query), limit });
+      if (found.length === 0) {
+        return { ok: true, text: "Aucune commande ne correspond. Essaie d'autres mots, ou sans module.", data: { commands: [] } };
+      }
+      return {
+        ok: true,
+        text: `${found.length} commande${found.length > 1 ? "s" : ""} trouvée${found.length > 1 ? "s" : ""}. Lance-la avec run_action (module, action, arguments).`,
+        data: { commands: found.map((m) => ({ ...commandInfo(m.module, m.action), moduleName: m.module.name })) },
+      };
     }
     case "open_module": {
       const id = str(args.module);
@@ -96,7 +121,7 @@ export async function runTool(call: McpCall, deps: ToolDeps): Promise<McpReply> 
       const entry = (await moduleActions(modules)).find((e) => e.module.id === moduleId);
       const action = entry?.actions.find((a) => a.name === actionName);
       if (!entry || !action) {
-        return { ok: false, text: `Action inconnue : ${moduleId}.${actionName}. Appelle list_modules pour voir les actions disponibles.` };
+        return { ok: false, text: `Commande inconnue : ${moduleId}.${actionName}. Cherche-la avec search_commands.` };
       }
       const problem = checkArgs(action, params);
       if (problem) return { ok: false, text: problem };
@@ -107,8 +132,9 @@ export async function runTool(call: McpCall, deps: ToolDeps): Promise<McpReply> 
         if (answer === "no") return { ok: false, text: "La personne a refusé : rien n'a été fait." };
       }
       try {
-        const result = await action.run(params, {
+        const result = await runCommand(entry.module, action, params, {
           context: currentContext(),
+          chat: orchestrator.chat ?? undefined,
           openModule: (id, p) => (p ? useUiStore.getState().openModule(id, p) : useUiStore.getState().navigate(id)),
         });
         if (result.open) {

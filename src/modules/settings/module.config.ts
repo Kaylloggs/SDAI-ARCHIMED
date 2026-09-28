@@ -15,5 +15,7 @@ export default defineModule({
   required: true,
   page: lazy(() => import("./index")),
   launchpad: { size: "sm" },
+  capabilities: ["theme", "modules", "ai_agents", "token_saver", "updates"],
+  actions: () => import("./agent-actions"),
   tutorial,
 });

@@ -145,3 +145,33 @@ export function renameColumn(board: Board, columnId: string, title: string): Boa
     updatedAt: Date.now(),
   };
 }
+
+/** Champs d'une carte modifiables à la main (panneau de la carte, agents). */
+export type CardPatch = Partial<Pick<Card, "title" | "notes" | "due" | "labels" | "done">>;
+
+export function patchCard(board: Board, cardId: string, patch: CardPatch): Board {
+  return {
+    ...board,
+    cards: board.cards.map((card) => (card.id === cardId ? { ...card, ...patch } : card)),
+    updatedAt: Date.now(),
+  };
+}
+
+export function moveCard(board: Board, cardId: string, columnId: string): Board {
+  if (!board.columns.some((column) => column.id === columnId)) return board;
+  return {
+    ...board,
+    cards: board.cards.map((card) => (card.id === cardId ? { ...card, columnId } : card)),
+    updatedAt: Date.now(),
+  };
+}
+
+export function deleteCard(board: Board, cardId: string): Board {
+  return { ...board, cards: board.cards.filter((card) => card.id !== cardId), updatedAt: Date.now() };
+}
+
+export function addColumn(board: Board, title: string): Board {
+  const name = title.trim();
+  if (!name) return board;
+  return { ...board, columns: [...board.columns, { id: uid(), title: name }], updatedAt: Date.now() };
+}

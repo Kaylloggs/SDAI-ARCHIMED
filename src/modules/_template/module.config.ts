@@ -14,5 +14,8 @@ export default defineModule({
   enabledByDefault: true,
   page: lazy(() => import("./index")),
   launchpad: { size: "md" },
+  capabilities: [],
+  // Base de commandes pour les agents (voir agent-actions.ts).
+  actions: () => import("./agent-actions"),
   tutorial,__BACKEND__
 });

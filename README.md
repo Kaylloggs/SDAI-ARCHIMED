@@ -91,7 +91,7 @@ Press **Ctrl Shift Space**, or click the pill at the top of the window, and spea
 </div>
 
 - **Talk like you would to a person.** Interrupt it whenever you want: it stops and listens. "Pause", "repeat" and "stop" work in French and English.
-- **It acts, it doesn't just chat.** "Add the four launch steps to my roadmap", "build my mod", "open Image Maker": the voice uses the same actions as the modules. Long jobs go to Claude Code, Codex or Antigravity while you keep working, and it tells you when they are done.
+- **It acts, it doesn't just chat.** "Add the four launch steps to my roadmap", "move that card to Done and set it for Friday", "build my mod and launch the game": whatever you can do in a module, the voice can do too. Each module has its own command database, built from its code and gone when the module is turned off, and it works the same with Claude Code, Codex or Antigravity. Long jobs go to an agent while you keep working, and it tells you when they are done.
 - **You see where your words go.** Microphone, recognition, intelligence and voice each show **Local** or **Online**. A fully local mode (Whisper, Piper, Ollama) works without the internet.
 - **No more rights than typing.** Anything sensitive asks first, out loud, or with a sound and a Yes / No card if you'd rather it didn't read commands aloud.
 - **Set up in one click.** The **Installations** page installs the local voice, Ollama and Voicebox through each publisher's official channel. AI assistants (Claude Code, Codex, Antigravity) install from **Settings → AI assistants** and sign in in their own window: ARCHIMED never sees your credentials.
@@ -143,7 +143,7 @@ ARCHIMED is made of blocks: each feature above is a module in its own folder, an
 
 1. **Get the source**: `git clone https://github.com/Kaylloggs/SDAI-ARCHIMED.git`, then `pnpm install`.
 2. **Create the module**: `pnpm new:module weather` copies a ready-made template into `src/modules/weather/`.
-3. **Fill it in**: its name and icon in `module.config.ts`, its screen in `index.tsx`, its step-by-step guide in `tutorial.ts`.
+3. **Fill it in**: its name and icon in `module.config.ts`, its screen in `index.tsx`, its step-by-step guide in `tutorial.ts`, and in `agent-actions.ts` the commands that let the assistant do everything your screen does.
 4. **Try it and build it**: `pnpm tauri dev` to test, then `.\build.ps1`. Your own version (installer and portable `.exe`) lands in `release/`.
 
 **A blue Update button for your module.** As soon as your module is finished (files filled in, nothing written for 30 seconds), a blue **Update** button appears at the top right of the app you are using: one click rebuilds ARCHIMED with your module and reinstalls it. Your conversations, settings and keys are kept.

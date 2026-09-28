@@ -91,7 +91,7 @@ Appuyez sur **Ctrl Maj Espace**, ou cliquez sur la pastille en haut de la fenêt
 </div>
 
 - **Parlez comme à quelqu'un.** Coupez-lui la parole quand vous voulez : il s'arrête et écoute. « Pause », « répète » et « stop » marchent en français comme en anglais.
-- **Il agit, il ne fait pas que discuter.** « Ajoute les quatre étapes du lancement à ma roadmap », « compile mon mod », « ouvre Image Maker » : la voix utilise les mêmes actions que les modules. Les longs travaux partent chez Claude Code, Codex ou Antigravity pendant que vous continuez, et il vous prévient quand c'est fini.
+- **Il agit, il ne fait pas que discuter.** « Ajoute les quatre étapes du lancement à ma roadmap », « passe cette carte en Terminé pour vendredi », « compile mon mod et lance le jeu » : tout ce que vous faites dans un module, la voix sait le faire. Chaque module a sa base de commandes, lue dans son code et retirée quand le module est désactivé, et cela marche pareil avec Claude Code, Codex ou Antigravity. Les longs travaux partent chez un agent pendant que vous continuez, et il vous prévient quand c'est fini.
 - **Vous voyez où partent vos mots.** Micro, reconnaissance, intelligence et voix affichent chacun **Local** ou **En ligne**. Un mode entièrement local (Whisper, Piper, Ollama) marche sans internet.
 - **Pas plus de droits qu'au clavier.** Tout ce qui est sensible demande d'abord, à voix haute, ou par un son et une carte Oui / Non si vous préférez qu'il ne lise pas les commandes.
 - **Installé en un clic.** La page **Installations** installe la voix locale, Ollama et Voicebox par la voie officielle de chaque éditeur. Les assistants IA (Claude Code, Codex, Antigravity) s'installent dans **Réglages › Assistants IA** et se connectent dans leur propre fenêtre : ARCHIMED ne voit jamais vos identifiants.
@@ -143,7 +143,7 @@ ARCHIMED est fait de blocs : chaque fonction ci-dessus est un module dans son pr
 
 1. **Récupérez les sources** : `git clone https://github.com/Kaylloggs/SDAI-ARCHIMED.git`, puis `pnpm install`.
 2. **Créez le module** : `pnpm new:module meteo` copie un modèle prêt à remplir dans `src/modules/meteo/`.
-3. **Remplissez-le** : son nom et son icône dans `module.config.ts`, son écran dans `index.tsx`, son tutoriel pas à pas dans `tutorial.ts`.
+3. **Remplissez-le** : son nom et son icône dans `module.config.ts`, son écran dans `index.tsx`, son tutoriel pas à pas dans `tutorial.ts`, et dans `agent-actions.ts` les commandes qui permettent à l'assistant de faire tout ce que fait votre écran.
 4. **Essayez-le et compilez** : `pnpm tauri dev` pour tester, puis `.\build.ps1`. Votre propre version (installeur et `.exe` portable) arrive dans `release/`.
 
 **Un bouton Mise à jour bleu pour votre module.** Dès que votre module est terminé (fichiers remplis, plus rien d'écrit depuis 30 secondes), un bouton **Mise à jour** bleu apparaît en haut à droite de l'application que vous utilisez : un clic recompile ARCHIMED avec votre module et le réinstalle. Conversations, réglages et clés sont gardés.

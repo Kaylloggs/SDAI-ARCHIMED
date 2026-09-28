@@ -247,3 +247,8 @@ c'est la personne qui l'envoie.
 | `mail.json` | compte d'envoi ; le mot de passe y est chiffré par Windows |
 | `../../mcp/jobagent.json` | déclaration du serveur MCP, quand il est branché |
 | `engine/` | moteur Python et son environnement virtuel |
+
+## Commandes pour les agents
+`agent-actions.ts` (base de commandes, ADR 0017 ; `open` ajoutée d'office). Recherche, tri des annonces, lettres, lots de candidatures (l'envoi est confirmé), profil et compte d'envoi (jamais le mot de passe).
+
+`job_overview`, `run_search`, `set_search_criteria`, `cancel_search`, `list_offers`, `offer_details`, `star_offers`, `dismiss_offers`, `mark_seen`, `write_letter`, `prepare_applications`, `send_applications`, `set_application_status`, `get_profile`, `update_profile`, `import_cv`, `mail_account`, `update_mail_account`, `set_agent_tools`, `install_engine`.

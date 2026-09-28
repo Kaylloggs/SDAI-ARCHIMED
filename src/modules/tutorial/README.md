@@ -37,3 +37,8 @@ astuces, sans tenir compte des accents.
 - **Illustration** (`components/Miniature.tsx`) : la fenêtre d'ARCHIMED en réduction ; la zone de
   l'étape (`area`) s'allume et le voile glisse d'une zone à l'autre. Une étape avec `code` montre
   un extrait à copier (`components/CodeSample.tsx`).
+
+## Commandes pour les agents
+`agent-actions.ts` (base de commandes, ADR 0017 ; `open` ajoutée d'office). Lire le mode d'emploi d'un module pour l'expliquer, l'afficher à une étape, le marquer terminé.
+
+`list_tutorials`, `explain`, `show_tutorial`, `set_tutorial_done`.

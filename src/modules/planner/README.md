@@ -40,3 +40,8 @@ Format reconnu (souvent produit par une IA pendant un projet) :
 - **Slot `chat.message.actions`** (`slots/MessageActions.tsx`) : sous un message de l'IA contenant des cases à cocher, des `TODO :` ou des dates, propose « Ajouter N tâches au Planner » (tableau du projet suggéré d'après le dossier de la conversation) et « Ajouter à l'agenda ». Rien ne s'affiche sinon. Sur un tableau lié, les tâches sont ajoutées au `roadmap.md` dans une section « À trier ».
 - **Slot `code.editor.footer`** (`slots/RoadmapFooter.tsx`) : dans le module Code, si le projet contient un `roadmap.md`, affiche l'avancement et propose « Suivre dans le Planner » / « Ouvrir le tableau ».
 - **Entrée** : `openModule("planner", { boardId })`.
+
+## Commandes pour les agents
+`agent-actions.ts` (base de commandes, ADR 0017 ; `open` ajoutée d'office). Tableaux, colonnes et cartes comme à la main : titre, notes, échéance, étiquettes, fait ou non, déplacement, suppression ; vue calendrier, export .ics, Google Agenda. Une carte issue du `roadmap.md` garde son titre et sa date dans le fichier.
+
+`list_boards`, `get_board`, `create_board`, `open_board`, `rename_board`, `delete_board`, `sync_roadmap`, `export_calendar`, `add_column`, `rename_column`, `delete_column`, `add_tasks`, `add_card`, `update_card`, `move_card`, `complete_task`, `delete_card`, `find_cards`, `add_to_google_calendar`.

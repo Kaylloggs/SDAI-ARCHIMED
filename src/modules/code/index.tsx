@@ -133,6 +133,11 @@ export default function CodeModule() {
   // Dossier initial : passé par un autre module, mémorisé, ou dossier utilisateur.
   useEffect(() => {
     const fromHandoff = typeof handoff?.["cwd"] === "string" ? (handoff["cwd"] as string) : null;
+    // Commande lancée par un agent : le terminal s'affiche pour qu'on la voie tourner.
+    if (handoff?.["terminal"] === true) {
+      setTerminalOpen(true);
+      if (!fromHandoff) clearParams("code");
+    }
     if (fromHandoff) {
       setRoot(fromHandoff);
       // Fichier à ouvrir (lien d'une réponse d'IA) : ouvert une fois le dossier chargé.

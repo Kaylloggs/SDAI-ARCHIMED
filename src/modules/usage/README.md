@@ -16,3 +16,8 @@ Limites d'abonnement restantes et consommation des CLI d'IA.
 | Codex / CLI TOML | Non communiqué | consommation mesurée quand la CLI fournit des tokens |
 
 « Actualiser » (Claude) envoie un message très court avec le modèle Haiku, car Claude ne donne ses limites qu'au fil d'une requête : cela consomme quelques tokens. Le coût affiché est l'équivalent tarif API calculé par la CLI ; avec un abonnement, il n'est pas facturé en plus.
+
+## Commandes pour les agents
+`agent-actions.ts` (base de commandes, ADR 0017 ; `open` ajoutée d'office). Consommation, limites de Claude, compte connecté, période affichée.
+
+`usage_summary`, `refresh_claude_limits`, `claude_account`, `show_period`.

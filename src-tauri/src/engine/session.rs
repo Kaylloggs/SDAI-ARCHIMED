@@ -68,6 +68,8 @@ pub fn spawn(
         .ok_or_else(|| AppError::cli_missing(adapter.missing_hint()))?;
 
     if adapter.transport() == super::event::TransportKind::Pty {
+        // Serveurs MCP des modules : les CLI sans option dédiée les lisent ailleurs.
+        adapter.prepare_mcp(crate::core::mcp::merged().as_deref());
         let _ = channel.send(EngineEvent::SessionStarted {
             session_id: id.clone(),
             adapter: adapter.id().to_string(),
@@ -338,6 +340,9 @@ impl Launch {
         resume: Option<&str>,
         auto_mode: AutoMode,
     ) -> AppResult<Process> {
+        let mcp_config = crate::core::mcp::merged();
+        // Relance comprise : un module branché entre-temps donne aussi ses outils.
+        adapter.prepare_mcp(mcp_config.as_deref());
         let mut command = crate::core::process::async_command(&self.binary);
         command
             .args(adapter.spawn_args(super::event::LaunchOptions {
@@ -347,7 +352,7 @@ impl Launch {
                 cwd: self.cwd.as_deref(),
                 tuning: &self.tuning,
                 // Outils fournis par les modules : ils suivent chaque relance de la CLI.
-                mcp_config: crate::core::mcp::merged().as_deref(),
+                mcp_config: mcp_config.as_deref(),
                 session: &self.options,
             }))
             .stdin(Stdio::piped())

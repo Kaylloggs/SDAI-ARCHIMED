@@ -88,8 +88,17 @@ pub fn tools() -> Vec<Value> {
         }),
         json!({
             "name": "list_modules",
-            "description": "Modules d'ARCHIMED, leurs capacités et les actions appelables avec run_action (paramètres, niveau de risque).",
+            "description": "Modules actifs d'ARCHIMED : description, capacités et noms de leurs commandes. Pour le détail d'une commande (paramètres, risque), utilise search_commands.",
             "inputSchema": { "type": "object", "properties": {} }
+        }),
+        json!({
+            "name": "search_commands",
+            "description": "Cherche dans la base de commandes des modules actifs celle qui fait ce que tu veux, en français ou en anglais (ex. query « modifier une carte », module « planner »). Sans query : toutes les commandes du module. Renvoie nom, description, paramètres et risque, à lancer avec run_action. Tout ce que la personne peut faire dans un module y figure : cherche avant de dire que c'est impossible.",
+            "inputSchema": { "type": "object", "properties": {
+                "query": { "type": "string", "description": "Ce que tu veux faire, en quelques mots." },
+                "module": { "type": "string", "description": "Identifiant du module (voir list_modules), facultatif." },
+                "limit": { "type": "number", "description": "Nombre maximum de résultats (12 par défaut)." }
+            } }
         }),
         json!({
             "name": "open_module",
@@ -101,7 +110,7 @@ pub fn tools() -> Vec<Value> {
         }),
         json!({
             "name": "run_action",
-            "description": "Exécute une action d'un module (voir list_modules). Les actions qui suppriment ou envoient quelque chose demandent confirmation à la personne.",
+            "description": "Lance une commande d'un module trouvée avec search_commands : module, action (nom de la commande), arguments (objet, selon ses paramètres). Les commandes qui suppriment ou envoient quelque chose demandent confirmation à la personne.",
             "inputSchema": { "type": "object", "properties": {
                 "module": { "type": "string" },
                 "action": { "type": "string" },
@@ -261,7 +270,7 @@ impl McpServer {
                     "protocolVersion": version,
                     "capabilities": { "tools": { "listChanged": false } },
                     "serverInfo": { "name": SERVER_NAME, "title": "SDAI ARCHIMED", "version": env!("CARGO_PKG_VERSION") },
-                    "instructions": "Outils pour agir dans l'application ARCHIMED de la personne : lire le contexte, ouvrir un module, lancer une action d'un module (list_modules d'abord), confier une tâche à un agent, parler à voix haute."
+                    "instructions": "Outils pour agir dans l'application ARCHIMED de la personne : lire le contexte, ouvrir un module, chercher puis lancer une commande d'un module (search_commands, puis run_action), confier une tâche à un agent, parler à voix haute."
                 }))
             }
             "ping" => Ok(json!({})),

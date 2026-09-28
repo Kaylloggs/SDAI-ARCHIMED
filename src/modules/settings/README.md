@@ -11,3 +11,8 @@ Réglages globaux. Liste tous les modules découverts, affiche les manifests inv
 
 - **Backend** : aucun pour l'instant (persistance via zustand/localStorage ; migration vers `tauri-plugin-store` en Phase 2).
 - **Obligatoire** : oui.
+
+## Commandes pour les agents
+`agent-actions.ts` (base de commandes, ADR 0017 ; `open` ajoutée d'office). Thème, modules (activer, désactiver, supprimer, remettre), assistants IA (installer, connexion dans leur terminal), économie de tokens, mises à jour.
+
+`open_section`, `set_theme`, `list_app_modules`, `set_module_enabled`, `remove_module`, `restore_module`, `list_ai_agents`, `install_ai_agent`, `connect_ai_agent`, `set_token_saver`, `check_updates`, `install_update`.

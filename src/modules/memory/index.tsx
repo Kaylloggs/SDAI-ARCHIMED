@@ -4,6 +4,7 @@ import { Brain, Check, Eye, FileUp, FolderOpen, Globe, Loader2, Pencil, Plus, Tr
 import { cn } from "@/core/lib/cn";
 import { Button, EmptyState, SectionHeader, Tooltip } from "@/design-system/primitives";
 import { memoryApi, type MemorySettings, type Note, type NotePatch } from "./api";
+import { useBusEvent } from "@/core/bus/event-bus";
 
 const folderName = (path: string) => path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
 const message = (error: unknown) => (error as { message?: string }).message ?? String(error);
@@ -304,6 +305,14 @@ export default function MemoryModule() {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  // Une commande d'agent (voix, MCP) a changé la mémoire : la liste suit.
+  useBusEvent(
+    "module.data.changed",
+    useCallback((event: { module: string }) => {
+      if (event.module === "memory") void reload();
+    }, [reload]),
+  );
 
   useEffect(() => {
     if (!previewOpen) return;

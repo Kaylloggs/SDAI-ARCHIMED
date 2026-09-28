@@ -16,6 +16,12 @@
 //! dans `~/.gemini/antigravity-cli/settings.json`, relance `agy --conversation <id>` et
 //! demande de reprendre l'action. Vérifié le 2026-09-17 : la règle n'est lue qu'au
 //! démarrage du processus (ajout à chaud ignoré), d'où la relance.
+//!
+//! Serveurs MCP : voir `mcp.rs` (inscrits dans la configuration personnelle d'agy).
+
+mod mcp;
+
+pub use mcp::forget as forget_mcp;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -127,6 +133,12 @@ impl CliAdapter for AntigravityAdapter {
 
     fn missing_hint(&self) -> &'static str {
         "Antigravity CLI (agy) introuvable dans le PATH."
+    }
+
+    /// `agy` n'a pas d'option pour les serveurs MCP : ils sont inscrits dans sa configuration
+    /// personnelle (`mcp.rs`), relue à chaque démarrage du processus.
+    fn prepare_mcp(&self, mcp_config: Option<&str>) {
+        mcp::sync(mcp_config);
     }
 
     fn spawn_args(&self, options: LaunchOptions<'_>) -> Vec<String> {
@@ -444,7 +456,7 @@ fn decode_step(step: &Value, session_id: &str, denials: &mut HashMap<String, Den
                             Denial { rule: format!("{kind}({target})"), target },
                         );
                         events.push(EngineEvent::Prompt { prompt });
-                    } else if message.contains("permission check failed") {
+                    } else if message.contains("permission check failed") || message.contains("cannot prompt for") {
                         events.push(EngineEvent::Error {
                             code: "PERMISSION_DENIED".to_string(),
                             message: format!(

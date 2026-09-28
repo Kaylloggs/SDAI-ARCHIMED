@@ -19,3 +19,8 @@ La v0.1 tenait un journal automatique des réponses : retiré à la demande de l
 
 ## Sans dépendance entre modules
 Le core ne connaît que le nom du service `memory.context`. Module désactivé : aucune transmission.
+
+## Commandes pour les agents
+`agent-actions.ts` (base de commandes, ADR 0017 ; `open` ajoutée d'office). Tout ce que permet la page : chercher, ajouter, modifier, mettre en pause, importer, supprimer, transmission aux IA.
+
+`search_notes`, `remember`, `remember_many`, `update_note`, `forget`, `import_notes`, `set_injection`, `preview_context`.

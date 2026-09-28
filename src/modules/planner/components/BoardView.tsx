@@ -12,12 +12,15 @@ import { cn } from "@/core/lib/cn";
 import { Badge, Button } from "@/design-system/primitives";
 import { usePlannerStore } from "../store";
 import { plannerApi } from "../api";
+import { VIEW_KEY } from "../lib/calendar";
 import {
   addCards,
   progress,
   removeColumn,
   renameColumn,
-  uid,
+  addColumn,
+  deleteCard,
+  moveCard as moveCardTo,
 } from "../lib/board";
 import type { Board, Card } from "../types";
 import { CARD_DRAG_TYPE, CardItem } from "./CardItem";
@@ -30,7 +33,6 @@ import { CalendarView } from "./CalendarView";
 import { ColumnHeader } from "./ColumnHeader";
 
 type View = "board" | "calendar";
-const VIEW_KEY = "archimed.planner.view";
 
 function initialView(): View {
   try {
@@ -84,10 +86,7 @@ export function BoardView({ board }: { board: Board }) {
     }));
 
   const moveCard = (cardId: string, columnId: string) =>
-    updateBoard(board.id, (b) => ({
-      ...b,
-      cards: b.cards.map((c) => (c.id === cardId ? { ...c, columnId } : c)),
-    }));
+    updateBoard(board.id, (b) => moveCardTo(b, cardId, columnId));
 
   const addCard = (columnId: string) => {
     const title = draftByColumn[columnId]?.trim();
@@ -315,13 +314,7 @@ export function BoardView({ board }: { board: Board }) {
               onSubmit={(event) => {
                 event.preventDefault();
                 if (!newColumn.trim()) return;
-                updateBoard(board.id, (b) => ({
-                  ...b,
-                  columns: [
-                    ...b.columns,
-                    { id: uid(), title: newColumn.trim() },
-                  ],
-                }));
+                updateBoard(board.id, (b) => addColumn(b, newColumn));
                 setNewColumn("");
               }}
               className="w-64 shrink-0"
@@ -350,10 +343,7 @@ export function BoardView({ board }: { board: Board }) {
             void setCardDone(board.id, selected, !selected.done)
           }
           onDelete={() => {
-            updateBoard(board.id, (b) => ({
-              ...b,
-              cards: b.cards.filter((c) => c.id !== selected.id),
-            }));
+            updateBoard(board.id, (b) => deleteCard(b, selected.id));
             setSelectedId(null);
           }}
           onClose={() => setSelectedId(null)}

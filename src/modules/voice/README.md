@@ -38,21 +38,22 @@ Raccourcis ─────────────────┘        │    
 - **Mémoire** : la conversation de l'agent est supprimée à la fin de la session ; l'historique vocal reste (fichiers `sessions/<id>.json`), séparé de la mémoire des autres modules.
 
 ## Serveur MCP d'ARCHIMED
-Serveur HTTP local (`mcp.rs`, 127.0.0.1, port libre, jeton de 64 caractères, origines web refusées). Déclaré dans `<données>/mcp/voice.json` : le moteur le passe aux CLI (`--mcp-config`). Désactivable (Serveur MCP › Donner les outils aux agents : la déclaration est supprimée).
+Serveur HTTP local (`mcp.rs`, 127.0.0.1, port libre, jeton de 64 caractères, origines web refusées). Déclaré dans `<données>/mcp/voice.json` : le moteur le passe aux CLI (`--mcp-config` ; Antigravity, qui n'a pas cette option, le reçoit dans sa configuration personnelle `~/.gemini/config/mcp_config.json`, avec l'autorisation `mcp(archimed/*)`, retirés à la fermeture). Désactivable (Serveur MCP › Donner les outils aux agents : la déclaration est supprimée).
 
 | Outil | Rôle |
 |---|---|
 | `speak`, `notify` | Dire une phrase (priorité) ; `notify` attend un moment calme |
 | `get_voice_state`, `get_context` | État de la voix ; module affiché, projet, fichier, sélection |
-| `list_modules`, `open_module` | Modules actifs, leurs capacités et actions ; afficher un module |
-| `run_action` | Action d'un module (`agent-actions.ts`) ; `destructive` → confirmation (voix ou boutons), sauf avec l'autonomie « Tout accepter » |
+| `list_modules`, `open_module` | Modules actifs, leurs capacités et les noms de leurs commandes ; afficher un module |
+| `search_commands` | Cherche dans la base de commandes des modules actifs (requête en français ou en anglais, module facultatif) : nom, description, paramètres, risque |
+| `run_action` | Lance une commande d'un module ; `destructive` → confirmation (voix ou boutons), sauf avec l'autonomie « Tout accepter » ; une modification fait relire sa page au module (`module.data.changed`) |
 | `start_task`, `task_status` | Confier un travail à un agent en arrière-plan ; suivre |
 
 Les outils en lecture seule sont dans `READ_ONLY_TOOLS` (`engine/policy.rs`) ; les autres passent par la politique de permission habituelle. L'autonomie choisie (Intelligence › Autonomie) s'applique tout de suite à la conversation vocale et aux tâches en cours (`applyAutonomy`) ; même avec « Tout accepter », une commande critique pour le système (formatage, clés privées) reste demandée par le moteur.
 
 Tâches confiées (`start_task`) : l'agent vocal en donne la complexité (`simple`, `standard`, `complex`) ; avec « Modèle selon la tâche » (Intelligence), `lib/routing.ts` choisit l'agent et le modèle parmi les agents installés, par gamme lue dans le nom du modèle (léger : Flash, Haiku, Mini ; puissant : Opus, Fable, Pro ; équilibré sinon, l'agent choisi d'abord). Ouvrir un module sans paramètres (`open_module`, « ouvre Code ») l'ouvre sur le dossier où l'agent ou une tâche vient d'écrire des fichiers (`lib/workspace.ts`, paramètre `cwd`).
 
-Le prompt de l'agent vocal lui demande de passer par les actions d'un module quand la demande lui correspond (un mod Minecraft : `mcstudio.create_project`, `add_item`, `add_block`, `add_recipe`, `build_project`) avant d'écrire du code à la main.
+Chaque module a sa **base de commandes** (ADR 0017) : tout ce que la personne peut faire dans le module. Le prompt de l'agent vocal lui demande de la consulter (`search_commands`) avant d'agir ou de dire que c'est impossible, et de passer par les commandes d'un module quand la demande lui correspond (un mod Minecraft : `mcstudio.create_project`, `add_item`, `add_block`, `add_recipe`, `build_project`) avant d'écrire du code à la main.
 
 ## Modèles locaux
 Catalogue (`catalog.rs`) : Whisper tiny/base/small/large-v3-turbo (Hugging Face `ggerganov/whisper.cpp`), voix Piper FR/EN (`rhasspy/piper-voices`), Qwen 2.5 1,5B/3B/7B (Ollama), outils `whisper-server` et `piper` (GitHub, empreintes SHA-256 figées). Matériel détecté (processeur, mémoire, cartes graphiques et VRAM, système) → Recommandé / Optionnel / Déconseillé / Indisponible. Télécharger, pause, reprise (Range), vérification d'intégrité (SHA-256 LFS publiée par Hugging Face), test réel, activation, suppression. Dossier : `<données>/models/{stt,tts,llm,runtime}`.
@@ -66,7 +67,7 @@ Catalogue (`catalog.rs`) : Whisper tiny/base/small/large-v3-turbo (Hugging Face 
 ## Intégrations
 - **Service `voice.speak`** : `speak(text, priority, source)` depuis n'importe quel module (ou `bus.emit("voice.speak", …)`).
 - **Événements du bus** : `voice.started/stopped/transcript/response/speaking/interrupted`, `voice.task.started/completed/failed`.
-- **Actions** (`agent-actions.ts`) : `open_settings`, `enable_local_mode`.
+- **Commandes** (`agent-actions.ts`) : `open_settings`, `enable_local_mode`, `voice_settings`, `update_voice_settings` (langue, écoute, moteurs, voix, volume, débit, agent, modèle, autonomie…), `voice_history`, `delete_voice_session`.
 
 ## Limites connues
 - Voicebox : utilisé comme serveur (reconnaissance, profils de voix, synthèse) ; ARCHIMED ne crée pas de clone de voix. Ne clonez que votre voix ou celle d'une personne consentante.

@@ -66,6 +66,11 @@ pub trait CliAdapter: Send + Sync {
         None
     }
 
+    /// Avant chaque lancement : rend les serveurs MCP (fichier fusionné `mcp_config`) visibles
+    /// d'une CLI qui ne les reçoit pas par ses options (Antigravity les lit dans le dossier
+    /// personnel). Par défaut, rien : ils passent par `spawn_args`.
+    fn prepare_mcp(&self, _mcp_config: Option<&str>) {}
+
     /// Règles de questions propres à la CLI (TOML), pour le transport PTY.
     fn prompt_rules(&self) -> Option<String> {
         None
