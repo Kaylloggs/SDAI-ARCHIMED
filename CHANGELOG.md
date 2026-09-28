@@ -4,6 +4,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.13.0] - 2026-09-28
+
 ### Ajouté
 - **Mod Studio › Textures : choisir le rendu.** Une nouvelle pastille « Rendu » dans l'atelier
   (objet, bloc, icône) : pixel art de 8, 16, 32, 64, 128 ou 256 pixels de côté, ou **image
