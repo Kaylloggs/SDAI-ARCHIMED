@@ -15,6 +15,8 @@ import { SentenceChunker } from "../lib/chunker";
 import { effectiveSettings } from "../lib/privacy";
 import { cliSystemPrompt, contextPreamble, delegation, localSystemPrompt } from "../lib/prompt";
 import { normalize, parseConfirmation, route, type Intent } from "../lib/router";
+import { routeModel, type Complexity, type Route } from "../lib/routing";
+import { editedFiles, projectFolder } from "../lib/workspace";
 import { SpeechQueue, type SpeechItem } from "../lib/speech-queue";
 import { firstSentences, speakable } from "../lib/text";
 import type { TtsEngineId, VoiceSettings } from "../lib/settings";
@@ -357,7 +359,7 @@ export class VoiceOrchestrator {
         return;
       case "open": {
         const module = this.modules.find((m) => m.id === intent.module);
-        useUiStore.getState().navigate(intent.module);
+        this.openModule(intent.module);
         this.say(`J'ouvre ${module?.name ?? intent.module}.`, "normal", "notice", "voice");
         return;
       }
@@ -513,6 +515,33 @@ export class VoiceOrchestrator {
       conversation = this.conversation(conversation.id)!;
     }
     return conversation;
+  }
+
+  /**
+   * Dossier du projet sur lequel l'agent vient de travailler (fichiers créés ou modifiés) : la
+   * conversation vocale d'abord, puis les tâches confiées, de la plus récente à la plus ancienne.
+   */
+  workFolder(): string | null {
+    const session = useVoiceStore.getState().session;
+    const tasks = [...(session?.tasks ?? [])].sort((a, b) => (b.endedAt ?? b.startedAt) - (a.endedAt ?? a.startedAt));
+    for (const id of [session?.conversationId, ...tasks.map((t) => t.conversationId)]) {
+      const conversation = this.conversation(id);
+      const folder = conversation ? projectFolder(editedFiles(conversation.timeline), conversation.cwd) : null;
+      if (folder) return folder;
+    }
+    return null;
+  }
+
+  /**
+   * Affiche un module ; sans paramètres, il s'ouvre sur le dossier où l'agent vient de travailler
+   * (`cwd`, lu par Code) : « crée-moi un site » puis « montre-le » ouvre le bon projet.
+   */
+  openModule(id: string, params?: Record<string, unknown> | null): string | null {
+    const folder = params ? null : this.workFolder();
+    const finalParams = params ?? (folder ? { cwd: folder } : null);
+    if (finalParams) useUiStore.getState().openModule(id, finalParams);
+    else useUiStore.getState().navigate(id);
+    return folder;
   }
 
   /**
@@ -850,18 +879,29 @@ export class VoiceOrchestrator {
 
   // ── Tâches confiées ──────────────────────────────────────────────────────────────
 
-  /** Confie un travail à un agent dans une conversation du module Chat, suivie ici. */
-  async startTask(prompt: string, options: { agent?: string; cwd?: string | null; title?: string } = {}): Promise<VoiceTask> {
+  /**
+   * Confie un travail à un agent dans une conversation du module Chat, suivie ici. Avec une
+   * complexité et le réglage « Modèle selon la tâche », le modèle est choisi pour elle : léger
+   * pour une tâche simple, le plus puissant pour une tâche complexe.
+   */
+  async startTask(
+    prompt: string,
+    options: { agent?: string; cwd?: string | null; title?: string; complexity?: Complexity } = {},
+  ): Promise<VoiceTask & { route: Route | null }> {
     const chat = this.chat;
     if (!chat) throw new Error("Moteur des agents indisponible.");
     const settings = this.settings;
     const context = currentContext();
-    const adapter = options.agent ?? settings.agent.adapter;
+    const choice =
+      options.complexity && settings.agent.routeByComplexity
+        ? routeModel(await engineApi.listAdapters().catch(() => []), options.complexity, settings.agent.adapter, options.agent)
+        : null;
+    const adapter = choice?.adapter ?? options.agent ?? settings.agent.adapter;
     const cwd = options.cwd ?? context.modules[context.activeModule]?.project?.path ?? (await engineApi.defaultCwd().catch(() => null));
     const title = options.title ?? firstSentences(prompt, 1, 60);
     const conversationId = chat.createSession({
       adapter,
-      model: null,
+      model: choice?.model ?? (adapter === settings.agent.adapter ? settings.agent.model : null),
       cwd,
       autoMode: settings.agent.autoMode,
       origin: "chat",
@@ -876,7 +916,7 @@ export class VoiceOrchestrator {
     void chat.send(conversation, prompt).catch((e: { message?: string }) => {
       this.finishTask(conversationId, false, e.message ?? "L'agent n'a pas démarré.");
     });
-    return task;
+    return { ...task, route: choice };
   }
 
   private addTask(task: VoiceTask): void {

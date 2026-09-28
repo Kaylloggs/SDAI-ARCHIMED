@@ -855,12 +855,13 @@ fn opaque(raster: &Raster) -> bool {
 
 /// Réglages décrivant une texture existante (reprise telle quelle dans l'éditeur).
 fn options_for_existing(target: &TextureTarget, raster: &Raster) -> PixelOptions {
-    let square = raster.width == raster.height
-        && pixelart::SIZES.contains(&raster.width)
-        && !matches!(
-            target,
-            TextureTarget::Gui { .. } | TextureTarget::Asset { .. }
-        );
+    let fixed = !matches!(
+        target,
+        TextureTarget::Gui { .. } | TextureTarget::Asset { .. }
+    );
+    let square = raster.width == raster.height && pixelart::SIZES.contains(&raster.width) && fixed;
+    // Texture carrée d'une autre taille (image gardée telle quelle) : reprise sans conversion.
+    let kept = fixed && !square && raster.width == raster.height && raster.width <= pixelart::FREE_MAX;
     let fits = |side: u32| side.clamp(1, pixelart::FREE_MAX);
     PixelOptions {
         size: if square { raster.width } else { 16 },
@@ -868,10 +869,11 @@ fn options_for_existing(target: &TextureTarget, raster: &Raster) -> PixelOptions
         transparent: !opaque(raster),
         tiling: Tiling::None,
         outline: false,
-        width: (!square).then(|| fits(raster.width)),
-        height: (!square).then(|| fits(raster.height)),
+        width: (!square && !kept).then(|| fits(raster.width)),
+        height: (!square && !kept).then(|| fits(raster.height)),
         atlas: false,
         crop: None,
+        keep: kept,
     }
 }
 
@@ -1392,6 +1394,7 @@ mod tests {
             height: None,
             atlas: false,
             crop: None,
+            keep: false,
         }
     }
 

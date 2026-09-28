@@ -4,6 +4,23 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté
+- **Mod Studio › Textures : choisir le rendu.** Une nouvelle pastille « Rendu » dans l'atelier
+  (objet, bloc, icône) : pixel art de 8, 16, 32, 64, 128 ou 256 pixels de côté, ou **image
+  d'origine**, gardée telle quelle (seulement recadrée au carré et réduite au-delà de 512 px).
+  Vaut pour une image importée comme pour une image générée ; changer de rendu reconvertit
+  l'image affichée, et le choix « image d'origine » est retenu.
+- **Voice : le modèle suit la complexité de la tâche.** Quand l'assistant confie un travail de
+  code, il en évalue la complexité : un modèle léger et rapide pour une tâche simple (Gemini
+  Flash, Haiku…), le plus puissant pour une tâche complexe (Opus, Pro…), un modèle équilibré
+  sinon, parmi les agents installés. Il dit à qui il l'a confié. Réglage « Modèle selon la
+  tâche » dans Voice › Intelligence.
+
+### Corrigé
+- **Voice ouvre Code sur le bon dossier.** Après la création ou la modification d'un projet
+  (par l'assistant ou une tâche confiée), « ouvre-le dans Code » ou l'ouverture de Code par
+  l'assistant affiche le dossier du projet, pas le dernier dossier ouvert.
+
 ## [0.12.0] - 2026-09-28
 
 ### Ajouté

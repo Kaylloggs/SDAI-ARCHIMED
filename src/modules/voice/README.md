@@ -50,6 +50,8 @@ Serveur HTTP local (`mcp.rs`, 127.0.0.1, port libre, jeton de 64 caractères, or
 
 Les outils en lecture seule sont dans `READ_ONLY_TOOLS` (`engine/policy.rs`) ; les autres passent par la politique de permission habituelle. L'autonomie choisie (Intelligence › Autonomie) s'applique tout de suite à la conversation vocale et aux tâches en cours (`applyAutonomy`) ; même avec « Tout accepter », une commande critique pour le système (formatage, clés privées) reste demandée par le moteur.
 
+Tâches confiées (`start_task`) : l'agent vocal en donne la complexité (`simple`, `standard`, `complex`) ; avec « Modèle selon la tâche » (Intelligence), `lib/routing.ts` choisit l'agent et le modèle parmi les agents installés, par gamme lue dans le nom du modèle (léger : Flash, Haiku, Mini ; puissant : Opus, Fable, Pro ; équilibré sinon, l'agent choisi d'abord). Ouvrir un module sans paramètres (`open_module`, « ouvre Code ») l'ouvre sur le dossier où l'agent ou une tâche vient d'écrire des fichiers (`lib/workspace.ts`, paramètre `cwd`).
+
 Le prompt de l'agent vocal lui demande de passer par les actions d'un module quand la demande lui correspond (un mod Minecraft : `mcstudio.create_project`, `add_item`, `add_block`, `add_recipe`, `build_project`) avant d'écrire du code à la main.
 
 ## Modèles locaux

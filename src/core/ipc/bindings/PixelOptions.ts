@@ -3,7 +3,7 @@ import type { CropRect } from "./CropRect";
 import type { Tiling } from "./Tiling";
 
 /**
- * Réglages de conversion en pixel-art.
+ * Réglages de conversion en pixel-art (ou image gardée telle quelle, `keep`).
  */
 export type PixelOptions = { 
 /**
@@ -38,4 +38,9 @@ atlas: boolean,
  * Zone de l'image reçue qui devient la texture (pixels de l'image d'origine) ; `None` :
  * toute l'image.
  */
-crop: CropRect | null, };
+crop: CropRect | null, 
+/**
+ * Image gardée telle quelle : ni pixellisation ni palette, seulement recadrée au carré
+ * (fond retiré si `transparent`), réduite au-delà de 512 px. Textures carrées seulement.
+ */
+keep: boolean, };

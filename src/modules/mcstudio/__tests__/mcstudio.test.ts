@@ -12,7 +12,7 @@ import {
   suggestPackage,
   suggestRegistryId,
 } from "../lib/naming";
-import { defaultOptions, defaultTiling, loadProvider, modelOptions, pickModel, seamVerdict, targetKey } from "../lib/textures";
+import { colorsFor, defaultOptions, defaultTiling, loadProvider, modelOptions, pickModel, seamVerdict, squareTarget, targetKey, withConversion } from "../lib/textures";
 import type { ImageModel } from "@/core/ipc/bindings/ImageModel";
 
 describe("identifiants dérivés du nom", () => {
@@ -116,6 +116,10 @@ describe("textures", () => {
     expect(defaultOptions({ kind: "item", id: "ruby" }, hd)).toMatchObject({ size: 32, colors: 32 });
     expect(defaultOptions({ kind: "block", id: "lava", face: null }, { ...hd, height: 512 }).size).toBe(32);
     expect(defaultOptions({ kind: "item", id: "odd" }, { ...hd, width: 20, height: 20 }).size).toBe(16);
+    // Texture carrée d'une autre taille : une image gardée telle quelle, reprise ainsi.
+    expect(defaultOptions({ kind: "item", id: "odd" }, { ...hd, width: 20, height: 20 }).keep).toBe(true);
+    expect(defaultOptions({ kind: "item", id: "hd" }, { ...hd, width: 128, height: 128 })).toMatchObject({ size: 128, keep: false });
+    expect(defaultOptions({ kind: "item", id: "ruby" }).keep).toBe(false);
     expect(defaultOptions({ kind: "item", id: "new" }, { ...hd, exists: false }).size).toBe(16);
     // Texture libre : la taille de son fichier, sinon celle de sa famille dans le jeu.
     const overlay = { kind: "asset", path: "misc/googles_overlay" } as const;
@@ -260,5 +264,26 @@ describe("assistant IA", () => {
       workPath: path,
     });
     expect([...defaultSelection([change("a", false), change("b", true)])]).toEqual(["a"]);
+  });
+});
+
+describe("rendu d'une texture", () => {
+  const base = defaultOptions({ kind: "item", id: "ruby" });
+
+  it("choisit pixel art de N pixels ou image d'origine", () => {
+    expect(withConversion(base, { keep: true, size: 16 })).toMatchObject({ keep: true, size: 16, colors: 16 });
+    expect(withConversion(base, { keep: false, size: 64 })).toMatchObject({ keep: false, size: 64, colors: 64 });
+    // Retour au pixel art depuis l'image d'origine : palette remise à la taille.
+    expect(withConversion({ ...base, keep: true, colors: 0 }, { keep: false, size: 16 })).toMatchObject({ keep: false, colors: 16 });
+    // Même taille, palette réglée à la main : gardée.
+    expect(withConversion({ ...base, colors: 8 }, { keep: false, size: 16 }).colors).toBe(8);
+    expect([8, 16, 32, 64, 128].map(colorsFor)).toEqual([8, 16, 32, 64, 64]);
+  });
+
+  it("n'est proposé que pour les textures carrées", () => {
+    expect(squareTarget({ kind: "item", id: "ruby" })).toBe(true);
+    expect(squareTarget({ kind: "block", id: "ore", face: null })).toBe(true);
+    expect(squareTarget({ kind: "icon" })).toBe(true);
+    expect(squareTarget({ kind: "gui", id: "furnace" } as never)).toBe(false);
   });
 });

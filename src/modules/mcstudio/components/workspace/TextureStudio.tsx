@@ -17,6 +17,8 @@ import { errorText, mcstudioApi } from "../../api";
 import {
   blockOf,
   defaultOptions,
+  squareTarget,
+  withConversion,
   kindLabel,
   loadProvider,
   MAX_DESCRIPTION,
@@ -60,6 +62,28 @@ const memory = new Map<string, { description: string; prompt: PromptChoice }>();
 function memoryKey(target: TextureTarget): string {
   const block = blockOf(target);
   return block ? `block:${block}` : targetKey(target);
+}
+
+const KEEP_KEY = "mcstudio.textures.keep";
+
+/** Dernier rendu choisi (image d'origine ou pixel art), repris pour une nouvelle texture carrée. */
+function rememberKeep(keep: boolean): void {
+  try {
+    localStorage.setItem(KEEP_KEY, keep ? "1" : "0");
+  } catch {
+    // Préférence non gardée : sans conséquence.
+  }
+}
+
+/** Réglages de départ : ceux de la texture en place, sinon le dernier rendu choisi. */
+function startOptions(target: TextureTarget, texture: TextureInfo): PixelOptions {
+  const options = defaultOptions(target, texture);
+  if (!squareTarget(target) || texture.exists) return options;
+  try {
+    return localStorage.getItem(KEEP_KEY) === "1" ? { ...options, keep: true } : options;
+  } catch {
+    return options;
+  }
 }
 
 /** Faces du cube d'inventaire, depuis les textures du bloc et l'image de la face ouverte. */
@@ -119,7 +143,7 @@ export function TextureStudio({
   const remembered = memory.get(memoryKey(target));
   const [description, setDescription] = useState(remembered?.description ?? "");
   const [prompt, setPrompt] = useState<PromptChoice>(remembered?.prompt ?? DEFAULT_PROMPT);
-  const [options, setOptions] = useState<PixelOptions>(() => defaultOptions(target, texture));
+  const [options, setOptions] = useState<PixelOptions>(() => startOptions(target, texture));
   const [provider, setProvider] = useState<ImageProvider>(loadProvider);
   const [keys, setKeys] = useState<Record<ImageProvider, boolean | null>>({
     openRouter: null,
@@ -569,6 +593,11 @@ export function TextureStudio({
           guiSize={guiSize}
           transparent={options.transparent}
           onTransparent={(transparent) => changeOptions({ ...options, transparent })}
+          conversion={squareTarget(target) ? { keep: options.keep, size: options.size } : null}
+          onConversion={(conversion) => {
+            rememberKeep(conversion.keep);
+            changeOptions(withConversion(options, conversion));
+          }}
           modelState={modelState}
           canGenerate={canGenerate}
           generating={phase === "generating"}

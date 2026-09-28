@@ -93,7 +93,7 @@ pub fn tools() -> Vec<Value> {
         }),
         json!({
             "name": "open_module",
-            "description": "Affiche un module d'ARCHIMED (ex. code, image-maker, planner), avec des paramètres facultatifs.",
+            "description": "Affiche un module d'ARCHIMED (ex. code, image-maker, planner), avec des paramètres facultatifs. Code : { \"cwd\": dossier du projet, \"file\": fichier } ; sans paramètres, Code s'ouvre sur le dossier où tu viens d'écrire des fichiers.",
             "inputSchema": { "type": "object", "properties": {
                 "module": { "type": "string" },
                 "params": { "type": "object" }
@@ -110,10 +110,11 @@ pub fn tools() -> Vec<Value> {
         }),
         json!({
             "name": "start_task",
-            "description": "Confie un travail long à un agent (Claude Code, Antigravity, Codex) dans une conversation du module Chat, suivie par ARCHIMED. Renvoie l'identifiant de la tâche.",
+            "description": "Confie un travail (de code surtout) à un agent (Claude Code, Antigravity, Codex) dans une conversation du module Chat, suivie par ARCHIMED. Indique sa complexité : ARCHIMED choisit alors le modèle (léger pour une tâche simple, le plus puissant pour une tâche complexe). Renvoie l'identifiant de la tâche et le modèle choisi.",
             "inputSchema": { "type": "object", "properties": {
                 "prompt": { "type": "string" },
-                "agent": { "type": "string", "enum": ["claude", "antigravity", "codex"] },
+                "complexity": { "type": "string", "enum": ["simple", "standard", "complex"], "description": "simple : petite modification, script ou page courte ; standard : fonctionnalité de taille moyenne ; complex : architecture, plusieurs fichiers ou modules, bug difficile, performances." },
+                "agent": { "type": "string", "enum": ["claude", "antigravity", "codex"], "description": "Seulement si la personne demande un agent précis." },
                 "cwd": { "type": "string", "description": "Dossier de travail (sinon le projet ouvert)." },
                 "title": { "type": "string" }
             }, "required": ["prompt"] }

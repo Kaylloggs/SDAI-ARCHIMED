@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { CloudOff, Loader2, Paperclip, RefreshCw, SlidersHorizontal, Sparkles, SquareDashed } from "lucide-react";
+import { CloudOff, Grid3x3, Image as ImageIcon, Loader2, Paperclip, RefreshCw, SlidersHorizontal, Sparkles, SquareDashed } from "lucide-react";
 import { onPasteFiles } from "@/core/chat";
 import { cn } from "@/core/lib/cn";
 import { Button, Select } from "@/design-system/primitives";
@@ -8,7 +8,7 @@ import type { ImageModelList } from "@/core/ipc/bindings/ImageModelList";
 import type { ImageProvider } from "@/core/ipc/bindings/ImageProvider";
 import type { TextureInfo } from "@/core/ipc/bindings/TextureInfo";
 import type { TextureTarget } from "@/core/ipc/bindings/TextureTarget";
-import { MAX_DESCRIPTION, modelOptions, PROVIDER_LABEL } from "../../../lib/textures";
+import { MAX_DESCRIPTION, modelOptions, PIXEL_SIZES, PROVIDER_LABEL, type Conversion } from "../../../lib/textures";
 import { GeminiKeyCard, HiggsfieldKeyCard, OpenRouterKeyCard } from "../../ApiKeyCard";
 import { HiggsfieldAccountCard } from "../../HiggsfieldAccountCard";
 import { focusRing, Segmented, Switch } from "../../ui";
@@ -203,8 +203,60 @@ function ModelPanel({ state, disabled }: { state: ModelState; disabled: boolean 
 }
 
 /**
+ * Rendu d'une texture carrée : pixel art de la taille choisie, ou image gardée telle quelle.
+ * Vaut pour l'image importée comme pour l'image générée ; changer de rendu reconvertit l'image
+ * affichée.
+ */
+function ConversionPanel({ value, onChange, disabled }: { value: Conversion; onChange: (next: Conversion) => void; disabled: boolean }) {
+  return (
+    <div className="space-y-3">
+      <Segmented
+        label="Rendu de la texture"
+        value={value.keep ? "keep" : "pixel"}
+        options={[
+          { value: "pixel", label: "Pixel art" },
+          { value: "keep", label: "Image d'origine" },
+        ]}
+        onChange={(mode) => onChange({ ...value, keep: mode === "keep" })}
+        disabled={disabled}
+      />
+      {value.keep ? (
+        <p className="text-footnote text-text-muted">
+          L'image est gardée telle quelle : ni réduite en pixels ni ramenée à une palette. Elle est seulement recadrée au carré, et
+          réduite si elle dépasse 512 pixels de côté.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          <p className="text-footnote text-text-muted">Taille en pixels (côté). Le jeu utilise 16 par défaut ; au-delà, plus de détails.</p>
+          <div role="radiogroup" aria-label="Taille en pixels" className="flex flex-wrap gap-1">
+            {PIXEL_SIZES.map((size) => (
+              <button
+                key={size}
+                type="button"
+                role="radio"
+                aria-checked={value.size === size}
+                disabled={disabled}
+                onClick={() => onChange({ keep: false, size })}
+                className={cn(
+                  "h-7 min-w-11 rounded-md border px-2 text-footnote tabular-nums transition-colors disabled:opacity-40",
+                  value.size === size ? "border-accent/60 bg-accent-soft text-text" : "border-border text-text-muted hover:border-border-strong hover:text-text",
+                  focusRing,
+                )}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Barre de création, en bas de l'atelier (comme le composeur du chat) : la description, le
- * modèle, le style et le texte envoyé, le retrait du fond, l'import d'une image, et Générer.
+ * modèle, le style et le texte envoyé, le rendu (pixel art ou image d'origine), le retrait du
+ * fond, l'import d'une image, et Générer.
  * Entrée génère, Maj+Entrée va à la ligne.
  */
 export function Composer({
@@ -219,6 +271,8 @@ export function Composer({
   guiSize,
   transparent,
   onTransparent,
+  conversion,
+  onConversion,
   modelState,
   canGenerate,
   generating,
@@ -240,6 +294,9 @@ export function Composer({
   guiSize: { width: number; height: number } | null;
   transparent: boolean;
   onTransparent: (transparent: boolean) => void;
+  /** Rendu d'une texture carrée ; `null` : taille imposée par le jeu (interface, texture libre). */
+  conversion: Conversion | null;
+  onConversion: (next: Conversion) => void;
   modelState: ModelState;
   canGenerate: boolean;
   generating: boolean;
@@ -327,6 +384,18 @@ export function Composer({
               disabled={busy}
             />
           </Popover>
+          {conversion && (
+            <Popover
+              label="Rendu de la texture"
+              title="Pixel art de la taille choisie, ou image gardée telle quelle (image importée ou générée)"
+              value={conversion.keep ? "Image d'origine" : `Pixel art · ${conversion.size} px`}
+              icon={conversion.keep ? <ImageIcon size={13} className="shrink-0 text-text-muted" aria-hidden /> : <Grid3x3 size={13} className="shrink-0 text-text-muted" aria-hidden />}
+              width={300}
+              disabled={busy}
+            >
+              <ConversionPanel value={conversion} onChange={onConversion} disabled={busy} />
+            </Popover>
+          )}
           <button
             type="button"
             role="switch"

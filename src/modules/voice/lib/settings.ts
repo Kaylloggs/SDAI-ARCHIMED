@@ -45,7 +45,15 @@ export type VoiceSettings = {
     style: number;
     fallback: TtsEngineId | null;
   };
-  agent: { brain: Brain; adapter: string; model: string | null; localModel: string; autoMode: AutoMode };
+  agent: {
+    brain: Brain;
+    adapter: string;
+    model: string | null;
+    localModel: string;
+    autoMode: AutoMode;
+    /** Tâches confiées : modèle choisi selon leur complexité (léger, équilibré, puissant). */
+    routeByComplexity: boolean;
+  };
   privacy: { localOnly: boolean; allowCloudFallback: boolean };
   overlay: {
     mini: boolean;
@@ -86,7 +94,7 @@ export const DEFAULT_SETTINGS: VoiceSettings = {
     style: 0,
     fallback: "system",
   },
-  agent: { brain: "cli", adapter: "claude", model: null, localModel: "qwen2.5:3b", autoMode: "smart" },
+  agent: { brain: "cli", adapter: "claude", model: null, localModel: "qwen2.5:3b", autoMode: "smart", routeByComplexity: true },
   privacy: { localOnly: false, allowCloudFallback: false },
   overlay: { mini: false, animations: true, captions: true, immersive: false },
   shortcuts: { toggle: "Ctrl+Shift+Space", pushToTalk: "Ctrl+Space" },

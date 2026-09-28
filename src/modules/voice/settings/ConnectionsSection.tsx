@@ -199,6 +199,16 @@ export function AgentsSection() {
         <Row label="Autonomie" hint={AUTO_MODES.find((m) => m.value === agent.autoMode)?.title}>
           <Segmented label="Autonomie de l'agent" value={agent.autoMode} options={AUTO_MODES} onChange={(autoMode) => update("agent", { autoMode })} />
         </Row>
+        <Row
+          label="Modèle selon la tâche"
+          hint={
+            agent.routeByComplexity
+              ? "Un travail confié à un agent part vers un modèle léger et rapide s'il est simple (Flash, Haiku), le plus puissant s'il est complexe (Opus, Pro), parmi les agents installés."
+              : "Un travail confié part toujours vers l'agent et le modèle choisis plus haut."
+          }
+        >
+          <Switch label="Modèle selon la tâche" checked={agent.routeByComplexity} onChange={(routeByComplexity) => update("agent", { routeByComplexity })} />
+        </Row>
       </Group>
     </>
   );

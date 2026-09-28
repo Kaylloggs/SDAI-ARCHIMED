@@ -21,7 +21,7 @@ pub const MAX_BYTES: usize = 32 * 1024 * 1024;
 /// Au-delà, l'image est d'abord réduite par moyenne : le reste du traitement reste rapide.
 const WORK_SIDE: u32 = 1024;
 /// Tailles de texture proposées.
-pub const SIZES: [u32; 3] = [16, 32, 64];
+pub const SIZES: [u32; 6] = [8, 16, 32, 64, 128, 256];
 /// Côté maximal d'un élément d'interface, et de la toile des écrans du jeu.
 pub const GUI_MAX: u32 = 256;
 /// Côté maximal d'une texture de taille libre (superposition, entité, interface…).
@@ -121,6 +121,11 @@ pub fn decode(bytes: &[u8]) -> AppResult<Raster> {
 }
 
 pub fn validate(options: &PixelOptions) -> AppResult<()> {
+    if options.keep && (options.width.is_some() || options.height.is_some() || options.atlas) {
+        return Err(AppError::invalid(
+            "L'image d'origine se garde pour une texture carrée (objet, bloc, icône) ; celle-ci a une taille imposée.",
+        ));
+    }
     match (options.width, options.height) {
         (Some(w), Some(h)) => {
             if !(1..=FREE_MAX).contains(&w) || !(1..=FREE_MAX).contains(&h) {
@@ -137,7 +142,7 @@ pub fn validate(options: &PixelOptions) -> AppResult<()> {
         (None, None) => {
             if !SIZES.contains(&options.size) {
                 return Err(AppError::invalid(
-                    "Taille de texture : 16, 32 ou 64 pixels.",
+                    "Taille de texture : 8, 16, 32, 64, 128 ou 256 pixels.",
                 ));
             }
             if options.atlas {
@@ -210,6 +215,9 @@ pub fn convert(source: &Raster, options: &PixelOptions) -> AppResult<Raster> {
 
 pub fn convert_full(source: &Raster, options: &PixelOptions) -> AppResult<Converted> {
     validate(options)?;
+    if options.keep {
+        return keep_original(source, options);
+    }
     let (width, height) = output_size(options);
     let mut notes = Vec::new();
     let mut work = match options.crop {
@@ -270,6 +278,55 @@ pub fn convert_full(source: &Raster, options: &PixelOptions) -> AppResult<Conver
         seam,
         notes,
     })
+}
+
+/// Image d'origine gardée : zone choisie, recadrée au carré (ou détourée et centrée), réduite
+/// seulement au-delà de `FREE_MAX`. Ni pixellisation ni palette.
+fn keep_original(source: &Raster, options: &PixelOptions) -> AppResult<Converted> {
+    let zone = match options.crop {
+        Some(zone) => crop(source, zone)?,
+        None => source.clone(),
+    };
+    // Une photo de 4000 px n'a pas besoin d'être traitée en entier.
+    let mut work = shrink_to(&zone, WORK_SIDE);
+    let square = if options.transparent {
+        remove_background(&mut work);
+        center_square(&crop_to_content(&work))
+    } else {
+        let side = work.width.min(work.height);
+        cover_crop(&work, side, side)
+    };
+    let out = shrink_to(&square, FREE_MAX);
+    let mut notes = vec![format!(
+        "Image gardée telle quelle, sans pixellisation : {} × {} pixels.",
+        out.width, out.height
+    )];
+    if !out.width.is_power_of_two() {
+        notes.push(
+            "Un côté en puissance de deux (16, 32, 64, 128…) évite le flou des mipmaps dans le jeu."
+                .to_string(),
+        );
+    }
+    let seam =
+        (!options.transparent).then(|| seam_quality(&out, options.tiling != Tiling::Horizontal));
+    Ok(Converted {
+        raster: out,
+        seam,
+        notes,
+    })
+}
+
+/// Contenu centré sur une toile carrée transparente.
+fn center_square(raster: &Raster) -> Raster {
+    let side = raster.width.max(raster.height);
+    let (ox, oy) = ((side - raster.width) / 2, (side - raster.height) / 2);
+    let mut out = Raster::new(side, side);
+    for y in 0..raster.height {
+        for x in 0..raster.width {
+            out.put(ox + x, oy + y, raster.at(x, y));
+        }
+    }
+    out
 }
 
 /// Zone choisie de l'image (ramenée dans ses limites).
@@ -1081,6 +1138,7 @@ mod tests {
             height: None,
             atlas: false,
             crop: None,
+            keep: false,
         }
     }
 
@@ -1448,5 +1506,58 @@ mod tests {
         assert_eq!((big.width, big.height), (64, 64));
         assert_eq!(big.at(3, 3), RED);
         assert_eq!(big.at(4, 4), [0, 0, 0, 0]);
+    }
+
+    fn kept(transparent: bool) -> PixelOptions {
+        PixelOptions {
+            keep: true,
+            ..opts(16, 16, transparent)
+        }
+    }
+
+    #[test]
+    fn a_kept_image_is_only_squared_not_pixelated() {
+        // 300 × 200 aux dégradés fins : recadrée en 200 × 200, couleurs d'origine gardées.
+        let mut source = Raster::new(300, 200);
+        for y in 0..200 {
+            for x in 0..300 {
+                source.put(x, y, [(x % 256) as u8, (y % 256) as u8, 90, 255]);
+            }
+        }
+        let out = convert_full(&source, &kept(false)).unwrap();
+        assert_eq!((out.raster.width, out.raster.height), (200, 200));
+        assert_eq!(out.raster.at(0, 0), source.at(50, 0));
+        assert!(distinct(&out.raster) > 1000, "palette réduite : {}", distinct(&out.raster));
+        assert!(out.notes.iter().any(|n| n.contains("telle quelle")));
+        assert!(out.notes.iter().any(|n| n.contains("puissance de deux")));
+
+        // Trop grande pour l'atlas du jeu : réduite, sans passer par le pixel art.
+        let big = convert_full(&stone(1024, 0), &kept(false)).unwrap();
+        assert_eq!((big.raster.width, big.raster.height), (512, 512));
+        assert!(!big.notes.iter().any(|n| n.contains("puissance de deux")));
+    }
+
+    #[test]
+    fn a_kept_object_loses_its_background_and_stays_centered() {
+        let source = object_on(128, RED, false, |_, _| [255, 255, 255, 255]);
+        let out = convert_full(&source, &kept(true)).unwrap().raster;
+        assert_eq!(out.width, out.height);
+        assert!(out.width < 128, "cadrée sur l'objet : {}", out.width);
+        assert_eq!(out.at(out.width / 2, out.height / 2), RED);
+        assert_eq!(out.at(0, 0)[3], 0);
+    }
+
+    #[test]
+    fn keeping_the_image_needs_a_square_texture_and_sizes_go_up_to_256() {
+        let gui = PixelOptions {
+            width: Some(176),
+            height: Some(166),
+            ..kept(false)
+        };
+        assert!(validate(&gui).is_err());
+        for size in SIZES {
+            assert!(validate(&opts(size, 0, false)).is_ok(), "{size} px");
+        }
+        assert!(validate(&opts(48, 0, false)).is_err());
     }
 }

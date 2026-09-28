@@ -235,9 +235,15 @@ libre) dessiné sans IA aux couleurs des écrans du jeu, dans `textures/gui/`.
    jamais recopiée. Seuls les modèles qui créent à partir d'un texte sont proposés ; tous
    débitent des crédits, donc soumis à « Utiliser mes crédits Higgsfield ». La texture de
    référence part en image d'entrée quand le modèle en lit.
-4. **Conversion** (`pixelart.rs`, déterministe), sans réglage à choisir : la taille est celle de
-   la texture en place (16, 32 ou 64 px ; 16 pour une nouvelle), la palette suit la taille, le
-   raccord suit la face. Réduction en gardant par zone une couleur franche (la plus rare de
+4. **Conversion** (`pixelart.rs`, déterministe). **Rendu** (pastille du composeur, textures
+   carrées : objet, bloc, icône) : **Pixel art** de 8, 16, 32, 64, 128 ou 256 px de côté, ou
+   **Image d'origine** (`keep`) : l'image importée ou générée est gardée telle quelle, sans
+   pixellisation ni palette, seulement recadrée au carré (fond retiré si demandé) et réduite
+   au-delà de 512 px ; une note rappelle qu'un côté en puissance de deux évite le flou des
+   mipmaps. Changer de rendu reconvertit l'image affichée ; le dernier choix d'image d'origine
+   est repris pour une nouvelle texture, et une texture en place d'une autre taille carrée est
+   rouverte ainsi. Par défaut : la taille de la texture en place (16 pour une nouvelle), la
+   palette suit la taille, le raccord suit la face. Réduction en gardant par zone une couleur franche (la plus rare de
    l'image quand elle couvre au moins 12 % de la zone : les éclats d'un minerai ou un contour
    survivent), palette limitée par coupe médiane. Une icône est agrandie à 64 px sans lissage ;
    un élément d'interface garde la taille de son fichier (toile 256 × 256 si besoin).

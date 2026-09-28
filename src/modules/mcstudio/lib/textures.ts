@@ -23,7 +23,30 @@ const BASE: Omit<PixelOptions, "size" | "colors" | "transparent"> = {
   height: null,
   atlas: false,
   crop: null,
+  keep: false,
 };
+
+/** Côtés proposés pour une texture carrée en pixel art (même liste que le backend). */
+export const PIXEL_SIZES = [8, 16, 32, 64, 128, 256] as const;
+
+/** Palette de départ selon la taille : fine pour 8 et 16 px, plus riche au-delà. */
+export function colorsFor(size: number): number {
+  return size <= 16 ? size : size === 32 ? 32 : 64;
+}
+
+/** Textures carrées dont on choisit le rendu (les autres ont une taille imposée par le jeu). */
+export function squareTarget(target: TextureTarget): boolean {
+  return target.kind === "item" || target.kind === "block" || target.kind === "icon";
+}
+
+/** Rendu choisi : pixel art de `size` pixels de côté, ou image gardée telle quelle. */
+export type Conversion = { keep: boolean; size: number };
+
+export function withConversion(options: PixelOptions, conversion: Conversion): PixelOptions {
+  if (conversion.keep) return { ...options, keep: true };
+  const resized = conversion.size !== options.size;
+  return { ...options, keep: false, size: conversion.size, colors: resized || options.keep ? colorsFor(conversion.size) : options.colors };
+}
 
 /**
  * Raccord de départ d'une face de bloc : dans les deux sens pour une matière (pierre,
@@ -36,11 +59,18 @@ export function defaultTiling(face: BlockFace | null, layout: BlockLayout | null
   return "none";
 }
 
-/** Taille d'une texture existante (16, 32 ou 64 px de côté, animée ou non), sinon 16. */
+/** Taille d'une texture existante (8 à 256 px de côté, animée ou non), sinon 16. */
 function keptSize(info?: Pick<TextureInfo, "width" | "height" | "exists">): number {
   if (!info?.exists) return 16;
   const { width, height } = info;
-  return [16, 32, 64].includes(width) && height > 0 && height % width === 0 ? width : 16;
+  return (PIXEL_SIZES as readonly number[]).includes(width) && height > 0 && height % width === 0 ? width : 16;
+}
+
+/** Texture existante carrée d'une autre taille : une image gardée telle quelle, reprise ainsi. */
+function keptOriginal(info?: Pick<TextureInfo, "width" | "height" | "exists">): boolean {
+  if (!info?.exists) return false;
+  const { width, height } = info;
+  return width === height && width > 0 && width <= FREE_MAX && !(PIXEL_SIZES as readonly number[]).includes(width);
 }
 
 /** Taille de départ d'une texture libre qui n'existe pas encore (celles du jeu). */
@@ -82,11 +112,12 @@ export function defaultOptions(
 ): PixelOptions {
   const size = keptSize(info);
   const colors = size === 16 ? 16 : 32;
+  const keep = keptOriginal(info);
   switch (target.kind) {
     case "item":
-      return { ...BASE, size, colors, transparent: true };
+      return { ...BASE, size, colors, transparent: true, keep };
     case "block":
-      return { ...BASE, size, colors, transparent: false, tiling: defaultTiling(target.face, info?.layout ?? null) };
+      return { ...BASE, size, colors, transparent: false, tiling: defaultTiling(target.face, info?.layout ?? null), keep };
     case "icon":
       return { ...BASE, size: 32, colors: 32, transparent: false };
     case "gui": {

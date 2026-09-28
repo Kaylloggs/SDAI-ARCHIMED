@@ -4,6 +4,7 @@ import { checkArgs, describeModule, loadActions, type LoadedModule, type ModuleA
 import { useUiStore } from "@/core/stores/ui.store";
 import { voiceApi, type McpCall, type McpReply } from "../api";
 import { privacyRows } from "../lib/privacy";
+import { COMPLEXITIES } from "../lib/routing";
 import { useVoiceStore } from "../store";
 import type { VoiceOrchestrator } from "./orchestrator";
 
@@ -85,9 +86,8 @@ export async function runTool(call: McpCall, deps: ToolDeps): Promise<McpReply> 
       const module = modules.find((m) => m.id === id);
       if (!module) return { ok: false, text: `Module inconnu ou désactivé : ${id}.` };
       const params = args.params && typeof args.params === "object" ? (args.params as Record<string, unknown>) : null;
-      if (params) useUiStore.getState().openModule(id, params);
-      else useUiStore.getState().navigate(id);
-      return { ok: true, text: `${module.name} est affiché.` };
+      const folder = orchestrator.openModule(id, params);
+      return { ok: true, text: folder ? `${module.name} est affiché, sur le dossier ${folder}.` : `${module.name} est affiché.` };
     }
     case "run_action": {
       const moduleId = str(args.module);
@@ -125,15 +125,18 @@ export async function runTool(call: McpCall, deps: ToolDeps): Promise<McpReply> 
       const prompt = str(args.prompt).trim();
       if (!prompt) return { ok: false, text: "Consigne vide." };
       try {
+        const complexity = COMPLEXITIES.find((c) => c === args.complexity);
         const task = await orchestrator.startTask(prompt, {
           agent: str(args.agent) || undefined,
           cwd: str(args.cwd) || null,
           title: str(args.title) || undefined,
+          complexity,
         });
+        const who = task.route ? ` à ${task.route.adapterName} (${task.route.label})` : "";
         return {
           ok: true,
-          text: `Tâche confiée (${task.id}) dans une conversation du module Chat. Elle est suivie : le résultat sera annoncé.`,
-          data: { taskId: task.id, conversationId: task.conversationId },
+          text: `Tâche confiée${who} (${task.id}) dans une conversation du module Chat. Elle est suivie : le résultat sera annoncé.`,
+          data: { taskId: task.id, conversationId: task.conversationId, agent: task.agent, model: task.route?.model ?? null, modelLabel: task.route?.label ?? null },
         };
       } catch (e) {
         return { ok: false, text: (e as { message?: string }).message ?? "Tâche impossible à lancer." };

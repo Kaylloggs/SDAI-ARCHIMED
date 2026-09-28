@@ -805,7 +805,7 @@ pub enum Tiling {
     Both,
 }
 
-/// Réglages de conversion en pixel-art.
+/// Réglages de conversion en pixel-art (ou image gardée telle quelle, `keep`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../src/core/ipc/bindings/")]
 #[serde(rename_all = "camelCase")]
@@ -834,6 +834,10 @@ pub struct PixelOptions {
     /// toute l'image.
     #[serde(default)]
     pub crop: Option<CropRect>,
+    /// Image gardée telle quelle : ni pixellisation ni palette, seulement recadrée au carré
+    /// (fond retiré si `transparent`), réduite au-delà de 512 px. Textures carrées seulement.
+    #[serde(default)]
+    pub keep: bool,
 }
 
 /// Rectangle choisi dans l'image reçue.
