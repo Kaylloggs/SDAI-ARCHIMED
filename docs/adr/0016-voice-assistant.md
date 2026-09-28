@@ -62,10 +62,20 @@ avec consentement.
    La connexion aux agents se fait dans un terminal ouvert sur leur CLI : ARCHIMED ne voit ni ne
    stocke leurs identifiants. Les réglages sont regroupés en six pages.
 
+10. **Révision du 2026-09-28.** Les CLI d'agents servent à toute l'application : leur
+    installation et leur connexion quittent Voice pour le moteur (`engine_install_cli`,
+    `engine_open_cli_terminal`, outils partagés dans `core/install.rs`) et les Réglages
+    (« Assistants IA ») ; Voice n'installe plus qu'Ollama, Voicebox et les modèles locaux. Le mode
+    « mot d'éveil » est retiré (ouverture au clic ou en maintenant ; un ancien réglage revient au
+    clic). L'autonomie choisie s'applique tout de suite aux conversations ouvertes, et « Tout
+    accepter » lève aussi la confirmation des actions `destructive` des modules ; les motifs
+    critiques du moteur restent demandés.
+
 ## Conséquences
 
 - La voix a exactement les droits d'un message écrit : même moteur, mêmes permissions, mêmes
-  confirmations ; les questions de l'agent sont posées à voix haute.
+  confirmations ; les questions de l'agent sont posées à voix haute. Avec « Tout accepter », la
+  personne choisit de ne plus être interrogée, sauf pour les motifs critiques du moteur.
 - Un module sans `agent-actions.ts` reste accessible (ouverture, contexte), sans actions.
 - Le jeton MCP change à chaque démarrage ; la déclaration peut être retirée (réglage « Donner
   les outils aux agents »).

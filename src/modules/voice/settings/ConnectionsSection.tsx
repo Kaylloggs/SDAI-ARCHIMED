@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Check, Copy, ExternalLink, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowUpRight, Check, Copy, ExternalLink, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { useAdapters } from "@/core/engine/useAdapters";
 import type { AutoMode } from "@/core/engine/types";
+import { useUiStore } from "@/core/stores/ui.store";
 import { Badge, Button, Select } from "@/design-system/primitives";
 import { voiceApi, type LocalServerStatus, type McpInfo, type VoiceProviderStatus } from "../api";
-import { AgentRows, ToolRows } from "./InstallParts";
+import { ToolRows } from "./InstallParts";
 import { Group, LocationTag, Row, Segmented, Switch, TextInput } from "../components/controls";
-import type { SectionId } from "./sections";
 import { useVoiceSettings } from "./useVoiceSettings";
 
 const message = (e: unknown) => (e as { message?: string })?.message ?? String(e);
@@ -97,10 +97,10 @@ export function ProviderRow({ provider, onChanged }: { provider: VoiceProviderSt
 const AUTO_MODES: Array<{ value: AutoMode; label: string; title: string }> = [
   { value: "off", label: "Tout demander", title: "Chaque action de l'agent attend votre accord" },
   { value: "smart", label: "Sans risque seul", title: "Lectures et actions sans risque passent seules ; le reste est demandé" },
-  { value: "full", label: "Tout accepter", title: "L'agent agit sans demander (déconseillé à la voix)" },
+  { value: "full", label: "Tout accepter", title: "L'agent et les modules agissent sans demander ; seules les commandes dangereuses pour le système restent demandées" },
 ];
 
-export function AgentsSection({ go }: { go: (id: SectionId) => void }) {
+export function AgentsSection() {
   const { settings, update } = useVoiceSettings();
   const { adapters, loading, refresh } = useAdapters();
   const [ollama, setOllama] = useState<LocalServerStatus | null>(null);
@@ -129,7 +129,16 @@ export function AgentsSection({ go }: { go: (id: SectionId) => void }) {
             />
           </div>
         </Row>
-        <Row label="Agent" hint={current && !current.installed ? (current.hint ?? "Non installé sur cette machine.") : "Détecté automatiquement parmi les CLI installées."}>
+        <Row
+          label="Agent"
+          hint={
+            installed.length === 0 && !loading
+              ? "Aucun agent installé : installez-en un dans les Réglages d'ARCHIMED. La voix ne simule jamais un agent absent."
+              : current && !current.installed
+                ? (current.hint ?? "Non installé sur cette machine.")
+                : "Détecté automatiquement parmi les CLI installées."
+          }
+        >
           <div className="flex items-center gap-1">
             <Select
               label="Agent"
@@ -148,6 +157,16 @@ export function AgentsSection({ go }: { go: (id: SectionId) => void }) {
               <RefreshCw size={13} strokeWidth={1.75} className={loading ? "animate-spin motion-reduce:animate-none" : undefined} />
             </Button>
           </div>
+        </Row>
+        <Row label="Installer ou connecter un agent" hint="Claude Code, Codex et Antigravity servent à toute l'application : ils s'installent dans les Réglages.">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => useUiStore.getState().openModule("settings", { section: "agents" })}
+            icon={<ArrowUpRight size={13} strokeWidth={1.75} />}
+          >
+            Assistants IA
+          </Button>
         </Row>
         {current && current.models.length > 0 && (
           <Row label="Modèle de l'agent">
@@ -174,22 +193,6 @@ export function AgentsSection({ go }: { go: (id: SectionId) => void }) {
           // Modèle local : Ollama à installer ou à lancer, puis le modèle conseillé, d'un clic.
           <ToolRows only="ollama" />
         )}
-      </Group>
-
-      <Group
-        title="Agents sur cet ordinateur"
-        description={
-          installed.length === 0 && !loading
-            ? "Aucun agent installé : installez-en un ici. La voix ne simule jamais un agent absent."
-            : "Installer un autre agent, ou se reconnecter à l'un d'eux."
-        }
-        actions={
-          <Button size="sm" variant="ghost" onClick={() => go("installs")}>
-            Toutes les installations
-          </Button>
-        }
-      >
-        <AgentRows />
       </Group>
 
       <Group title="Actions de l'agent" description="Même règle qu'au clavier : la voix ne donne jamais plus de droits qu'un message écrit.">

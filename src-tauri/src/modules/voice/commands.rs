@@ -219,7 +219,7 @@ pub async fn voice_tools(voice: State<'_, VoiceService>) -> AppResult<Vec<VoiceT
         .map_err(|e| AppError::internal(e.to_string()))
 }
 
-/// Installe un outil proposé (`ollama`, `voicebox`, `claude`, `codex`) après le clic de la personne.
+/// Installe un outil local (`ollama`, `voicebox`) après le clic de la personne.
 #[tauri::command]
 pub async fn voice_install_tool<R: Runtime>(app: AppHandle<R>, voice: State<'_, VoiceService>, id: String) -> AppResult<String> {
     let tmp = voice.models.root().join("tmp");
@@ -229,22 +229,6 @@ pub async fn voice_install_tool<R: Runtime>(app: AppHandle<R>, voice: State<'_, 
 #[tauri::command]
 pub async fn voice_launch_tool(id: String) -> AppResult<()> {
     installer::launch(&id)
-}
-
-/// Ouvre un terminal sur la CLI d'un agent pour que la personne s'y connecte elle-même.
-#[tauri::command]
-pub async fn voice_agent_terminal(config: State<'_, crate::core::config::ConfigStore>, adapter: String) -> AppResult<()> {
-    let overrides = config.snapshot().await.binary_overrides;
-    let binary = tokio::task::spawn_blocking(move || {
-        crate::engine::adapters::build_all()
-            .into_iter()
-            .find(|a| a.id() == adapter)
-            .and_then(|a| crate::engine::adapters::resolve_binary(a.as_ref(), &overrides))
-    })
-    .await
-    .map_err(|e| AppError::internal(e.to_string()))?
-    .ok_or_else(|| AppError::not_found("CLI introuvable : installez-la, ou redémarrez ARCHIMED si vous venez de l'installer."))?;
-    installer::open_terminal(&binary)
 }
 
 /// Réglages de voix du système : langues de reconnaissance et voix de synthèse.

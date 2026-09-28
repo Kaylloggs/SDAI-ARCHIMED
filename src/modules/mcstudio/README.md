@@ -476,6 +476,15 @@ Assistant : `agent_prepare` · `agent_instructions` · `agent_changes` · `agent
   éléments d'interface), éditeur de pixels (aller-retour base64, remplissage, traits, palette), choix du modèle,
   chemins, message de correction et sélection par défaut de l'assistant IA.
 
+## Actions pour les agents (voix, MCP)
+
+`agent-actions.ts` : `list_projects`, `open_project`, `create_project` (nom, loader, version de
+Minecraft ; par défaut Fabric et la version la plus récente déjà compilée par un profil
+vérifié, identifiants déduits du nom comme dans l'assistant de création, `lib/target.ts`),
+`add_item`, `add_block`, `add_recipe` (générateurs du module), `build_project` (rend la main tout
+de suite, résultat annoncé par `voice.speak`). L'agent vocal passe par elles pour toute demande
+de mod avant de compléter le code dans le dossier du projet.
+
 ## Données
 
 | Fichier | Contenu |

@@ -241,7 +241,9 @@ pub fn spawn<S: EventSink>(
                                     sink.emit(EngineEvent::PromptInvalidated { prompt_id: previous.prompt.prompt_id });
                                 }
                                 let pending = to_prompt(&session_id, found.clone());
-                                sink.emit(EngineEvent::Prompt { prompt: pending.prompt.clone() });
+                                let automatic = auto_mode == AutoMode::Full
+                                    && pending.prompt.default_option.as_ref().is_some_and(|d| pending.keys.contains_key(d));
+                                sink.emit(EngineEvent::Prompt { prompt: InteractivePrompt { auto: automatic, ..pending.prompt.clone() } });
 
                                 // Mode Auto complet : la réponse par défaut de la CLI est envoyée.
                                 // En mode intelligent, une question lue à l'écran reste toujours
@@ -325,6 +327,7 @@ fn to_prompt(session_id: &str, found: detector::Detection) -> PendingPrompt {
                 confidence: found.confidence,
             },
             raw_excerpt: Some(found.excerpt),
+            auto: false,
         },
     }
 }

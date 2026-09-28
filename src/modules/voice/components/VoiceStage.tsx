@@ -61,9 +61,19 @@ const lastOf = (turns: Turn[], role: Turn["role"]) => [...turns].reverse().find(
 /**
  * Vue de conversation vocale, inspirée de Gemini Live : une lueur qui suit la voix, la phrase en
  * cours en grand, les commandes en bas. Couleurs et fond viennent du thème de l'application.
- * `overlay` : plein écran sous la barre de titre ; `page` : dans la page du module.
+ * `overlay` : plein écran sous la barre de titre ; `page` : encadrée dans la page du module ;
+ * `fill` : toute la place du module (liste des sections masquée). `leading` : bouton en tête
+ * de l'en-tête (réafficher la liste des sections).
  */
-export function VoiceStage({ variant, onClose }: { variant: "overlay" | "page"; onClose?: () => void }) {
+export function VoiceStage({
+  variant,
+  onClose,
+  leading,
+}: {
+  variant: "overlay" | "page" | "fill";
+  onClose?: () => void;
+  leading?: ReactNode;
+}) {
   const status = useVoiceStore((s) => s.status);
   const micOn = useVoiceStore((s) => s.micOn);
   const session = useVoiceStore((s) => s.session);
@@ -134,6 +144,7 @@ export function VoiceStage({ variant, onClose }: { variant: "overlay" | "page"; 
 
       {/* En-tête : session, où passent les données, fermeture. */}
       <header className="relative z-10 flex items-start gap-3 px-6 pt-5">
+        {leading}
         <div className="min-w-0 flex-1">
           <h2 id={titleId} className="truncate text-body font-semibold">
             {session?.title ?? "Conversation vocale"}

@@ -12,8 +12,8 @@ export default defineTutorial({
     },
     {
       icon: Terminal,
-      title: "Vérifier les assistants",
-      text: "Claude Code, Antigravity et Codex sont détectés seuls. Indiquez un chemin si l'un d'eux est installé ailleurs.",
+      title: "Installer les assistants",
+      text: "Assistants IA : Claude Code, Antigravity et Codex sont détectés seuls. Installez-les d'un clic, connectez-vous dans leur fenêtre, ou indiquez un chemin s'ils sont ailleurs.",
       area: "center",
     },
     {

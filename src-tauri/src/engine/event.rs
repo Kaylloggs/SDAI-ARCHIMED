@@ -138,6 +138,10 @@ pub struct InteractivePrompt {
     pub risk: RiskLevel,
     pub source: PromptSource,
     pub raw_excerpt: Option<String>,
+    /// Le moteur répond lui-même (Mode Auto) : la résolution suit aussitôt. L'interface la montre
+    /// sans rien demander ni annoncer.
+    #[serde(default)]
+    pub auto: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

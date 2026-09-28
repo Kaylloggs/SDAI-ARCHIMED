@@ -422,6 +422,10 @@ function reduce(session: ChatSession, event: EngineEvent): ChatSession {
       };
 
     case "prompt":
+      // Réponse automatique du moteur : la conversation continue, rien n'attend la personne.
+      if (event.prompt.auto) {
+        return { ...session, ...touched, timeline: [...timeline, { kind: "prompt", id: event.prompt.promptId, prompt: event.prompt }] };
+      }
       return {
         ...session,
         ...touched,

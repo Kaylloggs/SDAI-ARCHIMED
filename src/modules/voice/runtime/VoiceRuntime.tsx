@@ -7,7 +7,6 @@ import { useEnabledModules } from "@/core/modules";
 import { voiceApi, type McpCall, type VoiceModelProgress } from "../api";
 import { handleCall } from "../agent/tools";
 import { matches, parseShortcut } from "../lib/shortcuts";
-import { sttLocation } from "../lib/privacy";
 import { useVoiceStore } from "../store";
 import { orchestrator } from "./instance";
 
@@ -20,7 +19,6 @@ export default function VoiceRuntime() {
   const chat = useChat();
   const modules = useEnabledModules();
   const settings = useVoiceStore((s) => s.settings);
-  const loaded = useVoiceStore((s) => s.loaded);
   const voice = orchestrator();
   voice.chat = chat;
   voice.modules = modules;
@@ -118,6 +116,7 @@ export default function VoiceRuntime() {
       if (next.tts !== before.tts || next.speaker !== before.speaker || next.general.language !== before.general.language) {
         voice.resetVoice();
       }
+      if (next.agent.autoMode !== before.agent.autoMode) void voice.applyAutonomy();
       const listening =
         next.stt !== before.stt ||
         next.microphone !== before.microphone ||
@@ -165,20 +164,6 @@ export default function VoiceRuntime() {
       window.removeEventListener("keyup", up);
     };
   }, [voice, settings.shortcuts.toggle, settings.shortcuts.pushToTalk]);
-
-  // Mot d'éveil : l'écoute démarre avec l'application, seulement si la reconnaissance est locale.
-  useEffect(() => {
-    if (!loaded || settings.general.mode !== "wake") return;
-    if (sttLocation(settings) !== "local") {
-      useVoiceStore.getState().patch({
-        error: "Mot d'éveil : choisissez une reconnaissance locale (Windows ou Whisper), sinon tout ce que vous dites partirait en ligne.",
-      });
-      return;
-    }
-    void voice.start();
-    // Démarrage unique au chargement ou au changement de mode.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, settings.general.mode]);
 
   useEffect(() => () => void voice.stop(), [voice]);
 

@@ -94,7 +94,7 @@ Press **Ctrl Shift Space**, or click the pill at the top of the window, and spea
 - **It acts, it doesn't just chat.** "Add the four launch steps to my roadmap", "build my mod", "open Image Maker": the voice uses the same actions as the modules. Long jobs go to Claude Code, Codex or Antigravity while you keep working, and it tells you when they are done.
 - **You see where your words go.** Microphone, recognition, intelligence and voice each show **Local** or **Online**. A fully local mode (Whisper, Piper, Ollama) works without the internet.
 - **No more rights than typing.** Anything sensitive asks first, out loud, or with a sound and a Yes / No card if you'd rather it didn't read commands aloud.
-- **Set up in one click.** The **Installations** page installs the local voice, the AI agents, Ollama and Voicebox through each publisher's official channel. Agents sign in in their own window: ARCHIMED never sees your credentials.
+- **Set up in one click.** The **Installations** page installs the local voice, Ollama and Voicebox through each publisher's official channel. AI assistants (Claude Code, Codex, Antigravity) install from **Settings → AI assistants** and sign in in their own window: ARCHIMED never sees your credentials.
 
 **Same conversation, six themes.** The glow, the buttons and the pill take the colours of the theme you pick.
 
@@ -114,7 +114,7 @@ Press **Ctrl Shift Space**, or click the pill at the top of the window, and spea
 <table>
 <tr>
 <td width="50%"><img src="docs/images/voice/pill-panel.png" alt="Panel under the voice pill: the written conversation, the tasks handed to Claude Code and where each step runs, local or online" /><p align="center"><sub>The pill: conversation, running tasks, where your data goes</sub></p></td>
-<td width="50%"><img src="docs/images/voice/installs.png" alt="Voice Installations page: fully local voice in one click, Claude Code installed, Codex, Antigravity, Ollama and Voicebox ready to install" /><p align="center"><sub>Installations: local voice, agents and tools in one click</sub></p></td>
+<td width="50%"><img src="docs/images/voice/installs.png" alt="Voice Installations page: fully local voice in one click, a link to the AI assistants in Settings, Ollama and Voicebox ready to install" /><p align="center"><sub>Installations: local voice and tools in one click</sub></p></td>
 </tr>
 </table>
 
@@ -246,6 +246,8 @@ ARCHIMED drives an AI assistant installed on your PC. Pick **one** (you can add 
 | **Claude Code** (Anthropic)<br /><sub>recommended</sub> | In **PowerShell**, paste:<br />`irm https://claude.ai/install.ps1 \| iex`<br />Then type `claude` once to sign in. [Official guide](https://docs.claude.com/en/docs/claude-code/setup) | A Claude plan or an API key |
 | **Antigravity** (Google) | [Download the Antigravity CLI](https://antigravity.google/download#antigravity-cli), install it, then type `agy` once to sign in. | A Google account |
 | **Codex** (OpenAI)<br /><sub>experimental</sub> | In PowerShell (Node.js from step 1 needed):<br />`npm install -g @openai/codex` | An OpenAI account |
+
+> Already opened ARCHIMED? **Settings → AI assistants** installs Claude Code or Codex in one click, and its **Sign in** button opens the assistant's own window to connect your account.
 
 ### Step 3 · Download ARCHIMED
 

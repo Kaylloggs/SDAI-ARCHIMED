@@ -94,7 +94,7 @@ Appuyez sur **Ctrl Maj Espace**, ou cliquez sur la pastille en haut de la fenêt
 - **Il agit, il ne fait pas que discuter.** « Ajoute les quatre étapes du lancement à ma roadmap », « compile mon mod », « ouvre Image Maker » : la voix utilise les mêmes actions que les modules. Les longs travaux partent chez Claude Code, Codex ou Antigravity pendant que vous continuez, et il vous prévient quand c'est fini.
 - **Vous voyez où partent vos mots.** Micro, reconnaissance, intelligence et voix affichent chacun **Local** ou **En ligne**. Un mode entièrement local (Whisper, Piper, Ollama) marche sans internet.
 - **Pas plus de droits qu'au clavier.** Tout ce qui est sensible demande d'abord, à voix haute, ou par un son et une carte Oui / Non si vous préférez qu'il ne lise pas les commandes.
-- **Installé en un clic.** La page **Installations** installe la voix locale, les agents d'IA, Ollama et Voicebox par la voie officielle de chaque éditeur. Les agents se connectent dans leur propre fenêtre : ARCHIMED ne voit jamais vos identifiants.
+- **Installé en un clic.** La page **Installations** installe la voix locale, Ollama et Voicebox par la voie officielle de chaque éditeur. Les assistants IA (Claude Code, Codex, Antigravity) s'installent dans **Réglages › Assistants IA** et se connectent dans leur propre fenêtre : ARCHIMED ne voit jamais vos identifiants.
 
 **La même conversation, six thèmes.** La lueur, les boutons et la pastille prennent les couleurs du thème choisi.
 
@@ -114,7 +114,7 @@ Appuyez sur **Ctrl Maj Espace**, ou cliquez sur la pastille en haut de la fenêt
 <table>
 <tr>
 <td width="50%"><img src="docs/images/voice/pill-panel.png" alt="Panneau sous la pastille vocale : la conversation écrite, les tâches confiées à Claude Code et où passe chaque étape, en local ou en ligne" /><p align="center"><sub>La pastille : conversation, tâches en cours, où passent vos données</sub></p></td>
-<td width="50%"><img src="docs/images/voice/installs.png" alt="Page Installations de Voice : voix entièrement locale en un clic, Claude Code installé, Codex, Antigravity, Ollama et Voicebox prêts à installer" /><p align="center"><sub>Installations : voix locale, agents et outils en un clic</sub></p></td>
+<td width="50%"><img src="docs/images/voice/installs.png" alt="Page Installations de Voice : voix entièrement locale en un clic, lien vers les assistants IA des Réglages, Ollama et Voicebox prêts à installer" /><p align="center"><sub>Installations : voix locale et outils en un clic</sub></p></td>
 </tr>
 </table>
 
@@ -246,6 +246,8 @@ ARCHIMED pilote un assistant IA installé sur votre PC. Choisissez-en **un** (vo
 | **Claude Code** (Anthropic)<br /><sub>recommandé</sub> | Dans **PowerShell**, collez :<br />`irm https://claude.ai/install.ps1 \| iex`<br />Puis tapez `claude` une fois pour vous connecter. [Guide officiel](https://docs.claude.com/en/docs/claude-code/setup) | Un forfait Claude ou une clé API |
 | **Antigravity** (Google) | [Téléchargez la CLI Antigravity](https://antigravity.google/download#antigravity-cli), installez-la, puis tapez `agy` une fois pour vous connecter. | Un compte Google |
 | **Codex** (OpenAI)<br /><sub>expérimental</sub> | Dans PowerShell (Node.js de l'étape 1 requis) :<br />`npm install -g @openai/codex` | Un compte OpenAI |
+
+> ARCHIMED déjà ouvert ? **Réglages › Assistants IA** installe Claude Code ou Codex d'un clic, et son bouton **Se connecter** ouvre la fenêtre de l'assistant pour relier votre compte.
 
 ### Étape 3 · Télécharger ARCHIMED
 

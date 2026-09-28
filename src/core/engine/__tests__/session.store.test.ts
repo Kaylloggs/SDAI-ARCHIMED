@@ -55,6 +55,15 @@ describe("session.store", () => {
     useSessionStore.setState({ sessions: [{ ...BASE }], activeId: "s1" });
   });
 
+  it("une question que le moteur valide lui-même ne met rien en attente", () => {
+    const session = apply({ type: "prompt", prompt: { ...prompt, auto: true } });
+    expect(session.status).toBe("running");
+    expect(session.pendingPromptId).toBeNull();
+    expect(session.timeline.at(-1)).toMatchObject({ kind: "prompt", id: "p1" });
+    const resolved = apply({ type: "promptResolved", promptId: "p1", by: "auto", optionId: "allow" });
+    expect(resolved.timeline.at(-1)).toMatchObject({ resolvedBy: "auto", optionId: "allow" });
+  });
+
   it("crée une conversation et la met en tête de liste", () => {
     const id = useSessionStore.getState().createSession({
       adapter: "antigravity",

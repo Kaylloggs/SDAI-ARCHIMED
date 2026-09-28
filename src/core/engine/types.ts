@@ -88,6 +88,8 @@ export type InteractivePrompt = {
   risk: RiskLevel;
   source: PromptSource;
   rawExcerpt: string | null;
+  /** Le moteur répond lui-même (Mode Auto) : rien à demander, la résolution suit aussitôt. */
+  auto?: boolean;
 };
 
 export type ResolvedBy = "user" | "auto" | "policy";

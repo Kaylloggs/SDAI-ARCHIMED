@@ -166,7 +166,11 @@ pub fn spawn(
                         if let EngineEvent::Prompt { prompt } = &event {
                             let auto = try_auto_resolve(prompt, auto_mode, launch.cwd.as_deref());
                             prompts.insert(prompt.prompt_id.clone(), prompt.clone());
-                            let _ = channel.send(event.clone());
+                            // Réponse automatique : l'interface le sait dès la question (rien à
+                            // demander ni à annoncer en attendant la résolution qui suit).
+                            let _ = channel.send(EngineEvent::Prompt {
+                                prompt: InteractivePrompt { auto: auto.is_some(), ..prompt.clone() },
+                            });
 
                             if let Some(allowed) = auto {
                                 let action = resolve(

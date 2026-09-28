@@ -3,8 +3,7 @@ import { Mic, Square, Volume2 } from "lucide-react";
 import { Button, Select } from "@/design-system/primitives";
 import { MicCapture, listDevices } from "../audio/capture";
 import { earcon } from "../audio/player";
-import { Group, Row, Segmented, Slider, Switch, TextInput } from "../components/controls";
-import { sttLocation } from "../lib/privacy";
+import { Group, Row, Segmented, Slider, Switch } from "../components/controls";
 import type { ListenMode } from "../lib/settings";
 import { orchestrator } from "../runtime/instance";
 import { useVoiceSettings } from "./useVoiceSettings";
@@ -25,13 +24,11 @@ const LANGUAGES = [
 const MODES: Array<{ value: ListenMode; label: string; title: string }> = [
   { value: "toggle", label: "Clic", title: "Un clic ou le raccourci ouvre et coupe le micro" },
   { value: "push", label: "Maintenir", title: "Le micro n'écoute que tant que le raccourci est maintenu" },
-  { value: "wake", label: "Mot d'éveil", title: "Le micro reste ouvert ; seules les phrases qui commencent par le mot d'éveil sont traitées" },
 ];
 
 export function GeneralSection() {
   const { settings, update } = useVoiceSettings();
   const g = settings.general;
-  const wakeNeedsLocal = g.mode === "wake" && sttLocation(settings) !== "local";
   return (
     <>
       <Group title="Conversation">
@@ -70,20 +67,6 @@ export function GeneralSection() {
         </Row>
       </Group>
 
-      <Group
-        title="Mot d'éveil"
-        description="En mode « Mot d'éveil », le micro reste ouvert et seules les phrases qui commencent par ce mot sont traitées. Après une réponse, vous avez 20 secondes pour enchaîner sans le redire."
-      >
-        <Row label="Mot d'éveil" hint="Un mot rare évite les déclenchements par erreur (« Archimède », « Ok Archimède »).">
-          <TextInput label="Mot d'éveil" value={g.wakeWord} onChange={(wakeWord) => update("general", { wakeWord })} className="w-48" />
-        </Row>
-        {wakeNeedsLocal && (
-          <p role="alert" className="py-2.5 text-footnote text-warning">
-            Le mot d'éveil demande une reconnaissance locale (Windows ou Whisper local) : avec un service en ligne, tout ce qui est dit près
-            du micro partirait sur Internet. Le micro ne s'ouvrira pas tout seul tant que la reconnaissance est en ligne.
-          </p>
-        )}
-      </Group>
     </>
   );
 }

@@ -134,6 +134,18 @@ pub fn resolve_binary(adapter: &dyn CliAdapter, overrides: &HashMap<String, Stri
     adapter.extra_locations().into_iter().find(|p| p.exists())
 }
 
+/// Numéro de version lisible depuis la sortie de `--version` : « 2.1.281 (Claude Code) » ou
+/// « codex-cli 0.46.0 » donnent « 2.1.281 » et « 0.46.0 ». Sortie sans numéro : première ligne.
+pub fn clean_version(raw: &str) -> Option<String> {
+    let line = raw.lines().map(str::trim).find(|l| !l.is_empty())?;
+    let number = line.split_whitespace().find_map(|word| {
+        let word = word.trim_start_matches(['v', 'V']).trim_end_matches([',', ';', ')']);
+        let digits = word.starts_with(|c: char| c.is_ascii_digit()) && word.contains('.');
+        digits.then(|| word.to_string())
+    });
+    Some(number.unwrap_or_else(|| line.to_string()))
+}
+
 pub fn describe(adapter: &dyn CliAdapter, overrides: &HashMap<String, String>) -> AdapterInfo {
     let binary = resolve_binary(adapter, overrides);
     let models = adapter.models(binary.as_deref());
@@ -141,7 +153,7 @@ pub fn describe(adapter: &dyn CliAdapter, overrides: &HashMap<String, String>) -
         id: adapter.id().to_string(),
         name: adapter.name().to_string(),
         installed: binary.is_some(),
-        version: binary.as_deref().and_then(|b| adapter.version(b)),
+        version: binary.as_deref().and_then(|b| adapter.version(b)).and_then(|v| clean_version(&v)),
         binary_path: binary.as_ref().map(|p| p.display().to_string()),
         transport: adapter.transport(),
         default_model: adapter
@@ -194,4 +206,18 @@ pub fn payload_of(input: &Value) -> String {
         }
     }
     input.to_string()
+}
+
+#[cfg(test)]
+mod version_tests {
+    use super::clean_version;
+
+    #[test]
+    fn keeps_only_the_version_number() {
+        assert_eq!(clean_version("2.1.281 (Claude Code)\n").as_deref(), Some("2.1.281"));
+        assert_eq!(clean_version("codex-cli 0.46.0").as_deref(), Some("0.46.0"));
+        assert_eq!(clean_version("agy v1.2.12").as_deref(), Some("1.2.12"));
+        assert_eq!(clean_version("\n  dev build\n").as_deref(), Some("dev build"));
+        assert_eq!(clean_version("   "), None);
+    }
 }

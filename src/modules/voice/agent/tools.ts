@@ -100,7 +100,8 @@ export async function runTool(call: McpCall, deps: ToolDeps): Promise<McpReply> 
       }
       const problem = checkArgs(action, params);
       if (problem) return { ok: false, text: problem };
-      if (action.risk === "destructive") {
+      // « Tout accepter » : la personne a choisi de ne plus être interrogée.
+      if (action.risk === "destructive" && useVoiceStore.getState().settings.agent.autoMode !== "full") {
         const question = action.confirm?.(params) ?? `${entry.module.name} : ${action.description} Je continue ?`;
         const answer = await orchestrator.confirm(question, entry.module.name);
         if (answer === "no") return { ok: false, text: "La personne a refusé : rien n'a été fait." };

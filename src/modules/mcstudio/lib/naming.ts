@@ -33,6 +33,12 @@ export function suggestModId(name: string): string {
   return trimmed.slice(0, 64);
 }
 
+/** « Ruby Sword » → `ruby_sword` (nom de registre d'un objet ou d'un bloc). */
+export function suggestRegistryName(name: string): string {
+  const id = words(name).join("_").toLowerCase();
+  return (/^[a-z]/.test(id) ? id : id ? `item_${id}` : "").slice(0, 64);
+}
+
 /** « Dragon Realms » → `DragonRealms`. */
 export function suggestMainClass(name: string): string {
   const pascal = words(name)

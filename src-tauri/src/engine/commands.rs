@@ -1,5 +1,5 @@
 use tauri::ipc::Channel;
-use tauri::State;
+use tauri::{AppHandle, Runtime, State};
 
 use crate::core::config::ConfigStore;
 use crate::core::{AppError, AppResult};
@@ -70,6 +70,31 @@ pub async fn engine_set_binary_override(
     find_adapter(&adapter)?;
     invalidate_adapter_cache();
     config.set_binary_override(&adapter, path).await
+}
+
+/// Installe la CLI d'un agent (Claude Code, Codex) par sa voie officielle, après un clic.
+/// Avancement : événement `engine:install`. La détection est relancée au prochain affichage.
+#[tauri::command]
+pub async fn engine_install_cli<R: Runtime>(app: AppHandle<R>, adapter: String) -> AppResult<String> {
+    find_adapter(&adapter)?;
+    if !super::install::installable(&adapter) {
+        return Err(AppError::invalid("Cette CLI s'installe depuis sa page officielle."));
+    }
+    let result = super::install::install_cli(&app, &adapter).await;
+    invalidate_adapter_cache();
+    result
+}
+
+/// Ouvre un terminal sur la CLI d'un agent : la personne s'y connecte elle-même.
+#[tauri::command]
+pub async fn engine_open_cli_terminal(config: State<'_, ConfigStore>, adapter: String) -> AppResult<()> {
+    let cli = find_adapter(&adapter)?;
+    let overrides = config.snapshot().await.binary_overrides;
+    let binary = tokio::task::spawn_blocking(move || adapters::resolve_binary(cli.as_ref(), &overrides))
+        .await
+        .map_err(|e| AppError::internal(e.to_string()))?
+        .ok_or_else(|| AppError::not_found("CLI introuvable : installez-la, ou redémarrez ARCHIMED si vous venez de l'installer."))?;
+    crate::core::install::open_terminal(&binary)
 }
 
 // Paramètres plats : c'est le contrat IPC lu par le frontend (`engine.api.ts`).

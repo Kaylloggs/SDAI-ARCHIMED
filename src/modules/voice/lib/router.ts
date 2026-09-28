@@ -135,16 +135,3 @@ export function route(text: string, modules: ModuleRef[] = []): Intent {
 
   return { type: "ask", text: text.trim() };
 }
-
-/** Mot d'éveil au début de la phrase ; renvoie la suite, ou `null` sans mot d'éveil. */
-export function afterWakeWord(text: string, wakeWord: string): string | null {
-  const wanted = normalize(wakeWord);
-  const words = text.trim().split(/\s+/);
-  for (let i = 1; i <= Math.min(3, words.length); i += 1) {
-    const head = normalize(words.slice(0, i).join(" "));
-    if (head === wanted || head.replace(/^(ok|hey|dis|salut) /, "") === wanted) {
-      return words.slice(i).join(" ").replace(/^[,.!?\s]+/, "");
-    }
-  }
-  return null;
-}

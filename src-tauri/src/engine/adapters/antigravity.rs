@@ -354,6 +354,7 @@ fn denial_prompt(
         risk,
         source: PromptSource::Structured,
         raw_excerpt: Some(message.to_string()),
+        auto: false,
     }
 }
 

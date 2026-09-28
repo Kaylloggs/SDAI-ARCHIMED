@@ -14,7 +14,7 @@ import { agentName } from "../lib/agents";
 import { SentenceChunker } from "../lib/chunker";
 import { effectiveSettings } from "../lib/privacy";
 import { cliSystemPrompt, contextPreamble, delegation, localSystemPrompt } from "../lib/prompt";
-import { afterWakeWord, normalize, parseConfirmation, route, type Intent } from "../lib/router";
+import { normalize, parseConfirmation, route, type Intent } from "../lib/router";
 import { SpeechQueue, type SpeechItem } from "../lib/speech-queue";
 import { firstSentences, speakable } from "../lib/text";
 import type { TtsEngineId, VoiceSettings } from "../lib/settings";
@@ -23,8 +23,6 @@ import { meter, useVoiceStore, type Turn, type VoiceSession, type VoiceStatus, t
 type Chat = ReturnType<typeof useChat>;
 type Answer = "yes" | "always" | "no";
 
-/** Après une réponse, on peut enchaîner sans redire le mot d'éveil pendant ce délai. */
-const FOLLOW_UP_MS = 20_000;
 const CONFIRM_TIMEOUT_MS = 120_000;
 
 const uid = () => crypto.randomUUID();
@@ -86,7 +84,6 @@ export class VoiceOrchestrator {
   private unwatch: (() => void) | null = null;
   private lastSpoken = "";
   private lastReply = "";
-  private lastAnswerAt = 0;
   private resolvers = new Map<string, (answer: Answer) => void>();
   private localChat: string | null = null;
   private progressAt = new Map<string, number>();
@@ -305,25 +302,9 @@ export class VoiceOrchestrator {
   private async onFinal(raw: string): Promise<void> {
     useVoiceStore.getState().patch({ partial: "" });
     if (this.isEcho(raw)) return;
-    let text = raw.trim();
+    const text = raw.trim();
     if (!text) return;
-    const settings = this.settings;
     const confirmation = useVoiceStore.getState().confirmation;
-
-    if (settings.general.mode === "wake" && !confirmation && Date.now() - this.lastAnswerAt > FOLLOW_UP_MS) {
-      const rest = afterWakeWord(text, settings.general.wakeWord);
-      if (rest === null) {
-        this.status(this.idleStatus());
-        return;
-      }
-      if (!rest) {
-        if (settings.general.sounds) earcon("listen");
-        this.lastAnswerAt = Date.now();
-        this.status("listening");
-        return;
-      }
-      text = rest;
-    }
 
     bus.emit("voice.transcript", { text, final: true });
 
@@ -534,8 +515,30 @@ export class VoiceOrchestrator {
     return conversation;
   }
 
+  /**
+   * Autonomie choisie dans les réglages, appliquée aussi aux conversations déjà ouvertes (celle
+   * de la voix et les tâches en cours) : changer le réglage prend effet tout de suite.
+   */
+  async applyAutonomy(): Promise<void> {
+    const chat = this.chat;
+    if (!chat) return;
+    const wanted = this.settings.agent.autoMode;
+    const ids = [useVoiceStore.getState().session?.conversationId, ...this.tasks().filter((t) => t.status === "running").map((t) => t.conversationId)];
+    for (const id of new Set(ids)) {
+      const conversation = this.conversation(id);
+      if (!conversation || conversation.autoMode === wanted) continue;
+      try {
+        await chat.setAutoMode(conversation, wanted);
+      } catch {
+        // Conversation arrêtée entre-temps : le réglage s'applique à sa reprise.
+      }
+    }
+  }
+
   private async askCli(text: string): Promise<void> {
-    const conversation = await this.ensureConversation();
+    const created = await this.ensureConversation();
+    await this.applyAutonomy();
+    const conversation = this.conversation(created.id) ?? created;
     const baseline = conversation.timeline.length;
     this.watch(conversation.id, baseline);
     const preamble = contextPreamble(currentContext(), this.moduleNames());
@@ -573,7 +576,7 @@ export class VoiceOrchestrator {
           pendingFlush = false;
           const label = toolLabel(item.tool, item.input);
           useVoiceStore.getState().patch({ tools: [...useVoiceStore.getState().tools, label], status: "tool" });
-        } else if (item.kind === "prompt" && !item.resolvedBy && !handledPrompts.has(item.id)) {
+        } else if (item.kind === "prompt" && !item.resolvedBy && !item.prompt.auto && !handledPrompts.has(item.id)) {
           handledPrompts.add(item.id);
           void this.handlePrompt(conversation, item);
         } else if (item.kind === "error" && !handledPrompts.has(item.id)) {
@@ -597,13 +600,12 @@ export class VoiceOrchestrator {
     const tools = useVoiceStore.getState().tools;
     if (text.trim()) {
       this.addTurn({ role: "assistant", text: text.trim(), tools });
-      this.lastReply = speakable(text);
+      this.lastReply = speakable(text, this.settings.general.language);
       bus.emit("voice.response", { text: text.trim() });
     } else if (tools.length > 0) {
       this.say("C'est fait.", "normal", "reply", "agent");
       this.addTurn({ role: "assistant", text: "C'est fait.", tools });
     }
-    this.lastAnswerAt = Date.now();
     if (!this.pumping) this.status(this.idleStatus());
   }
 
@@ -709,14 +711,14 @@ export class VoiceOrchestrator {
 
   private speakChunks(chunks: string[]): void {
     for (const chunk of chunks) {
-      const text = speakable(chunk);
+      const text = speakable(chunk, this.settings.general.language);
       if (text) this.say(text, "normal", "reply", "agent");
     }
   }
 
   /** Met une phrase dans la file ; les priorités décident de l'ordre (voir `SpeechQueue`). */
   say(text: string, priority: VoicePriority = "normal", kind: SpeechItem["kind"] = "notice", source?: string): void {
-    const clean = speakable(text);
+    const clean = speakable(text, this.settings.general.language);
     if (!clean) return;
     if (kind === "notice" && source !== "voice") {
       this.addTurn({ role: "notice", text: clean, source, priority });
@@ -762,7 +764,6 @@ export class VoiceOrchestrator {
       useVoiceStore.getState().patch({ caption: "" });
       const status = useVoiceStore.getState().status;
       if (status === "speaking") this.status(this.idleStatus());
-      this.lastAnswerAt = Date.now();
     }
   }
 

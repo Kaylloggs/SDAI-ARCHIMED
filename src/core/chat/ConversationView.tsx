@@ -259,8 +259,9 @@ export function ConversationView({ session, agentName, onAnswer, compact = false
               <PromptCard
                 key={item.id}
                 prompt={item.prompt}
-                resolvedBy={item.resolvedBy}
-                resolvedOptionId={item.optionId}
+                // Réponse automatique annoncée par le moteur : pas de boutons le temps qu'elle arrive.
+                resolvedBy={item.resolvedBy ?? (item.prompt.auto ? "auto" : undefined)}
+                resolvedOptionId={item.optionId ?? (item.prompt.auto ? "allow" : undefined)}
                 onAnswer={(answer) => onAnswer(item.prompt.promptId, answer)}
               />
             );

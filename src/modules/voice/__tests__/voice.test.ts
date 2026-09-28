@@ -4,7 +4,7 @@ import { agentName } from "../lib/agents";
 import { SentenceChunker } from "../lib/chunker";
 import { brainLocation, effectiveSettings, fullyOffline, privacyRows, sttLocation, ttsLocation } from "../lib/privacy";
 import { contextPreamble, delegation, languageName } from "../lib/prompt";
-import { afterWakeWord, matchModule, normalize, parseConfirmation, route } from "../lib/router";
+import { matchModule, parseConfirmation, route } from "../lib/router";
 import { DEFAULT_SETTINGS, normalizeSettings, type VoiceSettings } from "../lib/settings";
 import { matches, parseShortcut, shortcutLabel } from "../lib/shortcuts";
 import { SpeechQueue, type SpeechItem } from "../lib/speech-queue";
@@ -70,14 +70,6 @@ describe("routeur local", () => {
     expect(parseConfirmation("annule")).toBe("no");
     expect(parseConfirmation("peut-être plus tard")).toBeNull();
   });
-
-  it("filtre par mot d'éveil", () => {
-    expect(afterWakeWord("Archimède, ouvre le planner", "Archimède")).toBe("ouvre le planner");
-    expect(afterWakeWord("ok archimede quelle heure est-il", "Archimède")).toBe("quelle heure est-il");
-    expect(afterWakeWord("Archimède", "Archimède")).toBe("");
-    expect(afterWakeWord("ouvre le planner", "Archimède")).toBeNull();
-    expect(normalize("  Éléphant, Ça VA ? ")).toBe("elephant ca va");
-  });
 });
 
 describe("texte parlé", () => {
@@ -88,6 +80,14 @@ describe("texte parlé", () => {
     expect(text).toContain("fichier.ts modifié");
     expect(text).toContain("code affiché à l'écran");
     expect(text).toContain("la doc");
+  });
+
+  it("dit les unités en toutes lettres et remplace les parenthèses par des pauses", () => {
+    expect(speakable("Il fait 18°C (ressenti 16 °C), 40 % d'humidité, vent à 20 km/h.")).toBe(
+      "Il fait 18 degrés, ressenti 16 degrés, 40 pour cent d'humidité, vent à 20 kilomètres heure.",
+    );
+    expect(speakable("It's 64°F & sunny (light wind).", "en-US")).toBe("It's 64 degrees Fahrenheit and sunny, light wind.");
+    expect(speakable("Build → OK")).toBe("Build, OK");
   });
 
   it("résume en quelques phrases", () => {
@@ -229,6 +229,9 @@ describe("confidentialité", () => {
 describe("réglages", () => {
   it("complète un fichier ancien ou abîmé", () => {
     expect(normalizeSettings(null)).toEqual(DEFAULT_SETTINGS);
+    // L'ancien mode « mot d'éveil » n'existe plus : retour à l'ouverture au clic.
+    expect(normalizeSettings({ general: { mode: "wake" } }).general.mode).toBe("toggle");
+    expect(normalizeSettings({ general: { mode: "push" } }).general.mode).toBe("push");
     const merged = normalizeSettings({ general: { language: "en-US", mode: 42 }, tts: { voice: "alloy", speed: "vite" }, unknown: { a: 1 } });
     expect(merged.general.language).toBe("en-US");
     expect(merged.general.mode).toBe(DEFAULT_SETTINGS.general.mode);

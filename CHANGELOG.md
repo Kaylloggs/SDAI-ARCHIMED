@@ -4,6 +4,48 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté
+- **Réglages : liste des catégories à gauche** (Thème, Assistants IA, Économie de tokens,
+  Modules, Mises à jour, Données, puis les réglages des modules) : un clic y mène, la section lue
+  est surlignée.
+- **Réglages › Assistants IA : installer et se connecter aux agents.** Claude Code (script
+  officiel d'Anthropic) et Codex (npm, Node.js installé si besoin) s'installent d'un clic,
+  Antigravity par sa page ; « Se connecter » ouvre un terminal sur l'agent. Le numéro de version
+  affiché est nettoyé (« 2.1.281 » au lieu de « 2.1.281 (Claude Code) »).
+- **Mod Studio pilotable par la voix et les agents** : créer un projet de mod (nom, loader,
+  version de Minecraft ; par défaut Fabric et la version la plus récente déjà compilée), ajouter
+  un objet, un bloc, une recette. L'assistant vocal passe par Mod Studio quand on lui demande un
+  mod, avant de compléter le code.
+- **Voice : masquer la liste des sections** (bouton en tête de la liste) : la conversation prend
+  toute la place du module.
+
+### Modifié
+- **Voice : l'autonomie choisie s'applique tout de suite**, y compris à la conversation et aux
+  tâches déjà en cours (avant, elle ne valait que pour les conversations suivantes, d'où des
+  demandes de permission malgré « Tout accepter »). Avec « Tout accepter », les actions
+  sensibles des modules ne demandent plus rien non plus ; seules les commandes dangereuses pour
+  le système (formatage d'un disque, clés privées) restent demandées.
+- L'installation des agents quitte Voice › Installations pour les Réglages (lien depuis Voice).
+- **Voice parle plus naturellement** : réponses courtes et directes, sans formules toutes
+  faites ni reprise de la question ; unités dites en toutes lettres (« 18 degrés », « 40 pour
+  cent »), parenthèses et flèches changées en pauses. Pour une information du moment (météo,
+  actualité, horaires), l'assistant cherche sur le web sans demander s'il peut le faire.
+- **Voice : les demandes de permission ne sont plus lues à voix haute par défaut** (un son et la
+  carte Oui / Non suffisent), y compris pour les réglages déjà enregistrés ; le réglage « Dire
+  les demandes de permission » les remet.
+
+### Corrigé
+- **Plus de demande de permission pour ce que le moteur valide lui-même.** Une question que le
+  Mode Auto accepte d'office (recherche web, lecture, écriture dans le projet…) arrivait à
+  l'interface une fraction de seconde avant sa réponse automatique : la voix la lisait ou
+  l'annonçait quand même, et une tâche passait « en attente ». Le moteur marque désormais ces
+  questions (`auto`) : la carte s'affiche directement « Auto-validé », la voix ne dit rien.
+
+### Retiré
+- Voice : le mode « mot d'éveil » (un réglage enregistré revient à l'ouverture au clic), le
+  bouton « Plein écran » sous la conversation de la page Session (masquer la liste des sections
+  donne toute la place), et la liste des commandes vocales dans les réglages.
+
 ## [0.11.0] - 2026-09-27
 
 ### Ajouté

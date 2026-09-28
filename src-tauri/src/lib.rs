@@ -45,6 +45,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             engine_commands::engine_list_adapters,
             engine_commands::engine_set_binary_override,
+            engine_commands::engine_install_cli,
+            engine_commands::engine_open_cli_terminal,
             engine_commands::engine_start_session,
             engine_commands::engine_send_message,
             engine_commands::engine_answer_prompt,

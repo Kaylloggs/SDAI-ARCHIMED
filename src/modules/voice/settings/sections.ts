@@ -15,7 +15,7 @@ export const SECTION_GROUPS: Array<{ title: string; sections: SectionInfo[] }> =
   {
     title: "Réglages",
     sections: [
-      { id: "general", label: "Général", icon: SlidersHorizontal, description: "Langue, micro, mot d'éveil, raccourcis et pastille." },
+      { id: "general", label: "Général", icon: SlidersHorizontal, description: "Langue, ouverture du micro, raccourcis et pastille." },
       { id: "audio", label: "Micro et son", icon: Mic, description: "Micro, sensibilité, annulation d'écho et sortie audio." },
       { id: "engines", label: "Moteurs", icon: AudioLines, description: "Ce qui transcrit votre voix et ce qui lit les réponses." },
       { id: "intelligence", label: "Intelligence", icon: Bot, description: "Qui répond, ce qu'il peut faire, et les outils d'ARCHIMED pour les agents." },

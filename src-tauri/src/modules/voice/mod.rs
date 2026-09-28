@@ -56,7 +56,6 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::voice_tools,
             commands::voice_install_tool,
             commands::voice_launch_tool,
-            commands::voice_agent_terminal,
             commands::voice_open_system_speech,
         ])
         .setup(|app, _api| {

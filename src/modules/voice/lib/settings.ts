@@ -5,17 +5,21 @@ export const VOICEBOX_URL = "http://127.0.0.1:17493";
 
 export type SttEngineId = "windows" | "whisper" | "openai" | "groq" | "elevenlabs" | "voicebox" | "custom";
 export type TtsEngineId = "system" | "piper" | "openai" | "elevenlabs" | "voicebox" | "custom";
-export type ListenMode = "toggle" | "push" | "wake";
+export type ListenMode = "toggle" | "push";
 export type Brain = "cli" | "local";
 export type EnginePriority = "low" | "normal" | "high";
 
+/** Version du format des réglages : sert aux changements de valeur par défaut. */
+export const SETTINGS_REVISION = 2;
+
 export type VoiceSettings = {
+  /** 2 : demandes de permission silencieuses par défaut. */
+  revision: number;
   general: {
     /** Langue parlée et répondue (BCP-47). */
     language: string;
-    /** `toggle` : un clic ou un raccourci ouvre l'écoute ; `push` : maintenir ; `wake` : mot d'éveil. */
+    /** `toggle` : un clic ou un raccourci ouvre l'écoute ; `push` : maintenir. */
     mode: ListenMode;
-    wakeWord: string;
     /** Continuer d'écouter après chaque réponse (conversation naturelle, interruption possible). */
     continuous: boolean;
     /** Annonces pendant les tâches longues : `off`, `short`, `detailed`. */
@@ -56,15 +60,15 @@ export type VoiceSettings = {
 };
 
 export const DEFAULT_SETTINGS: VoiceSettings = {
+  revision: SETTINGS_REVISION,
   general: {
     language: "fr-FR",
     mode: "toggle",
-    wakeWord: "Archimède",
     continuous: true,
     progress: "short",
     sounds: true,
     liveTranscript: true,
-    speakPermissions: true,
+    speakPermissions: false,
   },
   microphone: { deviceId: null, sensitivity: 0.6, echoCancellation: true, noiseSuppression: true },
   speaker: { deviceId: null, volume: 1 },
@@ -95,6 +99,7 @@ export function normalizeSettings(raw: unknown): VoiceSettings {
   const saved = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const out = structuredClone(DEFAULT_SETTINGS) as unknown as Record<string, Record<string, unknown>>;
   for (const [section, defaults] of Object.entries(out)) {
+    if (!defaults || typeof defaults !== "object") continue;
     const value = saved[section];
     if (!value || typeof value !== "object") continue;
     for (const key of Object.keys(defaults)) {
@@ -104,7 +109,14 @@ export function normalizeSettings(raw: unknown): VoiceSettings {
       if (current === null || typeof next === typeof current) defaults[key] = next;
     }
   }
-  return out as unknown as VoiceSettings;
+  const settings = out as unknown as VoiceSettings;
+  // Réglages d'avant la révision 2 : les demandes de permission n'étaient lues que par défaut.
+  const revision = typeof saved.revision === "number" ? saved.revision : 1;
+  if (revision < 2) settings.general.speakPermissions = false;
+  settings.revision = SETTINGS_REVISION;
+  // Ancien mode « mot d'éveil » (retiré) : on revient à l'ouverture au clic.
+  if (settings.general.mode !== "toggle" && settings.general.mode !== "push") settings.general.mode = "toggle";
+  return settings;
 }
 
 export const STT_ENGINES: Record<SttEngineId, { label: string; hint: string }> = {

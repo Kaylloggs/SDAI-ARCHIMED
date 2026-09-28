@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, Settings2, Sparkles } from "lucide-react";
+import { ArrowUpRight, Check, Settings2, Sparkles } from "lucide-react";
+import { useUiStore } from "@/core/stores/ui.store";
 import { Badge, Button } from "@/design-system/primitives";
 import { voiceApi, type VoiceProviderStatus } from "../api";
 import { Group, Row } from "../components/controls";
 import { isWindows } from "../engines/stt";
 import { ProviderRow } from "./ConnectionsSection";
 import { installAndUse, isActive, message, recommended, size, useModelCatalog } from "./install";
-import { AgentRows, ToolRows } from "./InstallParts";
+import { ToolRows } from "./InstallParts";
 import { ModelsSection } from "./ModelsSection";
 import { useVoiceSettings } from "./useVoiceSettings";
 
@@ -74,8 +75,20 @@ export function InstallsSection() {
     <>
       <LocalSetup />
 
-      <Group title="Agents d'IA" description="Ils répondent et agissent quand vous parlez. L'installation passe par la voie officielle de chaque éditeur ; la connexion se fait dans leur propre fenêtre.">
-        <AgentRows />
+      <Group title="Agents d'IA">
+        <Row
+          label="Claude Code, Codex, Antigravity"
+          hint="Ils servent à toute l'application : on les installe et on s'y connecte dans les Réglages d'ARCHIMED."
+        >
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => useUiStore.getState().openModule("settings", { section: "agents" })}
+            icon={<ArrowUpRight size={13} strokeWidth={1.75} />}
+          >
+            Assistants IA
+          </Button>
+        </Row>
       </Group>
 
       <Group title="Outils sur cet ordinateur">

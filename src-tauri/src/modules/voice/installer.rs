@@ -1,13 +1,12 @@
-//! Installation en un clic de ce que la voix propose : Ollama, Voicebox, Claude Code, Codex.
+//! Installation en un clic des outils locaux de la voix : Ollama et Voicebox.
 //!
 //! Chaque installation passe par la voie officielle et vérifiable :
 //! - `winget` (Windows) : paquets du dépôt Microsoft, empreinte vérifiée par winget ;
 //! - releases GitHub : l'installeur n'est lancé que si son empreinte SHA-256 correspond à celle
-//!   publiée par GitHub ;
-//! - scripts officiels de l'éditeur (Claude Code) ou `npm` (Codex).
+//!   publiée par GitHub.
 //!
-//! Rien n'est installé sans un clic de la personne. La connexion aux agents se fait dans une
-//! fenêtre de terminal ouverte pour elle : ARCHIMED ne touche jamais aux identifiants.
+//! Rien n'est installé sans un clic de la personne. Les CLI d'IA (Claude Code, Codex…) sont
+//! installées par le moteur, depuis les Réglages de l'application (`engine::install`).
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -18,13 +17,13 @@ use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Runtime};
 
 use crate::core::error::AppErrorCode;
+use crate::core::install::{winget, winget_install, INSTALL_TIMEOUT};
 use crate::core::process::async_command;
 use crate::core::{AppError, AppResult};
 
 use super::types::{InstallProgress, VoiceToolStatus};
 
 pub const EVENT: &str = "voice:install";
-const INSTALL_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 /// Plafond d'un installeur téléchargé (Voicebox embarque ses modèles de base).
 const MAX_INSTALLER_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 
@@ -38,25 +37,6 @@ fn io(error: std::io::Error) -> AppError {
 
 fn publish<R: Runtime>(app: &AppHandle<R>, id: &str, step: &str, received: u64, total: u64) {
     let _ = app.emit(EVENT, InstallProgress { id: id.to_string(), step: step.to_string(), received, total });
-}
-
-fn last_lines(text: &str, n: usize) -> String {
-    let lines: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
-    lines[lines.len().saturating_sub(n)..].join(" · ")
-}
-
-/// Lance une commande, attend sa fin, renvoie les dernières lignes (ou l'erreur en clair).
-async fn run(mut command: tokio::process::Command, what: &str) -> AppResult<String> {
-    command.kill_on_drop(true).stdin(std::process::Stdio::null());
-    let output = tokio::time::timeout(INSTALL_TIMEOUT, command.output())
-        .await
-        .map_err(|_| AppError::new(AppErrorCode::Network, format!("{what} : installation trop longue, arrêtée.")))?
-        .map_err(|e| AppError::internal(format!("{what} : {e}")))?;
-    let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
-    if !output.status.success() {
-        return Err(AppError::new(AppErrorCode::Network, format!("{what} : échec. {}", last_lines(&text, 3))));
-    }
-    Ok(last_lines(&text, 2))
 }
 
 // ── Détection ──────────────────────────────────────────────────────────────────────
@@ -112,25 +92,6 @@ pub fn voicebox_binary() -> Option<PathBuf> {
     None
 }
 
-pub fn winget() -> Option<PathBuf> {
-    if !cfg!(windows) {
-        return None;
-    }
-    which::which("winget").ok().or_else(|| {
-        env_dir("LOCALAPPDATA")
-            .map(|d| d.join("Microsoft").join("WindowsApps").join("winget.exe"))
-            .filter(|p| p.exists())
-    })
-}
-
-fn npm() -> Option<PathBuf> {
-    which::which("npm").ok().or_else(|| {
-        env_dir("ProgramFiles")
-            .map(|d| d.join("nodejs").join("npm.cmd"))
-            .filter(|p| p.is_file())
-    })
-}
-
 /// État des outils locaux (les agents sont détectés par le moteur, `engine_list_adapters`).
 pub fn tools(ollama_running: bool, voicebox_running: bool) -> Vec<VoiceToolStatus> {
     let has_winget = winget().is_some();
@@ -158,62 +119,15 @@ pub fn tools(ollama_running: bool, voicebox_running: bool) -> Vec<VoiceToolStatu
 
 // ── Installation ───────────────────────────────────────────────────────────────────
 
-async fn winget_install<R: Runtime>(app: &AppHandle<R>, id: &str, package: &str, name: &str) -> AppResult<String> {
-    let winget = winget().ok_or_else(|| {
-        AppError::invalid("winget est absent : installez « Programme d'installation d'application » depuis le Microsoft Store, ou utilisez la page de téléchargement.")
-    })?;
-    publish(app, id, &format!("Installation de {name} avec winget"), 0, 0);
-    let mut command = async_command(winget);
-    command.args([
-        "install",
-        "--exact",
-        "--id",
-        package,
-        "--silent",
-        "--accept-source-agreements",
-        "--accept-package-agreements",
-        "--disable-interactivity",
-    ]);
-    run(command, name).await
-}
-
 /// Installe un outil proposé par la voix ; renvoie une phrase lisible sur le résultat.
 pub async fn install<R: Runtime>(app: &AppHandle<R>, http: &reqwest::Client, tmp: &Path, id: &str) -> AppResult<String> {
     match id {
         "ollama" => {
-            winget_install(app, id, "Ollama.Ollama", "Ollama").await?;
+            publish(app, id, "Installation d'Ollama avec winget", 0, 0);
+            winget_install("Ollama.Ollama", "Ollama").await?;
             Ok("Ollama est installé. Il démarre avec Windows ; choisissez maintenant un modèle.".into())
         }
         "voicebox" => install_voicebox(app, http, tmp).await,
-        "claude" => {
-            publish(app, id, "Installation de Claude Code (script officiel d'Anthropic)", 0, 0);
-            let command = if cfg!(windows) {
-                let mut c = async_command("powershell");
-                c.args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "irm https://claude.ai/install.ps1 | iex"]);
-                c
-            } else {
-                let mut c = async_command("bash");
-                c.args(["-c", "curl -fsSL https://claude.ai/install.sh | bash"]);
-                c
-            };
-            run(command, "Claude Code").await?;
-            Ok("Claude Code est installé. Connectez-vous une fois (bouton « Se connecter »).".into())
-        }
-        "codex" => {
-            let npm = match npm() {
-                Some(npm) => npm,
-                None if cfg!(windows) => {
-                    winget_install(app, id, "OpenJS.NodeJS.LTS", "Node.js").await?;
-                    npm().ok_or_else(|| AppError::invalid("Node.js est installé : redémarrez ARCHIMED puis relancez l'installation de Codex."))?
-                }
-                None => return Err(AppError::invalid("npm est introuvable : installez Node.js (nodejs.org), puis réessayez.")),
-            };
-            publish(app, id, "Installation de Codex (npm)", 0, 0);
-            let mut command = async_command(npm);
-            command.args(["install", "-g", "@openai/codex"]);
-            run(command, "Codex").await?;
-            Ok("Codex est installé. Connectez-vous une fois (bouton « Se connecter »).".into())
-        }
         other => Err(AppError::invalid(format!("Installation automatique indisponible pour « {other} » : utilisez sa page officielle."))),
     }
 }
@@ -374,40 +288,6 @@ pub fn launch(id: &str) -> AppResult<()> {
             command.spawn().map(|_| ()).map_err(io)
         }
         other => Err(AppError::invalid(format!("Lancement impossible : {other}."))),
-    }
-}
-
-/// Ouvre un terminal visible sur la CLI : la personne s'y connecte elle-même.
-pub fn open_terminal(binary: &Path) -> AppResult<()> {
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
-        std::process::Command::new("cmd")
-            .arg("/k")
-            .arg(binary)
-            .creation_flags(CREATE_NEW_CONSOLE)
-            .spawn()
-            .map(|_| ())
-            .map_err(io)
-    }
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .args(["-a", "Terminal"])
-            .arg(binary)
-            .spawn()
-            .map(|_| ())
-            .map_err(io)
-    }
-    #[cfg(not(any(windows, target_os = "macos")))]
-    {
-        std::process::Command::new("x-terminal-emulator")
-            .arg("-e")
-            .arg(binary)
-            .spawn()
-            .map(|_| ())
-            .map_err(|_| AppError::invalid(format!("Ouvrez un terminal et tapez : {}", binary.display())))
     }
 }
 

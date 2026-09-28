@@ -537,6 +537,7 @@ impl ClaudeAdapter {
             risk: decision.risk,
             source: PromptSource::Protocol,
             raw_excerpt: None,
+            auto: false,
         };
 
         vec![EngineEvent::Prompt { prompt }]
@@ -591,6 +592,7 @@ fn interactive_tool(tool: &str, input: &Value, prompt_id: &str, session_id: &str
         risk: RiskLevel::Low,
         source: PromptSource::Protocol,
         raw_excerpt: None,
+        auto: false,
     })
 }
 

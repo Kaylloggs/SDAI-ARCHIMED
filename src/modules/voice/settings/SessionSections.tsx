@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, Copy, History, Loader2, Maximize2, RotateCcw, Trash2 } from "lucide-react";
+import { Check, Copy, History, Loader2, RotateCcw, Trash2 } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Button, EmptyState } from "@/design-system/primitives";
 import { voiceApi, type VoiceSessionSummary } from "../api";
@@ -46,16 +46,6 @@ export function SessionSection() {
     <div className="space-y-6">
       <div className="h-[min(640px,calc(100vh-240px))] min-h-[460px]">
         <VoiceStage variant="page" />
-      </div>
-      <div className="flex justify-end">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => useVoiceStore.getState().patch({ liveOpen: true })}
-          icon={<Maximize2 size={13} strokeWidth={1.75} />}
-        >
-          Plein écran
-        </Button>
       </div>
       {done.length > 0 && (
         <section className="space-y-2" aria-label="Tâches terminées">

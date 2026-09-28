@@ -75,11 +75,9 @@ export const voiceApi = {
   deleteSession: (id: string) => call<void>("delete_session", { id }),
   /** Ollama et Voicebox : installés, lancés, installables d'un clic. */
   tools: () => call<VoiceToolStatus[]>("tools"),
-  /** `ollama`, `voicebox`, `claude`, `codex` ; avancement par l'événement `voice:install`. */
+  /** `ollama`, `voicebox` ; avancement par l'événement `voice:install`. */
   installTool: (id: string) => call<string>("install_tool", { id }),
   launchTool: (id: string) => call<void>("launch_tool", { id }),
-  /** Terminal ouvert sur la CLI d'un agent, pour s'y connecter soi-même. */
-  agentTerminal: (adapter: string) => call<void>("agent_terminal", { adapter }),
   openSystemSpeech: () => call<void>("open_system_speech"),
 };
 

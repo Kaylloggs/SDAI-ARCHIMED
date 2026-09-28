@@ -4,6 +4,7 @@ pub mod config;
 pub mod dictation;
 pub mod error;
 pub mod imaging;
+pub mod install;
 pub mod mcp;
 pub mod modules;
 pub mod paths;

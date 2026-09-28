@@ -94,9 +94,6 @@ export function ShortcutsSection() {
       <Row label="Maintenir pour parler" hint="L'assistant écoute tant que la combinaison est maintenue, et coupe sa propre parole.">
         <ShortcutRecorder label="Maintenir pour parler" value={s.pushToTalk} other={s.toggle} onChange={(pushToTalk) => update("shortcuts", { pushToTalk })} />
       </Row>
-      <Row label="Commandes à la voix" hint="« Stop », « attends », « continue », « répète », « plus lentement », « qu'est-ce que tu fais ? », « ouvre… », « termine la session ».">
-        <span />
-      </Row>
     </Group>
   );
 }
@@ -205,9 +202,9 @@ export function PermissionsSection() {
     <>
       <Group
         title="Règle"
-        description="Une commande vocale n'a jamais plus de droits qu'un message écrit. Chaque action d'un agent passe par les mêmes permissions que dans le Chat, et les actions sensibles des modules (supprimer, envoyer, payer) demandent toujours votre accord."
+        description="Une commande vocale n'a jamais plus de droits qu'un message écrit. Chaque action d'un agent passe par les mêmes permissions que dans le Chat. Les actions sensibles des modules (supprimer, envoyer) demandent votre accord, sauf avec « Toutes »."
       >
-        <Row label="Actions de l'agent sans confirmation" hint="Même réglage que l'autonomie dans le Chat, appliqué aux conversations vocales.">
+        <Row label="Actions de l'agent sans confirmation" hint="Appliqué tout de suite, y compris à la conversation et aux tâches en cours. Même avec « Toutes », une commande dangereuse pour le système (formatage d'un disque, clés privées) reste demandée.">
           <Segmented
             label="Autonomie"
             value={settings.agent.autoMode}
@@ -235,7 +232,7 @@ export function PermissionsSection() {
         >
           <span />
         </Row>
-        <Row label="Déclenchements involontaires" hint="Le micro ignore ce que dit l'assistant lui-même (écho) et, en mode mot d'éveil, toute phrase qui ne commence pas par le mot d'éveil.">
+        <Row label="Déclenchements involontaires" hint="Le micro ignore ce que dit l'assistant lui-même (écho).">
           <span />
         </Row>
       </Group>

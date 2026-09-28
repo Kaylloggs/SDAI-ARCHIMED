@@ -16,6 +16,15 @@ export const engineApi = {
   setBinaryOverride: (adapter: string, path: string | null) =>
     invokeCore<void>("engine_set_binary_override", { adapter, path }),
 
+  /**
+   * Installe la CLI d'un agent (`claude`, `codex`) par sa voie officielle, après un clic.
+   * Avancement : événement `engine:install` (`EngineInstallStep`). Renvoie une phrase lisible.
+   */
+  installCli: (adapter: string) => invokeCore<string>("engine_install_cli", { adapter }),
+
+  /** Terminal ouvert sur la CLI : la personne s'y connecte elle-même (identifiants jamais vus). */
+  openCliTerminal: (adapter: string) => invokeCore<void>("engine_open_cli_terminal", { adapter }),
+
   startSession: (params: {
     adapter: string;
     model: string | null;
@@ -70,6 +79,10 @@ export const engineApi = {
 };
 
 export type ResolvedPath = { path: string; isDir: boolean };
+
+/** Événement `engine:install` : étape en cours de l'installation d'une CLI. */
+export const ENGINE_INSTALL_EVENT = "engine:install";
+export type EngineInstallStep = { adapter: string; step: string };
 
 /** Miroir de `EngineTuning` (src-tauri/src/engine/event.rs). */
 export type EngineTuning = {

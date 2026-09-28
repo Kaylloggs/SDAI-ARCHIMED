@@ -143,7 +143,8 @@ SDAI ARCHIMED/
 │       │   └── runtime/                 # VoiceRuntime (slot app.background) · instance (orchestrateur unique)
 │       ├── memory/                      # Mémoire : index · api · services/context · README
 │       ├── skills/                      # module.config · index · api · README
-│       ├── settings/                    # index + components/ (ThemeSection · EngineSection · ModulesSection)
+│       ├── settings/                    # index (liste des catégories + défilement suivi) + components/ (ThemeSection ·
+│       │                                # EngineSection « Assistants IA » : détection, installation, connexion · ModulesSection)
 │       ├── tutorial/                    # Tutoriel (requis, au-dessus de Réglages) : index · store (progression)
 │       │   ├── components/              # TopicList · Stage · Miniature (écran en réduction) · CodeSample
 │       │   ├── content/                 # start (premiers pas) · create-module (créer un module)
@@ -166,6 +167,8 @@ SDAI ARCHIMED/
         │                                # · mcp.rs (serveurs MCP déclarés par les modules)
         │                                # · audit.rs (audit.jsonl) · usage.rs (registre de consommation) · mod.rs
         │                                # · clipboard.rs (Ctrl+V : chemins CF_HDROP de l'Explorateur, images collées)
+        │                                # · install.rs (installations en un clic : winget, npm, commandes longues,
+        │                                #   terminal visible pour se connecter à une CLI)
         │                                # · imaging/ (fournisseurs d'images partagés, ADR 0010 : trait ImageProvider,
         │                                #   openrouter · gemini · higgsfield · higgsfield_cli (compte, CLI officielle)
         │                                #   · keys (relecture entre modules) · http)
@@ -174,6 +177,8 @@ SDAI ARCHIMED/
         │   ├── manager.rs · session.rs  # SessionManager, boucle de session tokio
         │   ├── event.rs                 # EngineEvent, InteractivePrompt, AdapterInfo
         │   ├── policy.rs                # risque + Mode Auto (+ tests)
+        │   ├── install.rs               # installation des CLI d'agents (Claude Code : script officiel ;
+        │   │                            # Codex : npm), événement engine:install (Réglages › Assistants IA)
         │   ├── adapters/                # mod.rs (trait CliAdapter) · claude.rs · antigravity.rs
         │   │                            # · codex.rs (expérimental) · declarative.rs (TOML)
         │   ├── pty_session.rs           # transport PTY (ConPTY), boucle de détection
@@ -186,8 +191,8 @@ SDAI ARCHIMED/
             ├── usage/                   # résumé du registre, compte et limites Claude
             ├── voice/                   # matériel (hardware.rs), catalogue et téléchargements de modèles (catalog.rs, models.rs),
             │                            # whisper-server et Piper (local.rs), fournisseurs en ligne (cloud.rs), Ollama,
-            │                            # serveur MCP d'ARCHIMED (mcp.rs), installations en un clic (installer.rs :
-            │                            # winget, release GitHub vérifiée, scripts officiels), réglages et sessions vocales
+            │                            # serveur MCP d'ARCHIMED (mcp.rs), installations en un clic d'Ollama et Voicebox
+            │                            # (installer.rs : winget, release GitHub vérifiée), réglages et sessions vocales
             ├── memory/                  # notes.json (activables, par projet), bloc de contexte injecté
             ├── planner/                 # boards.json, roadmap.rs (parse/réécriture), ics.rs, watcher notify
             ├── mcstudio/                # projets de mods Minecraft : profiles/ (TOML + métadonnées officielles),
