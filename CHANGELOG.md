@@ -4,6 +4,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.12.0] - 2026-09-28
+
 ### Ajouté
 - **Réglages : liste des catégories à gauche** (Thème, Assistants IA, Économie de tokens,
   Modules, Mises à jour, Données, puis les réglages des modules) : un clic y mène, la section lue
