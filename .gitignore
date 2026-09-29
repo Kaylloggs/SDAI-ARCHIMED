@@ -51,3 +51,13 @@ vite.config.d.ts
 # Caches Python (moteur du module JobAgent).
 __pycache__/
 *.pyc
+
+# Vidéo promo (/brag) : intermédiaires régénérables par work/render.mjs, work/audio.py et work/capture.mjs.
+brag-output/work/shots/
+brag-output/work/stills/
+brag-output/work/trans/
+brag-output/work/poster/
+brag-output/work/f*.png
+brag-output/work/video.mp4
+brag-output/work/audio.wav
+brag-output/work/composition.html

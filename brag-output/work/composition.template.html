@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>ARCHIMED — brag</title>
+<style>
+@font-face { font-family: "Geist"; src: url(assets/geist.woff2) format("woff2"); font-weight: 100 900; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Geist"; src: url(assets/geist-ext.woff2) format("woff2"); font-weight: 100 900; unicode-range: U+0100-024F, U+1E00-1EFF, U+20A0-20AB, U+20AD-20CF, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Geist Mono"; src: url(assets/geist-mono.woff2) format("woff2"); font-weight: 100 900; }
+:root {
+  --bg: oklch(0.155 0.006 265);
+  --bg-deep: oklch(0.11 0.005 265);
+  --surface-1: oklch(0.205 0.007 265);
+  --surface-2: oklch(0.235 0.008 265);
+  --surface-3: oklch(0.27 0.009 265);
+  --border: oklch(1 0 0 / 0.08);
+  --border-strong: oklch(1 0 0 / 0.14);
+  --text: oklch(0.96 0.003 265);
+  --muted: oklch(0.74 0.01 265);
+  --subtle: oklch(0.58 0.01 265);
+  --accent: oklch(0.8 0.115 80);
+  --accent-soft: oklch(0.8 0.115 80 / 0.16);
+  --claude: oklch(0.7 0.13 42);
+  --agy: oklch(0.72 0.12 255);
+  --codex: oklch(0.8 0.01 265);
+  --glass: oklch(0.22 0.008 265 / 0.94);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg-deep); }
+body { font-family: "Geist", system-ui, sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; font-feature-settings: "ss01"; }
+.abs { position: absolute; }
+.layer { position: absolute; inset: 0; }
+#stage { position: absolute; inset: 0; overflow: hidden; background: var(--bg-deep); }
+
+/* Lueur de la voix (VoiceAura) */
+.aura { position: absolute; left: -20%; width: 140%; bottom: -55%; height: 110%; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 60%, oklch(0.8 0.115 80 / 0.75), oklch(0.72 0.12 70 / 0.28) 38%, oklch(0.5 0.08 60 / 0.0) 70%);
+  filter: blur(30px); transform-origin: 50% 100%; }
+.aura2 { background: radial-gradient(ellipse at 50% 55%, oklch(0.9 0.09 85 / 0.55), oklch(0.8 0.115 80 / 0.0) 55%); }
+.vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 45%, transparent 55%, oklch(0.05 0 0 / 0.55) 100%); pointer-events: none; }
+
+/* Touches */
+.keys { position: absolute; left: 0; right: 0; display: flex; justify-content: center; gap: 22px; }
+.key { font-family: "Geist Mono", monospace; font-size: 44px; font-weight: 500; color: var(--text);
+  min-width: 120px; height: 104px; padding: 0 34px; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, oklch(0.29 0.009 265), oklch(0.24 0.008 265)); border: 1.5px solid var(--border-strong);
+  border-radius: 20px; box-shadow: 0 7px 0 oklch(0.13 0.006 265), 0 18px 40px oklch(0 0 0 / 0.45); }
+.key.small { font-size: 26px; height: 60px; min-width: 70px; padding: 0 20px; border-radius: 13px; box-shadow: 0 4px 0 oklch(0.13 0.006 265), 0 10px 24px oklch(0 0 0 / 0.4); }
+
+/* Pastille vocale (VoicePill), agrandie */
+.pill { position: absolute; display: flex; align-items: center; gap: 12px; height: 38px; padding: 0 16px 0 5px;
+  background: var(--glass); border: 1px solid var(--border-strong); border-radius: 999px; transform-origin: 50% 50%;
+  box-shadow: 0 10px 30px oklch(0 0 0 / 0.35); white-space: nowrap; }
+.pill .mic { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; }
+.pill .mic svg { width: 16px; height: 16px; stroke: var(--accent); }
+.pill .bars { display: flex; align-items: center; gap: 2.5px; height: 18px; }
+.pill .bars i { display: block; width: 3px; border-radius: 2px; background: var(--accent); }
+.pill .label { font-size: 14px; color: var(--text); font-weight: 500; }
+
+/* Texte */
+.say { position: absolute; left: 50%; width: 1500px; margin-left: -750px; text-align: center; font-size: 72px; line-height: 1.16;
+  font-weight: 600; letter-spacing: -0.02em; text-wrap: balance; }
+.say .w { display: inline-block; white-space: pre; }
+.say .q { color: var(--accent); }
+.center { position: absolute; left: 0; right: 0; text-align: center; }
+.brand { font-size: 84px; font-weight: 650; letter-spacing: 0.04em; }
+.tagline { font-size: 50px; font-weight: 500; letter-spacing: -0.015em; color: var(--text); text-wrap: balance; width: 1400px; margin: 0 auto; line-height: 1.2; }
+.tagline .w { display: inline-block; white-space: pre; }
+.headline { font-size: 64px; font-weight: 650; letter-spacing: -0.025em; }
+.headline em { font-style: normal; color: var(--accent); }
+.sub { font-size: 36px; font-weight: 500; color: var(--muted); }
+
+/* Écran de l'application */
+.app { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+.app img, .shot { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+.sprite { position: absolute; background-size: 1920px 1080px; background-repeat: no-repeat; }
+.cardshadow { box-shadow: 0 18px 40px oklch(0 0 0 / 0.45); border-radius: 12px; }
+
+/* Montage */
+.frame { position: absolute; width: 1300px; height: 812.5px; left: 310px; top: 232px; border-radius: 20px; overflow: hidden;
+  border: 1.5px solid var(--border-strong); box-shadow: 0 40px 90px oklch(0 0 0 / 0.55), 0 0 0 1px oklch(0 0 0 / 0.4); background: var(--bg); }
+.frame img { position: absolute; left: 0; top: 0; width: 1300px; height: 812.5px; transform-origin: 0 0; }
+.chip { position: absolute; display: flex; align-items: center; gap: 16px; height: 76px; padding: 0 34px 0 10px; border-radius: 999px;
+  background: oklch(0.2 0.008 265 / 0.96); border: 1.5px solid oklch(0.8 0.115 80 / 0.35); box-shadow: 0 20px 50px oklch(0 0 0 / 0.5);
+  font-size: 34px; font-weight: 550; white-space: nowrap; transform: translateX(-50%); }
+.chip .mic { width: 58px; height: 58px; border-radius: 50%; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; }
+.chip .mic svg { width: 28px; height: 28px; stroke: var(--accent); }
+.tag { position: absolute; top: 312px; left: 400px; padding: 8px 18px; border-radius: 12px; font-size: 24px; font-weight: 600;
+  background: oklch(0.14 0.006 265 / 0.9); border: 1px solid var(--border-strong); color: var(--muted); }
+
+/* Agents */
+.agents { position: absolute; left: 0; right: 0; display: flex; justify-content: center; gap: 28px; }
+.agent { display: flex; align-items: center; gap: 18px; height: 104px; padding: 0 44px 0 34px; border-radius: 999px; font-size: 48px; font-weight: 600;
+  background: var(--surface-1); border: 1.5px solid var(--border-strong); box-shadow: 0 20px 50px oklch(0 0 0 / 0.4); }
+.agent i { width: 22px; height: 22px; border-radius: 50%; display: block; }
+.privacy { display: flex; justify-content: center; gap: 26px; font-size: 40px; font-weight: 550; }
+.privacy span { display: inline-flex; align-items: center; gap: 14px; }
+.privacy span b { width: 14px; height: 14px; border-radius: 50%; background: oklch(0.76 0.13 155); display: block; }
+
+.url { font-family: "Geist Mono", monospace; font-size: 30px; color: var(--text); padding: 14px 28px; border-radius: 14px;
+  background: var(--surface-1); border: 1.5px solid var(--border-strong); display: inline-block; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- Fond commun -->
+  <div class="layer" id="bgGlow" style="background: radial-gradient(ellipse at 50% 0%, oklch(0.8 0.115 80 / 0.10), transparent 60%);"></div>
+
+  <!-- Scène 2/3 : l'application réelle -->
+  <div class="app" id="app">
+    <img id="imgB" src="assets/B.png" />
+    <img id="imgC" src="assets/C.png" />
+    <div id="covers"></div>
+    <div id="sprites"></div>
+    <img id="imgA" src="assets/A.png" />
+  </div>
+  <div class="layer" id="appDim" style="background: var(--bg-deep);"></div>
+
+  <!-- Lueur de la voix -->
+  <div id="auraWrap" class="layer">
+    <div class="aura" id="aura1"></div>
+    <div class="aura aura2" id="aura2"></div>
+  </div>
+
+  <!-- Scène 1 -->
+  <div class="keys" id="keys1" style="top: 640px;"><div class="key">Ctrl</div><div class="key">Maj</div><div class="key">Espace</div></div>
+  <div class="pill" id="pill"><div class="mic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></div><div class="bars"><i></i><i></i><i></i><i></i><i></i></div><div class="label">Je vous entends…</div></div>
+  <div class="say" id="say1" style="top: 560px;"></div>
+
+  <!-- Scène 3 -->
+  <div id="s3" class="layer">
+    <svg id="logo" class="abs" viewBox="0 0 1024 1024" width="200" height="200" style="left: 860px; top: 250px;">
+      <defs>
+        <linearGradient id="lbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2A2C33"/><stop offset="1" stop-color="#15161A"/></linearGradient>
+        <linearGradient id="lbrass" x1="0.15" y1="0.1" x2="0.85" y2="0.95"><stop offset="0" stop-color="#F2D58E"/><stop offset="0.55" stop-color="#D9A94F"/><stop offset="1" stop-color="#A9772E"/></linearGradient>
+        <radialGradient id="lglow" cx="0.5" cy="0.42" r="0.6"><stop offset="0" stop-color="#D9A94F" stop-opacity="0.22"/><stop offset="1" stop-color="#D9A94F" stop-opacity="0"/></radialGradient>
+        <linearGradient id="lrim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.18"/><stop offset="0.4" stop-color="#FFFFFF" stop-opacity="0.02"/></linearGradient>
+      </defs>
+      <g id="logoTile">
+        <rect x="64" y="64" width="896" height="896" rx="208" fill="url(#lbg)"/>
+        <rect x="64" y="64" width="896" height="896" rx="208" fill="url(#lglow)"/>
+        <rect x="65.5" y="65.5" width="893" height="893" rx="206.5" fill="none" stroke="url(#lrim)" stroke-width="3"/>
+      </g>
+      <path id="spiral" d="__SPIRAL__" fill="none" stroke="url(#lbrass)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle id="dot" cx="512" cy="520" r="30" fill="#F2D58E"/>
+    </svg>
+    <div class="center brand" id="brand" style="top: 488px;">ARCHIMED</div>
+    <div class="center" style="top: 618px;"><div class="tagline" id="tagline"></div></div>
+  </div>
+
+  <!-- Scène 4 -->
+  <div id="s4" class="layer">
+    <div class="center headline" id="headline4" style="top: 120px;">Tout ce que vous faites, <em>la voix le fait.</em></div>
+    <div id="frames"></div>
+    <div id="chips"></div>
+  </div>
+
+  <!-- Scène 5 -->
+  <div id="s5" class="layer">
+    <div class="center sub" id="s5head" style="top: 300px; font-size: 46px; color: var(--muted);">Avec l'agent de votre choix</div>
+    <div class="agents" id="agents" style="top: 420px;">
+      <div class="agent"><i style="background: var(--claude)"></i>Claude Code</div>
+      <div class="agent"><i style="background: var(--codex)"></i>Codex</div>
+      <div class="agent"><i style="background: var(--agy)"></i>Antigravity</div>
+    </div>
+    <div class="center" style="top: 640px;"><div class="privacy" id="privacy"><span><b></b>Votre compte.</span><span><b></b>Votre ordinateur.</span><span><b></b>Aucun serveur.</span></div></div>
+  </div>
+
+  <!-- Scène 6 -->
+  <div id="s6" class="layer">
+    <svg id="logo6" class="abs" viewBox="0 0 1024 1024" width="150" height="150" style="left: 885px; top: 170px;">
+      <rect x="64" y="64" width="896" height="896" rx="208" fill="url(#lbg)"/>
+      <rect x="64" y="64" width="896" height="896" rx="208" fill="url(#lglow)"/>
+      <rect x="65.5" y="65.5" width="893" height="893" rx="206.5" fill="none" stroke="url(#lrim)" stroke-width="3"/>
+      <path d="__SPIRAL__" fill="none" stroke="url(#lbrass)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="512" cy="520" r="30" fill="#F2D58E"/>
+    </svg>
+    <div class="center brand" id="brand6" style="top: 350px;">ARCHIMED</div>
+    <div class="center sub" id="free6" style="top: 470px;">Gratuit pour Windows 10 et 11</div>
+    <div class="center" id="url6" style="top: 560px;"><span class="url">github.com/Kaylloggs/SDAI-ARCHIMED</span></div>
+    <div class="keys" id="keys6" style="top: 790px; align-items: center;"><div class="key small">Ctrl</div><div class="key small">Maj</div><div class="key small">Espace</div><div class="sub" style="color: var(--text); font-size: 40px; margin-left: 10px;">et parlez.</div></div>
+  </div>
+
+  <div class="vignette"></div>
+  <div class="layer" id="fade" style="background: #000; opacity: 0;"></div>
+</div>
+
+<script>
+// ── Outils ──────────────────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, k) => a + (b - a) * k;
+const outExpo = (k) => (k >= 1 ? 1 : 1 - Math.pow(2, -10 * k));
+const outQuint = (k) => 1 - Math.pow(1 - k, 5);
+const outCubic = (k) => 1 - Math.pow(1 - k, 3);
+const inOut = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+const inCubic = (k) => k * k * k;
+const outBack = (k) => { const c1 = 1.4, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); };
+const set = (el, props) => { for (const k in props) el.style[k] = props[k]; };
+const show = (el, o) => { el.style.opacity = String(o); el.style.visibility = o <= 0.001 ? "hidden" : "visible"; };
+
+// Niveau de voix, déterministe (parle 1,2 → 2,3 s puis se tait).
+const voice = (t) => {
+  const on = seg(t, 1.1, 1.3) * (1 - seg(t, 2.25, 2.6));
+  const n = 0.55 + 0.25 * Math.sin(t * 19.1) + 0.15 * Math.sin(t * 31.7 + 1.3) + 0.1 * Math.sin(t * 7.3 + 0.4);
+  return 0.08 + on * clamp(n, 0, 1) * 0.92;
+};
+
+// ── Construction ────────────────────────────────────────────────────────
+const SAY = ["Ajoute", "les", "quatre", "étapes", "du", "lancement", "à", "ma", "roadmap."];
+$("say1").innerHTML = '<span class="w q">« </span>' + SAY.map((w) => `<span class="w">${w} </span>`).join("").replace(/ <\/span>$/, "</span>") + '<span class="w q"> »</span>';
+const sayWords = [...$("say1").querySelectorAll(".w")];
+
+const TAG = ["Votre", "assistant", "IA,", "enfin", "chez", "lui", "sur", "votre", "ordinateur."];
+$("tagline").innerHTML = TAG.map((w) => `<span class="w">${w} </span>`).join("");
+const tagWords = [...$("tagline").querySelectorAll(".w")];
+
+// Cartes : rectangles en pixels de l'écran 1920×1080 (mesurés sur les captures).
+const CARDS = [
+  { x: 509, y: 157, w: 272, h: 70 },
+  { x: 509, y: 233, w: 272, h: 70 },
+  { x: 509, y: 309, w: 272, h: 70 },
+  { x: 509, y: 385, w: 272, h: 70 },
+];
+const PATCHES = [
+  { x: 553, y: 128, w: 30, h: 22 },   // compteur « À faire »
+  { x: 258, y: 134, w: 225, h: 36 },  // avancement du tableau (barre latérale)
+];
+const sprite = (src, r) => {
+  const d = document.createElement("div");
+  d.className = "sprite";
+  set(d, { left: r.x + "px", top: r.y + "px", width: r.w + "px", height: r.h + "px", backgroundImage: `url(${src})`, backgroundPosition: `${-r.x}px ${-r.y}px` });
+  return d;
+};
+const covers = [...CARDS, ...PATCHES].map((r) => { const d = sprite("assets/A.png", r); $("covers").appendChild(d); return d; });
+const cards = CARDS.map((r) => { const d = sprite("assets/B.png", r); d.classList.add("cardshadow"); $("sprites").appendChild(d); return d; });
+
+// Montage : captures, point d'intérêt (px dans la capture 1440×900) et phrase dite.
+const SHOTS = [
+  { src: "assets/mcstudio.png", fx: 660, fy: 300, say: "Compile mon mod.", tag: "Mod Studio" },
+  { src: "assets/imagemaker.png", fx: 700, fy: 400, say: "Ajoute un dragon sur la ville.", tag: "Image Maker" },
+  { src: "assets/chat.png", fx: 760, fy: 640, say: "Mode sombre, et lance les tests.", tag: "Chat" },
+];
+const MIC = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>';
+const frames = SHOTS.map((s) => {
+  const f = document.createElement("div"); f.className = "frame";
+  f.innerHTML = `<img src="${s.src}" />`;
+  $("frames").appendChild(f);
+  const c = document.createElement("div"); c.className = "chip";
+  c.innerHTML = `<div class="mic">${MIC}</div><span>« ${s.say} »</span>`;
+  $("chips").appendChild(c);
+  return { f, img: f.querySelector("img"), c, s };
+});
+
+const spiral = $("spiral");
+const SPIRAL_LEN = spiral.getTotalLength();
+spiral.style.strokeDasharray = `${SPIRAL_LEN} ${SPIRAL_LEN}`;
+
+// ── Rendu : une image = une fonction du temps ───────────────────────────
+const T = { s2: 3.6, reply: 4.2, s3: 7.2, s4: 10.8, s5: 16.2, s6: 19.2, end: 22.8 };
+
+function render(t) {
+  // Scène 1 : touches, pastille, phrase.
+  const keys = [...$("keys1").children];
+  const press = [0.15, 0.45, 0.75];
+  keys.forEach((k, i) => {
+    const appear = outCubic(seg(t, 0.0 + i * 0.05, 0.25 + i * 0.05));
+    const down = seg(t, press[i], press[i] + 0.06) * (1 - seg(t, 0.95, 1.05));
+    set(k, { transform: `translateY(${(1 - appear) * 30 + down * 6}px)`, boxShadow: `0 ${7 - down * 6}px 0 oklch(0.13 0.006 265), 0 18px 40px oklch(0 0 0 / 0.45)`,
+      background: down > 0 ? `linear-gradient(180deg, oklch(${0.29 + down * 0.12} ${0.009 + down * 0.07} 80), oklch(${0.24 + down * 0.1} ${0.008 + down * 0.06} 80))` : "" , color: down > 0.5 ? "oklch(0.2 0.03 80)" : "" });
+  });
+  const keysOut = seg(t, 1.05, 1.35);
+  show($("keys1"), appearKeys(t) * (1 - keysOut));
+  $("keys1").style.transform = `translateY(${-outCubic(keysOut) * 40}px)`;
+
+  // Pastille : grande au centre, puis vole vers la vraie pastille de l'app.
+  const pillIn = outBack(seg(t, 0.9, 1.25));
+  const fly = inOut(seg(t, 3.3, 3.85));
+  const bigScale = 2.6;
+  const cx = lerp(960, 900, fly), cy = lerp(380, 28, fly);
+  const sc = lerp(bigScale * (0.6 + 0.4 * pillIn), 1, fly);
+  const pill = $("pill");
+  set(pill, { left: cx - 100 + "px", top: cy - 19 + "px", width: "200px", transform: `scale(${sc})` });
+  show(pill, clamp(seg(t, 0.9, 1.1)) * (1 - seg(t, 3.8, 3.95)));
+  const lv = voice(t);
+  [...pill.querySelectorAll(".bars i")].forEach((b, i) => {
+    const h = 4 + 14 * clamp(lv * (0.6 + 0.4 * Math.sin(t * (9 + i * 3.1) + i * 1.7)), 0.05, 1);
+    b.style.height = h + "px";
+  });
+
+  // Phrase dite, mot à mot, puis rejoint le sous-titre de l'app.
+  sayWords.forEach((w, i) => {
+    const at = 1.2 + i * 0.1;
+    const k = outCubic(seg(t, at, at + 0.28));
+    set(w, { opacity: String(k), transform: `translateY(${(1 - k) * 18}px)`, filter: `blur(${(1 - k) * 8}px)` });
+  });
+  const sayFly = inOut(seg(t, 3.3, 3.8));
+  set($("say1"), { transform: `translate(${lerp(0, 900 - 960, sayFly)}px, ${lerp(0, 71 - 630, sayFly)}px) scale(${lerp(1, 0.22, sayFly)})`, opacity: String(1 - seg(t, 3.46, 3.6)) });
+
+  // Lueur : monte avec la voix, revient à la fin.
+  const auraOn = outCubic(seg(t, 0.1, 1.4)) * (1 - seg(t, 3.35, 3.85)) + outCubic(seg(t, T.s6 + 0.2, T.s6 + 1.4)) * 0.8;
+  set($("aura1"), { opacity: String(auraOn * (0.65 + 0.35 * lv)), transform: `scaleY(${0.8 + 0.25 * lv}) scaleX(${1 + 0.05 * lv})` });
+  set($("aura2"), { opacity: String(auraOn * (0.25 + 0.6 * lv)), transform: `scaleY(${0.55 + 0.35 * lv})` });
+
+  // Scènes 2 et 3 : l'application réelle.
+  const appIn = outCubic(seg(t, 3.35, 3.8));
+  const reply = seg(t, T.reply, T.reply + 0.18);
+  show($("imgA"), 1 - reply);
+  cards.forEach((c, i) => {
+    const at = 4.5 + i * 0.3;
+    const k = seg(t, at, at + 0.38);
+    set(c, { opacity: String(clamp(k * 2.5)), transform: `translateY(${(1 - outBack(k)) * -26}px) scale(${lerp(0.9, 1, outBack(k))})`, boxShadow: `0 ${18 * (1 - k) + 4}px ${40 * (1 - k) + 10}px oklch(0 0 0 / ${0.45 * (1 - k) + 0.1})` });
+  });
+  covers.forEach((c, i) => { show(c, i < CARDS.length ? 1 : 1 - seg(t, 5.55, 5.75)); });
+  // Caméra : léger recul d'entrée, puis travelling vers la colonne.
+  const push = inOut(seg(t, 4.3, 7.4));
+  let scale = lerp(1.04, 1, appIn) * lerp(1, 1.16, push);
+  const fx = 880, fy = 0;
+  // Scène 3 : l'app recule dans le flou.
+  const s3k = outCubic(seg(t, T.s3, T.s3 + 0.7));
+  scale *= lerp(1, 0.94, s3k);
+  set($("app"), { transform: `translate(${fx - fx * scale}px, ${fy - fy * scale}px) scale(${scale})`, filter: `blur(${s3k * 16}px) brightness(${1 - s3k * 0.55})` });
+  show($("imgC"), seg(t, T.s3 + 0.1, T.s3 + 0.5));
+  show($("app"), appIn * (1 - seg(t, T.s4 - 0.35, T.s4)));
+  show($("appDim"), 0);
+
+  // Scène 3 : logo, nom, promesse.
+  const s3out = seg(t, T.s4 - 0.3, T.s4);
+  show($("s3"), t >= T.s3 ? 1 - s3out : 0);
+  const tile = outCubic(seg(t, T.s3 + 0.1, T.s3 + 0.45));
+  $("logoTile").style.opacity = String(tile);
+  $("logo").style.transform = `scale(${lerp(0.86, 1, tile)}) translateY(${-s3out * 20}px)`;
+  spiral.style.strokeDashoffset = String(SPIRAL_LEN * (1 - outCubic(seg(t, T.s3 + 0.2, T.s3 + 0.95))));
+  const dot = outBack(seg(t, T.s3 + 0.85, T.s3 + 1.1));
+  set($("dot"), { opacity: String(clamp(dot)), transform: `scale(${dot})`, transformOrigin: "512px 520px" });
+  const br = outCubic(seg(t, T.s3 + 0.45, T.s3 + 0.85));
+  set($("brand"), { opacity: String(br), transform: `translateY(${(1 - br) * 24 - s3out * 20}px)`, letterSpacing: `${lerp(0.16, 0.04, br)}em` });
+  tagWords.forEach((w, i) => {
+    const at = T.s3 + 0.75 + i * 0.045;
+    const k = outCubic(seg(t, at, at + 0.35));
+    set(w, { opacity: String(k), transform: `translateY(${(1 - k) * 16 - s3out * 20}px)`, filter: `blur(${(1 - k) * 6}px)` });
+  });
+
+  // Scène 4 : captures qui défilent, phrase dite sur chacune.
+  const s4on = t >= T.s4 - 0.01 && t < T.s5 + 0.05;
+  show($("s4"), s4on ? 1 - seg(t, T.s5 - 0.3, T.s5) : 0);
+  const hk = outCubic(seg(t, T.s4 + 0.05, T.s4 + 0.45));
+  set($("headline4"), { opacity: String(hk), transform: `translateY(${(1 - hk) * 26}px)` });
+  const SLOT = 1.8;
+  frames.forEach(({ f, img, c, s }, i) => {
+    const start = T.s4 + i * SLOT;
+    // L'ancienne capture sort d'abord, la nouvelle entre ensuite : pas de superposition.
+    const inK = i === 0 ? outQuint(seg(t, start + 0.1, start + 0.6)) : outQuint(seg(t, start + 0.12, start + 0.62));
+    const outK = i < frames.length - 1 ? inOut(seg(t, start + SLOT - 0.06, start + SLOT + 0.24)) : 0;
+    const x = (1 - inK) * 1300 - outK * 1350;
+    const rot = (1 - inK) * -8 + outK * 8;
+    set(f, { transform: `perspective(2000px) translateX(${x}px) rotateY(${rot}deg) scale(${lerp(0.92, 1, inK)})`, opacity: String(clamp(inK * 1.6) * (1 - clamp(outK * 1.4))) });
+    const zk = inOut(seg(t, start + 0.4, start + SLOT + 0.2));
+    const z = lerp(1, 1.18, zk);
+    const px = (s.fx / 1440) * 1300, py = (s.fy / 900) * 812.5;
+    img.style.transform = `translate(${px - px * z}px, ${py - py * z}px) scale(${z})`;
+    const ck = outBack(seg(t, start + 0.35, start + 0.7));
+    const cOut = i < frames.length - 1 ? seg(t, start + SLOT - 0.08, start + SLOT + 0.1) : 0;
+    set(c, { left: "960px", top: "950px", opacity: String(clamp(ck * 1.5) * (1 - cOut)), transform: `translateX(-50%) translateY(${(1 - ck) * 30}px) scale(${lerp(0.9, 1, ck)})` });
+  });
+
+  // Scène 5 : agents et vie privée.
+  const s5on = t >= T.s5 - 0.01 && t < T.s6 + 0.05;
+  show($("s5"), s5on ? 1 - seg(t, T.s6 - 0.3, T.s6) : 0);
+  const h5 = outCubic(seg(t, T.s5 + 0.05, T.s5 + 0.45));
+  set($("s5head"), { opacity: String(h5), transform: `translateY(${(1 - h5) * 20}px)` });
+  [...$("agents").children].forEach((a, i) => {
+    const k = outBack(seg(t, T.s5 + 0.3 + i * 0.3, T.s5 + 0.65 + i * 0.3));
+    set(a, { opacity: String(clamp(k * 1.4)), transform: `translateY(${(1 - k) * 40}px) scale(${lerp(0.85, 1, k)})` });
+  });
+  [...$("privacy").children].forEach((p, i) => {
+    const k = outCubic(seg(t, T.s5 + 1.15 + i * 0.12, T.s5 + 1.5 + i * 0.12));
+    set(p, { opacity: String(k), transform: `translateY(${(1 - k) * 18}px)` });
+  });
+
+  // Scène 6 : fin.
+  const s6on = t >= T.s6 - 0.01;
+  show($("s6"), s6on ? 1 : 0);
+  const e = (a, b) => outCubic(seg(t, T.s6 + a, T.s6 + b));
+  const l6 = outBack(seg(t, T.s6 + 0.05, T.s6 + 0.45));
+  set($("logo6"), { opacity: String(clamp(l6 * 1.3)), transform: `scale(${lerp(0.7, 1, l6)})` });
+  const b6 = e(0.2, 0.55);
+  set($("brand6"), { opacity: String(b6), transform: `translateY(${(1 - b6) * 20}px)` });
+  const f6 = e(0.4, 0.75);
+  set($("free6"), { opacity: String(f6), transform: `translateY(${(1 - f6) * 18}px)` });
+  const u6 = e(0.55, 0.9);
+  set($("url6"), { opacity: String(u6), transform: `translateY(${(1 - u6) * 18}px)` });
+  const k6 = e(0.9, 1.3);
+  set($("keys6"), { opacity: String(k6), transform: `translateY(${(1 - k6) * 24}px)` });
+  [...$("keys6").querySelectorAll(".key")].forEach((k, i) => {
+    const down = seg(t, T.s6 + 1.5 + i * 0.12, T.s6 + 1.56 + i * 0.12) * (1 - seg(t, T.s6 + 1.95, T.s6 + 2.05));
+    set(k, { transform: `translateY(${down * 4}px)`, boxShadow: `0 ${4 - down * 3.5}px 0 oklch(0.13 0.006 265), 0 10px 24px oklch(0 0 0 / 0.4)`,
+      background: down > 0 ? `linear-gradient(180deg, oklch(${0.29 + down * 0.12} ${0.009 + down * 0.07} 80), oklch(${0.24 + down * 0.1} ${0.008 + down * 0.06} 80))` : "", color: down > 0.5 ? "oklch(0.2 0.03 80)" : "" });
+  });
+
+  // Lueur du haut, discrète, sur les scènes de texte.
+  show($("bgGlow"), (t >= T.s4 ? 1 : 0) * (1 - seg(t, T.s6, T.s6 + 0.5)) + seg(t, T.s3, T.s3 + 0.6) * (t < T.s4 ? 0.6 : 0));
+  show($("fade"), 0);
+}
+function appearKeys(t) { return outCubic(seg(t, 0.0, 0.25)); }
+
+window.render = render;
+window.ready = Promise.all([document.fonts.ready, ...[...document.images].map((i) => (i.complete ? 1 : new Promise((r) => (i.onload = i.onerror = r))))]);
+render(Number(new URLSearchParams(location.search).get("t") ?? 0));
+</script>
+</body>
+</html>
