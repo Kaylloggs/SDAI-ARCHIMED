@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ExternalLink, FileText, FlaskConical, FolderOpen, Hammer, Info, Loader2, Package, Play, ShieldCheck, Square, XCircle } from "lucide-react";
+import { AlertTriangle, ExternalLink, FileText, FlaskConical, FolderOpen, Hammer, Info, Loader2, Package, Play, ShieldCheck, Square, Wrench, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { cn } from "@/core/lib/cn";
@@ -12,6 +12,7 @@ import type { GamePlatform } from "@/core/ipc/bindings/GamePlatform";
 import type { GameProjectState } from "@/core/ipc/bindings/GameProjectState";
 import { errorText, gameStudioApi } from "../../api";
 import { availability } from "../../lib/actions";
+import { fixRequest, MAX_FIX_ROUNDS } from "../../lib/assistant";
 import { ACTION, ago, duration, ENGINE_LABEL, PLATFORM_LABEL, PLATFORMS, RUN_STATUS, SEVERITY } from "../../lib/labels";
 import { useGameStudioStore, type JobSession, type LogLine } from "../../store";
 import { ErrorLine, focusRing, Segmented, ToneBadge } from "../ui";
@@ -138,6 +139,24 @@ function DiagnosticItem({ d }: { d: GameDiagnostic }) {
   );
 }
 
+/** Confie l'échec à l'agent de débogage (message préparé, relu avant envoi), dans la limite des essais. */
+function FixButton({ record, projectId }: { record: GameBuildRecord; projectId: string }) {
+  const rounds = useGameStudioStore((s) => s.fixRounds[projectId] ?? 0);
+  if (rounds >= MAX_FIX_ROUNDS) {
+    return <p className="text-footnote text-text-muted">{MAX_FIX_ROUNDS} corrections d'affilée sans succès : relisez l'erreur, ou reformulez la demande.</p>;
+  }
+  return (
+    <Button
+      size="sm"
+      variant="primary"
+      icon={<Wrench size={13} />}
+      onClick={() => useGameStudioStore.getState().openAssistant({ role: "debug", taskId: null, text: fixRequest(record), fix: true })}
+    >
+      Corriger avec l'agent ({rounds + 1}/{MAX_FIX_ROUNDS})
+    </Button>
+  );
+}
+
 /** Résultat d'une exécution : verdict, erreurs expliquées, build produit, journal complet. */
 function RunResult({ record, projectId }: { record: GameBuildRecord; projectId: string }) {
   const [log, setLog] = useState<string | null>(null);
@@ -171,6 +190,7 @@ function RunResult({ record, projectId }: { record: GameBuildRecord; projectId: 
         <p className="break-words text-body-sm">{record.summary}</p>
         {record.command && <p className="truncate font-mono text-caption text-text-subtle" title={record.command}>{record.command}</p>}
         <div className="flex flex-wrap gap-2 pt-1">
+          {record.status === "failed" && record.id && <FixButton record={record} projectId={projectId} />}
           {record.output && (
             <Button size="sm" variant="secondary" icon={<FolderOpen size={13} />} onClick={() => void revealItemInDir(record.output!).catch((e) => setError(errorText(e)))}>
               Montrer le build

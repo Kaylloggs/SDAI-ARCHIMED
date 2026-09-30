@@ -6,11 +6,13 @@ use std::sync::Arc;
 use tauri::plugin::{Builder, TauriPlugin};
 use tauri::{Manager, Runtime};
 
+mod agents;
 mod analysis;
 mod builds;
 mod catalog;
 mod commands;
 mod diagnostics;
+mod docs;
 pub mod engines;
 mod graph;
 mod journal;
@@ -61,6 +63,10 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::check_mcp_server,
             commands::add_mcp_server,
             commands::remove_mcp_server,
+            commands::game_agent_instructions,
+            commands::game_task_request,
+            commands::game_documents,
+            commands::write_game_documents,
         ])
         .setup(|app, _api| {
             let paths = crate::core::paths::Paths::resolve(app)?;

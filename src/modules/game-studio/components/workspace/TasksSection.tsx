@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
+import { Bot, ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Badge, Button, Select } from "@/design-system/primitives";
 import type { GameAgentRole } from "@/core/ipc/bindings/GameAgentRole";
@@ -7,6 +7,7 @@ import type { GameTask } from "@/core/ipc/bindings/GameTask";
 import type { GameTaskStatus } from "@/core/ipc/bindings/GameTaskStatus";
 import { ROLE, TASK_STATUS } from "../../lib/labels";
 import { blankTask, readyTasks, waitingOn } from "../../lib/tasks";
+import { errorText, gameStudioApi } from "../../api";
 import { useGameStudioStore } from "../../store";
 import { Chip, ConfirmButton, ErrorLine, focusRing, Segmented, TextArea, TextInput, ToneBadge } from "../ui";
 
@@ -165,7 +166,24 @@ function TaskRow({ task, ready }: { task: GameTask; ready: boolean }) {
               {task.result}
             </p>
           )}
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
+            {!["done", "cancelled"].includes(task.status) && (
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<Bot size={13} />}
+                onClick={() => {
+                  const store = useGameStudioStore.getState();
+                  if (!store.openId) return;
+                  void gameStudioApi
+                    .taskRequest(store.openId, task.id)
+                    .then((text) => store.openAssistant({ role: task.role, taskId: task.id, text }))
+                    .catch((e) => setError(errorText(e)));
+                }}
+              >
+                Confier à l'agent {ROLE[task.role].label.toLowerCase()}
+              </Button>
+            )}
             <Button size="sm" variant="ghost" icon={<Pencil size={13} />} onClick={() => setEditing(true)}>
               Modifier
             </Button>

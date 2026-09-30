@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Boxes, FolderSearch, Hammer, History, LayoutDashboard, ListChecks, Plug, ScrollText, Settings2, Wrench } from "lucide-react";
+import { ArrowLeft, BookOpen, Bot, Boxes, FileText, FolderSearch, Hammer, History, LayoutDashboard, ListChecks, Plug, ScrollText, Settings2, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Badge, ResizeHandle, usePanelSize } from "@/design-system/primitives";
@@ -6,10 +6,12 @@ import { DIMENSION, ENGINE_LABEL, MODE, shortVersion } from "../../lib/labels";
 import { useGameStudioStore, type SectionId } from "../../store";
 import { EnvironmentPanel } from "../EnvironmentPanel";
 import { ErrorLine, focusRing } from "../ui";
+import { AssistantSection } from "./AssistantSection";
 import { BuildSection } from "./BuildSection";
 import { CapabilitiesTable } from "./CapabilitiesTable";
 import { Dashboard } from "./Dashboard";
 import { DesignSection } from "./DesignSection";
+import { DocumentsSection } from "./DocumentsSection";
 import { HistorySection } from "./HistorySection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { JournalSection } from "./JournalSection";
@@ -28,6 +30,8 @@ export const SECTIONS: { title: string; items: SectionInfo[] }[] = [
       { id: "design", label: "Conception", description: "Idée, hypothèses, décisions, monde, réseau, feuille de route et guide de style.", icon: BookOpen },
       { id: "systems", label: "Systèmes", description: "Les systèmes du jeu, leurs dépendances et ce qui les utilise.", icon: Boxes, wide: true },
       { id: "tasks", label: "Tâches", description: "Le plan de travail : qui fait quoi, dans quel ordre, et comment le vérifier.", icon: ListChecks },
+      { id: "assistant", label: "Agents", description: "Le Directeur et les agents spécialistes travaillent dans le dossier du jeu, avec le brief du projet.", icon: Bot, wide: true },
+      { id: "documents", label: "Documents", description: "GDD et TDD écrits à partir du graphe du projet, sans IA : ils disent ce que le graphe contient.", icon: FileText },
     ],
   },
   {
@@ -66,6 +70,10 @@ function Content({ id }: { id: SectionId }) {
       return <SystemsSection />;
     case "tasks":
       return <TasksSection />;
+    case "assistant":
+      return <AssistantSection />;
+    case "documents":
+      return <DocumentsSection />;
     case "build":
       return <BuildSection />;
     case "map":

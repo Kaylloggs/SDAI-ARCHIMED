@@ -19,7 +19,7 @@ décisions, points de restauration). Il ne génère pas de jeu par genre (ADR 00
 | 1 | Analyse d'idée, graphe, adaptateurs, création, import, points de restauration, environnement, interface | ✓ (Godot 4.4.1 vérifié de bout en bout ; Unity et Unreal à essayer sur Windows) |
 | 2 | Exécution des commandes moteur en direct (arrêt, délai, silence signalé), erreurs expliquées, problèmes ouverts et refermés, carte d'un projet existant | ✓ (vérification, tests et erreurs Godot vérifiés de bout en bout) |
 | 3 | Client MCP : serveurs des outils de la personne découverts, testés pour de vrai, capacités « via MCP », serveurs ajoutés transmis aux agents | ✓ (échanges stdio et HTTP testés ; `uvx blender-mcp` réel) |
-| 4 | Agents par rôle, boucle de débogage, GDD et TDD | à venir |
+| 4 | Agents par rôle (Directeur et spécialistes) avec le brief du projet, tâches confiées, boucle de débogage bornée, GDD et TDD tirés du graphe | ✓ (brief et documents testés ; conversations par les agents CLI d'ARCHIMED) |
 | 5 | Ressources, images IA, Blender sans interface | à venir |
 
 Rien n'est simulé : un geste qui n'a pas encore de moteur n'a pas de bouton.
@@ -38,7 +38,8 @@ Rien n'est simulé : un geste qui n'a pas encore de moteur n'a pas de bouton.
    Un jeu peut être créé **sans moteur** (conception seule) et en recevoir un plus tard.
 3. **Espace du projet** (`workspace/`) : Tableau de bord, Conception, Systèmes (graphe en
    couches ou liste, fiche avec dépendances, consommateurs et impact d'un retrait), Tâches (prêtes,
-   bloquées, en cours), Build et tests, Carte du projet, Historique (git, points de restauration,
+   bloquées, en cours ; « Confier à l'agent » prépare la demande), Agents, Documents, Build et
+   tests, Carte du projet, Historique (git, points de restauration,
    différences), Journal, Outils, Réglages (moteur, plateformes, budget de performance).
 4. **Build et tests** (`BuildSection`) : Vérifier le code, Lancer les tests, Lancer le jeu,
    Préparer le projet, Ouvrir l'éditeur, Exporter le build (plateforme, publication ou
@@ -65,6 +66,24 @@ Rien n'est simulé : un geste qui n'a pas encore de moteur n'a pas de bouton.
    ou adresse, sans secret) sont déclarés dans `<données>/mcp/game-studio.json`, donc proposés
    à Claude Code et Antigravity lancés par ARCHIMED. Les commandes de Game Studio elles-mêmes
    passent déjà par le serveur MCP d'ARCHIMED (`search_commands`, `run_action`).
+7. **Agents** (`AssistantSection`) : conversations avec Claude Code, Codex ou Antigravity
+   (moteur de conversation du core, origine `game-studio`), dans le dossier du jeu. Chaque
+   conversation reçoit en instructions système le brief du projet (`game_agent_instructions` :
+   règles de Game Studio, moteur et ses règles, commandes à utiliser pour vérifier et mettre à
+   jour le graphe, systèmes, tâches ouvertes, décisions, problèmes) et le rôle choisi (Directeur,
+   gameplay, IA, réseau, UI, audio, rendu, build, tests, débogage…). Le mode d'autonomie suit
+   celui du projet (manuel → rien sans accord, assisté → prudent, autonome → tout). Un point de
+   restauration git est pris avant chaque message (réutilisé si l'arbre n'a pas changé). Une
+   tâche confiée passe « en cours » avec la conversation. Après un échec (vérifier, tester…),
+   « Corriger avec l'agent » prépare pour l'agent de débogage les erreurs expliquées et lui
+   demande de relancer la vérification ; au plus 3 corrections d'affilée, compteur remis à zéro
+   au premier succès. Le message est toujours relu avant envoi.
+8. **Documents** (`DocumentsSection`) : GDD (vision, systèmes par catégorie et critères de
+   vérification, monde, réseau, hypothèses, questions, feuille de route) et TDD (moteur,
+   plateformes, ordre de construction des systèmes, dépendances, décisions, budget de
+   performance, risques, tâches) écrits sans IA à partir du graphe. « Écrire dans docs/ » crée
+   ou remplace `docs/GDD.md` et `docs/TDD.md` après un point de restauration ; rien n'est écrit
+   si le contenu n'a pas changé.
 
 ## Backend
 
@@ -82,6 +101,8 @@ Rien n'est simulé : un geste qui n'a pas encore de moteur n'a pas de bouton.
 | `runner.rs` | Exécution des commandes (une action par projet, sortie en flux par `Channel<GameJobEvent>`, délai, arrêt de l'arbre de processus, silence signalé, secrets masqués) |
 | `diagnostics.rs` | Erreurs lues dans la sortie : GDScript et Godot, C# (Unity, MSBuild), C++ (MSVC, clang, éditeur de liens), Unreal et UAT, Python, résultats NUnit ; causes et pistes ; systèmes concernés d'après les fichiers rattachés |
 | `scanner.rs` | Carte d'un projet (`.gamestudio/cache/`), incrémentale |
+| `agents.rs` | Brief d'un agent (règles, rôle, moteur, graphe résumé) et demande préparée pour une tâche |
+| `docs.rs` | GDD et TDD en Markdown, déterministes, tirés du graphe |
 | `mcp_client.rs` | Serveurs MCP de la machine : découverte, masquage des secrets, test réel stdio et HTTP (JSON ou SSE), serveurs ajoutés et leur déclaration |
 | `builds.rs` | Historique des exécutions (`.gamestudio/builds/history.json`, journal complet par exécution) |
 | `service.rs`, `commands.rs` | Façade et commandes Tauri |
@@ -92,7 +113,8 @@ Commandes : `game_environment`, `set_tool_path`, `install_tool`, `analyze_idea`,
 `vcs_init`, `create_checkpoint`, `checkpoint_changes`, `checkpoint_diff`, `restore_checkpoint`,
 `run_game_action`, `cancel_game_action`, `current_game_action`, `open_game_editor`,
 `list_game_runs`, `read_game_run_log`, `scan_game`, `game_map`, `list_mcp_servers`,
-`check_mcp_server`, `add_mcp_server`, `remove_mcp_server`.
+`check_mcp_server`, `add_mcp_server`, `remove_mcp_server`, `game_agent_instructions`,
+`game_task_request`, `game_documents`, `write_game_documents`.
 
 ## Ce que contient un projet créé
 
@@ -113,10 +135,11 @@ Commandes : `game_environment`, `set_tool_path`, `install_tool`, `analyze_idea`,
   types), graphe, points de restauration, exécuteur (flux, code de sortie, arrêt de l'arbre de
   processus, délai, programme absent), lecture des erreurs (sorties réelles de Godot 4.4.1 et
   formats C#, MSVC, clang, Unreal, Unity, Python, NUnit), carte d'un projet (incrémentale),
+  brief des agents et demandes de tâche, GDD et TDD (écrits une fois, rien au second appel),
   service de bout en bout.
 - `GAMESTUDIO_GODOT=<chemin de Godot> cargo test --lib game_studio -- --include-ignored` : avec le
   vrai Godot, crée un projet, le prépare, le vérifie, casse un script (échec expliqué, problème
   ouvert), le répare (problème refermé), provoque une erreur à l'exécution (test de démarrage en
   échec malgré le code 0), puis coche la tâche de départ quand tout repasse.
 - `pnpm test` : `__tests__/` (mise en page du graphe, sélection, tâches, noms de dossier, actions
-  disponibles, systèmes repérés, formats).
+  disponibles, systèmes repérés, formats, autonomie des agents, demande de correction).

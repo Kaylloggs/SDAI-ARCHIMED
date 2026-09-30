@@ -8,6 +8,7 @@ use tauri::State;
 
 use crate::core::{AppError, AppResult};
 
+use super::docs::GameDocuments;
 use super::engines::GameAction;
 use super::mcp_client::{GameMcpHealth, GameMcpOwnServer, GameMcpServer};
 use super::runner::{GameJobEvent, GameRunningJob};
@@ -303,4 +304,30 @@ pub async fn add_mcp_server(
 #[tauri::command]
 pub async fn remove_mcp_server(studio: Studio<'_>, name: String) -> AppResult<Vec<GameMcpServer>> {
     blocking(&studio, move |s| s.remove_mcp(&name)).await
+}
+
+// ── Agents et documents ───────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn game_agent_instructions(
+    studio: Studio<'_>,
+    id: String,
+    role: GameAgentRole,
+) -> AppResult<String> {
+    blocking(&studio, move |s| s.agent_instructions(&id, role)).await
+}
+
+#[tauri::command]
+pub async fn game_task_request(studio: Studio<'_>, id: String, task: String) -> AppResult<String> {
+    blocking(&studio, move |s| s.task_request(&id, &task)).await
+}
+
+#[tauri::command]
+pub async fn game_documents(studio: Studio<'_>, id: String) -> AppResult<GameDocuments> {
+    blocking(&studio, move |s| s.documents(&id)).await
+}
+
+#[tauri::command]
+pub async fn write_game_documents(studio: Studio<'_>, id: String) -> AppResult<Vec<String>> {
+    blocking(&studio, move |s| s.write_documents(&id, "vous")).await
 }

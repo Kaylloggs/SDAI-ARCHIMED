@@ -11,4 +11,5 @@ commands = [
   "run_game_action", "cancel_game_action", "current_game_action", "open_game_editor", "list_game_runs", "read_game_run_log",
   "scan_game", "game_map",
   "list_mcp_servers", "check_mcp_server", "add_mcp_server", "remove_mcp_server",
+  "game_agent_instructions", "game_task_request", "game_documents", "write_game_documents",
 ]

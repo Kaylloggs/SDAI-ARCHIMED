@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { Channel } from "@/core/ipc";
 import type { GameAction } from "@/core/ipc/bindings/GameAction";
+import type { GameAgentRole } from "@/core/ipc/bindings/GameAgentRole";
 import type { GameBuildRecord } from "@/core/ipc/bindings/GameBuildRecord";
 import type { GameEnvironment } from "@/core/ipc/bindings/GameEnvironment";
 import type { GameJobEvent } from "@/core/ipc/bindings/GameJobEvent";
@@ -18,6 +19,8 @@ export type SectionId =
   | "design"
   | "systems"
   | "tasks"
+  | "assistant"
+  | "documents"
   | "build"
   | "map"
   | "history"
@@ -45,6 +48,10 @@ export type JobSession = {
   attached: boolean;
 };
 
+/** Demande d'ouverture de l'assistant : rôle, tâche confiée, message préparé (jamais envoyé seul). */
+/** `fix` : le message vient d'un échec ; il compte comme une correction une fois envoyé. */
+export type AssistantRequest = { role: GameAgentRole; taskId: string | null; text: string; fix?: boolean; nonce: number };
+
 type GameStudioState = {
   projects: GameProjectSummary[];
   loaded: boolean;
@@ -62,6 +69,9 @@ type GameStudioState = {
   runs: Record<string, GameBuildRecord[]>;
   maps: Record<string, GameProjectMap | null>;
   scanning: Record<string, boolean>;
+  assistantRequest: AssistantRequest | null;
+  /** Corrections demandées d'affilée à l'agent, par projet (remis à zéro par une réussite). */
+  fixRounds: Record<string, number>;
 
   refresh: () => Promise<void>;
   open: (id: string | null) => Promise<void>;
@@ -82,6 +92,9 @@ type GameStudioState = {
   loadRuns: (id: string) => Promise<void>;
   loadMap: (id: string) => Promise<void>;
   scan: (id: string) => Promise<GameProjectMap | string>;
+  openAssistant: (request: Omit<AssistantRequest, "nonce">) => void;
+  clearAssistantRequest: () => void;
+  setFixRounds: (id: string, rounds: number) => void;
 };
 
 const MAX_VISIBLE_LINES = 5000;
@@ -156,6 +169,8 @@ export const useGameStudioStore = create<GameStudioState>()((set, get) => ({
   runs: {},
   maps: {},
   scanning: {},
+  assistantRequest: null,
+  fixRounds: {},
 
   refresh: async () => {
     try {
@@ -251,6 +266,7 @@ export const useGameStudioStore = create<GameStudioState>()((set, get) => ({
         case "finished": {
           flush();
           patchJob(id, { running: false, quietFor: null, record: event.record });
+          if (event.record.status === "success" && get().fixRounds[id]) get().setFixRounds(id, 0);
           waiting.get(id)?.(event.record);
           waiting.delete(id);
           void get().loadRuns(id);
@@ -333,6 +349,10 @@ export const useGameStudioStore = create<GameStudioState>()((set, get) => ({
       set({ error: errorText(error) });
     }
   },
+
+  openAssistant: (request) => set({ assistantRequest: { ...request, nonce: Date.now() }, section: "assistant" }),
+  clearAssistantRequest: () => set({ assistantRequest: null }),
+  setFixRounds: (id, rounds) => set((state) => ({ fixRounds: { ...state.fixRounds, [id]: rounds } })),
 
   scan: async (id) => {
     set((state) => ({ scanning: { ...state.scanning, [id]: true } }));

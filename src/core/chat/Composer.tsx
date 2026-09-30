@@ -211,8 +211,10 @@ export function Composer({
       if (!field) return;
       field.focus();
       field.setSelectionRange(prefill.length, prefill.length);
+      field.style.height = "auto";
+      field.style.height = `${Math.min(field.scrollHeight, compact ? 160 : 240)}px`;
     });
-  }, [prefill]);
+  }, [prefill, compact]);
   const adapter = adapters.find((a) => a.id === adapterId);
   /** Modèle affiché (nom réel) et son niveau d'effort, à partir de l'identifiant de la session. */
   const choice = adapter ? resolveModel(adapter.models, model, adapter.defaultModel) : null;

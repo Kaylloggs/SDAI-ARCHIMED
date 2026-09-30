@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { layoutGraph, neighbourhood, NODE_W } from "../lib/graph-layout";
 import { consumers, impact, systemId } from "../lib/graph";
 import { availability } from "../lib/actions";
+import { autoModeFor, checkpointLabel, fixRequest } from "../lib/assistant";
 import { bytes, duration, shortVersion, splitCommand, topicLabel } from "../lib/labels";
 import { adoptOps } from "../lib/map";
 import { folderName, joinPath } from "../lib/naming";
 import { neededBy, prune, withDependencies } from "../lib/selection";
 import { blankTask, readyTasks, waitingOn } from "../lib/tasks";
+import type { GameBuildRecord } from "@/core/ipc/bindings/GameBuildRecord";
 import type { GameFoundSystem } from "@/core/ipc/bindings/GameFoundSystem";
 import type { GameProjectState } from "@/core/ipc/bindings/GameProjectState";
 import type { GameSystem } from "@/core/ipc/bindings/GameSystem";
@@ -187,5 +189,44 @@ describe("ligne de commande d'un serveur MCP", () => {
     expect(splitCommand('node "C:\\Mes outils\\serveur.js" --port 3000')).toEqual(["node", "C:\\Mes outils\\serveur.js", "--port", "3000"]);
     expect(splitCommand("  npx -y godot-mcp  ")).toEqual(["npx", "-y", "godot-mcp"]);
     expect(splitCommand("uvx 'blender mcp' ''")).toEqual(["uvx", "blender mcp", ""]);
+  });
+});
+
+describe("agents", () => {
+  it("reçoivent la liberté choisie pour le projet", () => {
+    expect(autoModeFor("manual")).toBe("off");
+    expect(autoModeFor("assisted")).toBe("smart");
+    expect(autoModeFor("autonomous")).toBe("full");
+  });
+
+  it("reçoivent un échec avec ses erreurs localisées", () => {
+    const record = {
+      id: "run-1",
+      action: "check",
+      platform: null,
+      development: false,
+      status: "failed",
+      startedAt: "",
+      durationMs: 1000,
+      exitCode: 1,
+      command: "godot --headless",
+      output: null,
+      summary: "Vérification échouée : 1 erreur(s).",
+      diagnostics: [
+        { severity: "error", message: "Identifier \"y\" not declared", file: "scripts/a.gd", line: 4, column: null, code: "parse", source: "GDScript", likelyCause: null, suggestion: "Déclarez-la.", systems: [] },
+        { severity: "warning", message: "unused", file: null, line: null, column: null, code: null, source: "GDScript", likelyCause: null, suggestion: null, systems: [] },
+      ],
+      logLines: 10,
+    } as GameBuildRecord;
+    const text = fixRequest(record);
+    expect(text).toContain("scripts/a.gd:4 — Identifier");
+    expect(text).toContain("piste : Déclarez-la.");
+    expect(text).not.toContain("unused");
+    expect(text).toContain("check_game_code");
+  });
+
+  it("nomment le point de restauration pris avant leur travail", () => {
+    expect(checkpointLabel("  Ajoute la pêche  ")).toBe("Avant l'agent : Ajoute la pêche");
+    expect(checkpointLabel("x".repeat(80)).length).toBeLessThan(80);
   });
 });

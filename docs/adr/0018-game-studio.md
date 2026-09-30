@@ -1,7 +1,7 @@
 # ADR 0018 — Game Studio : studio de jeu orchestré par systèmes
 
 - **Date** : 2026-09-30
-- **Statut** : accepté (phases 1 à 3 livrées ; suivantes listées plus bas)
+- **Statut** : accepté (phases 1 à 4 livrées ; suivantes listées plus bas)
 
 ## Contexte
 
@@ -71,6 +71,17 @@ dans le moteur de son choix, avec des agents IA. Trois écueils à éviter :
     qu'après un échange réel (`initialize`, `tools/list`), lancé par elle. Les secrets restent
     dans leurs fichiers (jamais renvoyés, jamais recopiés) ; seuls les serveurs ajoutés dans Game
     Studio, sans secret, sont déclarés aux agents (`mcp/game-studio.json`, retiré avec le module).
+
+12. **Les agents travaillent autour du graphe, avec les CLI déjà installées.** Pas de nouveau
+    moteur d'IA ni de clé : les conversations passent par le moteur multi-CLI du core (origine
+    `game-studio`, dossier du jeu). Le rôle (Directeur ou spécialiste) et le brief du projet
+    (règles, moteur, systèmes, tâches, décisions, problèmes, commandes de Game Studio à utiliser)
+    arrivent en instructions système, recalculés à chaque nouvelle conversation. Garde-fous : un
+    point de restauration avant chaque message, l'autonomie du projet reportée sur le mode
+    automatique de l'agent, le message toujours relu avant envoi, au plus 3 corrections
+    d'affilée après un échec (remis à zéro au premier succès). Les documents (GDD, TDD) sont
+    écrits sans IA à partir du graphe : ils ne disent que ce qui est enregistré, et un changement
+    d'architecture se fait dans le graphe, pas dans le document.
 
 ## Phases
 

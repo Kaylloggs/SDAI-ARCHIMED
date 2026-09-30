@@ -1,10 +1,12 @@
 import { Channel, invokeModule } from "@/core/ipc";
 import type { GameAction } from "@/core/ipc/bindings/GameAction";
+import type { GameAgentRole } from "@/core/ipc/bindings/GameAgentRole";
 import type { GameAnalysis } from "@/core/ipc/bindings/GameAnalysis";
 import type { GameBuildRecord } from "@/core/ipc/bindings/GameBuildRecord";
 import type { GameCheckpoint } from "@/core/ipc/bindings/GameCheckpoint";
 import type { GameCreateOutcome } from "@/core/ipc/bindings/GameCreateOutcome";
 import type { GameCreateRequest } from "@/core/ipc/bindings/GameCreateRequest";
+import type { GameDocuments } from "@/core/ipc/bindings/GameDocuments";
 import type { GameEngine } from "@/core/ipc/bindings/GameEngine";
 import type { GameEnvironment } from "@/core/ipc/bindings/GameEnvironment";
 import type { GameFileChange } from "@/core/ipc/bindings/GameFileChange";
@@ -80,6 +82,12 @@ export const gameStudioApi = {
   checkMcp: (key: string, project: string | null) => call<GameMcpHealth>("check_mcp_server", { key, project }),
   addMcp: (server: GameMcpOwnServer) => call<GameMcpServer[]>("add_mcp_server", { server }),
   removeMcp: (name: string) => call<GameMcpServer[]>("remove_mcp_server", { name }),
+
+  // Agents et documents
+  agentInstructions: (id: string, role: GameAgentRole) => call<string>("game_agent_instructions", { id, role }),
+  taskRequest: (id: string, task: string) => call<string>("game_task_request", { id, task }),
+  documents: (id: string) => call<GameDocuments>("game_documents", { id }),
+  writeDocuments: (id: string) => call<string[]>("write_game_documents", { id }),
 };
 
 export function errorText(error: unknown): string {

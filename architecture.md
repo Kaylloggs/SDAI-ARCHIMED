@@ -136,10 +136,12 @@ SDAI ARCHIMED/
 │       ├── game-studio/                 # Game Studio (ADR 0018) : module.config · index · api · store · agent-actions · README
 │       │   ├── components/              # ProjectList · NewGameWizard (idée → analyse → projet) · EnvironmentPanel · ui
 │       │   │   └── workspace/           # Workspace (sections) · Dashboard · DesignSection · SystemsSection (SystemGraph,
-│       │   │                            #   SystemDetail) · TasksSection · HistorySection · JournalSection · SettingsSection
-│       │   │                            #   · CapabilitiesTable
+│       │   │                            #   SystemDetail) · TasksSection · AssistantSection (agents par rôle) · DocumentsSection
+│       │   │                            #   (GDD, TDD) · BuildSection · MapSection · IntegrationsSection (MCP) · HistorySection
+│       │   │                            #   · JournalSection · SettingsSection · CapabilitiesTable
 │       │   └── lib/                     # labels · graph-layout (couches du graphe) · graph (utilisateurs, impact) · selection
-│       │                                # · tasks (tâches prêtes) · naming
+│       │                                # · tasks (tâches prêtes) · naming · actions (actions moteur disponibles) · map
+│       │                                # · assistant (autonomie des agents, demande de correction)
 │       ├── image-maker/                 # Image Maker : module.config · index · api · store · actions · clipboard · README
 │       │   ├── components/              # ProjectList · Studio (barre du haut, actions rapides) · Canvas · Tools
 │       │   │                            # · AiPanel (Créer, Retoucher) · ImagePanel (sur la machine) · Dock (historique,
@@ -230,7 +232,8 @@ SDAI ARCHIMED/
             │                            # Git sans toucher aux branches) · journal (JSONL, secrets masqués) · runner (commandes
             │                            # moteur en flux, arrêt, délai) · diagnostics (erreurs expliquées) · scanner (carte d'un
             │                            # projet existant) · mcp_client (serveurs MCP de la machine, test réel,
-            │                            # déclaration mcp/game-studio.json) · builds (historique) · service
+            │                            # déclaration mcp/game-studio.json) · agents (brief par rôle, demandes de tâche)
+            │                            # · docs (GDD et TDD tirés du graphe) · builds (historique) · service
             ├── image_maker/             # projets et arbre de versions (store), traitements locaux (local),
             │                            # opérations IA et recollage hors zone (pipeline), file de tâches (jobs),
             │                            # service, commandes, vue navigateur du mode compte (browser) ;

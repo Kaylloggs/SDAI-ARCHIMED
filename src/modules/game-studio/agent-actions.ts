@@ -916,6 +916,63 @@ export default defineActions([
       return graphOp(s.project.id, { op: "setIssueOpen", id: issue.id, open }, open ? "Problème rouvert." : "Problème marqué résolu.");
     },
   },
+  // ── Agents et documents ──────────────────────────────────────────────────────────────
+  {
+    name: "get_game_documents",
+    description: "Documents du jeu écrits depuis le graphe : GDD (game design) et TDD (technique), en Markdown.",
+    params: { project: project_param, which: { type: "string", enum: ["gdd", "tdd", "both"] } },
+    risk: "read",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      try {
+        const docs = await gameStudioApi.documents(t.id);
+        const which = oneOf(args["which"], ["gdd", "tdd", "both"] as const) ?? "both";
+        const data = which === "gdd" ? { gdd: docs.gdd } : which === "tdd" ? { tdd: docs.tdd } : docs;
+        return { ok: true, message: "Documents rédigés depuis le graphe.", data, open: { module: SELF, params: { projectId: t.id, section: "documents" } } };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+  {
+    name: "write_game_documents",
+    description: "Écrit docs/GDD.md et docs/TDD.md dans le projet du jeu à partir du graphe (point de restauration pris avant ; remplace ces deux fichiers).",
+    params: { project: project_param },
+    risk: "write",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      try {
+        const written = await gameStudioApi.writeDocuments(t.id);
+        return { ok: true, message: written.length ? `Écrit : ${written.join(", ")}.` : "Déjà à jour." };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+  {
+    name: "prepare_task_for_agent",
+    description: "Ouvre la section Agents de Game Studio avec une tâche prête à confier à l'agent de son rôle (message préparé, que la personne relit et envoie).",
+    params: { project: project_param, task: { type: "string", required: true, description: "Titre ou identifiant de la tâche." } },
+    risk: "read",
+    run: async (args) => {
+      const s = await state(args["project"]);
+      if (!isState(s)) return s;
+      const found = task(s, args["task"]);
+      if (!found) return { ok: false, message: "Tâche introuvable : appelle list_tasks." };
+      try {
+        const text = await gameStudioApi.taskRequest(s.project.id, found.id);
+        const store = useGameStudioStore.getState();
+        if (store.openId !== s.project.id) await store.open(s.project.id);
+        store.openAssistant({ role: found.role, taskId: found.id, text });
+        return { ok: true, message: `Tâche « ${found.title} » prête pour l'agent ${ROLE[found.role].label.toLowerCase()} : la personne l'envoie depuis la section Agents.`, open: { module: SELF } };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+
   // ── Serveurs MCP ─────────────────────────────────────────────────────────────────────
   {
     name: "list_mcp_servers",

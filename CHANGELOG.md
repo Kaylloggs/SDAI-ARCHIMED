@@ -33,6 +33,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
   (Godot, Unity, Unreal, Blender) : « Tester » les lance vraiment et liste leurs outils. Un
   serveur du moteur qui répond devient une capacité du projet. Ajoutez un serveur (commande ou
   adresse) : il est proposé aux agents lancés par ARCHIMED. Aucune clé n'est affichée ni copiée.
+- **Game Studio › Agents.** Le Directeur et les agents spécialistes (gameplay, IA, réseau,
+  interface, audio, rendu, build, tests, débogage…) travaillent dans le dossier du jeu avec
+  Claude Code, Codex ou Antigravity. Chacun reçoit le brief du projet : systèmes, tâches,
+  décisions, problèmes ouverts et commandes pour vérifier son code. Une tâche se confie en un
+  clic ; un point de restauration est pris avant chaque message. Après un échec, « Corriger avec
+  l'agent » lui transmet les erreurs expliquées (trois essais d'affilée au plus).
+- **Game Studio › Documents.** Le document de game design (GDD) et le document technique (TDD)
+  du jeu, écrits à partir de son graphe et à jour à chaque changement, à enregistrer dans `docs/`.
 
 ## [0.14.0] - 2026-09-28
 

@@ -278,6 +278,19 @@ pub fn checkpoint(root: &Path, label: &str, by: &str) -> AppResult<GameCheckpoin
         ));
     }
     let tree = snapshot_tree(root)?;
+    // Rien n'a changé depuis le dernier point : on le réutilise plutôt que d'en empiler un autre.
+    if let Some(last) = checkpoints(root).last() {
+        let last_tree = git(
+            root,
+            &["rev-parse", &format!("{}^{{tree}}", last.commit)],
+            None,
+        )
+        .map(|t| t.trim().to_string())
+        .unwrap_or_default();
+        if last_tree == tree {
+            return Ok(last.clone());
+        }
+    }
     let parent = head(root);
     let mut args: Vec<String> = identity_args(root);
     args.extend([

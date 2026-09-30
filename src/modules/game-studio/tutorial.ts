@@ -1,4 +1,4 @@
-import { Boxes, Gamepad2, Hammer, History, ListChecks, Sparkles, Wrench } from "lucide-react";
+import { Bot, Boxes, Gamepad2, Hammer, History, ListChecks, Sparkles, Wrench } from "lucide-react";
 import { defineTutorial } from "@/core/modules";
 
 /**
@@ -39,9 +39,15 @@ export default defineTutorial({
       area: "left",
     },
     {
+      icon: Bot,
+      title: "Confier une tâche à un agent",
+      text: "Ouvrez une tâche puis « Confier à l'agent » : la demande arrive prête dans « Agents ». Relisez-la, puis envoyez. Un point de restauration est pris avant.",
+      area: "left",
+    },
+    {
       icon: Hammer,
       title: "Vérifier et lancer le jeu",
-      text: "« Build et tests » > « Vérifier le code » : chaque erreur donne son fichier, sa ligne et une piste. « Lancer le jeu » l'ouvre, « Arrêter » le ferme.",
+      text: "« Build et tests » > « Vérifier le code » : chaque erreur donne son fichier, sa ligne et une piste. En cas d'échec, « Corriger avec l'agent ».",
       area: "left",
     },
     {
@@ -55,5 +61,6 @@ export default defineTutorial({
     "Le genre ne limite rien : décrivez ce que fait le joueur, Game Studio en déduit les systèmes.",
     "Le graphe, les décisions et le journal vivent dans le dossier .gamestudio du projet, qui reste autonome.",
     "Un projet existant ajouté s'ouvre sur sa carte : systèmes déjà codés et risques, sans rien modifier.",
+    "« Documents » montre le GDD et le TDD tirés du graphe ; « Écrire dans docs/ » les enregistre dans le projet.",
   ],
 });

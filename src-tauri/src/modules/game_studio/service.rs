@@ -7,10 +7,12 @@ use std::time::{Duration, Instant};
 
 use crate::core::{AppError, AppResult};
 
+use super::agents;
 use super::analysis::{self, Installed};
 use super::builds;
 use super::catalog::catalog;
 use super::diagnostics;
+use super::docs::{self, GameDocuments};
 use super::engines::{self, display, folder_name, ActionContext, GameAction, NewProject};
 use super::graph;
 use super::journal;
@@ -1232,6 +1234,94 @@ impl GameStudio {
             .collect()
     }
 
+    // ── Agents et documents ───────────────────────────────────────────────────────────
+
+    fn engine_info(&self, root: &Path, project: &GameProject) -> Option<GameEngineInfo> {
+        project
+            .engine
+            .and_then(|e| engines::adapter(e).inspect(root))
+            .map(|p| GameEngineInfo {
+                name: p.name,
+                engine_version: p.engine_version,
+                main_scene: p.main_scene,
+                languages: p.languages,
+                packages: p.packages,
+            })
+    }
+
+    /// Consignes d'un agent (prompt système) pour ce projet et ce rôle.
+    pub fn agent_instructions(&self, id: &str, role: GameAgentRole) -> AppResult<String> {
+        let root = self.root(id)?;
+        let project = store::load_project(&root)?;
+        let graph = store::load_graph(&root);
+        let info = self.engine_info(&root, &project);
+        Ok(agents::instructions(&project, &graph, role, info.as_ref()))
+    }
+
+    /// Premier message pour l'agent chargé d'une tâche.
+    pub fn task_request(&self, id: &str, task: &str) -> AppResult<String> {
+        let root = self.root(id)?;
+        let graph = store::load_graph(&root);
+        let found = graph
+            .tasks
+            .iter()
+            .find(|t| t.id == task)
+            .ok_or_else(|| AppError::not_found("Tâche introuvable."))?;
+        Ok(agents::task_request(found, &graph))
+    }
+
+    pub fn documents(&self, id: &str) -> AppResult<GameDocuments> {
+        let root = self.root(id)?;
+        let project = store::load_project(&root)?;
+        let graph = store::load_graph(&root);
+        let info = self.engine_info(&root, &project);
+        Ok(GameDocuments {
+            gdd: docs::gdd(&project, &graph),
+            tdd: docs::tdd(&project, &graph, info.as_ref()),
+        })
+    }
+
+    /// Écrit `docs/GDD.md` et `docs/TDD.md` dans le projet, après un point de restauration.
+    pub fn write_documents(&self, id: &str, by: &str) -> AppResult<Vec<String>> {
+        let root = self.root(id)?;
+        let documents = self.documents(id)?;
+        let checkpoint = if vcs::is_repository(&root) {
+            Some(vcs::checkpoint(&root, "Avant la mise à jour des documents", by)?.id)
+        } else {
+            None
+        };
+        std::fs::create_dir_all(root.join("docs"))?;
+        let mut written = Vec::new();
+        for (path, body) in [
+            (docs::GDD_PATH, &documents.gdd),
+            (docs::TDD_PATH, &documents.tdd),
+        ] {
+            let target = root.join(path);
+            if std::fs::read_to_string(&target).ok().as_deref() != Some(body.as_str()) {
+                store::write_atomic(&target, body.as_bytes())?;
+                written.push(path.to_string());
+            }
+        }
+        if !written.is_empty() {
+            let change = GameChange {
+                id: graph::new_id("c"),
+                title: "Documents du projet".to_string(),
+                what: format!("{} écrit(s) depuis le graphe.", written.join(", ")),
+                why: "Garder le GDD et le TDD alignés sur les systèmes, décisions et hypothèses."
+                    .to_string(),
+                impact: String::new(),
+                files: written.clone(),
+                systems: Vec::new(),
+                risks: Vec::new(),
+                checkpoint,
+                by: by.to_string(),
+                at: now(),
+            };
+            self.graph_op(id, GameGraphOp::AddChange { change }, by)?;
+        }
+        Ok(written)
+    }
+
     // ── Historique (Git) ──────────────────────────────────────────────────────────────
 
     pub fn vcs_state(&self, id: &str) -> AppResult<vcs::GameVcsState> {
@@ -1495,6 +1585,17 @@ mod tests {
                 }
             )
             .is_err());
+
+        // Documents : écrits une fois, puis rien tant que le graphe ne change pas.
+        let written = studio.write_documents(&outcome.project.id, "vous").unwrap();
+        assert_eq!(written, vec![docs::GDD_PATH, docs::TDD_PATH]);
+        assert!(PathBuf::from(&with_engine.root).join(docs::GDD_PATH).is_file());
+        assert!(studio.write_documents(&outcome.project.id, "vous").unwrap().is_empty());
+        let instructions = studio
+            .agent_instructions(&outcome.project.id, GameAgentRole::Director)
+            .unwrap();
+        assert!(instructions.contains("Directeur"));
+        assert!(studio.task_request(&outcome.project.id, "t-start").unwrap().contains("t-start"));
 
         // Import d'un projet Godot écrit à la main.
         let existing = base.join("ancien");
