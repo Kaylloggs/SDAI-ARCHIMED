@@ -8,6 +8,10 @@ décisions, points de restauration). Il ne génère pas de jeu par genre (ADR 00
 - **Backend** : plugin `game-studio` (`src-tauri/src/modules/game_studio/`).
 - **Slots, services, événements** : aucun. La page écoute `module.data.changed` (modifications
   faites par un agent ou la voix) et accepte `moduleParams` `{ projectId, section, create }`.
+- **Commandes** (`agent-actions.ts`) : tout ce que fait l'interface, pour la voix et les agents
+  (serveur MCP d'ARCHIMED : `search_commands`, `run_action`). Les gestes payants ou qui lancent du
+  code (`generate_game_image`, `run_blender_script`, restauration) demandent confirmation ; aucune
+  commande ne reçoit ni ne rend de clé d'API (les clés se saisissent dans l'interface).
 - **Coffre** : `game-studio-openrouter`, `game-studio-gemini`, `game-studio-higgsfield` (clés des
   fournisseurs d'images, vérifiées puis rangées dans le coffre du système ; sans clé à lui, le
   module relit celle qu'Image Maker ou Mod Studio a déjà rangée, sans la recopier).
@@ -22,6 +26,7 @@ décisions, points de restauration). Il ne génère pas de jeu par genre (ADR 00
 | 3 | Client MCP : serveurs des outils de la personne découverts, testés pour de vrai, capacités « via MCP », serveurs ajoutés transmis aux agents | ✓ (échanges stdio et HTTP testés ; `uvx blender-mcp` réel) |
 | 4 | Agents par rôle (Directeur et spécialistes) avec le brief du projet, tâches confiées, boucle de débogage bornée, GDD et TDD tirés du graphe | ✓ (brief et documents testés ; conversations par les agents CLI d'ARCHIMED) |
 | 5 | Registre des ressources, images générées avec leur trace, Blender sans interface (lire, exporter, script), import dans le moteur | ✓ (Blender 5.2 et Godot 4.4.1 vérifiés de bout en bout ; import Unity et Unreal à essayer sur Windows) |
+| 6 | Toutes les actions de l'interface en commandes pour la voix et les agents (`agent-actions.ts`, 68 commandes), tutoriel, documentation | ✓ |
 
 Rien n'est simulé : un geste qui n'a pas encore de moteur n'a pas de bouton.
 

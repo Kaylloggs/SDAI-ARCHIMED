@@ -1,7 +1,7 @@
 # ADR 0018 — Game Studio : studio de jeu orchestré par systèmes
 
 - **Date** : 2026-09-30
-- **Statut** : accepté (phases 1 à 5 livrées ; suivantes listées plus bas)
+- **Statut** : accepté, livré (phases 1 à 6)
 
 ## Contexte
 
@@ -103,6 +103,7 @@ dans le moteur de son choix, avec des agents IA. Trois écueils à éviter :
 | 3 | Client MCP (découverte, test réel, capacités via MCP, serveurs déclarés aux agents) |
 | 4 | Agents par rôle autour du graphe (Directeur et spécialistes), boucle de débogage, documents (GDD, TDD) |
 | 5 | Registre des ressources, images par `core::imaging`, Blender sans interface |
+| 6 | Commandes pour la voix et les agents couvrant toute l'interface, tutoriel, documentation |
 
 ## Conséquences
 

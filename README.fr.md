@@ -132,7 +132,7 @@ Appuyez sur **Ctrl Maj Espace**, ou cliquez sur la pastille en haut de la fenêt
 | 🧩 | **Skills** · `skills` | Une bibliothèque de skills (consignes réutilisables) à activer pour chaque assistant, et un atelier pour en créer : décrivez-le ou partez d'une conversation, une IA l'écrit, ARCHIMED le vérifie, vous l'essayez sur des demandes de test avant de l'enregistrer. |
 | 💼 | **Job Agent** · `jobagent` | Recherche d'emploi sur sept sites, carte du monde, lettres de motivation et candidatures par lot après confirmation. |
 | ⛏️ | **Mod Studio** · `mcstudio` | Mods Minecraft : modèles 3D, textures par IA, assistant de code, compilation en un clic, test en jeu et sur serveur, portage de version. |
-| 🎮 | **Game Studio** · `game-studio` | Décrivez un jeu en une phrase : Game Studio en tire les systèmes nécessaires, leurs dépendances, l'architecture du monde et du réseau et le moteur adapté, puis crée un vrai projet Godot, Unity ou Unreal avec son plan. Il détecte vos moteurs, Blender et Git, tient un graphe de connaissance du jeu, et des points de restauration pour revenir en arrière. |
+| 🎮 | **Game Studio** · `game-studio` | Décrivez un jeu en une phrase : Game Studio en tire les systèmes nécessaires, leurs dépendances, l'architecture du monde et du réseau et le moteur adapté, puis crée un vrai projet Godot, Unity ou Unreal avec son plan. Il lance les vraies commandes du moteur (vérifier, tester, jouer, exporter) et explique chaque erreur, confie les tâches à un Directeur et à des agents IA spécialisés, écrit le GDD et le TDD, génère textures et sprites dans votre style, lit et exporte les modèles Blender, et garde des points de restauration pour revenir en arrière. |
 | 🎨 | **Image Maker** · `image-maker` | Un studio d'images par IA : créer à partir d'une description, changer seulement la zone sélectionnée, étendre en 16:9, affiner, faire des variantes, retirer le fond, exporter. Avec OpenRouter, Google AI Studio et Higgsfield ; l'original n'est jamais perdu. |
 | 📊 | **Crédits** · `usage` | Ce qu'il reste de votre forfait IA, et combien de tokens chaque assistant a utilisés. |
 
@@ -235,6 +235,8 @@ Elle utilise **winget**, l'installateur intégré à Windows, et passe simplemen
 | [Node.js LTS](https://nodejs.org/fr/download) | Installe Codex | Seulement pour Codex |
 | [Python 3.12](https://www.python.org/downloads/windows/) | Fait tourner le moteur de recherche de Job Agent | Seulement pour Job Agent |
 | Java (JDK) | Compile les mods Minecraft | Non : Mod Studio l'installe pour vous |
+| Godot, Unity ou Unreal | Moteurs de jeu pilotés par Game Studio | Seulement pour Game Studio (il les trouve, ou les installe avec winget : Godot directement, Unity Hub ou le lanceur Epic Games pour les autres) |
+| [Blender](https://www.blender.org/download/) | Lit et exporte les modèles 3D pour Game Studio, sans ouvrir de fenêtre | Facultatif |
 
 <sub>Pas de winget ? Installez <a href="https://apps.microsoft.com/detail/9NBLGGH4NNS1">Programme d'installation d'application</a> depuis le Microsoft Store, ou utilisez les liens du tableau.</sub>
 
@@ -291,9 +293,9 @@ Certaines fonctions appellent directement un service d'IA avec **votre propre cl
 
 | Fournisseur | Sert à | Obtenir une clé |
 |---|---|---|
-| **Google** (AI Studio, Gemini) | Images (Image Maker), textures (Mod Studio) | [aistudio.google.com](https://aistudio.google.com/apikey) |
+| **Google** (AI Studio, Gemini) | Images (Image Maker, Game Studio), textures (Mod Studio) | [aistudio.google.com](https://aistudio.google.com/apikey) |
 | **OpenRouter** | Images et textures, de nombreux modèles avec un seul compte | [openrouter.ai/keys](https://openrouter.ai/keys) |
-| **Higgsfield** | Images (Image Maker) | [cloud.higgsfield.ai](https://cloud.higgsfield.ai/) |
+| **Higgsfield** | Images (Image Maker, Game Studio) | [cloud.higgsfield.ai](https://cloud.higgsfield.ai/) |
 | **OpenAI**, **Groq**, **ElevenLabs** | Reconnaissance et voix en ligne (Voice), en option : les moteurs locaux n'ont besoin d'aucune clé | [platform.openai.com](https://platform.openai.com/api-keys) · [console.groq.com](https://console.groq.com/keys) · [elevenlabs.io](https://elevenlabs.io/app/settings/api-keys) |
 
 Pas de clé ? Bouton **Compte** dans Image Maker. Avec un abonnement Higgsfield, les images se génèrent directement dans l'application avec vos crédits : l'outil officiel de Higgsfield s'installe une fois (vous confirmez avant), et vous vous connectez sur la page de Higgsfield dans votre navigateur. Ou ouvrez Gemini (Nano Banana), ChatGPT ou Higgsfield directement dans ARCHIMED, créez l'image avec votre abonnement : le fichier téléchargé revient dans votre projet en un clic. ARCHIMED ne demande jamais votre mot de passe.

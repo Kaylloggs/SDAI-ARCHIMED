@@ -24,6 +24,7 @@ import { errorText, gameStudioApi } from "./api";
 import { consumers, impact, systemId } from "./lib/graph";
 import { adoptOps } from "./lib/map";
 import { canBeTransparent, generationCost, imageModels, suggestName } from "./lib/assets";
+import { fixRequest, MAX_FIX_ROUNDS } from "./lib/assistant";
 import { ACTION, ASSET_KIND, CATEGORY_LABEL, IMAGE_KINDS, ENGINE_LABEL, LOG_CATEGORY, PLATFORMS, ROLE, RUN_STATUS, SYSTEM_STATUS, TASK_STATUS } from "./lib/labels";
 import { blankTask, readyTasks } from "./lib/tasks";
 import { useGameStudioStore } from "./store";
@@ -1149,6 +1150,41 @@ export default defineActions([
     },
   },
   {
+    name: "remove_game_asset",
+    description: "Retire une ressource du registre du jeu (le fichier reste dans le projet).",
+    params: { project: project_param, asset: { type: "string", required: true, description: "Identifiant ou nom de la ressource." } },
+    risk: "write",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      const wanted = typeof args["asset"] === "string" ? args["asset"] : "";
+      try {
+        const view = await gameStudioApi.assets(t.id);
+        const found = view.entries.find((e) => e.asset.id === wanted) ?? findByName(view.entries, wanted, (e) => e.asset.name, (e) => e.asset.path ?? e.asset.id);
+        if (!found) return { ok: false, message: `Aucune ressource ne correspond à « ${wanted} » : appelle list_game_assets.` };
+        return graphOp(t.id, { op: "removeAsset", id: found.asset.id }, `« ${found.asset.name} » retirée du registre (le fichier reste).`);
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+  {
+    name: "stop_image_generation",
+    description: "Annule l'image du jeu en cours de génération.",
+    params: { project: project_param },
+    risk: "write",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      try {
+        await gameStudioApi.cancelImage(t.id);
+        return { ok: true, message: "Annulation demandée." };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+  {
     name: "import_assets_in_engine",
     description: "Fait importer les ressources du jeu par son moteur (Godot --import, Unity en mode batch, script d'import de l'éditeur Unreal) et dit lesquelles sont prises en compte.",
     params: { project: project_param },
@@ -1157,6 +1193,49 @@ export default defineActions([
       const t = await target(args["project"]);
       if (isError(t)) return t;
       return runResult(await useGameStudioStore.getState().runAssetJob(t.id, { kind: "engineImport" }), t.id);
+    },
+  },
+
+  {
+    name: "prepare_agent_request",
+    description: "Ouvre la section Agents de Game Studio avec une demande prête pour un agent du jeu (Directeur ou spécialiste : gameplay, IA, réseau, interface, audio, build, tests, débogage…) ; la personne la relit et l'envoie.",
+    params: {
+      project: project_param,
+      role: { type: "string", enum: Object.keys(ROLE), description: "Par défaut : le Directeur." },
+      text: { type: "string", required: true, description: "La demande." },
+    },
+    risk: "read",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      const text = typeof args["text"] === "string" ? args["text"].trim() : "";
+      if (!text) return { ok: false, message: "Écris la demande pour l'agent." };
+      const role = oneOf(args["role"], Object.keys(ROLE) as GameAgentRole[]) ?? "director";
+      const store = useGameStudioStore.getState();
+      if (store.openId !== t.id) await store.open(t.id);
+      store.openAssistant({ role, taskId: null, text });
+      return { ok: true, message: `Demande prête pour l'agent ${ROLE[role].label.toLowerCase()} : la personne l'envoie depuis la section Agents.`, open: { module: SELF } };
+    },
+  },
+  {
+    name: "prepare_fix_for_agent",
+    description: "Prépare pour l'agent de débogage la correction du dernier échec (vérification, tests, build, Blender) du jeu : erreurs expliquées, fichiers et lignes ; la personne relit et envoie (trois corrections d'affilée au plus).",
+    params: { project: project_param },
+    risk: "read",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      try {
+        const last = (await gameStudioApi.runs(t.id))[0];
+        if (!last || last.status !== "failed") return { ok: false, message: "La dernière exécution n'a pas échoué : rien à corriger." };
+        const store = useGameStudioStore.getState();
+        if ((store.fixRounds[t.id] ?? 0) >= MAX_FIX_ROUNDS) return { ok: false, message: `${MAX_FIX_ROUNDS} corrections d'affilée sans succès : la personne relit l'erreur dans Build et tests.` };
+        if (store.openId !== t.id) await store.open(t.id);
+        store.openAssistant({ role: "debug", taskId: null, text: fixRequest(last), fix: true });
+        return { ok: true, message: `Correction préparée pour l'agent de débogage : ${last.summary}`, open: { module: SELF } };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
     },
   },
 
