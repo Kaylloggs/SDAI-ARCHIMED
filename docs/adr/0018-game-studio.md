@@ -1,7 +1,7 @@
 # ADR 0018 — Game Studio : studio de jeu orchestré par systèmes
 
 - **Date** : 2026-09-30
-- **Statut** : accepté (phases 1 à 4 livrées ; suivantes listées plus bas)
+- **Statut** : accepté (phases 1 à 5 livrées ; suivantes listées plus bas)
 
 ## Contexte
 
@@ -82,6 +82,17 @@ dans le moteur de son choix, avec des agents IA. Trois écueils à éviter :
     d'affilée après un échec (remis à zéro au premier succès). Les documents (GDD, TDD) sont
     écrits sans IA à partir du graphe : ils ne disent que ce qui est enregistré, et un changement
     d'architecture se fait dans le graphe, pas dans le document.
+
+13. **Ressources : constatées, tracées, converties par les vrais outils.** Le registre du graphe
+    (`GameAsset`) dit d'où vient chaque fichier et où il en est ; « dans le moteur » se lit sur le
+    disque (`.import`, `.meta`, `.uasset`), jamais supposé. Les images passent par `core::imaging`
+    (clés du coffre, partagées sans copie) et gardent leur trace (fournisseur, modèle, consigne
+    complète, réglages, coût annoncé) ; une nouvelle version ne remplace pas l'ancienne. Blender
+    tourne sans fenêtre avec des scripts écrits par Game Studio (lecture, export GLB ou FBX) ou
+    ceux du projet, par l'exécuteur des actions moteur (sortie, arrêt, délai, erreurs Python
+    expliquées, problème ouvert). L'import par le moteur est une action comme les autres ; Godot
+    resterait bloqué sur un `.blend` sans Blender configuré : les projets créés coupent cet import
+    (Game Studio exporte en GLB) et un projet qui ne le coupe pas est refusé avec la marche à suivre.
 
 ## Phases
 

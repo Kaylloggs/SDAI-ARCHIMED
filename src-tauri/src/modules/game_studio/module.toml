@@ -12,4 +12,7 @@ commands = [
   "scan_game", "game_map",
   "list_mcp_servers", "check_mcp_server", "add_mcp_server", "remove_mcp_server",
   "game_agent_instructions", "game_task_request", "game_documents", "write_game_documents",
+  "game_assets", "import_game_assets", "register_game_asset", "game_blend_info", "run_asset_job",
+  "game_image_providers", "set_game_image_key", "clear_game_image_key", "game_image_login",
+  "game_image_models", "game_image_prompt", "generate_game_image", "cancel_game_image",
 ]

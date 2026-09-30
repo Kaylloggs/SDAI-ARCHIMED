@@ -20,7 +20,7 @@ use std::time::Duration;
 use crate::core::{AppError, AppResult};
 
 use super::{
-    capability, check, display, ensure_empty_dir, env_dir, files_in, first_existing, home,
+    blender_is_not_engine, capability, check, display, ensure_empty_dir, env_dir, files_in, first_existing, home,
     keep_dir, probe, quote, subdirs, write_file, ActionContext, CommandSpec, Created,
     EngineAdapter, EngineProject, GameAction, NewProject,
 };
@@ -167,6 +167,81 @@ pub fn templates_dir(version: &str) -> Option<PathBuf> {
         base.join("export_templates")
             .join(templates_version(version)),
     )
+}
+
+/// Dossier des réglages de l'éditeur Godot (`editor_settings-4.x.tres`).
+fn config_dir() -> Option<PathBuf> {
+    if cfg!(windows) {
+        Some(env_dir("APPDATA")?.join("Godot"))
+    } else if cfg!(target_os = "macos") {
+        Some(home()?.join("Library/Application Support/Godot"))
+    } else {
+        Some(
+            env_dir("XDG_CONFIG_HOME")
+                .unwrap_or(home()?.join(".config"))
+                .join("godot"),
+        )
+    }
+}
+
+/// Blender indiqué dans les réglages de l'éditeur (import natif des `.blend`).
+fn blender_configured() -> bool {
+    let Some(dir) = config_dir() else {
+        return false;
+    };
+    files_in(&dir)
+        .into_iter()
+        .filter(|f| {
+            f.file_name()
+                .map(|n| n.to_string_lossy().starts_with("editor_settings-4"))
+                .unwrap_or(false)
+        })
+        .any(|f| {
+            std::fs::read_to_string(f).unwrap_or_default().lines().any(|l| {
+                l.trim_start()
+                    .strip_prefix("filesystem/import/blender/blender_path")
+                    .and_then(|rest| rest.split_once('='))
+                    .is_some_and(|(_, value)| !value.trim().trim_matches('"').is_empty())
+            })
+        })
+}
+
+/// Import des `.blend` coupé dans `project.godot`.
+pub fn blend_import_disabled(root: &Path) -> bool {
+    std::fs::read_to_string(root.join("project.godot"))
+        .unwrap_or_default()
+        .lines()
+        .any(|l| l.split_whitespace().collect::<String>() == "import/blender/enabled=false")
+}
+
+/// Premier `.blend` que Godot essaierait d'importer (dossiers avec `.gdignore` exclus).
+pub fn imported_blend(root: &Path) -> Option<String> {
+    let mut stack = vec![root.to_path_buf()];
+    let mut seen = 0;
+    while let Some(dir) = stack.pop() {
+        if dir.join(".gdignore").exists() {
+            continue;
+        }
+        for entry in std::fs::read_dir(&dir).ok()?.flatten() {
+            seen += 1;
+            if seen > 50_000 {
+                return None;
+            }
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                if !name.starts_with('.') {
+                    stack.push(path);
+                }
+            } else if name.to_lowercase().ends_with(".blend") {
+                return path
+                    .strip_prefix(root)
+                    .ok()
+                    .map(|p| p.to_string_lossy().replace('\\', "/"));
+            }
+        }
+    }
+    None
 }
 
 /// Version lue dans un nom de fichier officiel : `Godot_v4.4.1-stable_win64.exe` → `4.4.1.stable`.
@@ -473,6 +548,9 @@ impl EngineAdapter for Godot {
         if two_d {
             project.push_str("\n[display]\n\nwindow/stretch/mode=\"canvas_items\"\n");
         }
+        // Les .blend passent par Blender sans fenêtre (export GLB de Game Studio) : l'import
+        // natif de Godot demanderait Blender dans l'éditeur et bloquerait l'import sans fenêtre.
+        project.push_str("\n[filesystem]\n\nimport/blender/enabled=false\n");
         project.push_str(&format!(
             "\n[rendering]\n\nrenderer/rendering_method=\"{method}\"\n"
         ));
@@ -577,6 +655,7 @@ impl EngineAdapter for Godot {
                 templates.map(|t| format!("Dossier attendu : {}", display(&t))),
             ),
             capability("editor", "Ouvrir l'éditeur", GameCapabilityVia::Cli, Some("Godot 4 installé"), Some(editor), None),
+            capability("import", "Importer les ressources (images, modèles, sons)", GameCapabilityVia::Cli, Some("Godot 4 installé"), Some(editor), Some("--headless --import : un fichier .import par ressource prise en compte.".to_string())),
         ]
     }
 
@@ -599,8 +678,19 @@ impl EngineAdapter for Godot {
             strict: false,
             results: None,
         };
+        if matches!(action, GameAction::Setup | GameAction::Import)
+            && !blend_import_disabled(ctx.root)
+            && !blender_configured()
+        {
+            if let Some(file) = imported_blend(ctx.root) {
+                return Err(AppError::invalid(format!(
+                    "Godot essaierait d'importer {file} par Blender, qui n'est pas indiqué dans ses réglages : sans fenêtre, il resterait bloqué. Soit désactivez l'import des .blend du projet (Projet › Paramètres du projet › Système de fichiers › Importer › Blender, ou « import/blender/enabled=false » sous [filesystem] dans project.godot), Game Studio les exportant en GLB ; soit indiquez Blender dans Éditeur › Paramètres de l'éditeur › Système de fichiers › Importer."
+                )));
+            }
+        }
         Ok(match action {
-            GameAction::Setup => {
+            // Godot importe tout ce qui est sous res:// (fichiers .import à côté des ressources).
+            GameAction::Setup | GameAction::Import => {
                 let mut args = vec![
                     "--headless".into(),
                     "--path".into(),
@@ -660,6 +750,7 @@ impl EngineAdapter for Godot {
                 s.detached = true;
                 s
             }
+            GameAction::Blender => return Err(blender_is_not_engine()),
             GameAction::Build => {
                 let preset = preset_name(ctx.platform)
                     .ok_or_else(|| AppError::invalid("Godot n'exporte pas directement vers les consoles : passez par une société de portage."))?;
@@ -878,5 +969,23 @@ mod tests {
         assert_eq!(code, Some(1), "{out}");
         assert!(out.contains("Parse Error"));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn finds_blend_files_godot_would_import() {
+        let root = std::env::temp_dir().join(format!("gs-godot-blend-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("docs/sources")).unwrap();
+        std::fs::write(root.join("docs/.gdignore"), "").unwrap();
+        std::fs::write(root.join("docs/sources/brouillon.blend"), b"x").unwrap();
+        std::fs::write(root.join("project.godot"), "[application]\n").unwrap();
+        assert_eq!(imported_blend(&root), None, "dossier .gdignore exclu");
+        std::fs::create_dir_all(root.join("assets/models")).unwrap();
+        std::fs::write(root.join("assets/models/caisse.blend"), b"x").unwrap();
+        assert_eq!(imported_blend(&root).as_deref(), Some("assets/models/caisse.blend"));
+        assert!(!blend_import_disabled(&root));
+        std::fs::write(root.join("project.godot"), "[filesystem]\n\nimport/blender/enabled=false\n").unwrap();
+        assert!(blend_import_disabled(&root));
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

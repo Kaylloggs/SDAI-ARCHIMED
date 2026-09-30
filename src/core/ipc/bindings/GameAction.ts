@@ -3,4 +3,4 @@
 /**
  * Action lancée par la ligne de commande d'un moteur.
  */
-export type GameAction = "setup" | "check" | "run" | "test" | "build" | "editor";
+export type GameAction = "setup" | "check" | "run" | "test" | "build" | "editor" | "import" | "blender";

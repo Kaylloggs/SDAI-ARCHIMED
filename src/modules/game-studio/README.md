@@ -8,8 +8,9 @@ décisions, points de restauration). Il ne génère pas de jeu par genre (ADR 00
 - **Backend** : plugin `game-studio` (`src-tauri/src/modules/game_studio/`).
 - **Slots, services, événements** : aucun. La page écoute `module.data.changed` (modifications
   faites par un agent ou la voix) et accepte `moduleParams` `{ projectId, section, create }`.
-- **Coffre** : `game-studio-openrouter`, `game-studio-gemini`, `game-studio-higgsfield` (réservés
-  aux phases de contenu ; aucune clé n'est lue ni écrite pour l'instant).
+- **Coffre** : `game-studio-openrouter`, `game-studio-gemini`, `game-studio-higgsfield` (clés des
+  fournisseurs d'images, vérifiées puis rangées dans le coffre du système ; sans clé à lui, le
+  module relit celle qu'Image Maker ou Mod Studio a déjà rangée, sans la recopier).
 - **Tutoriel** : `tutorial.ts`, affiché dans le module Tutoriel (à tenir à jour avec l'interface).
 
 ## État des phases
@@ -20,7 +21,7 @@ décisions, points de restauration). Il ne génère pas de jeu par genre (ADR 00
 | 2 | Exécution des commandes moteur en direct (arrêt, délai, silence signalé), erreurs expliquées, problèmes ouverts et refermés, carte d'un projet existant | ✓ (vérification, tests et erreurs Godot vérifiés de bout en bout) |
 | 3 | Client MCP : serveurs des outils de la personne découverts, testés pour de vrai, capacités « via MCP », serveurs ajoutés transmis aux agents | ✓ (échanges stdio et HTTP testés ; `uvx blender-mcp` réel) |
 | 4 | Agents par rôle (Directeur et spécialistes) avec le brief du projet, tâches confiées, boucle de débogage bornée, GDD et TDD tirés du graphe | ✓ (brief et documents testés ; conversations par les agents CLI d'ARCHIMED) |
-| 5 | Ressources, images IA, Blender sans interface | à venir |
+| 5 | Registre des ressources, images générées avec leur trace, Blender sans interface (lire, exporter, script), import dans le moteur | ✓ (Blender 5.2 et Godot 4.4.1 vérifiés de bout en bout ; import Unity et Unreal à essayer sur Windows) |
 
 Rien n'est simulé : un geste qui n'a pas encore de moteur n'a pas de bouton.
 
@@ -39,7 +40,7 @@ Rien n'est simulé : un geste qui n'a pas encore de moteur n'a pas de bouton.
 3. **Espace du projet** (`workspace/`) : Tableau de bord, Conception, Systèmes (graphe en
    couches ou liste, fiche avec dépendances, consommateurs et impact d'un retrait), Tâches (prêtes,
    bloquées, en cours ; « Confier à l'agent » prépare la demande), Agents, Documents, Build et
-   tests, Carte du projet, Historique (git, points de restauration,
+   tests, Ressources, Carte du projet, Historique (git, points de restauration,
    différences), Journal, Outils, Réglages (moteur, plateformes, budget de performance).
 4. **Build et tests** (`BuildSection`) : Vérifier le code, Lancer les tests, Lancer le jeu,
    Préparer le projet, Ouvrir l'éditeur, Exporter le build (plateforme, publication ou
@@ -84,6 +85,26 @@ Rien n'est simulé : un geste qui n'a pas encore de moteur n'a pas de bouton.
    performance, risques, tâches) écrits sans IA à partir du graphe. « Écrire dans docs/ » crée
    ou remplace `docs/GDD.md` et `docs/TDD.md` après un point de restauration ; rien n'est écrit
    si le contenu n'a pas changé.
+9. **Ressources** (`AssetsSection`) : registre des images, modèles et sons du jeu, avec leur état
+   (générée, ajoutée, convertie, dans le moteur). « Ajouter des fichiers » copie dans le dossier du
+   moteur (`assets/` pour Godot, `Assets/Art/` pour Unity, `SourceArt/` pour Unreal ; concepts dans
+   `docs/concepts`, ignoré par Godot) ; un `.gltf` emmène ses `.bin` et textures. Les fichiers du
+   projet hors registre sont listés, à inscrire. « Dans le moteur » est constaté, jamais supposé :
+   fichier `.import` (Godot), `.meta` (Unity) ou `.uasset` dans `Content/` (Unreal).
+   « Importer dans <moteur> » lance Godot `--import`, Unity en mode batch, ou le script d'import
+   Python de l'éditeur Unreal (écrit dans `.gamestudio/unreal/`), suivi comme une action moteur.
+   **Images générées** : fournisseurs du core (OpenRouter, Gemini, Higgsfield par clé ou compte),
+   modèle, nature (texture, sprite, interface, concept, effet, matériau), format et fond transparent
+   selon le modèle ; la consigne envoyée (demande, usage dans le jeu, charte du projet) se relit
+   avant l'envoi ; le prix par image est celui du fournisseur. Le fichier est écrit avec sa trace
+   (`generations` : fournisseur, modèle, consigne, réglages, coût annoncé, graine) ; une nouvelle
+   version s'écrit à côté (`-v2`), rien n'est écrasé. **Blender** (s'il est installé) : « Lire le
+   fichier » (objets, triangles, matériaux, textures introuvables, animations, échelle non
+   appliquée), « Exporter pour le jeu » (GLB pour Godot, FBX pour Unity et Unreal, inscrit avec sa
+   source ; un nouvel export remplace le précédent en version suivante), scripts Python du projet
+   (`run_blender_script`). Les projets Godot créés par Game Studio coupent l'import `.blend` natif
+   (`import/blender/enabled=false`), qui bloque l'import sans fenêtre ; sur un projet qui ne le
+   coupe pas, l'import est refusé avec la marche à suivre plutôt que de rester bloqué.
 
 ## Backend
 
@@ -103,6 +124,7 @@ Rien n'est simulé : un geste qui n'a pas encore de moteur n'a pas de bouton.
 | `scanner.rs` | Carte d'un projet (`.gamestudio/cache/`), incrémentale |
 | `agents.rs` | Brief d'un agent (règles, rôle, moteur, graphe résumé) et demande préparée pour une tâche |
 | `docs.rs` | GDD et TDD en Markdown, déterministes, tirés du graphe |
+| `assets.rs`, `blender/*.py` | Registre des ressources, dossiers par moteur, trace d'import du moteur, copie (et fichiers d'un `.gltf`), consignes d'images, commandes Blender, script d'import Unreal ; scripts Blender de lecture et d'export |
 | `mcp_client.rs` | Serveurs MCP de la machine : découverte, masquage des secrets, test réel stdio et HTTP (JSON ou SSE), serveurs ajoutés et leur déclaration |
 | `builds.rs` | Historique des exécutions (`.gamestudio/builds/history.json`, journal complet par exécution) |
 | `service.rs`, `commands.rs` | Façade et commandes Tauri |
@@ -114,7 +136,10 @@ Commandes : `game_environment`, `set_tool_path`, `install_tool`, `analyze_idea`,
 `run_game_action`, `cancel_game_action`, `current_game_action`, `open_game_editor`,
 `list_game_runs`, `read_game_run_log`, `scan_game`, `game_map`, `list_mcp_servers`,
 `check_mcp_server`, `add_mcp_server`, `remove_mcp_server`, `game_agent_instructions`,
-`game_task_request`, `game_documents`, `write_game_documents`.
+`game_task_request`, `game_documents`, `write_game_documents`, `game_assets`, `import_game_assets`,
+`register_game_asset`, `game_blend_info`, `run_asset_job`, `game_image_providers`,
+`set_game_image_key`, `clear_game_image_key`, `game_image_login`, `game_image_models`,
+`game_image_prompt`, `generate_game_image`, `cancel_game_image`.
 
 ## Ce que contient un projet créé
 
@@ -136,10 +161,17 @@ Commandes : `game_environment`, `set_tool_path`, `install_tool`, `analyze_idea`,
   processus, délai, programme absent), lecture des erreurs (sorties réelles de Godot 4.4.1 et
   formats C#, MSVC, clang, Unreal, Unity, Python, NUnit), carte d'un projet (incrémentale),
   brief des agents et demandes de tâche, GDD et TDD (écrits une fois, rien au second appel),
-  service de bout en bout.
+  ressources (dossiers par moteur, trace d'import, copie d'un `.gltf`, chemins refusés, consignes,
+  images générées et leurs versions, lecture d'un `.blend`), service de bout en bout.
+- `GAMESTUDIO_BLENDER=<blender> GAMESTUDIO_GODOT=<godot> cargo test --lib game_studio -- --include-ignored` :
+  avec les vrais outils, un script du projet fabrique un `.blend`, Blender le lit (triangles,
+  échelle signalée), l'exporte en GLB (puis en version 2), Godot l'importe (ressource « dans le
+  moteur ») ; sans le réglage `.blend`, l'import est refusé ; un script en erreur ouvre un
+  problème, refermé par la réussite suivante.
 - `GAMESTUDIO_GODOT=<chemin de Godot> cargo test --lib game_studio -- --include-ignored` : avec le
   vrai Godot, crée un projet, le prépare, le vérifie, casse un script (échec expliqué, problème
   ouvert), le répare (problème refermé), provoque une erreur à l'exécution (test de démarrage en
   échec malgré le code 0), puis coche la tâche de départ quand tout repasse.
 - `pnpm test` : `__tests__/` (mise en page du graphe, sélection, tâches, noms de dossier, actions
-  disponibles, systèmes repérés, formats, autonomie des agents, demande de correction).
+  disponibles, systèmes repérés, formats, autonomie des agents, demande de correction, filtres et
+  réglages des ressources).

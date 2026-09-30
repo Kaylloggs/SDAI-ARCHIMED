@@ -8,6 +8,7 @@ use tauri::{Manager, Runtime};
 
 mod agents;
 mod analysis;
+mod assets;
 mod builds;
 mod catalog;
 mod commands;
@@ -67,6 +68,19 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::game_task_request,
             commands::game_documents,
             commands::write_game_documents,
+            commands::game_assets,
+            commands::import_game_assets,
+            commands::register_game_asset,
+            commands::game_blend_info,
+            commands::run_asset_job,
+            commands::game_image_providers,
+            commands::set_game_image_key,
+            commands::clear_game_image_key,
+            commands::game_image_login,
+            commands::game_image_models,
+            commands::game_image_prompt,
+            commands::generate_game_image,
+            commands::cancel_game_image,
         ])
         .setup(|app, _api| {
             let paths = crate::core::paths::Paths::resolve(app)?;

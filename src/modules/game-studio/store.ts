@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { Channel } from "@/core/ipc";
 import type { GameAction } from "@/core/ipc/bindings/GameAction";
 import type { GameAgentRole } from "@/core/ipc/bindings/GameAgentRole";
+import type { GameAssetJob } from "@/core/ipc/bindings/GameAssetJob";
 import type { GameBuildRecord } from "@/core/ipc/bindings/GameBuildRecord";
 import type { GameEnvironment } from "@/core/ipc/bindings/GameEnvironment";
 import type { GameJobEvent } from "@/core/ipc/bindings/GameJobEvent";
@@ -22,6 +23,7 @@ export type SectionId =
   | "assistant"
   | "documents"
   | "build"
+  | "assets"
   | "map"
   | "history"
   | "journal"
@@ -86,6 +88,8 @@ type GameStudioState = {
   clearError: () => void;
   /** Lance une action du moteur ; la promesse rend l'exécution terminée (ou refusée). */
   runAction: (id: string, action: GameAction, platform?: GamePlatform | null, development?: boolean) => Promise<GameBuildRecord>;
+  /** Blender ou import des ressources par le moteur, suivi comme une action moteur. */
+  runAssetJob: (id: string, job: GameAssetJob) => Promise<GameBuildRecord>;
   cancelAction: (id: string) => Promise<string | null>;
   /** Action lancée hors de cette page (avant un rechargement) : suivie jusqu'à sa fin. */
   attachRunning: (id: string) => Promise<void>;
@@ -239,53 +243,10 @@ export const useGameStudioStore = create<GameStudioState>()((set, get) => ({
   setEnvironment: (environment) => set({ environment }),
   clearError: () => set({ error: null }),
 
-  runAction: async (id, action, platform = null, development = false) => {
-    const busy = get().jobs[id];
-    if (busy?.running) return refusedRecord(action, "Une action est déjà en cours sur ce projet : attendez sa fin ou arrêtez-la.");
-    pending.delete(id);
-    set((state) => ({
-      jobs: {
-        ...state.jobs,
-        [id]: { running: true, jobId: null, action, command: null, startedAt: Date.now(), lines: [], dropped: 0, quietFor: null, record: null, attached: false },
-      },
-    }));
-    const done = new Promise<GameBuildRecord>((resolve) => waiting.set(id, resolve));
-    const channel = new Channel<GameJobEvent>();
-    channel.onmessage = (event) => {
-      switch (event.kind) {
-        case "started":
-          patchJob(id, { jobId: event.jobId, command: event.command });
-          break;
-        case "line":
-          queueLine(id, { id: nextLine++, level: event.level, text: event.text });
-          if (get().jobs[id]?.quietFor) patchJob(id, { quietFor: null });
-          break;
-        case "quiet":
-          patchJob(id, { quietFor: event.seconds });
-          break;
-        case "finished": {
-          flush();
-          patchJob(id, { running: false, quietFor: null, record: event.record });
-          if (event.record.status === "success" && get().fixRounds[id]) get().setFixRounds(id, 0);
-          waiting.get(id)?.(event.record);
-          waiting.delete(id);
-          void get().loadRuns(id);
-          void get().refresh();
-          if (get().openId === id) void get().reload();
-          break;
-        }
-      }
-    };
-    try {
-      await gameStudioApi.runAction(id, action, platform, development, channel);
-    } catch (error) {
-      const record = refusedRecord(action, errorText(error));
-      patchJob(id, { running: false, record });
-      waiting.delete(id);
-      return record;
-    }
-    return done;
-  },
+  runAction: (id, action, platform = null, development = false) =>
+    track(id, action, (channel) => gameStudioApi.runAction(id, action, platform, development, channel)),
+
+  runAssetJob: (id, job) => track(id, job.kind === "engineImport" ? "import" : "blender", (channel) => gameStudioApi.runAssetJob(id, job, channel)),
 
   cancelAction: async (id) => {
     try {
@@ -366,3 +327,56 @@ export const useGameStudioStore = create<GameStudioState>()((set, get) => ({
     }
   },
 }));
+
+/**
+ * Suit une exécution (action moteur, Blender, import) : lignes en direct, résultat, puis relecture
+ * de l'historique et du projet. La promesse rend l'exécution terminée, ou refusée.
+ */
+async function track(id: string, action: GameAction, start: (channel: Channel<GameJobEvent>) => Promise<unknown>): Promise<GameBuildRecord> {
+  const get = useGameStudioStore.getState;
+  const busy = get().jobs[id];
+  if (busy?.running) return refusedRecord(action, "Une action est déjà en cours sur ce projet : attendez sa fin ou arrêtez-la.");
+  pending.delete(id);
+  useGameStudioStore.setState((state) => ({
+    jobs: {
+      ...state.jobs,
+      [id]: { running: true, jobId: null, action, command: null, startedAt: Date.now(), lines: [], dropped: 0, quietFor: null, record: null, attached: false },
+    },
+  }));
+  const done = new Promise<GameBuildRecord>((resolve) => waiting.set(id, resolve));
+  const channel = new Channel<GameJobEvent>();
+  channel.onmessage = (event) => {
+    switch (event.kind) {
+      case "started":
+        patchJob(id, { jobId: event.jobId, command: event.command });
+        break;
+      case "line":
+        queueLine(id, { id: nextLine++, level: event.level, text: event.text });
+        if (get().jobs[id]?.quietFor) patchJob(id, { quietFor: null });
+        break;
+      case "quiet":
+        patchJob(id, { quietFor: event.seconds });
+        break;
+      case "finished": {
+        flush();
+        patchJob(id, { running: false, quietFor: null, record: event.record });
+        if (event.record.status === "success" && get().fixRounds[id]) get().setFixRounds(id, 0);
+        waiting.get(id)?.(event.record);
+        waiting.delete(id);
+        void get().loadRuns(id);
+        void get().refresh();
+        if (get().openId === id) void get().reload();
+        break;
+      }
+    }
+  };
+  try {
+    await start(channel);
+  } catch (error) {
+    const record = refusedRecord(action, errorText(error));
+    patchJob(id, { running: false, record });
+    waiting.delete(id);
+    return record;
+  }
+  return done;
+}

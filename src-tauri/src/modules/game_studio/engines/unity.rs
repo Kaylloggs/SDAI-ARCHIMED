@@ -17,7 +17,7 @@ use std::time::Duration;
 use crate::core::{AppError, AppResult};
 
 use super::{
-    capability, check, display, ensure_empty_dir, env_dir, home, keep_dir, subdirs, write_file,
+    blender_is_not_engine, capability, check, display, ensure_empty_dir, env_dir, home, keep_dir, subdirs, write_file,
     ActionContext, CommandSpec, Created, EngineAdapter, EngineProject, GameAction, NewProject,
 };
 use crate::modules::game_studio::types::{
@@ -417,6 +417,7 @@ impl EngineAdapter for Unity {
             capability("build", "Produire un build", GameCapabilityVia::Cli, Some("Module de build de la plateforme installé dans Unity Hub"), Some(editor && script.unwrap_or(true)), None),
             capability("run", "Lancer le jeu", GameCapabilityVia::Cli, Some("Un build Windows, ou l'éditeur en mode Play"), Some(editor), None),
             capability("editor", "Ouvrir l'éditeur", GameCapabilityVia::Cli, Some("Éditeur Unity installé"), Some(editor), None),
+            capability("import", "Importer les ressources du dossier Assets", GameCapabilityVia::Cli, Some("Éditeur Unity installé et licence activée"), Some(editor), Some("-batchmode -quit : Unity importe chaque fichier et crée son .meta.".to_string())),
         ]
     }
 
@@ -527,6 +528,9 @@ impl EngineAdapter for Unity {
                 s.detached = true;
                 s
             }
+            // Ouvrir le projet en mode batch suffit : Unity importe le dossier Assets (.meta).
+            GameAction::Import => spec(base(&["-quit"]), Some(3600)),
+            GameAction::Blender => return Err(blender_is_not_engine()),
         })
     }
 

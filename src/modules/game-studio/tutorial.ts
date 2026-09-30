@@ -1,4 +1,4 @@
-import { Bot, Boxes, Gamepad2, Hammer, History, ListChecks, Sparkles, Wrench } from "lucide-react";
+import { Bot, Boxes, Gamepad2, Hammer, History, Images, ListChecks, Sparkles, Wrench } from "lucide-react";
 import { defineTutorial } from "@/core/modules";
 
 /**
@@ -48,6 +48,12 @@ export default defineTutorial({
       icon: Hammer,
       title: "Vérifier et lancer le jeu",
       text: "« Build et tests » > « Vérifier le code » : chaque erreur donne son fichier, sa ligne et une piste. En cas d'échec, « Corriger avec l'agent ».",
+      area: "left",
+    },
+    {
+      icon: Images,
+      title: "Ajouter les ressources",
+      text: "« Ressources » : « Générer une image » ou « Ajouter des fichiers », puis « Importer dans le moteur ». Un .blend se lit et s'exporte avec Blender depuis sa fiche.",
       area: "left",
     },
     {

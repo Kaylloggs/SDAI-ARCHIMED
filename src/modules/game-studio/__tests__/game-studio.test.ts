@@ -3,12 +3,17 @@ import { layoutGraph, neighbourhood, NODE_W } from "../lib/graph-layout";
 import { consumers, impact, systemId } from "../lib/graph";
 import { availability } from "../lib/actions";
 import { autoModeFor, checkpointLabel, fixRequest } from "../lib/assistant";
+import { canBeTransparent, defaultFormat, filterAssets, generationCost, generationRequest, importVerb, isPreviewable, modelPrice, suggestName } from "../lib/assets";
 import { bytes, duration, shortVersion, splitCommand, topicLabel } from "../lib/labels";
 import { adoptOps } from "../lib/map";
 import { folderName, joinPath } from "../lib/naming";
 import { neededBy, prune, withDependencies } from "../lib/selection";
 import { blankTask, readyTasks, waitingOn } from "../lib/tasks";
+import type { GameAssetEntry } from "@/core/ipc/bindings/GameAssetEntry";
 import type { GameBuildRecord } from "@/core/ipc/bindings/GameBuildRecord";
+import type { GameGeneration } from "@/core/ipc/bindings/GameGeneration";
+import type { ModelCapabilities } from "@/core/ipc/bindings/ModelCapabilities";
+import type { ProviderModel } from "@/core/ipc/bindings/ProviderModel";
 import type { GameFoundSystem } from "@/core/ipc/bindings/GameFoundSystem";
 import type { GameProjectState } from "@/core/ipc/bindings/GameProjectState";
 import type { GameSystem } from "@/core/ipc/bindings/GameSystem";
@@ -228,5 +233,50 @@ describe("agents", () => {
   it("nomment le point de restauration pris avant leur travail", () => {
     expect(checkpointLabel("  Ajoute la pêche  ")).toBe("Avant l'agent : Ajoute la pêche");
     expect(checkpointLabel("x".repeat(80)).length).toBeLessThan(80);
+  });
+});
+
+describe("ressources", () => {
+  const entry = (name: string, kind: GameAssetEntry["asset"]["kind"], path: string): GameAssetEntry => ({
+    asset: { id: name, name, kind, source: "manual", path, version: 1, dependencies: [], importSettings: null, generations: [], usage: [], status: "imported", notes: null, updatedAt: "" },
+    exists: true,
+    bytes: 10,
+    inEngine: false,
+    absolute: `/jeu/${path}`,
+  });
+  const list = [entry("Écorce", "texture", "assets/textures/ecorce.png"), entry("Caisse", "model", "assets/models/caisse.glb"), entry("Pas", "audio", "assets/audio/pas.ogg")];
+
+  it("filtrent par famille et par texte, sans tenir compte des accents", () => {
+    expect(filterAssets(list, "images", "").map((e) => e.asset.name)).toEqual(["Écorce"]);
+    expect(filterAssets(list, "all", "ecorce").map((e) => e.asset.name)).toEqual(["Écorce"]);
+    expect(filterAssets(list, "all", "modèle").map((e) => e.asset.name)).toEqual(["Caisse"]);
+    expect(filterAssets(list, "audio", "caisse")).toEqual([]);
+  });
+
+  it("choisissent le format et le verbe du moteur", () => {
+    expect(defaultFormat("godot")).toBe("glb");
+    expect(defaultFormat("unreal")).toBe("fbx");
+    expect(defaultFormat(null)).toBe("glb");
+    expect(importVerb("unity")).toBe("Importer dans Unity");
+    expect(isPreviewable("a/b.PNG")).toBe(true);
+    expect(isPreviewable("a/b.tga")).toBe(false);
+  });
+
+  it("gardent la demande et le coût annoncés par le fournisseur", () => {
+    const generation = { provider: "gemini", model: "m", prompt: "Sol\nUsage : texture", params: { request: "Sol", usage: { costUsd: 0.039 } }, seed: null, at: "", output: "a.png" } as GameGeneration;
+    expect(generationRequest(generation)).toBe("Sol");
+    expect(generationCost(generation)).toBe("0,039 $");
+    expect(generationCost({ ...generation, params: {} })).toBeNull();
+    expect(suggestName("Une caisse en bois usée, planches clouées")).toBe("Caisse en bois usée");
+  });
+
+  it("ne proposent que ce que le modèle sait faire", () => {
+    const caps = { transparentBackground: true } as ModelCapabilities;
+    expect(canBeTransparent(caps, "sprite")).toBe(true);
+    expect(canBeTransparent(caps, "texture")).toBe(false);
+    expect(canBeTransparent(undefined, "sprite")).toBe(false);
+    const model = { free: false, pricing: [{ label: "image", costUsd: 0.04, unit: "image" }] } as unknown as ProviderModel;
+    expect(modelPrice(model)).toBe("0,04 $ par image");
+    expect(modelPrice({ ...model, pricing: [] })).toBeNull();
   });
 });

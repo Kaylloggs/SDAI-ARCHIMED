@@ -57,6 +57,9 @@ describe("base de commandes de tous les modules", () => {
     expect(first("ajoute la météo à mon jeu")).toBe("game-studio.add_system");
     expect(first("vérifie le code de mon jeu")).toBe("game-studio.check_game_code");
     expect(first("exporte mon jeu pour windows")).toBe("game-studio.export_build");
+    expect(first("génère une texture pour mon jeu")).toBe("game-studio.generate_game_image");
+    expect(first("exporte le modèle blender pour le jeu")).toBe("game-studio.export_blend_model");
+    expect(first("importe les ressources dans le moteur du jeu")).toBe("game-studio.import_assets_in_engine");
     expect(first("rename board")).toBe("planner.rename_board");
     expect(first("retourner l'image")).toBe("image-maker.transform_image");
     expect(first("vérifier les mises à jour")).toBe("settings.check_updates");

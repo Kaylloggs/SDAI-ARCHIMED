@@ -39,6 +39,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
   décisions, problèmes ouverts et commandes pour vérifier son code. Une tâche se confie en un
   clic ; un point de restauration est pris avant chaque message. Après un échec, « Corriger avec
   l'agent » lui transmet les erreurs expliquées (trois essais d'affilée au plus).
+- **Game Studio › Ressources.** Les images, modèles et sons du jeu dans un registre : ajoutés
+  (copiés dans le dossier du moteur), trouvés dans le projet, générés ou exportés par Blender.
+  Générez une texture, un sprite, un élément d'interface ou un concept art avec Gemini, OpenRouter
+  ou Higgsfield en suivant la charte du projet : la consigne se relit avant l'envoi, le prix par
+  image est affiché, et chaque image garde sa trace pour être refaite ; une nouvelle version ne
+  remplace pas l'ancienne. Avec Blender installé : lire un fichier .blend (triangles, textures
+  manquantes, échelle non appliquée), l'exporter pour le jeu (GLB pour Godot, FBX pour Unity et
+  Unreal), lancer un script. « Importer dans le moteur » fait importer les ressources et montre
+  lesquelles le moteur a vraiment prises en compte.
 - **Game Studio › Documents.** Le document de game design (GDD) et le document technique (TDD)
   du jeu, écrits à partir de son graphe et à jour à chaque changement, à enregistrer dans `docs/`.
 

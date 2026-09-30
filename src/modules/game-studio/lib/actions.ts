@@ -10,6 +10,8 @@ const CAPABILITY: Record<GameAction, string[]> = {
   run: ["run"],
   build: ["build"],
   editor: ["editor"],
+  import: ["import"],
+  blender: [],
 };
 
 export type Availability = { available: boolean; reason: string | null };

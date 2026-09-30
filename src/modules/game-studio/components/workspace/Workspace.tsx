@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Bot, Boxes, FileText, FolderSearch, Hammer, History, LayoutDashboard, ListChecks, Plug, ScrollText, Settings2, Wrench } from "lucide-react";
+import { ArrowLeft, BookOpen, Bot, Boxes, FileText, FolderSearch, Hammer, History, Images, LayoutDashboard, ListChecks, Plug, ScrollText, Settings2, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Badge, ResizeHandle, usePanelSize } from "@/design-system/primitives";
@@ -6,6 +6,7 @@ import { DIMENSION, ENGINE_LABEL, MODE, shortVersion } from "../../lib/labels";
 import { useGameStudioStore, type SectionId } from "../../store";
 import { EnvironmentPanel } from "../EnvironmentPanel";
 import { ErrorLine, focusRing } from "../ui";
+import { AssetsSection } from "./AssetsSection";
 import { AssistantSection } from "./AssistantSection";
 import { BuildSection } from "./BuildSection";
 import { CapabilitiesTable } from "./CapabilitiesTable";
@@ -38,6 +39,7 @@ export const SECTIONS: { title: string; items: SectionInfo[] }[] = [
     title: "Moteur",
     items: [
       { id: "build", label: "Build et tests", description: "Vérifier le code, lancer les tests et le jeu, exporter un build : les vraies commandes du moteur, leurs erreurs expliquées.", icon: Hammer, wide: true },
+      { id: "assets", label: "Ressources", description: "Images, modèles et sons du jeu : générés, ajoutés ou exportés par Blender, suivis jusqu'à leur import dans le moteur.", icon: Images, wide: true },
       { id: "map", label: "Carte du projet", description: "Ce que contient le dossier du jeu, les systèmes déjà codés et les risques.", icon: FolderSearch },
     ],
   },
@@ -76,6 +78,8 @@ function Content({ id }: { id: SectionId }) {
       return <DocumentsSection />;
     case "build":
       return <BuildSection />;
+    case "assets":
+      return <AssetsSection />;
     case "map":
       return <MapSection />;
     case "history":

@@ -17,6 +17,7 @@ use ts_rs::TS;
 
 use crate::core::{AppError, AppResult};
 
+use super::assets::Followup;
 use super::engines::{CommandSpec, GameAction};
 use super::types::{GameBuildRecord, GameLogLevel, GamePlatform};
 
@@ -172,6 +173,8 @@ pub struct PreparedJob {
     pub spec: CommandSpec,
     pub started_at: String,
     pub cancelled: Arc<AtomicBool>,
+    /// Suite à donner en cas de réussite (ressources : lecture, export, import).
+    pub followup: Option<Followup>,
 }
 
 /// Ce que l'exécution a donné.
@@ -200,11 +203,25 @@ pub fn command_line(spec: &CommandSpec) -> String {
         .join(" ")
 }
 
+/// Option à la manière d'Unreal (`-script="C:\Mes jeux\import.py"`) : Unreal lit sa ligne de
+/// commande brute, elle passe donc telle quelle, sans l'échappement habituel des guillemets.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn verbatim(arg: &str) -> bool {
+    arg.starts_with('-') && arg.contains("=\"") && arg.ends_with('"')
+}
+
 /// Lance un programme graphique sans l'attendre (éditeur du moteur).
 pub fn spawn_detached(spec: &CommandSpec) -> AppResult<()> {
     let mut command = crate::core::process::command(&spec.program);
+    for arg in &spec.args {
+        #[cfg(windows)]
+        if verbatim(arg) {
+            std::os::windows::process::CommandExt::raw_arg(&mut command, arg);
+            continue;
+        }
+        command.arg(arg);
+    }
     command
-        .args(&spec.args)
         .current_dir(&spec.cwd)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -236,8 +253,15 @@ pub async fn run(
     let spec = &job.spec;
 
     let mut command = crate::core::process::async_command(&spec.program);
+    for arg in &spec.args {
+        #[cfg(windows)]
+        if verbatim(arg) {
+            command.raw_arg(arg);
+            continue;
+        }
+        command.arg(arg);
+    }
     command
-        .args(&spec.args)
         .current_dir(&spec.cwd)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -416,6 +440,13 @@ fn walk_recent(dir: &Path, since: std::time::SystemTime, depth: u32) -> bool {
 mod tests {
     use super::*;
 
+    #[test]
+    fn unreal_style_options_pass_verbatim() {
+        assert!(verbatim("-script=\"C:\\Mes jeux\\import.py\""));
+        assert!(!verbatim("-script=C:/jeux/import.py"));
+        assert!(!verbatim("\"quoted\""));
+    }
+
     fn job(spec: CommandSpec, jobs: &Jobs) -> PreparedJob {
         let running = GameRunningJob {
             job_id: "j1".into(),
@@ -434,6 +465,7 @@ mod tests {
             spec,
             started_at: String::new(),
             cancelled,
+            followup: None,
         }
     }
 

@@ -20,7 +20,7 @@ use std::time::Duration;
 use crate::core::{AppError, AppResult};
 
 use super::{
-    capability, check, display, ensure_empty_dir, env_dir, files_in, keep_dir, subdirs, write_file,
+    blender_is_not_engine, capability, check, display, ensure_empty_dir, env_dir, files_in, keep_dir, subdirs, write_file,
     ActionContext, CommandSpec, Created, EngineAdapter, EngineProject, GameAction, NewProject,
 };
 use crate::modules::game_studio::types::{
@@ -528,6 +528,14 @@ impl EngineAdapter for Unreal {
                 None,
             ),
             capability(
+                "import",
+                "Importer les ressources (SourceArt vers Content)",
+                GameCapabilityVia::Cli,
+                Some("Extension Python Editor Script activée"),
+                Some(editor && python),
+                Some("UnrealEditor-Cmd -run=pythonscript : un .uasset par fichier, dans Content/Game.".to_string()),
+            ),
+            capability(
                 "levels",
                 "Créer des cartes et des Blueprints",
                 GameCapabilityVia::Mcp,
@@ -717,6 +725,35 @@ impl EngineAdapter for Unreal {
                 None,
                 true,
             ),
+            // Les fichiers bruts de SourceArt/ deviennent des .uasset de Content/Game/ par le
+            // script d'import écrit par Game Studio (extension Python de l'éditeur).
+            GameAction::Import => {
+                let script = display(&ctx.root.join(super::UNREAL_IMPORT_SCRIPT));
+                let script = if cfg!(windows) {
+                    format!("-script=\"{script}\"")
+                } else {
+                    format!("-script={script}")
+                };
+                let mut s = spec(
+                    PathBuf::from(&console),
+                    vec![
+                        project,
+                        "-run=pythonscript".into(),
+                        script,
+                        "-unattended".into(),
+                        "-nopause".into(),
+                        "-nosplash".into(),
+                        "-nullrhi".into(),
+                        "-stdout".into(),
+                        "-FullStdOutLogOutput".into(),
+                    ],
+                    Some(3600),
+                    false,
+                );
+                s.success_marker = Some(super::UNREAL_IMPORT_MARKER.to_string());
+                s
+            }
+            GameAction::Blender => return Err(blender_is_not_engine()),
         })
     }
 

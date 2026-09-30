@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use crate::core::{AppError, AppResult};
 
 use super::agents;
+use super::assets::{self, Followup, GameAssetJob, GameAssetsView, GameBlendInfo, GameImageRequest};
 use super::analysis::{self, Installed};
 use super::builds;
 use super::catalog::catalog;
@@ -35,6 +36,10 @@ pub struct GameStudio {
     graph_lock: Mutex<()>,
     /// Action moteur en cours, par projet.
     jobs: Jobs,
+    /// Fournisseurs d'images (clés `game-studio-<fournisseur>`, ou celles d'un autre module).
+    imaging: crate::core::imaging::Imaging,
+    /// Génération d'image en cours, par projet (de quoi l'annuler).
+    image_jobs: Mutex<HashMap<String, tokio::sync::watch::Sender<bool>>>,
 }
 
 fn now() -> String {
@@ -201,6 +206,8 @@ impl GameStudio {
         let _ = std::fs::create_dir_all(&dir);
         Self {
             store: Store::new(&dir),
+            imaging: crate::core::imaging::Imaging::new(super::ID, &dir),
+            image_jobs: Mutex::new(HashMap::new()),
             dir,
             env: Mutex::new(None),
             graph_lock: Mutex::new(()),
@@ -678,6 +685,26 @@ impl GameStudio {
                 "Cette action ouvre un programme sans le suivre : utilisez « Ouvrir l'éditeur ».",
             ));
         }
+        if action == GameAction::Import {
+            return Err(AppError::invalid(
+                "L'import des ressources se lance depuis la section Ressources.",
+            ));
+        }
+        let mut job = self.claim_job(id, root, action, spec, None)?;
+        job.platform = (action == GameAction::Build).then_some(platform);
+        job.development = development;
+        Ok(job)
+    }
+
+    /// Réserve le projet pour une commande préparée.
+    fn claim_job(
+        &self,
+        id: &str,
+        root: PathBuf,
+        action: GameAction,
+        spec: engines::CommandSpec,
+        followup: Option<Followup>,
+    ) -> AppResult<PreparedJob> {
         let job_id = graph::new_id("run");
         let started_at = now();
         let cancelled = self.jobs.claim(
@@ -694,11 +721,12 @@ impl GameStudio {
             job_id,
             root,
             action,
-            platform: (action == GameAction::Build).then_some(platform),
-            development,
+            platform: None,
+            development: false,
             spec,
             started_at,
             cancelled,
+            followup,
         })
     }
 
@@ -858,6 +886,7 @@ impl GameStudio {
                 .unwrap_or_else(|| "arrêt anormal".to_string());
             let base = match job.action {
                 GameAction::Run => format!("Le jeu s'est arrêté sur une erreur ({code})."),
+                GameAction::Blender => format!("Blender s'est arrêté sur une erreur ({code})."),
                 GameAction::Check => format!("Vérification échouée : {errors} erreur(s)."),
                 GameAction::Test if failed_tests > 0 => {
                     format!("{failed_tests} test(s) échoué(s).")
@@ -905,8 +934,20 @@ impl GameStudio {
                 ),
                 GameAction::Run => "Partie terminée : le jeu s'est fermé normalement.".to_string(),
                 GameAction::Editor => "Éditeur fermé.".to_string(),
+                GameAction::Import => format!("Importation terminée en {seconds} s.{note}"),
+                GameAction::Blender => format!("Blender a terminé en {seconds} s.{note}"),
             };
             (GameBuildStatus::Success, text)
+        };
+        // Ressources : la suite (lecture enregistrée, export ajouté au registre, import constaté).
+        let (status, summary) = match (&job.followup, status) {
+            (Some(followup), GameBuildStatus::Success) => {
+                match self.follow_up(&job.project_id, root, followup, &summary) {
+                    Ok(text) => (status, text),
+                    Err(error) => (GameBuildStatus::Failed, error.message),
+                }
+            }
+            _ => (status, summary),
         };
 
         let record = GameBuildRecord {
@@ -929,6 +970,7 @@ impl GameStudio {
             GameAction::Setup | GameAction::Build => GameLogCategory::Build,
             GameAction::Check | GameAction::Test => GameLogCategory::Test,
             GameAction::Run | GameAction::Editor => GameLogCategory::Engine,
+            GameAction::Import | GameAction::Blender => GameLogCategory::Asset,
         };
         let level = match status {
             GameBuildStatus::Failed => GameLogLevel::Error,
@@ -1320,6 +1362,724 @@ impl GameStudio {
             self.graph_op(id, GameGraphOp::AddChange { change }, by)?;
         }
         Ok(written)
+    }
+
+    // ── Ressources ────────────────────────────────────────────────────────────────────
+
+    fn blender_tool(&self) -> Option<assets::GameBlenderTool> {
+        self.environment(false)
+            .tools
+            .into_iter()
+            .find(|t| t.id == "blender" && t.state == GameToolState::Ready)
+            .and_then(|t| {
+                t.path.map(|path| assets::GameBlenderTool {
+                    path,
+                    version: t.version,
+                })
+            })
+    }
+
+    fn blender_path(&self) -> AppResult<PathBuf> {
+        self.blender_tool()
+            .map(|t| PathBuf::from(t.path))
+            .ok_or_else(|| {
+                AppError::cli_missing(
+                    "Blender n'est pas installé sur cette machine : installez-le depuis l'onglet Outils, ou désignez son exécutable.",
+                )
+            })
+    }
+
+    /// Registre, fichiers de ressources hors registre, et ce que le moteur a pris en compte.
+    pub fn assets(&self, id: &str) -> AppResult<GameAssetsView> {
+        let root = self.root(id)?;
+        let engine = store::load_project(&root)?.engine;
+        let graph = store::load_graph(&root);
+        let entries = graph
+            .assets
+            .iter()
+            .map(|a| assets::entry(&root, engine, a))
+            .collect();
+        // Fichiers déjà connus : ceux du registre et les versions précédentes des images.
+        let registered: HashSet<String> = graph
+            .assets
+            .iter()
+            .flat_map(|a| {
+                a.path
+                    .iter()
+                    .cloned()
+                    .chain(a.generations.iter().map(|g| g.output.clone()))
+            })
+            .collect();
+        let ignored: Vec<&str> = engine
+            .map(|e| engines::adapter(e).ignored_dirs().to_vec())
+            .unwrap_or_default();
+        let (loose, loose_truncated) = assets::loose_files(&root, engine, &ignored, &registered);
+        Ok(GameAssetsView {
+            entries,
+            loose,
+            loose_truncated,
+            folder: assets::assets_root(engine).to_string(),
+            import_hint: assets::import_hint(engine),
+            blender: self.blender_tool(),
+        })
+    }
+
+    fn register_path(
+        &self,
+        id: &str,
+        rel: &str,
+        kind: GameAssetKind,
+        source: GameAssetSource,
+        dependencies: Vec<String>,
+        by: &str,
+    ) -> AppResult<GameAsset> {
+        let root = &self.root(id)?;
+        if let Some(existing) = store::load_graph(root)
+            .assets
+            .into_iter()
+            .find(|a| a.path.as_deref() == Some(rel))
+        {
+            return Ok(existing);
+        }
+        let engine = store::load_project(root)?.engine;
+        let status = if engine.is_some() && assets::in_engine(root, engine, rel) {
+            GameAssetStatus::Integrated
+        } else {
+            GameAssetStatus::Imported
+        };
+        let mut asset =
+            assets::new_asset(graph::new_id("as"), rel, kind, source, status, now());
+        asset.dependencies = dependencies;
+        self.graph_op(id, GameGraphOp::UpsertAsset { asset: asset.clone() }, by)?;
+        Ok(asset)
+    }
+
+    /// Copie des fichiers de la machine dans le dossier des ressources et les inscrit au
+    /// registre (un fichier déjà dans le projet est seulement inscrit).
+    pub fn import_assets(
+        &self,
+        id: &str,
+        paths: &[String],
+        kind: Option<GameAssetKind>,
+        by: &str,
+    ) -> AppResult<Vec<GameAsset>> {
+        let root = self.root(id)?;
+        let engine = store::load_project(&root)?.engine;
+        let mut added = Vec::new();
+        for path in paths {
+            let source = PathBuf::from(path);
+            let kind = kind.unwrap_or_else(|| assets::kind_for(&source));
+            let (rel, linked) = assets::copy_into_project(&root, engine, &source, kind)?;
+            assets::protect_dir(&root, engine, &rel);
+            // Textures d'un .gltf : inscrites elles aussi, le modèle en dépend.
+            let dir = Path::new(&rel)
+                .parent()
+                .map(|p| p.to_string_lossy().replace('\\', "/"))
+                .unwrap_or_default();
+            let mut dependencies = Vec::new();
+            for link in linked {
+                let link_rel = format!("{dir}/{link}");
+                if assets::kind_for(Path::new(&link_rel)) == GameAssetKind::Texture {
+                    let texture = self.register_path(
+                        id,
+                        &link_rel,
+                        GameAssetKind::Texture,
+                        GameAssetSource::Manual,
+                        Vec::new(),
+                        by,
+                    )?;
+                    dependencies.push(texture.id);
+                }
+            }
+            added.push(self.register_path(
+                id,
+                &rel,
+                kind,
+                GameAssetSource::Manual,
+                dependencies,
+                by,
+            )?);
+        }
+        if !added.is_empty() {
+            let names: Vec<String> = added.iter().filter_map(|a| a.path.clone()).collect();
+            journal::info(
+                &root,
+                GameLogCategory::Asset,
+                &format!("{} ressource(s) ajoutée(s) : {}", added.len(), names.join(", ")),
+            );
+        }
+        Ok(added)
+    }
+
+    /// Inscrit au registre un fichier déjà présent dans le projet.
+    pub fn register_asset(
+        &self,
+        id: &str,
+        path: &str,
+        kind: Option<GameAssetKind>,
+        by: &str,
+    ) -> AppResult<GameAsset> {
+        let root = self.root(id)?;
+        let rel = assets::safe_relative(path)?;
+        if !root.join(&rel).is_file() {
+            return Err(AppError::not_found(format!(
+                "Aucun fichier {rel} dans le projet."
+            )));
+        }
+        let kind = kind.unwrap_or_else(|| assets::kind_for(Path::new(&rel)));
+        self.register_path(id, &rel, kind, GameAssetSource::Scanned, Vec::new(), by)
+    }
+
+    /// Dernière lecture d'un fichier .blend par Blender.
+    pub fn blend_info(&self, id: &str, asset: &str) -> AppResult<Option<GameBlendInfo>> {
+        Ok(assets::load_blend_info(&self.root(id)?, asset))
+    }
+
+    /// Prépare un travail sur les ressources (Blender ou import par le moteur), suivi comme
+    /// une action moteur : sortie en direct, arrêt, historique, problème ouvert si échec.
+    pub fn prepare_asset_job(&self, id: &str, job: GameAssetJob) -> AppResult<PreparedJob> {
+        let root = self.root(id)?;
+        let engine = store::load_project(&root)?.engine;
+        let graph = store::load_graph(&root);
+        let find = |asset: &str| {
+            graph
+                .assets
+                .iter()
+                .find(|a| a.id == asset)
+                .cloned()
+                .ok_or_else(|| AppError::not_found("Ressource inconnue : relisez la liste des ressources."))
+        };
+        let blend_of = |asset: &GameAsset| -> AppResult<PathBuf> {
+            let rel = asset
+                .path
+                .as_deref()
+                .filter(|p| p.to_lowercase().ends_with(".blend"))
+                .ok_or_else(|| AppError::invalid("Seuls les fichiers .blend s'ouvrent dans Blender."))?;
+            let file = root.join(rel);
+            if !file.is_file() {
+                return Err(AppError::not_found(format!("Fichier absent : {rel}")));
+            }
+            Ok(file)
+        };
+        match job {
+            GameAssetJob::EngineImport => {
+                let engine = engine.ok_or_else(|| {
+                    AppError::invalid("Choisissez d'abord un moteur dans Réglages.")
+                })?;
+                if engine == GameEngine::Unreal {
+                    let files: Vec<String> = graph
+                        .assets
+                        .iter()
+                        .filter_map(|a| a.path.clone())
+                        .filter(|p| {
+                            p.starts_with("SourceArt/")
+                                && root.join(p).is_file()
+                                && !assets::in_engine(&root, Some(engine), p)
+                        })
+                        .collect();
+                    if files.is_empty() {
+                        return Err(AppError::invalid(
+                            "Rien à importer : les ressources du registre rangées dans SourceArt/ sont déjà dans Unreal.",
+                        ));
+                    }
+                    let script = root.join(engines::UNREAL_IMPORT_SCRIPT);
+                    if let Some(parent) = script.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    std::fs::write(&script, assets::unreal_import_script(&root, &files))?;
+                }
+                let (root, spec, _) = self.action_command(id, GameAction::Import, None, false)?;
+                self.claim_job(id, root, GameAction::Import, spec, Some(Followup::Import))
+            }
+            GameAssetJob::BlenderInspect { asset } => {
+                let asset = find(&asset)?;
+                let file = blend_of(&asset)?;
+                let blender = self.blender_path()?;
+                let scripts = assets::write_blender_scripts(&root)?;
+                let json = assets::blend_info_path(&root, &asset.id);
+                if let Some(parent) = json.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                let _ = std::fs::remove_file(&json);
+                let mut spec = assets::blender_command(
+                    &blender,
+                    &root,
+                    Some(&file),
+                    &scripts.join("inspect.py"),
+                    &[display(&json)],
+                    true,
+                    300,
+                );
+                spec.output = Some(json.clone());
+                spec.success_marker = Some(assets::BLENDER_MARKER.to_string());
+                self.claim_job(
+                    id,
+                    root,
+                    GameAction::Blender,
+                    spec,
+                    Some(Followup::Inspect {
+                        asset: asset.id,
+                        json,
+                    }),
+                )
+            }
+            GameAssetJob::BlenderExport { asset, format } => {
+                let asset = find(&asset)?;
+                let file = blend_of(&asset)?;
+                let format = format.unwrap_or_else(|| assets::GameModelFormat::for_engine(engine));
+                let blender = self.blender_path()?;
+                // Un nouvel export du même fichier remplace le précédent (nouvelle version).
+                let suffix = format!(".{}", format.ext());
+                let previous = graph.assets.iter().find_map(|d| {
+                    d.path.clone().filter(|p| {
+                        d.source == GameAssetSource::Blender
+                            && d.dependencies.contains(&asset.id)
+                            && p.to_lowercase().ends_with(&suffix)
+                    })
+                });
+                let output = previous.unwrap_or_else(|| {
+                    let stem = file
+                        .file_stem()
+                        .map(|s| s.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "modele".to_string());
+                    assets::unique_path(
+                        &root,
+                        &assets::asset_dir(engine, GameAssetKind::Model),
+                        &format!("{stem}{suffix}"),
+                    )
+                });
+                let scripts = assets::write_blender_scripts(&root)?;
+                let target = root.join(&output);
+                let mut spec = assets::blender_command(
+                    &blender,
+                    &root,
+                    Some(&file),
+                    &scripts.join("export.py"),
+                    &[display(&target), format.ext().to_string()],
+                    true,
+                    900,
+                );
+                spec.output = Some(target);
+                spec.success_marker = Some(assets::BLENDER_MARKER.to_string());
+                self.claim_job(
+                    id,
+                    root,
+                    GameAction::Blender,
+                    spec,
+                    Some(Followup::Export {
+                        asset: asset.id,
+                        output,
+                        format,
+                    }),
+                )
+            }
+            GameAssetJob::BlenderScript { script, blend } => {
+                let rel = assets::safe_relative(&script)?;
+                if !rel.to_lowercase().ends_with(".py") {
+                    return Err(AppError::invalid("Un script Python (.py) du projet est attendu."));
+                }
+                let path = root.join(&rel);
+                if !path.is_file() {
+                    return Err(AppError::not_found(format!("Aucun script {rel} dans le projet.")));
+                }
+                let blend = match blend {
+                    Some(b) => {
+                        let b = assets::safe_relative(&b)?;
+                        let file = root.join(&b);
+                        if !file.is_file() || !b.to_lowercase().ends_with(".blend") {
+                            return Err(AppError::not_found(format!("Aucun fichier .blend {b} dans le projet.")));
+                        }
+                        Some(file)
+                    }
+                    None => None,
+                };
+                let blender = self.blender_path()?;
+                let spec = assets::blender_command(
+                    &blender,
+                    &root,
+                    blend.as_deref(),
+                    &path,
+                    &[],
+                    false,
+                    1800,
+                );
+                self.claim_job(
+                    id,
+                    root,
+                    GameAction::Blender,
+                    spec,
+                    Some(Followup::Script { script: rel }),
+                )
+            }
+        }
+    }
+
+    /// Suite d'un travail réussi sur les ressources ; le texte devient le résumé.
+    fn follow_up(
+        &self,
+        id: &str,
+        root: &Path,
+        followup: &Followup,
+        summary: &str,
+    ) -> AppResult<String> {
+        let engine = store::load_project(root).ok().and_then(|p| p.engine);
+        let graph = store::load_graph(root);
+        match followup {
+            Followup::Inspect { asset, json } => {
+                let raw = std::fs::read_to_string(json).map_err(|_| {
+                    AppError::internal("Blender n'a pas écrit le résumé attendu.")
+                })?;
+                let info: GameBlendInfo = serde_json::from_str(&raw).map_err(|e| {
+                    AppError::internal(format!("Résumé de Blender illisible : {e}"))
+                })?;
+                let info = assets::analyze_blend(info, now());
+                std::fs::write(json, serde_json::to_vec_pretty(&info)?)?;
+                let name = graph
+                    .assets
+                    .iter()
+                    .find(|a| &a.id == asset)
+                    .map(|a| a.name.clone())
+                    .unwrap_or_default();
+                let meshes = info.objects.iter().filter(|o| o.kind == "MESH").count();
+                let mut text = format!(
+                    "{name} lu par Blender {} : {} objet(s) dont {meshes} maillage(s), {} triangles, {} matériau(x), {} animation(s).",
+                    info.blender,
+                    info.objects.len(),
+                    info.triangles,
+                    info.materials.len(),
+                    info.actions.len()
+                );
+                if !info.warnings.is_empty() {
+                    text.push_str(&format!(" {} point(s) à vérifier.", info.warnings.len()));
+                }
+                Ok(text)
+            }
+            Followup::Export {
+                asset,
+                output,
+                format,
+            } => {
+                let source = graph.assets.iter().find(|a| &a.id == asset).cloned();
+                let existing = graph
+                    .assets
+                    .iter()
+                    .find(|a| a.path.as_deref() == Some(output.as_str()))
+                    .cloned();
+                let mut derived = match existing {
+                    Some(mut a) => {
+                        a.version += 1;
+                        a.status = GameAssetStatus::Processed;
+                        a
+                    }
+                    None => assets::new_asset(
+                        graph::new_id("as"),
+                        output,
+                        GameAssetKind::Model,
+                        GameAssetSource::Blender,
+                        GameAssetStatus::Processed,
+                        now(),
+                    ),
+                };
+                if let Some(source) = &source {
+                    derived.name = format!("{} ({})", source.name, format.ext().to_uppercase());
+                    if !derived.dependencies.contains(&source.id) {
+                        derived.dependencies.push(source.id.clone());
+                    }
+                }
+                derived.import_settings = Some(
+                    match format {
+                        assets::GameModelFormat::Glb => "glTF binaire (GLB) exporté par Blender : axe Y en haut, modificateurs appliqués.",
+                        assets::GameModelFormat::Fbx => "FBX exporté par Blender : échelle appliquée (FBX_SCALE_ALL), sans os de fin, textures intégrées.",
+                    }
+                    .to_string(),
+                );
+                self.graph_op(id, GameGraphOp::UpsertAsset { asset: derived }, "Blender")?;
+                let hint = if assets::in_engine(root, engine, output) {
+                    ""
+                } else {
+                    " Importez-le dans le moteur pour l'utiliser."
+                };
+                Ok(format!("Exporté : {output}.{hint}"))
+            }
+            Followup::Script { script } => Ok(format!("Script {script} : {summary}")),
+            Followup::Import => {
+                let mut integrated = 0;
+                let mut missing = Vec::new();
+                for asset in &graph.assets {
+                    let Some(path) = asset.path.as_deref() else {
+                        continue;
+                    };
+                    if asset.kind == GameAssetKind::Concept || !root.join(path).is_file() {
+                        continue;
+                    }
+                    if assets::in_engine(root, engine, path) {
+                        integrated += 1;
+                        if matches!(
+                            asset.status,
+                            GameAssetStatus::Concept
+                                | GameAssetStatus::Generated
+                                | GameAssetStatus::Imported
+                                | GameAssetStatus::Processed
+                        ) {
+                            let mut next = asset.clone();
+                            next.status = GameAssetStatus::Integrated;
+                            self.graph_op(id, GameGraphOp::UpsertAsset { asset: next }, "Game Studio")?;
+                        }
+                    } else {
+                        missing.push(path.to_string());
+                    }
+                }
+                let mut text =
+                    format!("{summary} {integrated} ressource(s) du registre dans le moteur.");
+                if !missing.is_empty() {
+                    let shown: Vec<&str> = missing.iter().take(6).map(String::as_str).collect();
+                    text.push_str(&format!(
+                        " Pas prises en compte ({}) : {}{} (format que le moteur ne lit pas, ou fichier hors de ses dossiers).",
+                        missing.len(),
+                        shown.join(", "),
+                        if missing.len() > shown.len() { "…" } else { "" }
+                    ));
+                }
+                Ok(text)
+            }
+        }
+    }
+
+    // ── Images générées ───────────────────────────────────────────────────────────────
+
+    pub async fn image_providers(&self, check: bool) -> Vec<crate::core::imaging::ProviderStatus> {
+        let tasks: Vec<_> = self
+            .imaging
+            .all()
+            .iter()
+            .cloned()
+            .map(|provider| tokio::spawn(async move { provider.status(check).await }))
+            .collect();
+        let mut out = Vec::new();
+        for task in tasks {
+            if let Ok(status) = task.await {
+                out.push(status);
+            }
+        }
+        out
+    }
+
+    pub async fn set_image_key(
+        &self,
+        provider: crate::core::imaging::ProviderId,
+        key: &str,
+    ) -> AppResult<crate::core::imaging::ProviderStatus> {
+        self.imaging.provider(provider)?.set_key(key.trim()).await
+    }
+
+    pub async fn clear_image_key(
+        &self,
+        provider: crate::core::imaging::ProviderId,
+    ) -> AppResult<crate::core::imaging::ProviderStatus> {
+        let provider = self.imaging.provider(provider)?;
+        provider.clear_key()?;
+        Ok(provider.status(false).await)
+    }
+
+    pub async fn image_login(
+        &self,
+        provider: crate::core::imaging::ProviderId,
+    ) -> AppResult<crate::core::imaging::ProviderStatus> {
+        self.imaging.provider(provider)?.login().await
+    }
+
+    pub async fn image_models(
+        &self,
+        provider: crate::core::imaging::ProviderId,
+    ) -> AppResult<crate::core::imaging::ModelList> {
+        self.imaging.provider(provider)?.models().await
+    }
+
+    /// Consigne qui sera envoyée, pour la relire avant de générer.
+    pub fn image_prompt(
+        &self,
+        id: &str,
+        prompt: &str,
+        kind: GameAssetKind,
+        use_style: bool,
+        transparent: bool,
+    ) -> AppResult<String> {
+        let project = store::load_project(&self.root(id)?)?;
+        Ok(assets::image_prompt(prompt, kind, &project.style, use_style, transparent))
+    }
+
+    /// Génère une image, l'écrit dans les ressources du projet et garde de quoi la refaire
+    /// (fournisseur, modèle, consigne, réglages, coût annoncé).
+    pub async fn generate_image(
+        self: &std::sync::Arc<Self>,
+        id: &str,
+        request: GameImageRequest,
+    ) -> AppResult<GameAsset> {
+        if request.prompt.trim().is_empty() {
+            return Err(AppError::invalid("Décrivez l'image à produire."));
+        }
+        if request.asset.is_none() && request.name.trim().is_empty() {
+            return Err(AppError::invalid("Donnez un nom à la ressource."));
+        }
+        let root = self.root(id)?;
+        let project = store::load_project(&root)?;
+        let prompt = assets::image_prompt(
+            &request.prompt,
+            request.kind,
+            &project.style,
+            request.use_style,
+            request.transparent,
+        );
+        let provider = self.imaging.provider(request.provider)?;
+        let (sender, cancel) = crate::core::imaging::cancel_pair();
+        {
+            let mut running = self
+                .image_jobs
+                .lock()
+                .map_err(|_| AppError::internal("générations verrouillées"))?;
+            if running.contains_key(id) {
+                return Err(AppError::invalid(
+                    "Une image est déjà en cours pour ce jeu : attendez-la ou annulez-la.",
+                ));
+            }
+            running.insert(id.to_string(), sender);
+        }
+        let image_request = crate::core::imaging::ImageRequest {
+            model: request.model.clone(),
+            prompt: prompt.clone(),
+            negative_prompt: request.negative_prompt.clone().filter(|n| !n.trim().is_empty()),
+            images: Vec::new(),
+            aspect_ratio: request.aspect_ratio.clone(),
+            resolution: request.resolution.clone(),
+            count: 1,
+            seed: request.seed,
+            quality: None,
+            transparent_background: request.transparent,
+        };
+        let result = provider.generate(&image_request, cancel).await;
+        if let Ok(mut running) = self.image_jobs.lock() {
+            running.remove(id);
+        }
+        let response = result?;
+        let studio = self.clone();
+        let id = id.to_string();
+        tokio::task::spawn_blocking(move || studio.save_generated(&id, &request, &prompt, response))
+            .await
+            .map_err(|e| AppError::internal(format!("enregistrement interrompu : {e}")))?
+    }
+
+    pub fn cancel_image(&self, id: &str) -> AppResult<()> {
+        let running = self
+            .image_jobs
+            .lock()
+            .map_err(|_| AppError::internal("générations verrouillées"))?;
+        let sender = running
+            .get(id)
+            .ok_or_else(|| AppError::not_found("Aucune image en cours pour ce jeu."))?;
+        let _ = sender.send(true);
+        Ok(())
+    }
+
+    fn save_generated(
+        &self,
+        id: &str,
+        request: &GameImageRequest,
+        prompt: &str,
+        response: crate::core::imaging::ImageResponse,
+    ) -> AppResult<GameAsset> {
+        let root = self.root(id)?;
+        let engine = store::load_project(&root)?.engine;
+        let image = response
+            .images
+            .into_iter()
+            .next()
+            .ok_or_else(|| AppError::internal("Le fournisseur n'a rendu aucune image."))?;
+        let ext = assets::image_ext(&image.bytes)
+            .ok_or_else(|| AppError::internal("Le fournisseur a rendu un fichier qui n'est pas une image connue."))?;
+        let graph = store::load_graph(&root);
+        let previous = match &request.asset {
+            Some(asset) => Some(
+                graph
+                    .assets
+                    .iter()
+                    .find(|a| &a.id == asset)
+                    .cloned()
+                    .ok_or_else(|| AppError::not_found("Ressource inconnue : relisez la liste des ressources."))?,
+            ),
+            None => None,
+        };
+        let (rel, mut asset) = match previous {
+            Some(mut asset) => {
+                // Nouvelle version à côté de l'ancienne : rien n'est écrasé.
+                let current = asset.path.clone().unwrap_or_default();
+                let dir = Path::new(&current)
+                    .parent()
+                    .map(|p| p.to_string_lossy().replace('\\', "/"))
+                    .unwrap_or_else(|| assets::asset_dir(engine, asset.kind));
+                let base = assets::file_stem(&asset.name);
+                asset.version += 1;
+                let rel = assets::unique_path(&root, &dir, &format!("{base}-v{}.{ext}", asset.version));
+                (rel, asset)
+            }
+            None => {
+                let dir = assets::asset_dir(engine, request.kind);
+                let rel = assets::unique_path(
+                    &root,
+                    &dir,
+                    &format!("{}.{ext}", assets::file_stem(&request.name)),
+                );
+                let mut asset = assets::new_asset(
+                    graph::new_id("as"),
+                    &rel,
+                    request.kind,
+                    GameAssetSource::Generated,
+                    GameAssetStatus::Generated,
+                    now(),
+                );
+                asset.name = request.name.trim().to_string();
+                (rel, asset)
+            }
+        };
+        let target = root.join(&rel);
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&target, &image.bytes)?;
+        assets::protect_dir(&root, engine, &rel);
+        asset.path = Some(rel.clone());
+        asset.status = GameAssetStatus::Generated;
+        asset.source = GameAssetSource::Generated;
+        asset.generations.push(GameGeneration {
+            provider: request.provider.slug().to_string(),
+            model: request.model.clone(),
+            prompt: prompt.to_string(),
+            params: serde_json::json!({
+                "request": request.prompt,
+                "kind": request.kind,
+                "aspectRatio": request.aspect_ratio,
+                "resolution": request.resolution,
+                "negativePrompt": request.negative_prompt,
+                "transparent": request.transparent,
+                "useStyle": request.use_style,
+                "usage": response.usage,
+                "dropped": response.dropped,
+            }),
+            seed: request.seed.map(|s| s.to_string()),
+            at: now(),
+            output: rel.clone(),
+        });
+        self.graph_op(id, GameGraphOp::UpsertAsset { asset: asset.clone() }, "vous")?;
+        journal::info(
+            &root,
+            GameLogCategory::Ai,
+            &format!(
+                "Image générée : {rel} ({}, {})",
+                request.provider.label(),
+                request.model
+            ),
+        );
+        crate::core::audit::record("game-studio.image", &rel, "ok", "user");
+        Ok(asset)
     }
 
     // ── Historique (Git) ──────────────────────────────────────────────────────────────
@@ -1748,5 +2508,210 @@ mod tests {
         a.dependencies = vec!["damage".into()];
         b.dependencies = vec!["health".into()];
         assert!(dependency_order(&[a, b]).is_err());
+    }
+
+    fn image_request(name: &str, asset: Option<String>) -> GameImageRequest {
+        GameImageRequest {
+            provider: crate::core::imaging::ProviderId::Gemini,
+            model: "gemini-image".into(),
+            prompt: "Sol de forêt moussu".into(),
+            name: name.into(),
+            kind: GameAssetKind::Texture,
+            asset,
+            aspect_ratio: Some("1:1".into()),
+            resolution: None,
+            seed: Some(7),
+            negative_prompt: None,
+            transparent: false,
+            use_style: true,
+        }
+    }
+
+    fn png(tag: u8) -> crate::core::imaging::ImageResponse {
+        crate::core::imaging::ImageResponse {
+            images: vec![crate::core::imaging::GeneratedImage {
+                bytes: vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, tag],
+            }],
+            usage: crate::core::imaging::ImageUsage {
+                cost_usd: Some(0.04),
+                ..Default::default()
+            },
+            dropped: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn assets_are_imported_registered_generated_and_listed() {
+        let (studio, base) = studio("assets");
+        let analysis = studio.analyze("Un jeu d'exploration en 3D dans une forêt.").unwrap();
+        let outcome = studio
+            .create(request(&analysis, &base.join("jeux"), Some(GameEngine::Godot)))
+            .unwrap();
+        let id = outcome.project.id.clone();
+        let root = PathBuf::from(&outcome.project.root);
+
+        // Fichier de la machine : copié dans assets/, inscrit, pas encore importé par Godot.
+        let outside = base.join("dehors");
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::write(outside.join("écorce.png"), [0x89, b'P', b'N', b'G']).unwrap();
+        let added = studio
+            .import_assets(&id, &[display(&outside.join("écorce.png"))], None, "vous")
+            .unwrap();
+        assert_eq!(added[0].path.as_deref(), Some("assets/textures/écorce.png"));
+        assert_eq!(added[0].kind, GameAssetKind::Texture);
+        assert_eq!(added[0].status, GameAssetStatus::Imported);
+        assert!(root.join("assets/textures/écorce.png").is_file());
+
+        // Fichier déjà dans le projet : proposé hors registre, puis inscrit sans copie.
+        std::fs::create_dir_all(root.join("art")).unwrap();
+        std::fs::write(root.join("art/rocher.glb"), b"glTF").unwrap();
+        let view = studio.assets(&id).unwrap();
+        assert!(view.loose.iter().any(|l| l.path == "art/rocher.glb" && l.kind == GameAssetKind::Model));
+        assert!(!view.loose.iter().any(|l| l.path == "assets/textures/écorce.png"));
+        let entry = view.entries.iter().find(|e| e.asset.id == added[0].id).unwrap();
+        assert!(entry.exists && !entry.in_engine);
+        let rocher = studio.register_asset(&id, "art/rocher.glb", None, "vous").unwrap();
+        assert_eq!(rocher.source, GameAssetSource::Scanned);
+        assert!(!studio.assets(&id).unwrap().loose.iter().any(|l| l.path == "art/rocher.glb"));
+        assert!(studio.register_asset(&id, "../secret.png", None, "vous").is_err());
+        assert!(studio.register_asset(&id, "art/absent.png", None, "vous").is_err());
+
+        // Blender n'ouvre que des .blend ; un script doit exister dans le projet.
+        let inspect = studio.prepare_asset_job(
+            &id,
+            GameAssetJob::BlenderInspect { asset: rocher.id.clone() },
+        );
+        assert!(inspect.err().is_some_and(|e| e.message.contains(".blend")));
+        assert!(studio
+            .prepare_asset_job(&id, GameAssetJob::BlenderScript { script: "tools/absent.py".into(), blend: None })
+            .is_err());
+        assert!(studio.current_action(&id).is_none());
+
+        // Image générée : écrite, inscrite avec sa trace ; une nouvelle version n'écrase rien.
+        let first = studio
+            .save_generated(&id, &image_request("Sol de forêt", None), "consigne", png(1))
+            .unwrap();
+        assert_eq!(first.path.as_deref(), Some("assets/textures/sol-de-foret.png"));
+        assert_eq!(first.status, GameAssetStatus::Generated);
+        let generation = &first.generations[0];
+        assert_eq!(generation.provider, "gemini");
+        assert_eq!(generation.seed.as_deref(), Some("7"));
+        assert_eq!(generation.params["usage"]["costUsd"], 0.04);
+        assert_eq!(generation.params["request"], "Sol de forêt moussu");
+        let second = studio
+            .save_generated(&id, &image_request("", Some(first.id.clone())), "consigne", png(2))
+            .unwrap();
+        assert_eq!(second.id, first.id);
+        assert_eq!(second.version, 2);
+        assert_eq!(second.path.as_deref(), Some("assets/textures/sol-de-foret-v2.png"));
+        assert_eq!(second.generations.len(), 2);
+        assert!(root.join("assets/textures/sol-de-foret.png").is_file());
+        let view = studio.assets(&id).unwrap();
+        assert!(!view.loose.iter().any(|l| l.path.starts_with("assets/textures/sol-de-foret")));
+        assert_eq!(view.entries.len(), 3);
+
+        // Concepts : hors du jeu, et Godot ne les importe pas.
+        let mut concept = image_request("Village au crépuscule", None);
+        concept.kind = GameAssetKind::Concept;
+        let art = studio.save_generated(&id, &concept, "consigne", png(3)).unwrap();
+        assert_eq!(art.path.as_deref(), Some("docs/concepts/village-au-crepuscule.png"));
+        assert!(root.join("docs/.gdignore").is_file());
+
+        let prompt = studio
+            .image_prompt(&id, "Épée courte", GameAssetKind::Sprite, false, true)
+            .unwrap();
+        assert!(prompt.starts_with("Épée courte\nUsage : sprite"));
+        assert!(prompt.ends_with("Fond transparent."));
+    }
+
+    #[tokio::test]
+    #[ignore = "demande Blender et Godot 4 : GAMESTUDIO_BLENDER=<blender> GAMESTUDIO_GODOT=<godot>"]
+    async fn real_blender_and_godot_asset_pipeline() {
+        let (Ok(blender), Ok(godot)) = (
+            std::env::var("GAMESTUDIO_BLENDER"),
+            std::env::var("GAMESTUDIO_GODOT"),
+        ) else {
+            return;
+        };
+        let (studio, base) = studio("blender");
+        let studio = std::sync::Arc::new(studio);
+        studio.set_tool_path("godot", Some(&godot)).unwrap();
+        studio.set_tool_path("blender", Some(&blender)).unwrap();
+        let analysis = studio.analyze("Un jeu d'aventure en 3D avec des caisses à pousser.").unwrap();
+        let outcome = studio
+            .create(request(&analysis, &base.join("jeux"), Some(GameEngine::Godot)))
+            .unwrap();
+        let id = outcome.project.id.clone();
+        let root = PathBuf::from(&outcome.project.root);
+        let run = |job| {
+            let prepared = studio.prepare_asset_job(&id, job).unwrap();
+            studio.run_prepared(prepared, |_| {})
+        };
+
+        // Un script du projet fabrique le fichier .blend (Blender sans fenêtre).
+        std::fs::create_dir_all(root.join("tools")).unwrap();
+        std::fs::write(
+            root.join("tools/make_props.py"),
+            "import os\nimport bpy\nbpy.ops.wm.read_factory_settings(use_empty=True)\nbpy.ops.mesh.primitive_monkey_add()\nbpy.context.object.name = 'Suzanne'\nbpy.context.object.scale = (2, 2, 2)\nbpy.ops.mesh.primitive_cube_add(location=(3, 0, 0))\ncube = bpy.context.object\ncube.name = 'Caisse'\ncube.keyframe_insert('location', frame=1)\ncube.location.x = 5\ncube.keyframe_insert('location', frame=24)\nos.makedirs('assets/models', exist_ok=True)\nbpy.ops.wm.save_as_mainfile(filepath=os.path.abspath('assets/models/props.blend'))\n",
+        )
+        .unwrap();
+        let made = run(GameAssetJob::BlenderScript { script: "tools/make_props.py".into(), blend: None }).await;
+        assert_eq!(made.status, GameBuildStatus::Success, "{}", made.summary);
+        assert!(made.summary.starts_with("Script tools/make_props.py"), "{}", made.summary);
+        assert_eq!(made.action, GameAction::Blender);
+        let blend = studio.register_asset(&id, "assets/models/props.blend", None, "vous").unwrap();
+
+        // Lecture : objets, triangles, animation, échelle non appliquée signalée.
+        let read = run(GameAssetJob::BlenderInspect { asset: blend.id.clone() }).await;
+        assert_eq!(read.status, GameBuildStatus::Success, "{}", read.summary);
+        assert!(read.summary.contains("980 triangles"), "{}", read.summary);
+        let info = studio.blend_info(&id, &blend.id).unwrap().unwrap();
+        assert_eq!(info.objects.len(), 2);
+        assert_eq!(info.actions.len(), 1);
+        assert!(info.warnings.iter().any(|w| w.contains("Suzanne")), "{:?}", info.warnings);
+
+        // Export pour Godot (GLB), inscrit au registre avec sa source.
+        let exported = run(GameAssetJob::BlenderExport { asset: blend.id.clone(), format: None }).await;
+        assert_eq!(exported.status, GameBuildStatus::Success, "{}", exported.summary);
+        assert_eq!(exported.output.as_deref().map(|o| o.ends_with("assets/models/props.glb")), Some(true));
+        let graph = store::load_graph(&root);
+        let glb = graph.assets.iter().find(|a| a.path.as_deref() == Some("assets/models/props.glb")).unwrap().clone();
+        assert_eq!(glb.source, GameAssetSource::Blender);
+        assert_eq!(glb.dependencies, vec![blend.id.clone()]);
+        assert_eq!(glb.status, GameAssetStatus::Processed);
+        // Un second export remplace le premier (nouvelle version, même fichier).
+        let again = run(GameAssetJob::BlenderExport { asset: blend.id.clone(), format: None }).await;
+        assert_eq!(again.status, GameBuildStatus::Success, "{}", again.summary);
+        let graph = store::load_graph(&root);
+        assert_eq!(graph.assets.iter().filter(|a| a.source == GameAssetSource::Blender).count(), 1);
+        assert_eq!(graph.assets.iter().find(|a| a.id == glb.id).unwrap().version, 2);
+
+        // Import par Godot : le GLB reçoit son .import et passe « dans le moteur ».
+        let import = run(GameAssetJob::EngineImport).await;
+        assert_eq!(import.status, GameBuildStatus::Success, "{}", import.summary);
+        assert_eq!(import.action, GameAction::Import);
+        assert!(root.join("assets/models/props.glb.import").is_file());
+        let graph = store::load_graph(&root);
+        assert_eq!(graph.assets.iter().find(|a| a.id == glb.id).unwrap().status, GameAssetStatus::Integrated);
+        assert!(import.summary.contains("dans le moteur"), "{}", import.summary);
+        // Sans le réglage posé à la création, Godot resterait bloqué sur le .blend : refusé.
+        let settings = std::fs::read_to_string(root.join("project.godot")).unwrap();
+        assert!(settings.contains("import/blender/enabled=false"));
+        std::fs::write(root.join("project.godot"), settings.replace("import/blender/enabled=false", "")).unwrap();
+        let refused = studio.prepare_asset_job(&id, GameAssetJob::EngineImport);
+        assert!(refused.err().is_some_and(|e| e.message.contains("assets/models/props.blend")));
+        std::fs::write(root.join("project.godot"), settings).unwrap();
+
+        // Script en erreur : échec expliqué (trace Python), problème ouvert, refermé ensuite.
+        std::fs::write(root.join("tools/broken.py"), "import bpy\n\nraise RuntimeError('caisse introuvable')\n").unwrap();
+        let broken = run(GameAssetJob::BlenderScript { script: "tools/broken.py".into(), blend: None }).await;
+        assert_eq!(broken.status, GameBuildStatus::Failed, "{}", broken.summary);
+        assert!(broken.diagnostics.iter().any(|d| d.message.contains("caisse introuvable")), "{:?}", broken.diagnostics);
+        let open = |g: &GameGraph| g.issues.iter().filter(|i| i.open && i.source.as_deref() == Some("run:blender")).count();
+        assert_eq!(open(&store::load_graph(&root)), 1);
+        let fixed = run(GameAssetJob::BlenderScript { script: "tools/make_props.py".into(), blend: None }).await;
+        assert_eq!(fixed.status, GameBuildStatus::Success, "{}", fixed.summary);
+        assert_eq!(open(&store::load_graph(&root)), 0);
+        let _ = std::fs::remove_dir_all(&base);
     }
 }

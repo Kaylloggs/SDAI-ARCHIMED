@@ -12,6 +12,7 @@ use super::types::*;
 /// d'un agent ne doit pas être rempli par la liste complète d'un gros projet.
 const MAX_SYSTEMS: usize = 60;
 const MAX_TASKS: usize = 25;
+const MAX_ASSETS: usize = 30;
 
 /// Nom tel que les commandes l'attendent (`inProgress`, `programming`).
 fn slug<T: serde::Serialize>(value: T) -> String {
@@ -30,8 +31,8 @@ fn role_focus(role: GameAgentRole) -> &'static str {
         Programming => "Tu es programmeur de gameplay : tu écris le code des systèmes dans le style du projet, rattaches les fichiers créés au système (link_system_files) et vérifies ton travail (check_game_code, run_tests).",
         World => "Tu t'occupes du monde : niveaux, génération procédurale, streaming, environnement. Tu respectes le plan du monde (découpage, LOD, budgets) décrit dans le projet.",
         AiNpc => "Tu t'occupes de l'IA et des PNJ : perception, décision, navigation, routines. Tu gardes les comportements lisibles et configurables par des données.",
-        Modeling => "Tu t'occupes des modèles 3D : échelle et orientation du moteur, UV, export (glTF de préférence), noms de fichiers stables.",
-        Texture => "Tu t'occupes des textures et matériaux : cohérence avec la direction artistique, tailles en puissances de deux, formats du moteur.",
+        Modeling => "Tu t'occupes des modèles 3D : échelle et orientation du moteur, UV, noms de fichiers stables. Avec Blender sans fenêtre : un script Python du projet crée ou modifie le .blend (run_blender_script), read_blend_file le vérifie (triangles, échelle appliquée, textures), export_blend_model l'exporte (GLB pour Godot, FBX pour Unity et Unreal), puis import_assets_in_engine.",
+        Texture => "Tu t'occupes des textures et matériaux : cohérence avec la charte graphique, tailles en puissances de deux, formats du moteur. generate_game_image produit une image suivant la charte (payant selon le fournisseur : la personne confirme) ; add_game_assets inscrit les fichiers existants.",
         Animation => "Tu t'occupes des animations : squelettes, machines à états, transitions, IK ; tu nommes les états comme le code qui les pilote.",
         Vfx => "Tu t'occupes des effets visuels : particules, shaders d'effets ; tu respectes le budget de performance.",
         UiUx => "Tu t'occupes de l'interface : menus, HUD, navigation au clavier et à la manette, lisibilité, accessibilité (tailles, contrastes, sous-titres).",
@@ -87,7 +88,7 @@ pub fn instructions(
     out.push_str(
         "\nRègles de Game Studio :\n\
          - N'invente rien : pas de fonction, de capacité du moteur ou de résultat de build supposés. Si tu n'as pas vérifié, dis-le.\n\
-         - Tu peux piloter Game Studio avec les outils MCP d'ARCHIMED : `search_commands` (module game-studio) puis `run_action`. Utiles : check_game_code, run_tests, engine_action_result, list_systems, describe_system, add_system, link_system_files, set_system_status, add_task, update_task, set_task_status, add_decision, set_assumption, list_game_issues, resolve_game_issue, create_checkpoint.\n\
+         - Tu peux piloter Game Studio avec les outils MCP d'ARCHIMED : `search_commands` (module game-studio) puis `run_action`. Utiles : check_game_code, run_tests, engine_action_result, list_systems, describe_system, add_system, link_system_files, set_system_status, add_task, update_task, set_task_status, add_decision, set_assumption, list_game_issues, resolve_game_issue, create_checkpoint, list_game_assets, add_game_assets, import_assets_in_engine.\n\
          - Après avoir modifié du code : lance check_game_code (et run_tests si des tests existent) et corrige jusqu'à ce que ça passe. Sans ces outils, demande à la personne de cliquer « Vérifier le code » dans Build et tests.\n\
          - Rattache chaque fichier créé ou modifié au système concerné (link_system_files) et mets son statut à jour (set_system_status : inProgress, implemented ; validated seulement après une vérification réussie).\n\
          - Un choix d'architecture (structure de données, autorité réseau, découpage) se note avec add_decision : quoi, pourquoi, autres options.\n\
@@ -168,6 +169,25 @@ pub fn instructions(
         );
         for d in &graph.decisions {
             let _ = writeln!(out, "- {} : {}", d.title, d.decision);
+        }
+    }
+    if !graph.assets.is_empty() {
+        let _ = writeln!(
+            out,
+            "\nRessources du registre ({}) — nom : fichier [statut] :",
+            graph.assets.len()
+        );
+        for a in graph.assets.iter().take(MAX_ASSETS) {
+            let _ = writeln!(
+                out,
+                "- {} : {} [{}]",
+                a.name,
+                a.path.as_deref().unwrap_or("pas encore produit"),
+                slug(a.status)
+            );
+        }
+        if graph.assets.len() > MAX_ASSETS {
+            let _ = writeln!(out, "- … list_game_assets pour la suite.");
         }
     }
     let issues: Vec<&GameIssue> = graph.issues.iter().filter(|i| i.open).collect();

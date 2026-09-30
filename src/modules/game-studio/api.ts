@@ -1,6 +1,15 @@
 import { Channel, invokeModule } from "@/core/ipc";
 import type { GameAction } from "@/core/ipc/bindings/GameAction";
 import type { GameAgentRole } from "@/core/ipc/bindings/GameAgentRole";
+import type { GameAsset } from "@/core/ipc/bindings/GameAsset";
+import type { GameAssetJob } from "@/core/ipc/bindings/GameAssetJob";
+import type { GameAssetKind } from "@/core/ipc/bindings/GameAssetKind";
+import type { GameAssetsView } from "@/core/ipc/bindings/GameAssetsView";
+import type { GameBlendInfo } from "@/core/ipc/bindings/GameBlendInfo";
+import type { GameImageRequest } from "@/core/ipc/bindings/GameImageRequest";
+import type { ModelList } from "@/core/ipc/bindings/ModelList";
+import type { ProviderId } from "@/core/ipc/bindings/ProviderId";
+import type { ProviderStatus } from "@/core/ipc/bindings/ProviderStatus";
 import type { GameAnalysis } from "@/core/ipc/bindings/GameAnalysis";
 import type { GameBuildRecord } from "@/core/ipc/bindings/GameBuildRecord";
 import type { GameCheckpoint } from "@/core/ipc/bindings/GameCheckpoint";
@@ -88,6 +97,26 @@ export const gameStudioApi = {
   taskRequest: (id: string, task: string) => call<string>("game_task_request", { id, task }),
   documents: (id: string) => call<GameDocuments>("game_documents", { id }),
   writeDocuments: (id: string) => call<string[]>("write_game_documents", { id }),
+
+  // Ressources
+  assets: (id: string) => call<GameAssetsView>("game_assets", { id }),
+  /** Copie des fichiers de la machine dans le projet (un fichier déjà dedans est seulement inscrit). */
+  importAssets: (id: string, paths: string[], kind: GameAssetKind | null) => call<GameAsset[]>("import_game_assets", { id, paths, kind }),
+  registerAsset: (id: string, path: string, kind: GameAssetKind | null) => call<GameAsset>("register_game_asset", { id, path, kind }),
+  blendInfo: (id: string, asset: string) => call<GameBlendInfo | null>("game_blend_info", { id, asset }),
+  /** Blender ou import par le moteur ; suivi comme une action moteur (lignes et résultat par `onEvent`). */
+  runAssetJob: (id: string, job: GameAssetJob, onEvent: Channel<GameJobEvent>) => call<string>("run_asset_job", { id, job, onEvent }),
+
+  // Images générées (fournisseurs du core, clés dans le coffre du système)
+  imageProviders: (check: boolean) => call<ProviderStatus[]>("game_image_providers", { check }),
+  setImageKey: (provider: ProviderId, key: string) => call<ProviderStatus>("set_game_image_key", { provider, key }),
+  clearImageKey: (provider: ProviderId) => call<ProviderStatus>("clear_game_image_key", { provider }),
+  imageLogin: (provider: ProviderId) => call<ProviderStatus>("game_image_login", { provider }),
+  imageModels: (provider: ProviderId) => call<ModelList>("game_image_models", { provider }),
+  imagePrompt: (id: string, prompt: string, kind: GameAssetKind, useStyle: boolean, transparent: boolean) =>
+    call<string>("game_image_prompt", { id, prompt, kind, useStyle, transparent }),
+  generateImage: (id: string, request: GameImageRequest) => call<GameAsset>("generate_game_image", { id, request }),
+  cancelImage: (id: string) => call<void>("cancel_game_image", { id }),
 };
 
 export function errorText(error: unknown): string {

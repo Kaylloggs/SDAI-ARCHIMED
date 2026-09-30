@@ -8,6 +8,7 @@ use tauri::State;
 
 use crate::core::{AppError, AppResult};
 
+use super::assets::{GameAssetJob, GameAssetsView, GameBlendInfo, GameImageRequest};
 use super::docs::GameDocuments;
 use super::engines::GameAction;
 use super::mcp_client::{GameMcpHealth, GameMcpOwnServer, GameMcpServer};
@@ -330,4 +331,133 @@ pub async fn game_documents(studio: Studio<'_>, id: String) -> AppResult<GameDoc
 #[tauri::command]
 pub async fn write_game_documents(studio: Studio<'_>, id: String) -> AppResult<Vec<String>> {
     blocking(&studio, move |s| s.write_documents(&id, "vous")).await
+}
+
+// ── Ressources ────────────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn game_assets(studio: Studio<'_>, id: String) -> AppResult<GameAssetsView> {
+    blocking(&studio, move |s| s.assets(&id)).await
+}
+
+#[tauri::command]
+pub async fn import_game_assets(
+    studio: Studio<'_>,
+    id: String,
+    paths: Vec<String>,
+    kind: Option<GameAssetKind>,
+) -> AppResult<Vec<GameAsset>> {
+    blocking(&studio, move |s| s.import_assets(&id, &paths, kind, "vous")).await
+}
+
+#[tauri::command]
+pub async fn register_game_asset(
+    studio: Studio<'_>,
+    id: String,
+    path: String,
+    kind: Option<GameAssetKind>,
+) -> AppResult<GameAsset> {
+    blocking(&studio, move |s| s.register_asset(&id, &path, kind, "vous")).await
+}
+
+#[tauri::command]
+pub async fn game_blend_info(
+    studio: Studio<'_>,
+    id: String,
+    asset: String,
+) -> AppResult<Option<GameBlendInfo>> {
+    blocking(&studio, move |s| s.blend_info(&id, &asset)).await
+}
+
+/// Blender ou import par le moteur, suivi comme une action moteur.
+#[tauri::command]
+pub async fn run_asset_job(
+    studio: Studio<'_>,
+    id: String,
+    job: GameAssetJob,
+    on_event: Channel<GameJobEvent>,
+) -> AppResult<String> {
+    let job = blocking(&studio, move |s| s.prepare_asset_job(&id, job)).await?;
+    let job_id = job.job_id.clone();
+    let studio = studio.inner().clone();
+    tauri::async_runtime::spawn(async move {
+        studio
+            .run_prepared(job, move |event| {
+                let _ = on_event.send(event);
+            })
+            .await;
+    });
+    Ok(job_id)
+}
+
+// ── Images générées ───────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn game_image_providers(
+    studio: Studio<'_>,
+    check: bool,
+) -> AppResult<Vec<crate::core::imaging::ProviderStatus>> {
+    Ok(studio.image_providers(check).await)
+}
+
+#[tauri::command]
+pub async fn set_game_image_key(
+    studio: Studio<'_>,
+    provider: crate::core::imaging::ProviderId,
+    key: String,
+) -> AppResult<crate::core::imaging::ProviderStatus> {
+    studio.set_image_key(provider, &key).await
+}
+
+#[tauri::command]
+pub async fn clear_game_image_key(
+    studio: Studio<'_>,
+    provider: crate::core::imaging::ProviderId,
+) -> AppResult<crate::core::imaging::ProviderStatus> {
+    studio.clear_image_key(provider).await
+}
+
+#[tauri::command]
+pub async fn game_image_login(
+    studio: Studio<'_>,
+    provider: crate::core::imaging::ProviderId,
+) -> AppResult<crate::core::imaging::ProviderStatus> {
+    studio.image_login(provider).await
+}
+
+#[tauri::command]
+pub async fn game_image_models(
+    studio: Studio<'_>,
+    provider: crate::core::imaging::ProviderId,
+) -> AppResult<crate::core::imaging::ModelList> {
+    studio.image_models(provider).await
+}
+
+#[tauri::command]
+pub async fn game_image_prompt(
+    studio: Studio<'_>,
+    id: String,
+    prompt: String,
+    kind: GameAssetKind,
+    use_style: bool,
+    transparent: bool,
+) -> AppResult<String> {
+    blocking(&studio, move |s| {
+        s.image_prompt(&id, &prompt, kind, use_style, transparent)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn generate_game_image(
+    studio: Studio<'_>,
+    id: String,
+    request: GameImageRequest,
+) -> AppResult<GameAsset> {
+    studio.inner().clone().generate_image(&id, request).await
+}
+
+#[tauri::command]
+pub async fn cancel_game_image(studio: Studio<'_>, id: String) -> AppResult<()> {
+    studio.cancel_image(&id)
 }

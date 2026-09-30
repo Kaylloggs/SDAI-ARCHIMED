@@ -1,6 +1,8 @@
 import { defineActions, findByName, type ActionResult } from "@/core/modules";
 import type { GameAction } from "@/core/ipc/bindings/GameAction";
 import type { GameAgentRole } from "@/core/ipc/bindings/GameAgentRole";
+import type { GameAssetJob } from "@/core/ipc/bindings/GameAssetJob";
+import type { GameAssetKind } from "@/core/ipc/bindings/GameAssetKind";
 import type { GameBuildRecord } from "@/core/ipc/bindings/GameBuildRecord";
 import type { GameAssumptionStatus } from "@/core/ipc/bindings/GameAssumptionStatus";
 import type { GameAutonomy } from "@/core/ipc/bindings/GameAutonomy";
@@ -21,7 +23,8 @@ import type { GameTaskStatus } from "@/core/ipc/bindings/GameTaskStatus";
 import { errorText, gameStudioApi } from "./api";
 import { consumers, impact, systemId } from "./lib/graph";
 import { adoptOps } from "./lib/map";
-import { ACTION, CATEGORY_LABEL, ENGINE_LABEL, LOG_CATEGORY, PLATFORMS, ROLE, RUN_STATUS, SYSTEM_STATUS, TASK_STATUS } from "./lib/labels";
+import { canBeTransparent, generationCost, imageModels, suggestName } from "./lib/assets";
+import { ACTION, ASSET_KIND, CATEGORY_LABEL, IMAGE_KINDS, ENGINE_LABEL, LOG_CATEGORY, PLATFORMS, ROLE, RUN_STATUS, SYSTEM_STATUS, TASK_STATUS } from "./lib/labels";
 import { blankTask, readyTasks } from "./lib/tasks";
 import { useGameStudioStore } from "./store";
 
@@ -154,6 +157,30 @@ async function runEngine(ref: unknown, action: GameAction, wait: boolean, platfo
     message: `${ACTION[action].label} lancée. Résultat avec engine_action_result, arrêt avec stop_engine_action.`,
     open: { module: SELF, params: { projectId: t.id, section: "build" } },
   };
+}
+
+/**
+ * Lance un travail Blender sur une ressource désignée par son identifiant ou son nom.
+ * `withInfo` : joint la lecture du fichier au résultat.
+ */
+async function assetJob(ref: unknown, wanted: unknown, job: (id: string) => GameAssetJob, withInfo = false): Promise<ActionResult> {
+  const t = await target(ref);
+  if (isError(t)) return t;
+  if (typeof wanted !== "string" || !wanted.trim()) return { ok: false, message: "Indique la ressource (list_game_assets)." };
+  try {
+    const view = await gameStudioApi.assets(t.id);
+    const found = view.entries.find((e) => e.asset.id === wanted) ?? findByName(view.entries, wanted, (e) => e.asset.name, (e) => e.asset.path ?? e.asset.id);
+    if (!found) return { ok: false, message: `Aucune ressource ne correspond à « ${wanted} » : appelle list_game_assets.` };
+    const record = await useGameStudioStore.getState().runAssetJob(t.id, job(found.asset.id));
+    const result = runResult(record, t.id);
+    if (withInfo && record.status === "success") {
+      const info = await gameStudioApi.blendInfo(t.id, found.asset.id);
+      if (info) return { ...result, data: { ...(result.data as object | undefined), blend: { blender: info.blender, triangles: info.triangles, objects: info.objects.map((o) => ({ name: o.name, type: o.type, triangles: o.triangles, materials: o.materials })), actions: info.actions, warnings: info.warnings } } };
+    }
+    return result;
+  } catch (e) {
+    return { ok: false, message: errorText(e) };
+  }
 }
 
 /**
@@ -970,6 +997,166 @@ export default defineActions([
       } catch (e) {
         return { ok: false, message: errorText(e) };
       }
+    },
+  },
+
+  // ── Ressources : registre, images générées, Blender, import dans le moteur ─────────────
+  {
+    name: "list_game_assets",
+    description: "Liste les ressources du jeu vidéo (modèles 3D, textures, sprites, sons) : registre avec état (générée, ajoutée, dans le moteur), fichiers du projet pas encore inscrits, Blender disponible.",
+    params: { project: project_param, kind: { type: "string", enum: Object.keys(ASSET_KIND), description: "Seulement cette nature." } },
+    risk: "read",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      try {
+        const view = await gameStudioApi.assets(t.id);
+        const kind = oneOf(args["kind"], Object.keys(ASSET_KIND) as GameAssetKind[]);
+        const entries = view.entries.filter((e) => !kind || e.asset.kind === kind);
+        return {
+          ok: true,
+          message: `${entries.length} ressource(s) au registre, ${view.loose.length} fichier(s) du projet hors registre.${view.blender ? ` Blender ${view.blender.version ?? ""} disponible.` : " Blender absent."}`,
+          data: {
+            assets: entries.map((e) => ({ id: e.asset.id, name: e.asset.name, kind: e.asset.kind, path: e.asset.path, status: e.asset.status, source: e.asset.source, version: e.asset.version, exists: e.exists, inEngine: e.inEngine })),
+            notRegistered: view.loose.slice(0, 100).map((l) => ({ path: l.path, kind: l.kind, inEngine: l.inEngine })),
+            importHint: view.importHint,
+          },
+          open: { module: SELF, params: { projectId: t.id, section: "assets" } },
+        };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+  {
+    name: "add_game_assets",
+    description: "Ajoute des fichiers aux ressources du jeu vidéo : un fichier de la machine est copié dans le dossier des ressources du moteur (assets/, Assets/Art, SourceArt/), un fichier déjà dans le projet est seulement inscrit au registre.",
+    params: {
+      project: project_param,
+      paths: { type: "array", required: true, description: "Chemins des fichiers (absolus, ou relatifs au dossier du jeu pour ceux qui y sont déjà)." },
+      kind: { type: "string", enum: Object.keys(ASSET_KIND), description: "Nature (sinon devinée par l'extension)." },
+    },
+    risk: "write",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      const paths = Array.isArray(args["paths"]) ? args["paths"].filter((p): p is string => typeof p === "string" && p.trim() !== "") : [];
+      if (paths.length === 0) return { ok: false, message: "Donne au moins un chemin de fichier." };
+      const kind = oneOf(args["kind"], Object.keys(ASSET_KIND) as GameAssetKind[]);
+      try {
+        const root = (await gameStudioApi.state(t.id)).project.root;
+        const inside = (p: string) => !/^([a-zA-Z]:[\\/]|[\\/])/.test(p);
+        const outside = paths.filter((p) => !inside(p));
+        const added = outside.length ? await gameStudioApi.importAssets(t.id, outside, kind) : [];
+        for (const rel of paths.filter(inside)) added.push(await gameStudioApi.registerAsset(t.id, rel, kind));
+        void useGameStudioStore.getState().reload();
+        return { ok: true, message: `${added.length} ressource(s) inscrite(s) : ${added.map((a) => a.path).join(", ")} (dossier du jeu : ${root}).`, data: { assets: added.map((a) => ({ id: a.id, path: a.path, kind: a.kind })) } };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+  {
+    name: "generate_game_image",
+    description: "Génère une ressource graphique du jeu vidéo (texture, sprite, élément d'interface, concept art, effet) avec un fournisseur d'images connecté, en suivant la charte du projet ; le fichier est écrit dans les ressources avec sa trace (modèle, consigne, coût annoncé). Payant selon le fournisseur.",
+    params: {
+      project: project_param,
+      prompt: { type: "string", required: true, description: "Ce que l'image montre." },
+      kind: { type: "string", enum: IMAGE_KINDS, description: "Par défaut : texture." },
+      name: { type: "string", description: "Nom de la ressource (sinon tiré de la demande)." },
+      asset: { type: "string", description: "Identifiant d'une ressource générée : en produit une nouvelle version." },
+      provider: { type: "string", enum: ["openrouter", "gemini", "higgsfield", "higgsfieldAccount"], description: "Sinon le premier fournisseur connecté." },
+      model: { type: "string", description: "Identifiant du modèle (sinon le premier modèle d'image du fournisseur)." },
+      aspect_ratio: { type: "string", description: "Format (« 1:1 », « 16:9 »…) si le modèle le permet." },
+      transparent: { type: "boolean", description: "Fond transparent (sprites, interface) si le modèle le permet." },
+      use_style: { type: "boolean", description: "Suivre la charte graphique du projet (oui par défaut)." },
+    },
+    risk: "destructive",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      const prompt = typeof args["prompt"] === "string" ? args["prompt"].trim() : "";
+      if (!prompt) return { ok: false, message: "Décris l'image à produire." };
+      try {
+        const statuses = await gameStudioApi.imageProviders(false);
+        const wanted = oneOf(args["provider"], ["openrouter", "gemini", "higgsfield", "higgsfieldAccount"] as const);
+        const ready = statuses.filter((p) => p.state === "connected" || p.state === "disconnected");
+        const provider = wanted ?? ready[0]?.provider;
+        if (!provider || !ready.some((p) => p.provider === provider)) {
+          return { ok: false, message: "Aucun fournisseur d'images connecté : la personne ajoute une clé dans Game Studio › Ressources › Générer une image.", open: { module: SELF, params: { projectId: t.id, section: "assets" } } };
+        }
+        const models = imageModels((await gameStudioApi.imageModels(provider)).models);
+        const model = typeof args["model"] === "string" && models.some((m) => m.id === args["model"]) ? (args["model"] as string) : models[0]?.id;
+        if (!model) return { ok: false, message: "Ce fournisseur n'ouvre aucun modèle d'image avec cette connexion." };
+        const assetId = typeof args["asset"] === "string" ? args["asset"] : null;
+        const kind = oneOf(args["kind"], IMAGE_KINDS) ?? "texture";
+        const caps = models.find((m) => m.id === model)?.capabilities;
+        const asset = await gameStudioApi.generateImage(t.id, {
+          provider,
+          model,
+          prompt,
+          name: typeof args["name"] === "string" && args["name"].trim() ? args["name"].trim() : suggestName(prompt),
+          kind,
+          asset: assetId,
+          aspectRatio: typeof args["aspect_ratio"] === "string" && caps?.aspectRatios.includes(args["aspect_ratio"]) ? args["aspect_ratio"] : null,
+          resolution: null,
+          seed: null,
+          negativePrompt: null,
+          transparent: args["transparent"] === true && canBeTransparent(caps, kind),
+          useStyle: args["use_style"] !== false,
+        });
+        void useGameStudioStore.getState().reload();
+        const cost = asset.generations.length ? generationCost(asset.generations[asset.generations.length - 1]!) : null;
+        return { ok: true, message: `Image écrite : ${asset.path} (${model}${cost ? `, ${cost}` : ""}).`, data: { id: asset.id, path: asset.path, version: asset.version }, open: { module: SELF, params: { projectId: t.id, section: "assets" } } };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+  {
+    name: "read_blend_file",
+    description: "Lit un fichier Blender (.blend) du jeu avec Blender sans fenêtre : objets, triangles, matériaux, textures manquantes, animations, échelles non appliquées.",
+    params: { project: project_param, asset: { type: "string", required: true, description: "Identifiant ou nom de la ressource .blend (list_game_assets)." } },
+    risk: "read",
+    run: (args) => assetJob(args["project"], args["asset"], (id) => ({ kind: "blenderInspect", asset: id }), true),
+  },
+  {
+    name: "export_blend_model",
+    description: "Exporte un fichier Blender (.blend) du jeu pour le moteur avec Blender sans fenêtre : GLB pour Godot, FBX pour Unity et Unreal ; le modèle exporté est inscrit aux ressources.",
+    params: {
+      project: project_param,
+      asset: { type: "string", required: true, description: "Identifiant ou nom de la ressource .blend." },
+      format: { type: "string", enum: ["glb", "fbx"], description: "Par défaut, celui du moteur." },
+    },
+    risk: "write",
+    run: (args) => assetJob(args["project"], args["asset"], (id) => ({ kind: "blenderExport", asset: id, format: oneOf(args["format"], ["glb", "fbx"] as const) })),
+  },
+  {
+    name: "run_blender_script",
+    description: "Lance un script Python du projet dans Blender sans fenêtre (créer ou modifier un modèle, cuire des textures, exporter), sur un fichier .blend du projet ou une scène vide. La sortie et les erreurs Python sont suivies.",
+    params: {
+      project: project_param,
+      script: { type: "string", required: true, description: "Chemin du script .py, relatif au dossier du jeu." },
+      blend: { type: "string", description: "Fichier .blend à ouvrir, relatif au dossier du jeu." },
+    },
+    risk: "destructive",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      if (typeof args["script"] !== "string" || !args["script"].trim()) return { ok: false, message: "Indique le script (.py) du projet." };
+      const record = await useGameStudioStore.getState().runAssetJob(t.id, { kind: "blenderScript", script: args["script"], blend: typeof args["blend"] === "string" ? args["blend"] : null });
+      return runResult(record, t.id);
+    },
+  },
+  {
+    name: "import_assets_in_engine",
+    description: "Fait importer les ressources du jeu par son moteur (Godot --import, Unity en mode batch, script d'import de l'éditeur Unreal) et dit lesquelles sont prises en compte.",
+    params: { project: project_param },
+    risk: "write",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      return runResult(await useGameStudioStore.getState().runAssetJob(t.id, { kind: "engineImport" }), t.id);
     },
   },
 

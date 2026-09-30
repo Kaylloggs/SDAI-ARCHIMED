@@ -1,5 +1,8 @@
 import type { GameAction } from "@/core/ipc/bindings/GameAction";
 import type { GameAgentRole } from "@/core/ipc/bindings/GameAgentRole";
+import type { GameAssetKind } from "@/core/ipc/bindings/GameAssetKind";
+import type { GameAssetSource } from "@/core/ipc/bindings/GameAssetSource";
+import type { GameAssetStatus } from "@/core/ipc/bindings/GameAssetStatus";
 import type { GameBuildStatus } from "@/core/ipc/bindings/GameBuildStatus";
 import type { GameFileKind } from "@/core/ipc/bindings/GameFileKind";
 import type { GameIssueSeverity } from "@/core/ipc/bindings/GameIssueSeverity";
@@ -207,6 +210,48 @@ export const ACTION: Record<GameAction, { label: string; verb: string }> = {
   run: { label: "Partie", verb: "Lancer le jeu" },
   build: { label: "Build", verb: "Exporter le build" },
   editor: { label: "Éditeur", verb: "Ouvrir l'éditeur" },
+  import: { label: "Importation", verb: "Importer dans le moteur" },
+  blender: { label: "Blender", verb: "Lancer Blender" },
+};
+
+export const ASSET_KIND: Record<GameAssetKind, string> = {
+  model: "Modèle 3D",
+  texture: "Texture",
+  material: "Matériau",
+  sprite: "Sprite",
+  animation: "Animation",
+  audio: "Son",
+  music: "Musique",
+  scene: "Scène",
+  prefab: "Préfabriqué",
+  script: "Script",
+  shader: "Shader",
+  ui: "Interface",
+  font: "Police",
+  data: "Données",
+  concept: "Concept art",
+  vfx: "Effet visuel",
+  other: "Autre",
+};
+
+/** Natures proposées pour une image générée. */
+export const IMAGE_KINDS: GameAssetKind[] = ["texture", "sprite", "ui", "concept", "vfx", "material"];
+
+export const ASSET_STATUS: Record<GameAssetStatus, { label: string; tone: Tone }> = {
+  concept: { label: "Concept", tone: "neutral" },
+  generated: { label: "Générée", tone: "accent" },
+  imported: { label: "Ajoutée", tone: "info" },
+  processed: { label: "Convertie", tone: "info" },
+  integrated: { label: "Dans le moteur", tone: "success" },
+  validated: { label: "Validée", tone: "success" },
+  deprecated: { label: "Abandonnée", tone: "neutral" },
+};
+
+export const ASSET_SOURCE: Record<GameAssetSource, string> = {
+  manual: "Fichier ajouté",
+  generated: "Image générée",
+  blender: "Exportée par Blender",
+  scanned: "Trouvée dans le projet",
 };
 
 export const RUN_STATUS: Record<GameBuildStatus, { label: string; tone: Tone }> = {

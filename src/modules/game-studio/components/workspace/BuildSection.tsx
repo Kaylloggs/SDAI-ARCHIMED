@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ExternalLink, FileText, FlaskConical, FolderOpen, Hammer, Info, Loader2, Package, Play, ShieldCheck, Square, Wrench, XCircle } from "lucide-react";
+import { AlertTriangle, ExternalLink, FileText, FlaskConical, FolderInput, FolderOpen, Hammer, Info, Loader2, Package, Play, Shapes, ShieldCheck, Square, Wrench, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { cn } from "@/core/lib/cn";
@@ -24,6 +24,8 @@ const ICON: Record<GameAction, LucideIcon> = {
   run: Play,
   build: Package,
   editor: ExternalLink,
+  import: FolderInput,
+  blender: Shapes,
 };
 
 const LINE_TONE: Record<GameLogLevel, string> = {

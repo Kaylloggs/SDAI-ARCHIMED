@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::{Duration, Instant};
 
-use crate::core::AppResult;
+use crate::core::{AppError, AppResult};
 
 use super::types::{
     GameCapability, GameCapabilityVia, GameCheck, GameDimension, GameEngine, GameEngineInstall,
@@ -69,6 +69,10 @@ pub enum GameAction {
     Build,
     /// Ouvre l'éditeur du moteur sur le projet.
     Editor,
+    /// Fait importer les ressources du projet par le moteur (fichiers .import, .meta, .uasset).
+    Import,
+    /// Blender sans interface : lecture, export ou script d'un fichier du projet.
+    Blender,
 }
 
 impl GameAction {
@@ -80,6 +84,8 @@ impl GameAction {
             Self::Test => "test",
             Self::Build => "build",
             Self::Editor => "editor",
+            Self::Import => "import",
+            Self::Blender => "blender",
         }
     }
 
@@ -91,8 +97,19 @@ impl GameAction {
             Self::Test => "Tests",
             Self::Build => "Build",
             Self::Editor => "Éditeur",
+            Self::Import => "Importation dans le moteur",
+            Self::Blender => "Tâche Blender",
         }
     }
+}
+
+/// Script d'import Unreal écrit par Game Studio avant l'action `Import`.
+pub const UNREAL_IMPORT_SCRIPT: &str = ".gamestudio/unreal/import_assets.py";
+/// Ligne écrite par ce script une fois tous les imports demandés.
+pub const UNREAL_IMPORT_MARKER: &str = "ARCHIMED_IMPORT_DONE";
+
+pub fn blender_is_not_engine() -> AppError {
+    AppError::invalid("Blender se lance depuis les ressources du projet, pas depuis le moteur.")
 }
 
 /// Paramètres d'une action.
