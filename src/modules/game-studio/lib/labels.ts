@@ -1,4 +1,8 @@
+import type { GameAction } from "@/core/ipc/bindings/GameAction";
 import type { GameAgentRole } from "@/core/ipc/bindings/GameAgentRole";
+import type { GameBuildStatus } from "@/core/ipc/bindings/GameBuildStatus";
+import type { GameFileKind } from "@/core/ipc/bindings/GameFileKind";
+import type { GameIssueSeverity } from "@/core/ipc/bindings/GameIssueSeverity";
 import type { GameAssumptionStatus } from "@/core/ipc/bindings/GameAssumptionStatus";
 import type { GameAutonomy } from "@/core/ipc/bindings/GameAutonomy";
 import type { GameCapabilityVia } from "@/core/ipc/bindings/GameCapabilityVia";
@@ -193,6 +197,65 @@ export const LOG_CATEGORY: Record<GameLogCategory, string> = {
   ERROR: "Erreurs",
   PERFORMANCE: "Performance",
 };
+
+export const ACTION: Record<GameAction, { label: string; verb: string }> = {
+  setup: { label: "Préparation", verb: "Préparer le projet" },
+  check: { label: "Vérification", verb: "Vérifier le code" },
+  test: { label: "Tests", verb: "Lancer les tests" },
+  run: { label: "Partie", verb: "Lancer le jeu" },
+  build: { label: "Build", verb: "Exporter le build" },
+  editor: { label: "Éditeur", verb: "Ouvrir l'éditeur" },
+};
+
+export const RUN_STATUS: Record<GameBuildStatus, { label: string; tone: Tone }> = {
+  running: { label: "En cours", tone: "info" },
+  success: { label: "Réussi", tone: "success" },
+  failed: { label: "Échec", tone: "danger" },
+  cancelled: { label: "Arrêté", tone: "neutral" },
+};
+
+export const SEVERITY: Record<GameIssueSeverity, { label: string; tone: Tone }> = {
+  error: { label: "Erreur", tone: "danger" },
+  warning: { label: "Avertissement", tone: "warning" },
+  info: { label: "Info", tone: "neutral" },
+};
+
+export const FILE_KIND: Record<GameFileKind, string> = {
+  script: "Scripts",
+  scene: "Scènes et cartes",
+  texture: "Textures et images",
+  model: "Modèles 3D",
+  audio: "Sons et musiques",
+  material: "Matériaux et ressources",
+  shader: "Shaders",
+  animation: "Animations",
+  font: "Polices",
+  video: "Vidéos",
+  data: "Données et réglages",
+  other: "Autres",
+};
+
+/** « 12,4 Mo » */
+export function bytes(size: number): string {
+  if (size < 1024) return `${size} o`;
+  const units = ["Ko", "Mo", "Go", "To"];
+  let value = size / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toLocaleString("fr-FR", { maximumFractionDigits: value < 10 ? 1 : 0 })} ${units[unit]}`;
+}
+
+/** « 1 min 05 s » */
+export function duration(ms: number): string {
+  const total = Math.round(ms / 1000);
+  if (total < 60) return `${total} s`;
+  const minutes = Math.floor(total / 60);
+  const rest = total % 60;
+  return rest ? `${minutes} min ${String(rest).padStart(2, "0")} s` : `${minutes} min`;
+}
 
 const TOPIC: Record<string, string> = {
   camera: "Caméra",

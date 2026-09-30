@@ -29,6 +29,7 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 export function Dashboard() {
   const current = useGameStudioStore((s) => s.current);
   const go = useGameStudioStore((s) => s.go);
+  const apply = useGameStudioStore((s) => s.apply);
   if (!current) return null;
   const { project, graph, install } = current;
   const ready = readyTasks(graph.tasks).slice(0, 3);
@@ -79,9 +80,22 @@ export function Dashboard() {
             </h3>
             <ul className="divide-y divide-border rounded-lg border border-border bg-surface-1">
               {issues.slice(0, 5).map((issue) => (
-                <li key={issue.id} className="px-4 py-2.5">
-                  <p className="text-body-sm">{issue.title}</p>
-                  {issue.detail && <p className="text-footnote text-text-muted">{issue.detail}</p>}
+                <li key={issue.id} className="flex items-start gap-3 px-4 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-body-sm">{issue.title}</p>
+                    {issue.detail && <p className="whitespace-pre-line break-words font-mono text-caption text-text-muted">{issue.detail}</p>}
+                    <p className="text-caption text-text-subtle">{ago(issue.at)}</p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    {issue.source?.startsWith("run:") && (
+                      <Button size="sm" variant="ghost" onClick={() => go("build")}>
+                        Voir
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => void apply({ op: "setIssueOpen", id: issue.id, open: false })}>
+                      Marquer résolu
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>

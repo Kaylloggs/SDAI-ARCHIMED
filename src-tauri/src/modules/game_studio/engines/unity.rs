@@ -444,6 +444,8 @@ impl EngineAdapter for Unity {
             output: None,
             success_marker: None,
             detached: false,
+            strict: false,
+            results: None,
         };
         Ok(match action {
             GameAction::Setup => {
@@ -459,7 +461,7 @@ impl EngineAdapter for Unity {
                 let results = display(&ctx.root.join(TEST_RESULTS));
                 std::fs::create_dir_all(ctx.root.join(".gamestudio").join("builds"))?;
                 // -runTests quitte seul : pas de -quit (documentation Unity Test Framework).
-                spec(
+                let mut s = spec(
                     base(&[
                         "-runTests",
                         "-testPlatform",
@@ -468,7 +470,9 @@ impl EngineAdapter for Unity {
                         &results,
                     ]),
                     Some(3600),
-                )
+                );
+                s.results = Some(ctx.root.join(TEST_RESULTS));
+                s
             }
             GameAction::Build => {
                 let (method, folder, ext) = match ctx.platform {
@@ -508,12 +512,8 @@ impl EngineAdapter for Unity {
                 match exe {
                     Some(exe) => CommandSpec {
                         program: exe,
-                        args: Vec::new(),
                         cwd: built,
-                        timeout: None,
-                        output: None,
-                        success_marker: None,
-                        detached: true,
+                        ..CommandSpec::default()
                     },
                     None => {
                         return Err(AppError::invalid(

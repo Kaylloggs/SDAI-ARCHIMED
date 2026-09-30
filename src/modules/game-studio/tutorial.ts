@@ -1,4 +1,4 @@
-import { Boxes, Gamepad2, History, ListChecks, Sparkles, Wrench } from "lucide-react";
+import { Boxes, Gamepad2, Hammer, History, ListChecks, Sparkles, Wrench } from "lucide-react";
 import { defineTutorial } from "@/core/modules";
 
 /**
@@ -39,6 +39,12 @@ export default defineTutorial({
       area: "left",
     },
     {
+      icon: Hammer,
+      title: "Vérifier et lancer le jeu",
+      text: "« Build et tests » > « Vérifier le code » : chaque erreur donne son fichier, sa ligne et une piste. « Lancer le jeu » l'ouvre, « Arrêter » le ferme.",
+      area: "left",
+    },
+    {
       icon: History,
       title: "Prendre un point de restauration",
       text: "Avant un gros changement, « Historique » > « Créer un point de restauration ». « Revenir à ce point » garde toujours l'état d'avant.",
@@ -48,5 +54,6 @@ export default defineTutorial({
   tips: [
     "Le genre ne limite rien : décrivez ce que fait le joueur, Game Studio en déduit les systèmes.",
     "Le graphe, les décisions et le journal vivent dans le dossier .gamestudio du projet, qui reste autonome.",
+    "Un projet existant ajouté s'ouvre sur sa carte : systèmes déjà codés et risques, sans rien modifier.",
   ],
 });

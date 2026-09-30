@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Boxes, History, LayoutDashboard, ListChecks, ScrollText, Settings2, Wrench } from "lucide-react";
+import { ArrowLeft, BookOpen, Boxes, FolderSearch, Hammer, History, LayoutDashboard, ListChecks, ScrollText, Settings2, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Badge, ResizeHandle, usePanelSize } from "@/design-system/primitives";
@@ -6,11 +6,13 @@ import { DIMENSION, ENGINE_LABEL, MODE, shortVersion } from "../../lib/labels";
 import { useGameStudioStore, type SectionId } from "../../store";
 import { EnvironmentPanel } from "../EnvironmentPanel";
 import { ErrorLine, focusRing } from "../ui";
+import { BuildSection } from "./BuildSection";
 import { CapabilitiesTable } from "./CapabilitiesTable";
 import { Dashboard } from "./Dashboard";
 import { DesignSection } from "./DesignSection";
 import { HistorySection } from "./HistorySection";
 import { JournalSection } from "./JournalSection";
+import { MapSection } from "./MapSection";
 import { SettingsSection } from "./SettingsSection";
 import { SystemsSection } from "./SystemsSection";
 import { TasksSection } from "./TasksSection";
@@ -25,6 +27,13 @@ export const SECTIONS: { title: string; items: SectionInfo[] }[] = [
       { id: "design", label: "Conception", description: "Idée, hypothèses, décisions, monde, réseau, feuille de route et guide de style.", icon: BookOpen },
       { id: "systems", label: "Systèmes", description: "Les systèmes du jeu, leurs dépendances et ce qui les utilise.", icon: Boxes, wide: true },
       { id: "tasks", label: "Tâches", description: "Le plan de travail : qui fait quoi, dans quel ordre, et comment le vérifier.", icon: ListChecks },
+    ],
+  },
+  {
+    title: "Moteur",
+    items: [
+      { id: "build", label: "Build et tests", description: "Vérifier le code, lancer les tests et le jeu, exporter un build : les vraies commandes du moteur, leurs erreurs expliquées.", icon: Hammer, wide: true },
+      { id: "map", label: "Carte du projet", description: "Ce que contient le dossier du jeu, les systèmes déjà codés et les risques.", icon: FolderSearch },
     ],
   },
   {
@@ -55,6 +64,10 @@ function Content({ id }: { id: SectionId }) {
       return <SystemsSection />;
     case "tasks":
       return <TasksSection />;
+    case "build":
+      return <BuildSection />;
+    case "map":
+      return <MapSection />;
     case "history":
       return <HistorySection />;
     case "journal":

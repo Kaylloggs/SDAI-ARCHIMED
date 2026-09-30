@@ -126,6 +126,10 @@ export function ProjectList({ onCreate }: { onCreate: () => void }) {
       const project = await gameStudioApi.importProject(picked);
       await refresh();
       await open(project.id);
+      // Projet existant : on commence par le comprendre (§108), sans rien y modifier.
+      const store = useGameStudioStore.getState();
+      store.go("map");
+      void store.scan(project.id);
     } catch (e) {
       setError(errorText(e));
     } finally {

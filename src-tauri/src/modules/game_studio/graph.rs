@@ -452,6 +452,7 @@ pub fn apply(graph: &mut GameGraph, op: GameGraphOp, by: &str) -> AppResult<Stri
             detail,
             severity,
             systems,
+            source,
         } => {
             graph.issues.push(GameIssue {
                 id: new_id("i"),
@@ -461,6 +462,7 @@ pub fn apply(graph: &mut GameGraph, op: GameGraphOp, by: &str) -> AppResult<Stri
                 systems,
                 open: true,
                 at: now(),
+                source,
             });
             format!("Problème noté : {title}.")
         }

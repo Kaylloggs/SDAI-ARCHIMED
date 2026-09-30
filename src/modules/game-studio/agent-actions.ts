@@ -1,5 +1,7 @@
 import { defineActions, findByName, type ActionResult } from "@/core/modules";
+import type { GameAction } from "@/core/ipc/bindings/GameAction";
 import type { GameAgentRole } from "@/core/ipc/bindings/GameAgentRole";
+import type { GameBuildRecord } from "@/core/ipc/bindings/GameBuildRecord";
 import type { GameAssumptionStatus } from "@/core/ipc/bindings/GameAssumptionStatus";
 import type { GameAutonomy } from "@/core/ipc/bindings/GameAutonomy";
 import type { GameDimension } from "@/core/ipc/bindings/GameDimension";
@@ -18,7 +20,8 @@ import type { GameTask } from "@/core/ipc/bindings/GameTask";
 import type { GameTaskStatus } from "@/core/ipc/bindings/GameTaskStatus";
 import { errorText, gameStudioApi } from "./api";
 import { consumers, impact, systemId } from "./lib/graph";
-import { CATEGORY_LABEL, ENGINE_LABEL, LOG_CATEGORY, PLATFORMS, ROLE, SYSTEM_STATUS, TASK_STATUS } from "./lib/labels";
+import { adoptOps } from "./lib/map";
+import { ACTION, CATEGORY_LABEL, ENGINE_LABEL, LOG_CATEGORY, PLATFORMS, ROLE, RUN_STATUS, SYSTEM_STATUS, TASK_STATUS } from "./lib/labels";
 import { blankTask, readyTasks } from "./lib/tasks";
 import { useGameStudioStore } from "./store";
 
@@ -100,6 +103,58 @@ const TASK_STATUSES = Object.keys(TASK_STATUS) as GameTaskStatus[];
 const ROLES = Object.keys(ROLE) as GameAgentRole[];
 const CATEGORIES = Object.keys(CATEGORY_LABEL) as GameSystemCategory[];
 const LOG_CATEGORIES = Object.keys(LOG_CATEGORY) as GameLogCategory[];
+
+/** Exécution résumée pour un agent : verdict, erreurs expliquées, build produit. */
+function runData(record: GameBuildRecord) {
+  return {
+    id: record.id,
+    action: record.action,
+    status: record.status,
+    summary: record.summary,
+    output: record.output,
+    durationMs: record.durationMs,
+    diagnostics: record.diagnostics.slice(0, 20).map((d) => ({
+      severity: d.severity,
+      message: d.message,
+      file: d.file,
+      line: d.line,
+      source: d.source,
+      code: d.code,
+      likelyCause: d.likelyCause,
+      suggestion: d.suggestion,
+      systems: d.systems,
+    })),
+  };
+}
+
+function runResult(record: GameBuildRecord, projectId: string): ActionResult {
+  if (!record.id) return { ok: false, message: record.summary };
+  return {
+    ok: true,
+    message: `${RUN_STATUS[record.status].label} : ${record.summary}`,
+    data: { run: runData(record) },
+    open: { module: SELF, params: { projectId, section: "build" } },
+  };
+}
+
+/**
+ * Lance une action du moteur. `wait` : attendre la fin (vérification, tests) ; sinon la commande
+ * rend la main dès le lancement (build long, partie) et engine_action_result donne le résultat.
+ */
+async function runEngine(ref: unknown, action: GameAction, wait: boolean, platform: GamePlatform | null = null, development = false): Promise<ActionResult> {
+  const t = await target(ref);
+  if (isError(t)) return t;
+  const pending = useGameStudioStore.getState().runAction(t.id, action, platform, development);
+  if (wait) return runResult(await pending, t.id);
+  // Un refus (moteur absent, préréglage manquant) arrive tout de suite : on l'attend un instant.
+  const early = await Promise.race([pending, new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500))]);
+  if (early) return runResult(early, t.id);
+  return {
+    ok: true,
+    message: `${ACTION[action].label} lancée. Résultat avec engine_action_result, arrêt avec stop_engine_action.`,
+    open: { module: SELF, params: { projectId: t.id, section: "build" } },
+  };
+}
 
 /**
  * Commandes de Game Studio : tout ce que la personne fait dans le module (projets, conception,
@@ -669,6 +724,198 @@ export default defineActions([
     },
   },
 
+  // ── Moteur : vérifier, tester, jouer, exporter ─────────────────────────────────────────
+  {
+    name: "check_game_code",
+    description: "Vérifie le code du jeu vidéo dans son moteur (scripts GDScript, compilation C# ou C++, Blueprints) et rend les erreurs expliquées : fichier, ligne, cause probable, piste de correction.",
+    params: { project: project_param },
+    risk: "write",
+    run: (args) => runEngine(args["project"], "check", true),
+  },
+  {
+    name: "run_tests",
+    description: "Lance les tests automatisés du jeu vidéo (test de démarrage Godot, tests EditMode Unity, Automation Unreal) et rend les échecs expliqués.",
+    params: { project: project_param },
+    risk: "write",
+    run: (args) => runEngine(args["project"], "test", true),
+  },
+  {
+    name: "prepare_game_project",
+    description: "Prépare le projet dans son moteur : import des ressources (Godot), scène de démarrage (Unity), compilation de l'éditeur C++ (Unreal).",
+    params: { project: project_param },
+    risk: "write",
+    run: (args) => runEngine(args["project"], "setup", true),
+  },
+  {
+    name: "play_in_engine",
+    description: "Lance le jeu vidéo en cours de création dans son moteur (Godot, Unity, Unreal) pour y jouer ; sa sortie et ses erreurs sont suivies jusqu'à sa fermeture.",
+    params: { project: project_param },
+    risk: "write",
+    run: (args) => runEngine(args["project"], "run", false),
+  },
+  {
+    name: "export_build",
+    description: "Exporte un build jouable du jeu vidéo pour une plateforme (Windows, Linux, macOS, Android, iOS, Web), en publication ou en développement. Refusé avec la marche à suivre si la machine ne le permet pas (modèles d'export, modules de build).",
+    params: {
+      project: project_param,
+      platform: { type: "string", enum: PLATFORMS.filter((p) => p !== "console"), description: "Par défaut, la première plateforme visée." },
+      development: { type: "boolean", description: "Build de développement (outils de débogage)." },
+      wait: { type: "boolean", description: "Attendre la fin (peut être long)." },
+    },
+    risk: "write",
+    run: (args) => runEngine(args["project"], "build", args["wait"] === true, oneOf(args["platform"], PLATFORMS), args["development"] === true),
+  },
+  {
+    name: "stop_engine_action",
+    description: "Arrête la vérification, les tests, le build ou la partie en cours du jeu vidéo (et les programmes qu'ils ont lancés).",
+    params: { project: project_param },
+    risk: "write",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      const failure = await useGameStudioStore.getState().cancelAction(t.id);
+      return failure ? { ok: false, message: failure } : { ok: true, message: "Arrêt demandé." };
+    },
+  },
+  {
+    name: "open_game_editor",
+    description: "Ouvre l'éditeur du moteur (Godot, Unity, Unreal) sur le projet du jeu.",
+    params: { project: project_param },
+    risk: "write",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      try {
+        return { ok: true, message: await gameStudioApi.openEditor(t.id) };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+  {
+    name: "list_engine_actions",
+    description: "Liste les dernières vérifications, tests, parties et builds du jeu, du plus récent au plus ancien, avec leur verdict.",
+    params: { project: project_param },
+    risk: "read",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      try {
+        const runs = await gameStudioApi.runs(t.id);
+        const running = await gameStudioApi.currentAction(t.id);
+        return {
+          ok: true,
+          message: `${running ? `En cours : ${ACTION[running.action].label}. ` : ""}${runs.length} exécution(s).`,
+          data: { running, runs: runs.slice(0, 20).map((r) => ({ id: r.id, action: r.action, status: r.status, summary: r.summary, startedAt: r.startedAt, errors: r.diagnostics.filter((d) => d.severity === "error").length })) },
+        };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+  {
+    name: "engine_action_result",
+    description: "Erreurs du jeu lors de la dernière vérification, des derniers tests ou du dernier build (ou d'une exécution précise) : verdict, fichier, ligne, cause probable, piste de correction, systèmes concernés.",
+    params: { project: project_param, run: { type: "string", description: "Identifiant (list_engine_actions) ; sinon la dernière." } },
+    risk: "read",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      try {
+        const runs = await gameStudioApi.runs(t.id);
+        const wanted = typeof args["run"] === "string" && args["run"] ? runs.find((r) => r.id === args["run"]) : runs[0];
+        if (!wanted) return { ok: false, message: runs.length ? "Exécution introuvable : appelle list_engine_actions." : "Aucune exécution encore : lance check_game_code." };
+        return runResult(wanted, t.id);
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+  {
+    name: "engine_action_log",
+    description: "Journal complet d'une exécution (sortie brute de l'outil), la fin seulement si demandé.",
+    params: { project: project_param, run: { type: "string", required: true }, last_lines: { type: "number", description: "Nombre de lignes de fin (200 par défaut)." } },
+    risk: "read",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      try {
+        const text = await gameStudioApi.runLog(t.id, String(args["run"]));
+        const count = typeof args["last_lines"] === "number" && args["last_lines"] > 0 ? Math.min(args["last_lines"], 2000) : 200;
+        const lines = text.split("\n");
+        return { ok: true, message: `${lines.length} ligne(s).`, data: { log: lines.slice(-count).join("\n") } };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+
+  // ── Carte du projet et problèmes ─────────────────────────────────────────────────────
+  {
+    name: "scan_game_project",
+    description: "Analyse le dossier d'un projet de jeu existant (sans rien modifier) : fichiers par nature et langage, systèmes déjà codés reconnus dans les noms, risques (Git, gros fichiers, version du moteur). Incrémental.",
+    params: { project: project_param },
+    risk: "write",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      const map = await useGameStudioStore.getState().scan(t.id);
+      if (typeof map === "string") return { ok: false, message: map };
+      return {
+        ok: true,
+        message: `${map.files} fichiers, ${map.systems.length} système(s) repéré(s), ${map.risks.length} risque(s).`,
+        data: { map: { files: map.files, languages: map.languages, systems: map.systems.map((f) => ({ id: f.id, name: f.name, inGraph: f.inGraph, files: f.fileCount, evidence: f.evidence })), risks: map.risks } },
+        open: { module: SELF, params: { projectId: t.id, section: "map" } },
+      };
+    },
+  },
+  {
+    name: "add_found_system",
+    description: "Ajoute au graphe un système repéré dans le code par scan_game_project, avec ses fichiers rattachés (statut « en cours »).",
+    params: { project: project_param, system: { type: "string", required: true, description: "Nom ou identifiant du système repéré." } },
+    risk: "write",
+    run: async (args) => {
+      const t = await target(args["project"]);
+      if (isError(t)) return t;
+      try {
+        const map = await gameStudioApi.map(t.id);
+        if (!map) return { ok: false, message: "Projet pas encore analysé : appelle scan_game_project." };
+        const found = findByName(map.systems, String(args["system"] ?? ""), (f) => f.name, (f) => f.id);
+        if (!found) return { ok: false, message: "Système non repéré dans le code : voir scan_game_project." };
+        for (const op of adoptOps(found)) await gameStudioApi.graphOp(t.id, op);
+        await useGameStudioStore.getState().loadMap(t.id);
+        return { ok: true, message: `« ${found.name} » ajouté au graphe avec ${found.files.length} fichier(s).`, open: { module: SELF, params: { projectId: t.id, section: "systems" } } };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+  {
+    name: "list_game_issues",
+    description: "Problèmes ouverts du jeu (échecs de vérification, de tests ou de build notés automatiquement, ou ajoutés à la main), avec les systèmes concernés.",
+    params: { project: project_param, include_closed: { type: "boolean" } },
+    risk: "read",
+    run: async (args) => {
+      const s = await state(args["project"]);
+      if (!isState(s)) return s;
+      const issues = s.graph.issues.filter((i) => i.open || args["include_closed"] === true);
+      return { ok: true, message: issues.length ? `${issues.length} problème(s).` : "Aucun problème ouvert.", data: { issues } };
+    },
+  },
+  {
+    name: "resolve_game_issue",
+    description: "Marque un problème du jeu comme résolu (ou le rouvre).",
+    params: { project: project_param, issue: { type: "string", required: true, description: "Identifiant ou titre." }, open: { type: "boolean", description: "true pour rouvrir." } },
+    risk: "write",
+    run: async (args) => {
+      const s = await state(args["project"]);
+      if (!isState(s)) return s;
+      const issue = findByName(s.graph.issues, String(args["issue"] ?? ""), (i) => i.title, (i) => i.id);
+      if (!issue) return { ok: false, message: "Problème introuvable : appelle list_game_issues." };
+      const open = args["open"] === true;
+      return graphOp(s.project.id, { op: "setIssueOpen", id: issue.id, open }, open ? "Problème rouvert." : "Problème marqué résolu.");
+    },
+  },
   // ── Historique ──────────────────────────────────────────────────────────────────────
   {
     name: "history_status",

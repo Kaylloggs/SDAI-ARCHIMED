@@ -1,7 +1,7 @@
 # ADR 0018 — Game Studio : studio de jeu orchestré par systèmes
 
 - **Date** : 2026-09-30
-- **Statut** : accepté (phase 1 livrée ; phases suivantes listées plus bas)
+- **Statut** : accepté (phases 1 et 2 livrées ; suivantes listées plus bas)
 
 ## Contexte
 
@@ -56,6 +56,14 @@ dans le moteur de son choix, avec des agents IA. Trois écueils à éviter :
 9. **Commandes pour les agents.** `agent-actions.ts` couvre les gestes de l'interface (ADR
    0017) ; supprimer un système, une tâche, revenir à un point ou installer un outil est
    `destructive`.
+
+10. **Exécution suivie, jamais simulée.** Les actions moteur passent par `runner.rs` : programme
+    et arguments sans shell, une action à la fois par projet, sortie en flux, délai maximal, arrêt
+    de tout l'arbre de processus, secrets masqués avant affichage et écriture. Le verdict ne se
+    fie pas qu'au code de sortie : marqueur de réussite attendu, build réellement écrit, et mode
+    strict pour Godot, qui finit à 0 après une erreur de script à l'exécution (vérifié sur 4.4.1).
+    Un échec ouvre un problème du graphe (`source: run:<action>`), refermé par la réussite de la
+    même action.
 
 ## Phases
 

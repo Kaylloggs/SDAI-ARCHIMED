@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { layoutGraph, neighbourhood, NODE_W } from "../lib/graph-layout";
 import { consumers, impact, systemId } from "../lib/graph";
-import { shortVersion, topicLabel } from "../lib/labels";
+import { availability } from "../lib/actions";
+import { bytes, duration, shortVersion, topicLabel } from "../lib/labels";
+import { adoptOps } from "../lib/map";
 import { folderName, joinPath } from "../lib/naming";
 import { neededBy, prune, withDependencies } from "../lib/selection";
 import { blankTask, readyTasks, waitingOn } from "../lib/tasks";
+import type { GameFoundSystem } from "@/core/ipc/bindings/GameFoundSystem";
+import type { GameProjectState } from "@/core/ipc/bindings/GameProjectState";
 import type { GameSystem } from "@/core/ipc/bindings/GameSystem";
 import type { GameTask } from "@/core/ipc/bindings/GameTask";
 
@@ -136,5 +140,44 @@ describe("sujet d'une hypothèse", () => {
     expect(topicLabel("targets")).toBe("Plateformes");
     expect(topicLabel("camera")).toBe("Caméra");
     expect(topicLabel("save_slots")).toBe("Save slots");
+  });
+});
+
+describe("actions du moteur proposées", () => {
+  const base = {
+    project: { engine: "godot" },
+    install: { engine: "godot", version: "4.4.1", editor: "godot", console: null, root: "/", source: "test" },
+    capabilities: [
+      { id: "check", label: "Vérifier", via: "cli", requires: "Godot 4 installé", available: true, detail: null },
+      { id: "build", label: "Exporter un build", via: "cli", requires: "Modèles d'export", available: false, detail: null },
+    ],
+  } as unknown as GameProjectState;
+
+  it("disent pourquoi elles sont indisponibles", () => {
+    expect(availability(base, "check")).toEqual({ available: true, reason: null });
+    expect(availability(base, "setup").available).toBe(true);
+    expect(availability(base, "build")).toEqual({ available: false, reason: "Il faut : Modèles d'export." });
+    expect(availability({ ...base, install: null }, "check").reason).toMatch(/pas installé/);
+    expect(availability({ ...base, project: { ...base.project, engine: null } }, "run").reason).toMatch(/moteur/);
+  });
+});
+
+describe("système repéré dans le code", () => {
+  const found = { id: "inventory", name: "Inventaire", category: "items", inGraph: false, files: ["scripts/inventory.gd"], fileCount: 1, evidence: ["inventory"] } as GameFoundSystem;
+
+  it("entre dans le graphe avec ses fichiers, en cours", () => {
+    expect(adoptOps(found).map((o) => o.op)).toEqual(["addCatalogSystem", "linkFiles", "setSystemStatus"]);
+    expect(adoptOps({ ...found, inGraph: true }).map((o) => o.op)).toEqual(["linkFiles"]);
+  });
+});
+
+describe("mesures lisibles", () => {
+  it("formate tailles et durées", () => {
+    expect(bytes(512)).toBe("512 o");
+    expect(bytes(1536)).toBe("1,5 Ko");
+    expect(bytes(25 * 1024 * 1024)).toBe("25 Mo");
+    expect(duration(4200)).toBe("4 s");
+    expect(duration(65_000)).toBe("1 min 05 s");
+    expect(duration(120_000)).toBe("2 min");
   });
 });

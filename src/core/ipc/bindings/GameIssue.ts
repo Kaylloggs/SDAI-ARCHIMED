@@ -4,4 +4,8 @@ import type { GameIssueSeverity } from "./GameIssueSeverity";
 /**
  * Problème connu du projet.
  */
-export type GameIssue = { id: string, title: string, detail: string, severity: GameIssueSeverity, systems: Array<string>, open: boolean, at: string, };
+export type GameIssue = { id: string, title: string, detail: string, severity: GameIssueSeverity, systems: Array<string>, open: boolean, at: string, 
+/**
+ * Origine : `run:check`, `run:build`… (refermé quand la même action réussit).
+ */
+source: string | null, };

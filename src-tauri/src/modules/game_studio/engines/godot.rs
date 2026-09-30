@@ -596,6 +596,8 @@ impl EngineAdapter for Godot {
             output: None,
             success_marker: None,
             detached: false,
+            strict: false,
+            results: None,
         };
         Ok(match action {
             GameAction::Setup => {
@@ -612,7 +614,7 @@ impl EngineAdapter for Godot {
             }
             GameAction::Check => {
                 ensure_check_script(ctx.root)?;
-                spec(
+                let mut s = spec(
                     console,
                     vec![
                         "--headless".into(),
@@ -622,7 +624,9 @@ impl EngineAdapter for Godot {
                         format!("res://{CHECK_SCRIPT}"),
                     ],
                     Some(300),
-                )
+                );
+                s.strict = true;
+                s
             }
             GameAction::Test => {
                 if !ctx.root.join(SMOKE_TEST).is_file() {
@@ -641,13 +645,12 @@ impl EngineAdapter for Godot {
                     Some(300),
                 );
                 s.success_marker = Some(SMOKE_MARKER.to_string());
+                s.strict = true;
                 s
             }
-            GameAction::Run => {
-                let mut s = spec(&ctx.install.editor, vec!["--path".into(), path], None);
-                s.detached = true;
-                s
-            }
+            // Le jeu tourne sous la surveillance de Game Studio : sa sortie (erreurs de script)
+            // est lue, et il s'arrête depuis l'interface.
+            GameAction::Run => spec(&ctx.install.editor, vec!["--path".into(), path], None),
             GameAction::Editor => {
                 let mut s = spec(
                     &ctx.install.editor,

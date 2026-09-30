@@ -8,10 +8,14 @@ use std::time::{Duration, Instant};
 use crate::core::{AppError, AppResult};
 
 use super::analysis::{self, Installed};
+use super::builds;
 use super::catalog::catalog;
-use super::engines::{self, display, folder_name, NewProject};
+use super::diagnostics;
+use super::engines::{self, display, folder_name, ActionContext, GameAction, NewProject};
 use super::graph;
 use super::journal;
+use super::runner::{self, GameJobEvent, GameRunningJob, Jobs, PreparedJob, RunOutcome};
+use super::scanner::{self, GameProjectMap, ScanInput};
 use super::store::{self, Store};
 use super::tools::{self, ToolOverrides};
 use super::types::*;
@@ -26,6 +30,8 @@ pub struct GameStudio {
     env: Mutex<Option<(Instant, GameEnvironment)>>,
     /// Une modification du graphe à la fois (interface et agents écrivent le même fichier).
     graph_lock: Mutex<()>,
+    /// Action moteur en cours, par projet.
+    jobs: Jobs,
 }
 
 fn now() -> String {
@@ -115,7 +121,7 @@ pub fn initial_tasks(
         expected:
             "Le projet s'ouvre dans le moteur, la vérification et le test de démarrage réussissent."
                 .to_string(),
-        validation: "Le projet s'ouvre dans l'éditeur du moteur et la scène principale se lance sans erreur."
+        validation: "« Vérifier le code » et « Lancer les tests » réussis dans Build et tests."
             .to_string(),
         phase: first_phase.map(|p| p.id.clone()),
         conversation_id: None,
@@ -168,6 +174,25 @@ pub fn initial_tasks(
     tasks
 }
 
+/// Exécution dont l'analyse n'a pas pu se faire (tâche interrompue).
+fn failed_record(summary: String) -> GameBuildRecord {
+    GameBuildRecord {
+        id: graph::new_id("run"),
+        action: GameAction::Check,
+        platform: None,
+        development: false,
+        status: GameBuildStatus::Failed,
+        started_at: now(),
+        duration_ms: 0,
+        exit_code: None,
+        command: String::new(),
+        output: None,
+        summary,
+        diagnostics: Vec::new(),
+        log_lines: 0,
+    }
+}
+
 impl GameStudio {
     pub fn new(dir: PathBuf) -> Self {
         let _ = std::fs::create_dir_all(&dir);
@@ -176,6 +201,7 @@ impl GameStudio {
             dir,
             env: Mutex::new(None),
             graph_lock: Mutex::new(()),
+            jobs: Jobs::default(),
         }
     }
 
@@ -470,7 +496,8 @@ impl GameStudio {
             Some(engine) => {
                 let adapter = engines::adapter(engine);
                 let env = self.environment(false);
-                let install = tools::pick_install(&env, engine, None);
+                let install =
+                    tools::pick_install_for(&env, engine, project.engine_version.as_deref());
                 let info = adapter.inspect(&root).map(|p| GameEngineInfo {
                     name: p.name,
                     engine_version: p.engine_version,
@@ -628,6 +655,473 @@ impl GameStudio {
     ) -> AppResult<Vec<GameLogEntry>> {
         let root = self.root(id)?;
         Ok(journal::read(&root, category, limit.clamp(1, 2000)))
+    }
+
+    // ── Actions moteur ────────────────────────────────────────────────────────────────
+
+    /// Vérifie que l'action est possible et réserve le projet ; la commande vient de
+    /// l'adaptateur du moteur (erreur claire sinon : moteur absent, préréglage manquant…).
+    pub fn prepare_action(
+        &self,
+        id: &str,
+        action: GameAction,
+        platform: Option<GamePlatform>,
+        development: bool,
+    ) -> AppResult<PreparedJob> {
+        let (root, spec, platform) = self.action_command(id, action, platform, development)?;
+        if spec.detached {
+            return Err(AppError::invalid(
+                "Cette action ouvre un programme sans le suivre : utilisez « Ouvrir l'éditeur ».",
+            ));
+        }
+        let job_id = graph::new_id("run");
+        let started_at = now();
+        let cancelled = self.jobs.claim(
+            id,
+            GameRunningJob {
+                job_id: job_id.clone(),
+                action,
+                started_at: started_at.clone(),
+                command: runner::command_line(&spec),
+            },
+        )?;
+        Ok(PreparedJob {
+            project_id: id.to_string(),
+            job_id,
+            root,
+            action,
+            platform: (action == GameAction::Build).then_some(platform),
+            development,
+            spec,
+            started_at,
+            cancelled,
+        })
+    }
+
+    fn action_command(
+        &self,
+        id: &str,
+        action: GameAction,
+        platform: Option<GamePlatform>,
+        development: bool,
+    ) -> AppResult<(PathBuf, engines::CommandSpec, GamePlatform)> {
+        let root = self.root(id)?;
+        let project = store::load_project(&root)?;
+        let engine = project.engine.ok_or_else(|| {
+            AppError::invalid("Ce jeu n'a pas encore de moteur : choisissez-en un dans Réglages.")
+        })?;
+        let adapter = engines::adapter(engine);
+        let install = tools::pick_install_for(
+            &self.environment(false),
+            engine,
+            project.engine_version.as_deref(),
+        )
+        .ok_or_else(|| {
+            AppError::cli_missing(format!(
+                "{} n'est pas installé sur cette machine : installez-le depuis l'onglet Outils, ou désignez son exécutable.",
+                engine.label()
+            ))
+        })?;
+        let inspected = adapter.inspect(&root).ok_or_else(|| {
+            AppError::not_found(format!(
+                "Le dossier ne contient plus de projet {} lisible.",
+                engine.label()
+            ))
+        })?;
+        let platform = platform
+            .or_else(|| project.targets.first().copied())
+            .unwrap_or(GamePlatform::Windows);
+        let ctx = ActionContext {
+            root: &root,
+            project: &inspected,
+            install: &install,
+            platform,
+            development,
+        };
+        let spec = adapter.command(action, &ctx)?;
+        Ok((root, spec, platform))
+    }
+
+    /// Ouvre l'éditeur du moteur sur le projet (sans l'attendre).
+    pub fn open_editor(&self, id: &str) -> AppResult<String> {
+        let (root, spec, _) = self.action_command(id, GameAction::Editor, None, false)?;
+        runner::spawn_detached(&spec)?;
+        journal::info(
+            &root,
+            GameLogCategory::Engine,
+            &format!("Éditeur ouvert : {}", runner::command_line(&spec)),
+        );
+        Ok("Éditeur du moteur ouvert.".to_string())
+    }
+
+    /// Exécute l'action préparée ; les événements partent vers `emit` au fil de l'eau.
+    pub async fn run_prepared(
+        self: &std::sync::Arc<Self>,
+        job: PreparedJob,
+        emit: impl Fn(GameJobEvent) + Send + Sync + 'static,
+    ) -> GameBuildRecord {
+        emit(GameJobEvent::Started {
+            job_id: job.job_id.clone(),
+            action: job.action,
+            command: runner::command_line(&job.spec),
+            cwd: display(&job.spec.cwd),
+            timeout_secs: job.spec.timeout.map(|t| t.as_secs()),
+        });
+        let since = std::time::SystemTime::now();
+        let outcome = runner::run(&self.jobs, &job, journal::redact, &emit).await;
+        self.jobs.release(&job.project_id, &job.job_id);
+        let studio = self.clone();
+        let record = tokio::task::spawn_blocking(move || studio.finish_job(&job, outcome, since))
+            .await
+            .unwrap_or_else(|e| failed_record(format!("analyse interrompue : {e}")));
+        emit(GameJobEvent::Finished {
+            record: record.clone(),
+        });
+        record
+    }
+
+    /// Verdict, erreurs expliquées, historique, journal et problèmes du graphe.
+    fn finish_job(
+        &self,
+        job: &PreparedJob,
+        outcome: RunOutcome,
+        since: std::time::SystemTime,
+    ) -> GameBuildRecord {
+        let root = &job.root;
+        let engine = store::load_project(root).ok().and_then(|p| p.engine);
+        let mut diags = diagnostics::parse(&outcome.log, root, engine);
+        let mut failed_tests = 0;
+        if let Some(results) = job.spec.results.as_deref() {
+            if runner::output_written(results, since) {
+                let found =
+                    diagnostics::parse_nunit(&std::fs::read_to_string(results).unwrap_or_default());
+                failed_tests = found.len();
+                diags.splice(0..0, found);
+            }
+        }
+        diagnostics::attach_systems(&mut diags, &store::load_graph(root));
+        let errors = diags
+            .iter()
+            .filter(|d| d.severity == GameIssueSeverity::Error)
+            .count();
+        let label = job.action.label();
+        let first_error = diags
+            .iter()
+            .find(|d| d.severity == GameIssueSeverity::Error)
+            .map(|d| match (&d.file, d.line) {
+                (Some(f), Some(l)) => format!("{} ({f}:{l})", d.message),
+                (Some(f), None) => format!("{} ({f})", d.message),
+                _ => d.message.clone(),
+            });
+        let cause = first_error
+            .as_ref()
+            .map(|e| format!(" Première erreur : {e}"))
+            .unwrap_or_default();
+        let output = job
+            .spec
+            .output
+            .as_ref()
+            .filter(|o| runner::output_written(o, since));
+        let marker_ok = job
+            .spec
+            .success_marker
+            .as_ref()
+            .is_none_or(|m| outcome.log.iter().any(|l| l.contains(m.as_str())));
+        let seconds = outcome.duration.as_secs();
+
+        let (status, summary) = if let Some(error) = &outcome.start_error {
+            (GameBuildStatus::Failed, error.clone())
+        } else if outcome.cancelled {
+            (
+                GameBuildStatus::Cancelled,
+                match job.action {
+                    GameAction::Run => "Jeu arrêté à votre demande.".to_string(),
+                    _ => format!("{label} arrêtée à votre demande."),
+                },
+            )
+        } else if outcome.timed_out {
+            (
+                GameBuildStatus::Failed,
+                format!(
+                    "{label} arrêtée : délai de {} min dépassé.{cause}",
+                    job.spec.timeout.map(|t| t.as_secs() / 60).unwrap_or(0)
+                ),
+            )
+        } else if outcome.exit_code != Some(0) {
+            let code = outcome
+                .exit_code
+                .map(|c| format!("code {c}"))
+                .unwrap_or_else(|| "arrêt anormal".to_string());
+            let base = match job.action {
+                GameAction::Run => format!("Le jeu s'est arrêté sur une erreur ({code})."),
+                GameAction::Check => format!("Vérification échouée : {errors} erreur(s)."),
+                GameAction::Test if failed_tests > 0 => {
+                    format!("{failed_tests} test(s) échoué(s).")
+                }
+                _ => format!("{label} échouée ({code})."),
+            };
+            (GameBuildStatus::Failed, format!("{base}{cause}"))
+        } else if !marker_ok {
+            (
+                GameBuildStatus::Failed,
+                format!("{label} : le programme s'est arrêté avant la fin attendue.{cause}"),
+            )
+        } else if job.spec.strict && errors > 0 {
+            (
+                GameBuildStatus::Failed,
+                format!("{errors} erreur(s) pendant l'exécution.{cause}"),
+            )
+        } else if failed_tests > 0 {
+            (
+                GameBuildStatus::Failed,
+                format!("{failed_tests} test(s) échoué(s).{cause}"),
+            )
+        } else if job.spec.output.is_some() && output.is_none() {
+            (
+                GameBuildStatus::Failed,
+                format!(
+                    "Le build s'est terminé sans produire {}.",
+                    job.spec.output.as_deref().map(display).unwrap_or_default()
+                ),
+            )
+        } else {
+            let warnings = diags.len() - errors;
+            let note = if warnings > 0 {
+                format!(" {warnings} avertissement(s).")
+            } else {
+                String::new()
+            };
+            let text = match job.action {
+                GameAction::Setup => format!("Projet préparé en {seconds} s.{note}"),
+                GameAction::Check => format!("Vérification réussie : aucun code en erreur.{note}"),
+                GameAction::Test => format!("Tests réussis en {seconds} s.{note}"),
+                GameAction::Build => format!(
+                    "Build produit : {}.{note}",
+                    output.map(|o| display(o)).unwrap_or_default()
+                ),
+                GameAction::Run => "Partie terminée : le jeu s'est fermé normalement.".to_string(),
+                GameAction::Editor => "Éditeur fermé.".to_string(),
+            };
+            (GameBuildStatus::Success, text)
+        };
+
+        let record = GameBuildRecord {
+            id: job.job_id.clone(),
+            action: job.action,
+            platform: job.platform,
+            development: job.development,
+            status,
+            started_at: job.started_at.clone(),
+            duration_ms: outcome.duration.as_millis() as u64,
+            exit_code: outcome.exit_code,
+            command: runner::command_line(&job.spec),
+            output: output.map(|o| display(o)),
+            summary: summary.clone(),
+            diagnostics: diags.clone(),
+            log_lines: outcome.log.len() as u32,
+        };
+        builds::save(root, &record, &outcome.log);
+        let category = match job.action {
+            GameAction::Setup | GameAction::Build => GameLogCategory::Build,
+            GameAction::Check | GameAction::Test => GameLogCategory::Test,
+            GameAction::Run | GameAction::Editor => GameLogCategory::Engine,
+        };
+        let level = match status {
+            GameBuildStatus::Failed => GameLogLevel::Error,
+            GameBuildStatus::Cancelled => GameLogLevel::Warning,
+            _ => GameLogLevel::Info,
+        };
+        journal::log(root, category, level, &summary, Some(&record.command));
+        crate::core::audit::record(
+            "game-studio.run",
+            &record.command,
+            &format!("{status:?}").to_lowercase(),
+            "user",
+        );
+        self.track_issue(&job.project_id, job.action, status, &summary, &diags);
+        if status == GameBuildStatus::Success {
+            self.complete_start_task(&job.project_id, root);
+        }
+        record
+    }
+
+    /// La tâche de départ est faite quand la vérification et le test de démarrage ont réussi
+    /// (les dernières exécutions de chacun).
+    fn complete_start_task(&self, id: &str, root: &Path) {
+        let history = builds::history(root);
+        let last_ok = |action: GameAction| {
+            history
+                .iter()
+                .rev()
+                .find(|r| r.action == action)
+                .is_some_and(|r| r.status == GameBuildStatus::Success)
+        };
+        let pending = store::load_graph(root).tasks.iter().any(|t| {
+            t.id == "t-start"
+                && matches!(
+                    t.status,
+                    GameTaskStatus::Todo | GameTaskStatus::Running | GameTaskStatus::Failed
+                )
+        });
+        if pending && last_ok(GameAction::Check) && last_ok(GameAction::Test) {
+            let _ = self.graph_op(
+                id,
+                GameGraphOp::SetTaskStatus {
+                    id: "t-start".to_string(),
+                    status: GameTaskStatus::Done,
+                    result: Some("Vérification et test de démarrage réussis.".to_string()),
+                    conversation_id: None,
+                },
+                "Game Studio",
+            );
+        }
+    }
+
+    /// Un échec devient un problème du projet ; la même action réussie le referme.
+    fn track_issue(
+        &self,
+        id: &str,
+        action: GameAction,
+        status: GameBuildStatus,
+        summary: &str,
+        diags: &[GameDiagnostic],
+    ) {
+        if status == GameBuildStatus::Cancelled {
+            return;
+        }
+        let Ok(root) = self.root(id) else { return };
+        let source = format!("run:{}", action.slug());
+        let open: Vec<String> = store::load_graph(&root)
+            .issues
+            .iter()
+            .filter(|i| i.open && i.source.as_deref() == Some(source.as_str()))
+            .map(|i| i.id.clone())
+            .collect();
+        for issue in open {
+            let _ = self.graph_op(
+                id,
+                GameGraphOp::SetIssueOpen {
+                    id: issue,
+                    open: false,
+                },
+                "Game Studio",
+            );
+        }
+        if status == GameBuildStatus::Failed {
+            let detail = diags
+                .iter()
+                .filter(|d| d.severity == GameIssueSeverity::Error)
+                .take(5)
+                .map(|d| match (&d.file, d.line) {
+                    (Some(f), Some(l)) => format!("{f}:{l} — {}", d.message),
+                    (Some(f), None) => format!("{f} — {}", d.message),
+                    _ => d.message.clone(),
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            let mut systems: Vec<String> = diags.iter().flat_map(|d| d.systems.clone()).collect();
+            systems.sort();
+            systems.dedup();
+            let _ = self.graph_op(
+                id,
+                GameGraphOp::AddIssue {
+                    title: summary.chars().take(300).collect(),
+                    detail,
+                    severity: GameIssueSeverity::Error,
+                    systems,
+                    source: Some(source),
+                },
+                "Game Studio",
+            );
+        }
+    }
+
+    pub fn cancel_action(&self, id: &str) -> AppResult<()> {
+        self.jobs.cancel(id)
+    }
+
+    pub fn current_action(&self, id: &str) -> Option<GameRunningJob> {
+        self.jobs.current(id)
+    }
+
+    pub fn runs(&self, id: &str) -> AppResult<Vec<GameBuildRecord>> {
+        let mut runs = builds::history(&self.root(id)?);
+        runs.reverse();
+        Ok(runs)
+    }
+
+    /// Journal complet d'une exécution (la fin, s'il est très long).
+    pub fn run_log(&self, id: &str, run_id: &str) -> AppResult<String> {
+        if !run_id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-')
+        {
+            return Err(AppError::invalid("Identifiant d'exécution invalide."));
+        }
+        let text = std::fs::read_to_string(builds::log_path(&self.root(id)?, run_id))
+            .map_err(|_| AppError::not_found("Journal de cette exécution introuvable."))?;
+        const MAX: usize = 2 * 1024 * 1024;
+        if text.len() <= MAX {
+            return Ok(text);
+        }
+        let mut start = text.len() - MAX;
+        while !text.is_char_boundary(start) {
+            start += 1;
+        }
+        Ok(format!("[… début coupé]\n{}", &text[start..]))
+    }
+
+    // ── Carte du projet ───────────────────────────────────────────────────────────────
+
+    pub fn scan(&self, id: &str) -> AppResult<GameProjectMap> {
+        let root = self.root(id)?;
+        let project = store::load_project(&root)?;
+        let graph = store::load_graph(&root);
+        let adapter = project.engine.map(engines::adapter);
+        let main_scene = adapter
+            .as_ref()
+            .and_then(|a| a.inspect(&root))
+            .map(|p| p.main_scene);
+        let installed_versions = project
+            .engine
+            .map(|engine| {
+                self.environment(false)
+                    .engines
+                    .iter()
+                    .filter(|i| i.engine == engine)
+                    .filter_map(|i| i.version.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let ignored: Vec<&str> = adapter
+            .as_ref()
+            .map(|a| a.ignored_dirs().to_vec())
+            .unwrap_or_default();
+        let map = scanner::scan(&ScanInput {
+            root: &root,
+            ignored: &ignored,
+            graph: &graph,
+            main_scene,
+            engine_version: project.engine_version.clone(),
+            installed_versions,
+            git: vcs::is_repository(&root),
+        })?;
+        journal::info(
+            &root,
+            GameLogCategory::System,
+            &format!(
+                "Projet analysé : {} fichiers ({} modifiés), {} systèmes repérés, {} risques.",
+                map.files,
+                map.changed,
+                map.systems.len(),
+                map.risks.len()
+            ),
+        );
+        Ok(map)
+    }
+
+    pub fn map(&self, id: &str) -> AppResult<Option<GameProjectMap>> {
+        Ok(scanner::load_map(&self.root(id)?))
     }
 
     // ── Historique (Git) ──────────────────────────────────────────────────────────────
@@ -910,6 +1404,131 @@ mod tests {
         assert!(studio
             .import(&base.join("vide").display().to_string())
             .is_err());
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[tokio::test]
+    #[ignore = "demande Godot 4 : GAMESTUDIO_GODOT=<chemin de l'exécutable>"]
+    async fn real_godot_actions_are_run_explained_and_tracked() {
+        let Ok(godot) = std::env::var("GAMESTUDIO_GODOT") else {
+            return;
+        };
+        let (studio, base) = studio("actions");
+        let studio = std::sync::Arc::new(studio);
+        studio.set_tool_path("godot", Some(&godot)).unwrap();
+        let analysis = studio
+            .analyze("Un petit jeu de plateforme en 2D avec des pièces à ramasser.")
+            .unwrap();
+        let outcome = studio
+            .create(request(
+                &analysis,
+                &base.join("jeux"),
+                Some(GameEngine::Godot),
+            ))
+            .unwrap();
+        let id = outcome.project.id.clone();
+        let root = PathBuf::from(&outcome.project.root);
+        let run = |action| {
+            let job = studio.prepare_action(&id, action, None, false).unwrap();
+            studio.run_prepared(job, |_| {})
+        };
+
+        let setup = run(GameAction::Setup).await;
+        assert_eq!(setup.status, GameBuildStatus::Success, "{}", setup.summary);
+        let check = run(GameAction::Check).await;
+        assert_eq!(check.status, GameBuildStatus::Success, "{}", check.summary);
+
+        // Erreur de script : échec expliqué, problème ouvert, rattaché au fichier.
+        std::fs::write(
+            root.join("scripts/casse.gd"),
+            "extends Node\nfunc f() -> void:\n\tvar x: int = \"texte\"\n",
+        )
+        .unwrap();
+        let broken = run(GameAction::Check).await;
+        assert_eq!(broken.status, GameBuildStatus::Failed, "{}", broken.summary);
+        let first = &broken.diagnostics[0];
+        assert_eq!(first.file.as_deref(), Some("scripts/casse.gd"));
+        assert_eq!(first.line, Some(3));
+        assert!(first.likely_cause.is_some());
+        assert!(
+            broken.summary.contains("scripts/casse.gd:3"),
+            "{}",
+            broken.summary
+        );
+        let open = |g: &GameGraph| {
+            g.issues
+                .iter()
+                .filter(|i| i.open && i.source.as_deref() == Some("run:check"))
+                .count()
+        };
+        assert_eq!(open(&store::load_graph(&root)), 1);
+
+        // Corrigé : la vérification repasse et referme le problème.
+        std::fs::remove_file(root.join("scripts/casse.gd")).unwrap();
+        let fixed = run(GameAction::Check).await;
+        assert_eq!(fixed.status, GameBuildStatus::Success, "{}", fixed.summary);
+        assert_eq!(open(&store::load_graph(&root)), 0);
+
+        // Erreur à l'exécution : Godot finit à 0, le test de démarrage échoue quand même.
+        std::fs::write(
+            root.join("scripts/main.gd"),
+            "extends Node2D\n\nfunc _ready() -> void:\n\tvar n: Node = null\n\tn.queue_free()\n",
+        )
+        .unwrap();
+        let test = run(GameAction::Test).await;
+        assert_eq!(test.status, GameBuildStatus::Failed, "{}", test.summary);
+        assert!(test
+            .diagnostics
+            .iter()
+            .any(|d| d.file.as_deref() == Some("scripts/main.gd") && d.line == Some(5)));
+
+        // Une action à la fois ; l'historique et le journal complet sont lisibles.
+        let held = studio
+            .prepare_action(&id, GameAction::Check, None, false)
+            .unwrap();
+        assert!(studio
+            .prepare_action(&id, GameAction::Test, None, false)
+            .is_err());
+        assert_eq!(
+            studio.current_action(&id).map(|j| j.action),
+            Some(GameAction::Check)
+        );
+        studio.run_prepared(held, |_| {}).await;
+        let runs = studio.runs(&id).unwrap();
+        assert_eq!(runs.len(), 6);
+        assert_eq!(runs[0].action, GameAction::Check, "le plus récent d'abord");
+        assert_eq!(runs[1].action, GameAction::Test);
+        assert!(studio
+            .run_log(&id, &runs[1].id)
+            .unwrap()
+            .contains("queue_free"));
+        assert!(studio.run_log(&id, "../../etc/passwd").is_err());
+
+        // Export sans modèles : refusé avant de lancer quoi que ce soit, avec la marche à suivre.
+        if let Err(e) =
+            studio.prepare_action(&id, GameAction::Build, Some(GamePlatform::Windows), false)
+        {
+            assert!(e.message.contains("export"), "{}", e.message);
+        }
+        assert!(studio.current_action(&id).is_none());
+
+        // Code réparé : vérification et test de démarrage réussis cochent la tâche de départ.
+        std::fs::write(
+            root.join("scripts/main.gd"),
+            "extends Node2D\n\nfunc _ready() -> void:\n\tpass\n",
+        )
+        .unwrap();
+        assert_eq!(run(GameAction::Test).await.status, GameBuildStatus::Success);
+        let start = store::load_graph(&root)
+            .tasks
+            .into_iter()
+            .find(|t| t.id == "t-start")
+            .unwrap();
+        assert_eq!(start.status, GameTaskStatus::Done);
+
+        let map = studio.scan(&id).unwrap();
+        assert!(map.files > 5);
+        assert!(map.languages.iter().any(|l| l.language == "GDScript"));
         let _ = std::fs::remove_dir_all(&base);
     }
 

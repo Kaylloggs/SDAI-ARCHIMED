@@ -9,7 +9,7 @@ décisions, points de restauration). Il ne génère pas de jeu par genre (ADR 00
 - **Slots, services, événements** : aucun. La page écoute `module.data.changed` (modifications
   faites par un agent ou la voix) et accepte `moduleParams` `{ projectId, section, create }`.
 - **Coffre** : `game-studio-openrouter`, `game-studio-gemini`, `game-studio-higgsfield` (réservés
-  aux phases de contenu ; aucune clé n'est lue ni écrite en phase 1).
+  aux phases de contenu ; aucune clé n'est lue ni écrite pour l'instant).
 - **Tutoriel** : `tutorial.ts`, affiché dans le module Tutoriel (à tenir à jour avec l'interface).
 
 ## État des phases
@@ -17,7 +17,7 @@ décisions, points de restauration). Il ne génère pas de jeu par genre (ADR 00
 | Phase | Contenu | État |
 |---|---|---|
 | 1 | Analyse d'idée, graphe, adaptateurs, création, import, points de restauration, environnement, interface | ✓ (Godot 4.4.1 vérifié de bout en bout ; Unity et Unreal à essayer sur Windows) |
-| 2 | Scanner de projet existant, exécution des commandes moteur en flux, builds, erreurs expliquées | à venir |
+| 2 | Exécution des commandes moteur en direct (arrêt, délai, silence signalé), erreurs expliquées, problèmes ouverts et refermés, carte d'un projet existant | ✓ (vérification, tests et erreurs Godot vérifiés de bout en bout) |
 | 3 | Outils MCP de Game Studio, client MCP | à venir |
 | 4 | Agents par rôle, boucle de débogage, GDD et TDD | à venir |
 | 5 | Ressources, images IA, Blender sans interface | à venir |
@@ -38,8 +38,23 @@ Rien n'est simulé : un geste qui n'a pas encore de moteur n'a pas de bouton.
    Un jeu peut être créé **sans moteur** (conception seule) et en recevoir un plus tard.
 3. **Espace du projet** (`workspace/`) : Tableau de bord, Conception, Systèmes (graphe en
    couches ou liste, fiche avec dépendances, consommateurs et impact d'un retrait), Tâches (prêtes,
-   bloquées, en cours), Historique (git, points de restauration, différences), Journal, Outils,
-   Réglages (moteur, plateformes, budget de performance).
+   bloquées, en cours), Build et tests, Carte du projet, Historique (git, points de restauration,
+   différences), Journal, Outils, Réglages (moteur, plateformes, budget de performance).
+4. **Build et tests** (`BuildSection`) : Vérifier le code, Lancer les tests, Lancer le jeu,
+   Préparer le projet, Ouvrir l'éditeur, Exporter le build (plateforme, publication ou
+   développement). Chaque bouton vient d'une capacité de l'adaptateur ; indisponible, il dit
+   pourquoi (moteur absent, modèles d'export manquants). Sortie en direct (filtre erreurs et
+   avertissements), arrêt de tout l'arbre de processus, délai maximal, message quand l'outil ne dit
+   plus rien depuis 2 min. À la fin : verdict, erreurs avec fichier, ligne, cause probable, piste de
+   correction et systèmes concernés, journal complet, build produit. Un échec ouvre un problème
+   du projet (tableau de bord) ; la même action réussie le referme. Vérification et test de
+   démarrage réussis cochent la tâche de départ.
+5. **Carte du projet** (`MapSection`) : fichiers par nature et par langage, dossiers principaux,
+   systèmes déjà codés (reconnus dans les noms de fichiers, de classes et de fonctions, avec
+   « Ajouter au graphe » : fichiers rattachés, statut « en cours »), risques (pas de Git, gros
+   fichiers hors LFS, dossiers générés non ignorés, scène de démarrage absente, version du moteur
+   différente, aucun test, scripts très longs). Analyse incrémentale ; lancée d'office à l'import
+   d'un projet existant, sans rien modifier dans ses fichiers.
 
 ## Backend
 
@@ -54,12 +69,18 @@ Rien n'est simulé : un geste qui n'a pas encore de moteur n'a pas de bouton.
 | `vcs.rs` | Points de restauration git sous `refs/gamestudio/checkpoints/` (index temporaire) |
 | `journal.rs` | Journal JSONL par catégorie, secrets masqués, rotation à 5 Mo |
 | `tools.rs` | Rapport d'environnement, installations winget, chemins désignés |
+| `runner.rs` | Exécution des commandes (une action par projet, sortie en flux par `Channel<GameJobEvent>`, délai, arrêt de l'arbre de processus, silence signalé, secrets masqués) |
+| `diagnostics.rs` | Erreurs lues dans la sortie : GDScript et Godot, C# (Unity, MSBuild), C++ (MSVC, clang, éditeur de liens), Unreal et UAT, Python, résultats NUnit ; causes et pistes ; systèmes concernés d'après les fichiers rattachés |
+| `scanner.rs` | Carte d'un projet (`.gamestudio/cache/`), incrémentale |
+| `builds.rs` | Historique des exécutions (`.gamestudio/builds/history.json`, journal complet par exécution) |
 | `service.rs`, `commands.rs` | Façade et commandes Tauri |
 
 Commandes : `game_environment`, `set_tool_path`, `install_tool`, `analyze_idea`,
 `system_catalog`, `game_default_dir`, `create_game`, `import_game`, `list_games`, `game_state`,
 `update_game`, `forget_game`, `set_game_engine`, `graph_op`, `read_journal`, `vcs_state`,
-`vcs_init`, `create_checkpoint`, `checkpoint_changes`, `checkpoint_diff`, `restore_checkpoint`.
+`vcs_init`, `create_checkpoint`, `checkpoint_changes`, `checkpoint_diff`, `restore_checkpoint`,
+`run_game_action`, `cancel_game_action`, `current_game_action`, `open_game_editor`,
+`list_game_runs`, `read_game_run_log`, `scan_game`, `game_map`.
 
 ## Ce que contient un projet créé
 
@@ -77,8 +98,13 @@ Commandes : `game_environment`, `set_tool_path`, `install_tool`, `analyze_idea`,
 ## Tests
 
 - `cargo test --lib game_studio` : catalogue (cohérence, cycles, négations), analyse (12 idées
-  types), graphe, points de restauration, service de bout en bout.
-- `GAMESTUDIO_GODOT=<chemin de Godot> cargo test --lib game_studio -- --include-ignored` : crée
-  un vrai projet, le prépare (`--import`), vérifie ses scripts (une erreur de type les fait
-  échouer) et lance le test de fumée dans Godot.
-- `pnpm test` : `__tests__/` (mise en page du graphe, sélection, tâches, noms de dossier).
+  types), graphe, points de restauration, exécuteur (flux, code de sortie, arrêt de l'arbre de
+  processus, délai, programme absent), lecture des erreurs (sorties réelles de Godot 4.4.1 et
+  formats C#, MSVC, clang, Unreal, Unity, Python, NUnit), carte d'un projet (incrémentale),
+  service de bout en bout.
+- `GAMESTUDIO_GODOT=<chemin de Godot> cargo test --lib game_studio -- --include-ignored` : avec le
+  vrai Godot, crée un projet, le prépare, le vérifie, casse un script (échec expliqué, problème
+  ouvert), le répare (problème refermé), provoque une erreur à l'exécution (test de démarrage en
+  échec malgré le code 0), puis coche la tâche de départ quand tout repasse.
+- `pnpm test` : `__tests__/` (mise en page du graphe, sélection, tâches, noms de dossier, actions
+  disponibles, systèmes repérés, formats).

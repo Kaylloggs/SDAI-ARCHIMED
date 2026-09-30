@@ -497,6 +497,9 @@ pub struct GameIssue {
     pub systems: Vec<String>,
     pub open: bool,
     pub at: String,
+    /// Origine : `run:check`, `run:build`… (refermé quand la même action réussit).
+    #[serde(default)]
+    pub source: Option<String>,
 }
 
 /// Trace d'une modification importante (§43 : quoi, pourquoi, impact, fichiers, risques).
@@ -1129,6 +1132,9 @@ pub enum GameGraphOp {
         severity: GameIssueSeverity,
         #[serde(default)]
         systems: Vec<String>,
+        #[serde(default)]
+        #[ts(optional)]
+        source: Option<String>,
     },
     #[serde(rename_all = "camelCase")]
     SetIssueOpen { id: String, open: bool },

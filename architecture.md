@@ -227,7 +227,9 @@ SDAI ARCHIMED/
             │                            # · engines/ (trait EngineAdapter : godot · unity · unreal — détection, création, capacités,
             │                            # commandes) · tools (rapport d'environnement, installations winget) · graph (opérations
             │                            # du graphe de connaissance) · store (projets, .gamestudio/) · vcs (points de restauration
-            │                            # Git sans toucher aux branches) · journal (JSONL, secrets masqués) · builds · service
+            │                            # Git sans toucher aux branches) · journal (JSONL, secrets masqués) · runner (commandes
+            │                            # moteur en flux, arrêt, délai) · diagnostics (erreurs expliquées) · scanner (carte d'un
+            │                            # projet existant) · builds (historique) · service
             ├── image_maker/             # projets et arbre de versions (store), traitements locaux (local),
             │                            # opérations IA et recollage hors zone (pipeline), file de tâches (jobs),
             │                            # service, commandes, vue navigateur du mode compte (browser) ;

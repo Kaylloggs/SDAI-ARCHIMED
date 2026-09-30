@@ -604,6 +604,8 @@ impl EngineAdapter for Unreal {
                 output: None,
                 success_marker: None,
                 detached,
+                strict: false,
+                results: None,
             }
         };
         let compile_editor = || {
@@ -707,7 +709,7 @@ impl EngineAdapter for Unreal {
                     "-ResY=720".into(),
                 ],
                 None,
-                true,
+                false,
             ),
             GameAction::Editor => spec(
                 PathBuf::from(&ctx.install.editor),

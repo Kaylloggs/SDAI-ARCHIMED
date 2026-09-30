@@ -8,4 +8,6 @@ commands = [
   "create_game", "import_game", "list_games", "game_state", "update_game", "forget_game", "set_game_engine",
   "graph_op", "read_journal",
   "vcs_state", "vcs_init", "create_checkpoint", "checkpoint_changes", "checkpoint_diff", "restore_checkpoint",
+  "run_game_action", "cancel_game_action", "current_game_action", "open_game_editor", "list_game_runs", "read_game_run_log",
+  "scan_game", "game_map",
 ]

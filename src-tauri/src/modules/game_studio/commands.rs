@@ -3,10 +3,14 @@
 
 use std::sync::Arc;
 
+use tauri::ipc::Channel;
 use tauri::State;
 
 use crate::core::{AppError, AppResult};
 
+use super::engines::GameAction;
+use super::runner::{GameJobEvent, GameRunningJob};
+use super::scanner::GameProjectMap;
 use super::service::GameStudio;
 use super::types::*;
 use super::vcs::{GameCheckpoint, GameFileChange, GameVcsState};
@@ -196,4 +200,72 @@ pub async fn restore_checkpoint(
     paths: Option<Vec<String>>,
 ) -> AppResult<String> {
     blocking(&studio, move |s| s.restore(&id, &checkpoint, paths, "vous")).await
+}
+
+// ── Actions moteur ────────────────────────────────────────────────────────────────────
+
+/// Lance une action du moteur et rend la main aussitôt ; la suite arrive par `on_event`.
+#[tauri::command]
+pub async fn run_game_action(
+    studio: Studio<'_>,
+    id: String,
+    action: GameAction,
+    platform: Option<GamePlatform>,
+    development: bool,
+    on_event: Channel<GameJobEvent>,
+) -> AppResult<String> {
+    let job = blocking(&studio, move |s| {
+        s.prepare_action(&id, action, platform, development)
+    })
+    .await?;
+    let job_id = job.job_id.clone();
+    let studio = studio.inner().clone();
+    tauri::async_runtime::spawn(async move {
+        studio
+            .run_prepared(job, move |event| {
+                let _ = on_event.send(event);
+            })
+            .await;
+    });
+    Ok(job_id)
+}
+
+#[tauri::command]
+pub async fn cancel_game_action(studio: Studio<'_>, id: String) -> AppResult<()> {
+    studio.cancel_action(&id)
+}
+
+#[tauri::command]
+pub async fn current_game_action(
+    studio: Studio<'_>,
+    id: String,
+) -> AppResult<Option<GameRunningJob>> {
+    Ok(studio.current_action(&id))
+}
+
+#[tauri::command]
+pub async fn open_game_editor(studio: Studio<'_>, id: String) -> AppResult<String> {
+    blocking(&studio, move |s| s.open_editor(&id)).await
+}
+
+#[tauri::command]
+pub async fn list_game_runs(studio: Studio<'_>, id: String) -> AppResult<Vec<GameBuildRecord>> {
+    blocking(&studio, move |s| s.runs(&id)).await
+}
+
+#[tauri::command]
+pub async fn read_game_run_log(studio: Studio<'_>, id: String, run: String) -> AppResult<String> {
+    blocking(&studio, move |s| s.run_log(&id, &run)).await
+}
+
+// ── Carte du projet ───────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn scan_game(studio: Studio<'_>, id: String) -> AppResult<GameProjectMap> {
+    blocking(&studio, move |s| s.scan(&id)).await
+}
+
+#[tauri::command]
+pub async fn game_map(studio: Studio<'_>, id: String) -> AppResult<Option<GameProjectMap>> {
+    blocking(&studio, move |s| s.map(&id)).await
 }

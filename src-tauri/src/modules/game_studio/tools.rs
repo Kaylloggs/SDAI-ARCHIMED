@@ -587,6 +587,26 @@ pub fn pick_install(
     }
 }
 
+/// Installation du moteur pour un projet : la même version (majeure.mineure) si elle est
+/// installée, sinon la première trouvée.
+pub fn pick_install_for(
+    env: &GameEnvironment,
+    engine: GameEngine,
+    wanted: Option<&str>,
+) -> Option<GameEngineInstall> {
+    let key = |v: &str| v.split('.').take(2).collect::<Vec<_>>().join(".");
+    let installs: Vec<&GameEngineInstall> =
+        env.engines.iter().filter(|i| i.engine == engine).collect();
+    wanted
+        .and_then(|w| {
+            installs
+                .iter()
+                .find(|i| i.version.as_deref().is_some_and(|v| key(v) == key(w)))
+        })
+        .or_else(|| installs.first())
+        .map(|i| (*i).clone())
+}
+
 /// Vérifie qu'un chemin choisi à la main désigne bien un exécutable.
 pub fn validate_override(path: &str) -> AppResult<PathBuf> {
     let path = PathBuf::from(path.trim());

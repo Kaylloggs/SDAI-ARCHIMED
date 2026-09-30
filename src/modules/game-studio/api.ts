@@ -1,5 +1,7 @@
-import { invokeModule } from "@/core/ipc";
+import { Channel, invokeModule } from "@/core/ipc";
+import type { GameAction } from "@/core/ipc/bindings/GameAction";
 import type { GameAnalysis } from "@/core/ipc/bindings/GameAnalysis";
+import type { GameBuildRecord } from "@/core/ipc/bindings/GameBuildRecord";
 import type { GameCheckpoint } from "@/core/ipc/bindings/GameCheckpoint";
 import type { GameCreateOutcome } from "@/core/ipc/bindings/GameCreateOutcome";
 import type { GameCreateRequest } from "@/core/ipc/bindings/GameCreateRequest";
@@ -8,12 +10,16 @@ import type { GameEnvironment } from "@/core/ipc/bindings/GameEnvironment";
 import type { GameFileChange } from "@/core/ipc/bindings/GameFileChange";
 import type { GameGraph } from "@/core/ipc/bindings/GameGraph";
 import type { GameGraphOp } from "@/core/ipc/bindings/GameGraphOp";
+import type { GameJobEvent } from "@/core/ipc/bindings/GameJobEvent";
 import type { GameLogCategory } from "@/core/ipc/bindings/GameLogCategory";
 import type { GameLogEntry } from "@/core/ipc/bindings/GameLogEntry";
+import type { GamePlatform } from "@/core/ipc/bindings/GamePlatform";
 import type { GameProject } from "@/core/ipc/bindings/GameProject";
+import type { GameProjectMap } from "@/core/ipc/bindings/GameProjectMap";
 import type { GameProjectPatch } from "@/core/ipc/bindings/GameProjectPatch";
 import type { GameProjectState } from "@/core/ipc/bindings/GameProjectState";
 import type { GameProjectSummary } from "@/core/ipc/bindings/GameProjectSummary";
+import type { GameRunningJob } from "@/core/ipc/bindings/GameRunningJob";
 import type { GameSystem } from "@/core/ipc/bindings/GameSystem";
 import type { GameVcsState } from "@/core/ipc/bindings/GameVcsState";
 
@@ -50,6 +56,20 @@ export const gameStudioApi = {
   checkpointChanges: (id: string, checkpoint: string) => call<GameFileChange[]>("checkpoint_changes", { id, checkpoint }),
   checkpointDiff: (id: string, checkpoint: string, path: string) => call<string>("checkpoint_diff", { id, checkpoint, path }),
   restore: (id: string, checkpoint: string, paths: string[] | null) => call<string>("restore_checkpoint", { id, checkpoint, paths }),
+
+  // Actions du moteur (vérifier, tester, lancer, exporter)
+  /** Lance l'action ; les lignes et le résultat arrivent par `onEvent`. Renvoie l'id de l'exécution. */
+  runAction: (id: string, action: GameAction, platform: GamePlatform | null, development: boolean, onEvent: Channel<GameJobEvent>) =>
+    call<string>("run_game_action", { id, action, platform, development, onEvent }),
+  cancelAction: (id: string) => call<void>("cancel_game_action", { id }),
+  currentAction: (id: string) => call<GameRunningJob | null>("current_game_action", { id }),
+  openEditor: (id: string) => call<string>("open_game_editor", { id }),
+  runs: (id: string) => call<GameBuildRecord[]>("list_game_runs", { id }),
+  runLog: (id: string, run: string) => call<string>("read_game_run_log", { id, run }),
+
+  // Carte du projet
+  scan: (id: string) => call<GameProjectMap>("scan_game", { id }),
+  map: (id: string) => call<GameProjectMap | null>("game_map", { id }),
 };
 
 export function errorText(error: unknown): string {

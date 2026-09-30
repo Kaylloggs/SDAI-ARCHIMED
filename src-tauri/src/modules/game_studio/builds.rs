@@ -1,6 +1,5 @@
 //! Historique des actions moteur d'un projet (`<projet>/.gamestudio/builds/`) : une entrée
 //! par vérification, test ou build, et son journal complet (`<id>.log`).
-#![allow(dead_code)] // écrit par l'exécuteur des commandes moteur (phase 2)
 
 use std::path::{Path, PathBuf};
 

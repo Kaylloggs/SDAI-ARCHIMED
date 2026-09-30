@@ -71,8 +71,18 @@ pub enum GameAction {
     Editor,
 }
 
-#[allow(dead_code)] // appelé par l'exécuteur des commandes moteur (phase 2)
 impl GameAction {
+    pub fn slug(self) -> &'static str {
+        match self {
+            Self::Setup => "setup",
+            Self::Check => "check",
+            Self::Run => "run",
+            Self::Test => "test",
+            Self::Build => "build",
+            Self::Editor => "editor",
+        }
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             Self::Setup => "Préparation",
@@ -86,7 +96,6 @@ impl GameAction {
 }
 
 /// Paramètres d'une action.
-#[allow(dead_code)] // appelé par l'exécuteur des commandes moteur (phase 2)
 #[derive(Debug, Clone)]
 pub struct ActionContext<'a> {
     pub root: &'a Path,
@@ -97,8 +106,7 @@ pub struct ActionContext<'a> {
 }
 
 /// Commande prête à lancer.
-#[allow(dead_code)] // appelé par l'exécuteur des commandes moteur (phase 2)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct CommandSpec {
     pub program: PathBuf,
     pub args: Vec<String>,
@@ -109,8 +117,13 @@ pub struct CommandSpec {
     pub output: Option<PathBuf>,
     /// Ligne qui prouve la réussite quand le code de sortie ne suffit pas.
     pub success_marker: Option<String>,
-    /// Programme graphique qui reste ouvert (éditeur, jeu) : pas d'attente de fin.
+    /// Programme graphique lancé sans attendre sa fin ni lire sa sortie (éditeur).
     pub detached: bool,
+    /// Une erreur lue dans la sortie fait échouer l'action même si le code de sortie est 0
+    /// (Godot finit à 0 après une erreur de script à l'exécution).
+    pub strict: bool,
+    /// Résultats de tests au format NUnit 3 à lire après l'exécution (Unity).
+    pub results: Option<PathBuf>,
 }
 
 pub trait EngineAdapter: Send + Sync {
@@ -135,14 +148,12 @@ pub trait EngineAdapter: Send + Sync {
     ) -> Vec<GameCapability>;
 
     /// Commande d'une action ; erreur claire si la machine ne le permet pas.
-    #[allow(dead_code)] // appelé par l'exécuteur des commandes moteur (phase 2)
     fn command(&self, action: GameAction, ctx: &ActionContext) -> AppResult<CommandSpec>;
 
     /// Contenu du `.gitignore` recommandé.
     fn gitignore(&self) -> &'static str;
 
     /// Dossiers générés par le moteur, jamais analysés ni sauvegardés.
-    #[allow(dead_code)] // lu par le scanner de projet (phase 2)
     fn ignored_dirs(&self) -> &'static [&'static str];
 
     /// Dossier où ranger les assets produits par Game Studio.

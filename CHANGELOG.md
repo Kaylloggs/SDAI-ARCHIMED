@@ -19,6 +19,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Votre machine pour le jeu vidéo.** Moteurs trouvés (winget, Steam, Hub Unity, lanceur Epic,
   registre), Blender, git et LFS, Python, .NET, Visual Studio, SDK Android : installation en un
   clic ou exécutable désigné à la main. Commandes pour l'assistant vocal et les agents.
+- **Game Studio › Build et tests.** Vérifier le code, lancer les tests, lancer le jeu, exporter
+  un build, avec les vraies commandes du moteur : sortie en direct, bouton Arrêter, délai
+  maximal. Les erreurs sont expliquées (fichier, ligne, cause probable, piste de correction,
+  systèmes concernés) pour GDScript, C#, C++, Blueprints, Unreal et Python. Un échec devient un
+  problème du projet, refermé quand l'action repasse. Une action impossible sur la machine dit
+  pourquoi (modèles d'export manquants…) au lieu de rester muette.
+- **Game Studio › Carte du projet.** Pour un projet existant : fichiers, langages, systèmes déjà
+  codés (à ajouter au graphe en un clic) et risques (pas de Git, gros fichiers hors LFS, version
+  du moteur différente…). Analyse lancée à l'import, sans rien modifier dans le projet.
 
 ## [0.14.0] - 2026-09-28
 

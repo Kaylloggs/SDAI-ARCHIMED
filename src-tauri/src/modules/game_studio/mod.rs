@@ -10,9 +10,12 @@ mod analysis;
 mod builds;
 mod catalog;
 mod commands;
+mod diagnostics;
 pub mod engines;
 mod graph;
 mod journal;
+mod runner;
+mod scanner;
 mod service;
 mod store;
 mod tools;
@@ -45,6 +48,14 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::checkpoint_changes,
             commands::checkpoint_diff,
             commands::restore_checkpoint,
+            commands::run_game_action,
+            commands::cancel_game_action,
+            commands::current_game_action,
+            commands::open_game_editor,
+            commands::list_game_runs,
+            commands::read_game_run_log,
+            commands::scan_game,
+            commands::game_map,
         ])
         .setup(|app, _api| {
             let paths = crate::core::paths::Paths::resolve(app)?;
