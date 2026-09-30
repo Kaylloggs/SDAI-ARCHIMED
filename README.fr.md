@@ -132,6 +132,7 @@ Appuyez sur **Ctrl Maj Espace**, ou cliquez sur la pastille en haut de la fenêt
 | 🧩 | **Skills** · `skills` | Une bibliothèque de skills (consignes réutilisables) à activer pour chaque assistant, et un atelier pour en créer : décrivez-le ou partez d'une conversation, une IA l'écrit, ARCHIMED le vérifie, vous l'essayez sur des demandes de test avant de l'enregistrer. |
 | 💼 | **Job Agent** · `jobagent` | Recherche d'emploi sur sept sites, carte du monde, lettres de motivation et candidatures par lot après confirmation. |
 | ⛏️ | **Mod Studio** · `mcstudio` | Mods Minecraft : modèles 3D, textures par IA, assistant de code, compilation en un clic, test en jeu et sur serveur, portage de version. |
+| 🎮 | **Game Studio** · `game-studio` | Décrivez un jeu en une phrase : Game Studio en tire les systèmes nécessaires, leurs dépendances, l'architecture du monde et du réseau et le moteur adapté, puis crée un vrai projet Godot, Unity ou Unreal avec son plan. Il détecte vos moteurs, Blender et Git, tient un graphe de connaissance du jeu, et des points de restauration pour revenir en arrière. |
 | 🎨 | **Image Maker** · `image-maker` | Un studio d'images par IA : créer à partir d'une description, changer seulement la zone sélectionnée, étendre en 16:9, affiner, faire des variantes, retirer le fond, exporter. Avec OpenRouter, Google AI Studio et Higgsfield ; l'original n'est jamais perdu. |
 | 📊 | **Crédits** · `usage` | Ce qu'il reste de votre forfait IA, et combien de tokens chaque assistant a utilisés. |
 

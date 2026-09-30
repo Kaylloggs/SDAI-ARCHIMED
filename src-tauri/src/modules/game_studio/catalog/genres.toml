@@ -1,0 +1,369 @@
+# Genres et références reconnus dans une idée.
+#
+# Un genre est DESCRIPTIF : il ajoute des systèmes et des valeurs par défaut (dimension,
+# caméra, monde, réseau) que l'analyse enregistre comme hypothèses modifiables. Il ne limite
+# jamais le projet : plusieurs genres se combinent, et une idée sans genre connu est analysée
+# par ses systèmes seulement.
+#
+# Champs : label · keywords · systems · dimension (« 2d », « 2.5d », « 3d ») · camera (id d'un
+# système de caméra) · world (voir GameWorldKind) · network (« coop », « competitive »,
+# « massive ») · players (nombre typique, pour le réseau).
+
+[[genre]]
+label = "FPS"
+keywords = ["fps", "first person shooter", "jeu de tir a la premiere personne", "shooter a la premiere personne"]
+systems = ["shooting", "weapons", "health", "camera_first_person", "enemy_ai", "hud", "level_design"]
+dimension = "3d"
+camera = "camera_first_person"
+world = "levelBased"
+
+[[genre]]
+label = "TPS"
+keywords = ["tps", "third person shooter", "jeu de tir a la troisieme personne", "shooter a la troisieme personne"]
+systems = ["shooting", "weapons", "health", "camera_third_person", "squad_tactics", "level_design"]
+dimension = "3d"
+camera = "camera_third_person"
+world = "levelBased"
+
+[[genre]]
+label = "Action"
+keywords = ["jeu d action", "action game", "beat them all", "beat em up", "hack and slash", "hack n slash"]
+systems = ["combat_core", "combat_melee", "enemy_ai", "health", "combos"]
+
+[[genre]]
+label = "Action-RPG"
+keywords = ["action rpg", "action-rpg", "arpg", "hack and slash rpg"]
+systems = ["combat_core", "combat_melee", "enemy_ai", "stats", "leveling", "loot", "inventory", "equipment", "abilities"]
+
+[[genre]]
+label = "RPG"
+keywords = ["rpg", "jeu de role", "role playing", "role-playing"]
+systems = ["stats", "leveling", "inventory", "equipment", "quests", "dialogue", "npc_core", "save_system", "combat_core"]
+
+[[genre]]
+label = "JRPG"
+keywords = ["jrpg", "rpg japonais", "final fantasy", "dragon quest"]
+systems = ["turn_based", "stats", "leveling", "inventory", "equipment", "quests", "dialogue", "npc_core", "save_system", "cinematics", "world_map"]
+camera = "camera_third_person"
+
+[[genre]]
+label = "CRPG"
+keywords = ["crpg", "baldur s gate", "rpg tactique", "rpg isometrique", "divinity"]
+systems = ["turn_based", "stats", "classes", "leveling", "inventory", "equipment", "quests", "dialogue", "narrative_choices", "npc_core", "save_system"]
+camera = "camera_top_down"
+dimension = "3d"
+
+[[genre]]
+label = "Souls-like"
+keywords = ["souls-like", "soulslike", "souls like", "dark souls", "elden ring", "sekiro", "souls"]
+systems = ["combat_core", "combat_melee", "stamina", "defense_moves", "lock_on", "hitboxes", "boss_ai", "enemy_ai", "respawn", "leveling", "stats", "equipment", "inventory", "save_system"]
+dimension = "3d"
+camera = "camera_third_person"
+
+[[genre]]
+label = "Dungeon crawler"
+keywords = ["dungeon crawler", "exploration de donjons", "diablo like", "diablo-like"]
+systems = ["level_design", "enemy_ai", "loot", "inventory", "combat_core", "leveling"]
+
+[[genre]]
+label = "Roguelike"
+keywords = ["roguelike", "rogue-like", "roguelite", "rogue-lite"]
+systems = ["roguelike_runs", "dungeon_generation", "world_generation", "loot", "enemy_ai", "combat_core"]
+world = "procedural"
+
+[[genre]]
+label = "Survie"
+keywords = ["survie", "survival", "jeu de survie"]
+systems = ["survival_needs", "health", "gathering", "crafting", "inventory", "building", "day_night", "save_system", "enemy_ai"]
+
+[[genre]]
+label = "Survival horror"
+keywords = ["survival horror", "survival-horror", "resident evil", "silent hill"]
+systems = ["horror_tension", "health", "inventory", "enemy_ai", "puzzles", "save_system", "lighting"]
+dimension = "3d"
+
+[[genre]]
+label = "Horreur"
+keywords = ["horreur", "horror", "jeu d horreur", "jeu effrayant"]
+systems = ["horror_tension", "enemy_ai", "spatial_audio", "lighting"]
+
+[[genre]]
+label = "Infiltration"
+keywords = ["infiltration", "stealth game", "jeu d infiltration"]
+systems = ["stealth", "perception", "enemy_ai", "level_design"]
+
+[[genre]]
+label = "Aventure"
+keywords = ["aventure", "adventure", "jeu d aventure", "point and click", "point & click"]
+systems = ["interaction", "puzzles", "dialogue", "inventory", "level_design"]
+
+[[genre]]
+label = "Narratif"
+keywords = ["jeu narratif", "narrative game", "visual novel", "roman interactif", "walking simulator"]
+systems = ["dialogue", "narrative_choices", "cinematics", "save_system", "subtitles"]
+world = "sceneBased"
+
+[[genre]]
+label = "Monde ouvert"
+keywords = ["monde ouvert", "open world", "open-world"]
+systems = ["open_world", "world_map", "fast_travel", "day_night"]
+world = "openWorld"
+
+[[genre]]
+label = "Sandbox"
+keywords = ["sandbox", "bac a sable", "jeu bac a sable"]
+systems = ["building", "gathering", "crafting", "inventory", "save_system"]
+
+[[genre]]
+label = "Simulation"
+keywords = ["simulation", "simulateur", "simulator"]
+systems = ["game_data", "save_system"]
+
+[[genre]]
+label = "Gestion"
+keywords = ["jeu de gestion", "management game", "tycoon"]
+systems = ["management_sim", "economy", "save_system"]
+camera = "camera_strategy"
+
+[[genre]]
+label = "City builder"
+keywords = ["city builder", "city-builder", "cities skylines", "simcity", "construction de ville"]
+systems = ["city_building", "building", "economy", "camera_strategy", "save_system"]
+camera = "camera_strategy"
+
+[[genre]]
+label = "Ferme"
+keywords = ["jeu de ferme", "farming game", "farming sim", "stardew valley", "harvest moon"]
+systems = ["farming", "day_night", "seasons", "inventory", "economy", "shops", "npc_core", "relationships", "save_system"]
+
+[[genre]]
+label = "Pêche"
+keywords = ["jeu de peche", "fishing game", "simulateur de peche"]
+systems = ["fishing", "inventory", "collection", "economy", "save_system"]
+
+[[genre]]
+label = "Simulation de vie"
+keywords = ["simulation de vie", "life sim", "life simulation", "cosy game", "cozy game", "jeu cosy", "jeu relaxant", "relaxant", "chill"]
+systems = ["npc_core", "relationships", "day_night", "economy", "save_system"]
+
+[[genre]]
+label = "Course"
+keywords = ["jeu de course", "racing game", "mario kart", "forza", "course automobile"]
+systems = ["racing", "vehicles", "physics"]
+camera = "camera_third_person"
+dimension = "3d"
+world = "levelBased"
+
+[[genre]]
+label = "Véhicules"
+keywords = ["jeu de vehicules", "vehicle game", "simulateur de conduite", "driving game"]
+systems = ["vehicles", "physics"]
+
+[[genre]]
+label = "Combat en versus"
+keywords = ["jeu de combat", "fighting game", "versus fighting", "street fighter", "tekken", "smash bros"]
+systems = ["fighting_versus", "combat_melee", "combos", "hitboxes", "match_rules"]
+camera = "camera_side"
+world = "levelBased"
+
+[[genre]]
+label = "Sport"
+keywords = ["jeu de sport", "sports game", "fifa", "nba 2k", "rocket league"]
+systems = ["sports_rules", "match_rules", "teams", "physics"]
+dimension = "3d"
+world = "levelBased"
+
+[[genre]]
+label = "Stratégie"
+keywords = ["strategie", "strategy", "jeu de strategie", "4x", "grand strategy"]
+systems = ["camera_strategy", "economy", "ai_decision", "save_system"]
+camera = "camera_strategy"
+
+[[genre]]
+label = "RTS"
+keywords = ["rts", "strategie en temps reel", "real time strategy", "starcraft", "age of empires"]
+systems = ["rts_units", "camera_strategy", "gathering", "building", "economy", "tech_tree", "navigation"]
+camera = "camera_strategy"
+
+[[genre]]
+label = "Stratégie au tour par tour"
+keywords = ["strategie au tour par tour", "turn based strategy", "xcom", "civilization", "tactique au tour par tour"]
+systems = ["turn_based", "camera_strategy", "ai_decision", "save_system"]
+camera = "camera_strategy"
+
+[[genre]]
+label = "Tower defense"
+keywords = ["tower defense", "tower-defense", "defense de tours"]
+systems = ["tower_defense", "spawning", "enemy_ai", "economy", "camera_strategy"]
+camera = "camera_strategy"
+world = "levelBased"
+
+[[genre]]
+label = "Tower offense"
+keywords = ["tower offense", "tower-offense", "attaque de tours"]
+systems = ["rts_units", "spawning", "economy", "camera_strategy", "navigation"]
+camera = "camera_strategy"
+world = "levelBased"
+
+[[genre]]
+label = "Jeu de cartes"
+keywords = ["jeu de cartes", "card game", "tcg", "ccg", "hearthstone", "magic the gathering"]
+systems = ["cards", "turn_based", "ai_decision"]
+dimension = "2d"
+world = "sceneBased"
+
+[[genre]]
+label = "Deckbuilder"
+keywords = ["deckbuilder", "deck-builder", "deckbuilding", "slay the spire"]
+systems = ["cards", "turn_based", "roguelike_runs"]
+dimension = "2d"
+world = "sceneBased"
+
+[[genre]]
+label = "Plateforme"
+keywords = ["jeu de plateforme", "jeux de plateforme", "platformer", "mario", "celeste"]
+systems = ["platforming", "jumping", "player_controller", "level_design", "respawn"]
+dimension = "2d"
+camera = "camera_side"
+world = "levelBased"
+
+[[genre]]
+label = "Metroidvania"
+keywords = ["metroidvania", "hollow knight", "castlevania"]
+systems = ["ability_gating", "platforming", "jumping", "abilities", "world_map", "combat_core", "save_system", "boss_ai"]
+dimension = "2d"
+camera = "camera_side"
+world = "levelBased"
+
+[[genre]]
+label = "Puzzle"
+keywords = ["jeu de puzzle", "puzzle game", "jeu de reflexion", "casse-tete"]
+systems = ["puzzles", "level_design"]
+world = "levelBased"
+
+[[genre]]
+label = "Rythme"
+keywords = ["jeu de rythme", "rhythm game", "guitar hero", "beat saber", "osu"]
+systems = ["rhythm", "music"]
+world = "sceneBased"
+
+[[genre]]
+label = "Éducatif"
+keywords = ["jeu educatif", "educational game", "serious game", "jeu pedagogique"]
+systems = ["education"]
+world = "sceneBased"
+
+[[genre]]
+label = "MMO"
+keywords = ["mmo", "mmorpg", "massivement multijoueur", "massively multiplayer", "world of warcraft"]
+systems = ["networking", "persistent_world", "dedicated_server", "accounts", "chat", "trading", "factions"]
+network = "massive"
+players = 1000
+
+[[genre]]
+label = "Shooter multijoueur"
+keywords = ["shooter multijoueur", "multiplayer shooter", "shooter en ligne"]
+systems = ["shooting", "networking", "match_rules", "teams", "lag_compensation"]
+network = "competitive"
+players = 12
+
+[[genre]]
+label = "Shooter tactique"
+keywords = ["shooter tactique", "tactical shooter", "counter-strike", "valorant", "rainbow six"]
+systems = ["shooting", "teams", "match_rules", "networking", "lag_compensation", "anti_cheat", "camera_first_person"]
+camera = "camera_first_person"
+dimension = "3d"
+network = "competitive"
+players = 10
+
+[[genre]]
+label = "Extraction shooter"
+keywords = ["extraction shooter", "tarkov", "shooter d extraction"]
+systems = ["extraction", "shooting", "loot", "inventory", "networking", "dedicated_server"]
+dimension = "3d"
+network = "competitive"
+players = 12
+
+[[genre]]
+label = "Battle royale"
+keywords = ["battle royale", "battle-royale", "fortnite", "pubg", "apex"]
+systems = ["battle_royale", "shooting", "loot", "networking", "dedicated_server", "lag_compensation", "matchmaking", "anti_cheat"]
+dimension = "3d"
+network = "competitive"
+players = 100
+
+[[genre]]
+label = "Hero shooter"
+keywords = ["hero shooter", "overwatch", "shooter a heros"]
+systems = ["shooting", "abilities", "classes", "teams", "match_rules", "networking", "lag_compensation", "matchmaking"]
+dimension = "3d"
+network = "competitive"
+players = 10
+
+[[genre]]
+label = "Coopératif"
+keywords = ["cooperatif", "coop", "co-op", "cooperation", "cooperative"]
+systems = ["networking", "lobby"]
+network = "coop"
+players = 4
+
+[[genre]]
+label = "Compétitif"
+keywords = ["competitif", "competitive", "pvp", "joueur contre joueur", "esport", "e-sport"]
+systems = ["networking", "match_rules", "matchmaking", "anti_cheat", "leaderboards"]
+network = "competitive"
+
+[[genre]]
+label = "Party game"
+keywords = ["party game", "jeu d ambiance", "jeu de soiree", "mario party", "fall guys"]
+systems = ["minigames", "match_rules"]
+network = "coop"
+players = 4
+
+[[genre]]
+label = "Social"
+keywords = ["jeu social", "social game", "among us"]
+systems = ["networking", "chat", "lobby"]
+network = "coop"
+players = 8
+
+[[genre]]
+label = "Voxel"
+keywords = ["voxel", "jeu voxel", "voxels"]
+systems = ["voxel_world", "chunk_streaming", "block_editing"]
+dimension = "3d"
+world = "voxel"
+
+[[genre]]
+label = "Construction de blocs"
+keywords = ["block building", "construction de blocs", "jeu de blocs", "block-building"]
+systems = ["voxel_world", "block_editing", "building"]
+dimension = "3d"
+world = "voxel"
+
+[[genre]]
+label = "Terraria-like"
+keywords = ["terraria", "terraria-like", "terraria like", "starbound"]
+systems = ["tilemap_world", "world_generation", "biomes", "caves", "block_editing", "gathering", "crafting", "inventory", "boss_ai", "enemy_ai", "combat_core", "building", "save_system", "day_night"]
+dimension = "2d"
+camera = "camera_side"
+world = "tile"
+
+[[genre]]
+label = "Minecraft-like"
+keywords = ["minecraft", "minecraft-like", "minecraft like", "comme minecraft"]
+systems = ["voxel_world", "chunk_streaming", "block_editing", "world_generation", "biomes", "caves", "gathering", "crafting", "inventory", "building", "enemy_ai", "day_night", "save_system", "survival_needs"]
+dimension = "3d"
+camera = "camera_first_person"
+world = "voxel"
+
+[[genre]]
+label = "Bac à sable physique"
+keywords = ["bac a sable physique", "physics sandbox", "garry s mod", "teardown"]
+systems = ["sandbox_physics", "physics", "destruction"]
+dimension = "3d"
+
+[[genre]]
+label = "Expérimental"
+keywords = ["experimental", "jeu experimental", "art game", "jeu d art"]
+systems = []

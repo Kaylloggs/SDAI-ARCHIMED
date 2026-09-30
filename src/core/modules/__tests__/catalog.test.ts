@@ -53,6 +53,8 @@ describe("base de commandes de tous les modules", () => {
     expect(first("retenir une information")).toBe("memory.remember");
     expect(first("envoyer un message à l'agent", "chat")).toBe("chat.send_message");
     expect(first("lancer le jeu")).toBe("mcstudio.run_game");
+    expect(first("crée un jeu vidéo")).toBe("game-studio.create_game");
+    expect(first("ajoute la météo à mon jeu")).toBe("game-studio.add_system");
     expect(first("rename board")).toBe("planner.rename_board");
     expect(first("retourner l'image")).toBe("image-maker.transform_image");
     expect(first("vérifier les mises à jour")).toBe("settings.check_updates");

@@ -1,0 +1,11 @@
+id = "game-studio"
+# Clés des fournisseurs d'images de Game Studio, effacées si le module est supprimé
+# (Réglages → Modules). Une clé déjà rangée par un autre module est relue, jamais copiée.
+credentials = ["game-studio-openrouter", "game-studio-gemini", "game-studio-higgsfield"]
+commands = [
+  "game_environment", "set_tool_path", "install_tool",
+  "analyze_idea", "system_catalog", "game_default_dir",
+  "create_game", "import_game", "list_games", "game_state", "update_game", "forget_game", "set_game_engine",
+  "graph_op", "read_journal",
+  "vcs_state", "vcs_init", "create_checkpoint", "checkpoint_changes", "checkpoint_diff", "restore_checkpoint",
+]

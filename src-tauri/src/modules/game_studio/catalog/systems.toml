@@ -1,0 +1,1929 @@
+# Catalogue des systèmes de jeu de Game Studio.
+#
+# L'analyse d'une idée raisonne en SYSTÈMES, jamais en modèles de genre : chaque système est
+# reconnu par ses mots-clés (français et anglais, accents et pluriels ignorés), entraîne ses
+# dépendances (`depends`) et ses compagnons (`adds`, souvent l'interface qui va avec). Un genre
+# (fichier genres.toml) ne fait qu'ajouter des systèmes : il ne limite rien, et un agent peut
+# ajouter au projet un système absent d'ici (origine « custom »).
+#
+# Champs : id (snake_case, stable) · name · category (voir GameSystemCategory) · role ·
+# keywords · depends · adds · produces (événements) · data (types de données du système) ·
+# network (local | serverAuthority | replicated | predicted | clientOnly : cas multijoueur) ·
+# tests (vérifications attendues) · foundation (« all », « 2d », « 3d » : présent d'office) ·
+# risk (limite d'échelle à signaler).
+
+# ─── Fondations ─────────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "game_state"
+name = "Boucle et états du jeu"
+category = "core"
+role = "Enchaîne les états (écran titre, partie, pause, fin) et possède le cycle de mise à jour."
+keywords = ["boucle de jeu", "game loop", "etat du jeu", "game over", "pause"]
+produces = ["GameStarted", "GamePaused", "GameResumed", "GameOver"]
+network = "serverAuthority"
+tests = ["La partie démarre depuis l'écran titre", "Pause puis reprise sans perte d'état"]
+foundation = "all"
+
+[[system]]
+id = "input"
+name = "Entrées et actions"
+category = "core"
+role = "Traduit clavier, souris, manette ou tactile en actions nommées, remappables."
+keywords = ["controles", "commandes", "input", "clavier", "souris", "remapping", "touches"]
+produces = ["ActionPressed", "ActionReleased"]
+data = ["InputMap"]
+network = "clientOnly"
+tests = ["Chaque action répond à ses touches par défaut", "Une touche remappée est gardée après redémarrage"]
+foundation = "all"
+
+[[system]]
+id = "scene_management"
+name = "Scènes et chargements"
+category = "core"
+role = "Charge, décharge et enchaîne les scènes ou niveaux, avec écran de chargement."
+keywords = ["chargement", "loading", "ecran de chargement", "scenes"]
+produces = ["SceneLoaded", "SceneUnloaded"]
+network = "serverAuthority"
+tests = ["Passage d'une scène à l'autre sans fuite de mémoire"]
+foundation = "all"
+
+[[system]]
+id = "event_bus"
+name = "Événements du jeu"
+category = "core"
+role = "Fait communiquer les systèmes par événements plutôt que par dépendances directes."
+keywords = ["evenements", "events", "signaux", "signals"]
+network = "local"
+tests = ["Un événement émis est reçu par tous ses abonnés"]
+foundation = "all"
+
+[[system]]
+id = "game_data"
+name = "Données de jeu"
+category = "core"
+role = "Décrit le contenu dans des fichiers de données (objets, ennemis, recettes) plutôt que dans le code."
+keywords = ["data driven", "donnees", "tableur", "fiches", "scriptable object", "data asset"]
+data = ["GameConfig"]
+network = "local"
+tests = ["Un nouveau contenu ajouté en données apparaît en jeu sans modifier le code"]
+foundation = "all"
+
+[[system]]
+id = "ui_menus"
+name = "Menus"
+category = "ui"
+role = "Écran titre, menu pause, écran de fin, navigation à la souris, au clavier et à la manette."
+keywords = ["menu", "ecran titre", "menu principal", "main menu"]
+depends = ["input"]
+network = "clientOnly"
+tests = ["Tous les menus sont utilisables à la manette et au clavier"]
+foundation = "all"
+
+[[system]]
+id = "settings_menu"
+name = "Réglages"
+category = "ui"
+role = "Graphismes, son, contrôles et accessibilité, enregistrés entre deux parties."
+keywords = ["reglages", "options", "parametres", "settings"]
+depends = ["ui_menus"]
+data = ["UserSettings"]
+network = "clientOnly"
+tests = ["Les réglages modifiés sont relus au lancement suivant"]
+foundation = "all"
+
+[[system]]
+id = "hud"
+name = "HUD"
+category = "ui"
+role = "Informations de jeu à l'écran (vie, munitions, objectifs, score)."
+keywords = ["hud", "interface de jeu", "barre de vie", "affichage tete haute"]
+network = "clientOnly"
+tests = ["Le HUD suit l'état réel du joueur"]
+foundation = "all"
+
+[[system]]
+id = "audio_core"
+name = "Audio et mixage"
+category = "audio"
+role = "Effets sonores, bus de mixage (musique, effets, voix, interface) et volumes réglables."
+keywords = ["sons", "audio", "effets sonores", "bruitages", "sfx", "sound design"]
+network = "clientOnly"
+tests = ["Chaque bus de volume agit sur ses sons"]
+foundation = "all"
+
+[[system]]
+id = "debug_tools"
+name = "Outils de débogage"
+category = "core"
+role = "Console, affichage des FPS et superpositions de debug, absents des versions publiées."
+keywords = ["debug", "console de debug", "triche de dev"]
+network = "local"
+tests = ["Les outils de debug sont absents d'un build de release"]
+foundation = "all"
+
+[[system]]
+id = "lighting"
+name = "Éclairage"
+category = "visual"
+role = "Lumières, ombres et ambiance ; précalculé ou dynamique selon la cible de performance."
+keywords = ["eclairage", "lumiere", "ombres", "lighting", "illumination globale", "global illumination"]
+network = "clientOnly"
+tests = ["L'éclairage tient le budget de performance sur la plateforme visée"]
+foundation = "3d"
+
+[[system]]
+id = "physics"
+name = "Physique et collisions"
+category = "core"
+role = "Collisions, corps rigides, gravité et requêtes (rayons, zones)."
+keywords = ["physique", "collisions", "gravite", "ragdoll", "corps rigides", "physics"]
+network = "serverAuthority"
+tests = ["Aucun objet ne traverse le sol à vitesse maximale"]
+
+# ─── Joueur ─────────────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "player_controller"
+name = "Contrôleur du joueur"
+category = "player"
+role = "Personnage piloté par la personne : apparition, déplacement de base, lien avec la caméra."
+keywords = ["joueur", "player", "personnage", "heros", "avatar", "protagoniste", "incarner"]
+depends = ["input", "physics", "animation"]
+produces = ["PlayerSpawned", "PlayerMoved"]
+data = ["PlayerConfig"]
+network = "predicted"
+tests = ["Le joueur apparaît et se déplace dans toutes les directions", "Le joueur ne traverse pas les murs"]
+
+[[system]]
+id = "locomotion"
+name = "Déplacements avancés"
+category = "player"
+role = "Course, sprint, accroupissement, glissade, dash."
+keywords = ["courir", "sprint", "sprinter", "accroupir", "crouch", "glissade", "slide", "dash", "roulade"]
+depends = ["player_controller"]
+network = "predicted"
+tests = ["Chaque déplacement a sa vitesse et ses transitions d'animation"]
+
+[[system]]
+id = "jumping"
+name = "Saut"
+category = "player"
+role = "Saut, double saut, saut mural, contrôle en l'air."
+keywords = ["sauter", "saut", "jump", "double saut", "wall jump", "saute", "sautent"]
+depends = ["player_controller"]
+produces = ["PlayerJumped", "PlayerLanded"]
+network = "predicted"
+tests = ["La hauteur de saut est constante quelle que soit la fréquence d'images"]
+
+[[system]]
+id = "climbing"
+name = "Escalade"
+category = "player"
+role = "Grimper, s'accrocher aux rebords, parkour."
+keywords = ["grimper", "escalade", "escalader", "climb", "parkour", "rebord", "grimpe", "grimpent"]
+depends = ["player_controller"]
+network = "predicted"
+tests = ["Le joueur s'accroche aux surfaces marquées escaladables seulement"]
+
+[[system]]
+id = "swimming"
+name = "Nage"
+category = "player"
+role = "Nager, plonger, respiration sous l'eau."
+keywords = ["nager", "nage", "plonger", "sous l eau", "swim", "swimming"]
+depends = ["player_controller"]
+network = "predicted"
+tests = ["Entrée et sortie de l'eau sans blocage"]
+
+[[system]]
+id = "flying"
+name = "Vol"
+category = "player"
+role = "Voler, planer, jetpack."
+keywords = ["planer", "jetpack", "ailes", "flying", "voler dans les airs"]
+depends = ["player_controller"]
+network = "predicted"
+tests = ["Le vol respecte les limites du monde"]
+
+[[system]]
+id = "health"
+name = "Vie et mort"
+category = "player"
+role = "Points de vie, soins, mort et ce qui la suit."
+keywords = ["points de vie", "barre de vie", "sante", "pv", "hp", "health", "mourir", "mort", "soigner", "soin", "soins"]
+produces = ["DamageTaken", "Healed", "Died"]
+data = ["HealthConfig"]
+network = "serverAuthority"
+tests = ["Les dégâts reçus réduisent la vie", "La mort déclenche la réapparition ou la fin de partie"]
+
+[[system]]
+id = "stamina"
+name = "Endurance"
+category = "player"
+role = "Jauge consommée par le sprint, les attaques et les esquives, qui se recharge."
+keywords = ["endurance", "stamina", "fatigue au combat"]
+depends = ["player_controller"]
+produces = ["StaminaDepleted"]
+network = "serverAuthority"
+tests = ["Une action impossible sans endurance est refusée"]
+
+[[system]]
+id = "shields"
+name = "Boucliers et armure"
+category = "player"
+role = "Protection qui absorbe ou réduit les dégâts avant la vie."
+keywords = ["bouclier", "shield", "armure", "protection"]
+depends = ["health"]
+network = "serverAuthority"
+tests = ["Le bouclier absorbe les dégâts avant la vie"]
+
+[[system]]
+id = "status_effects"
+name = "Effets de statut"
+category = "player"
+role = "Bonus et malus temporaires (poison, brûlure, gel, étourdissement, vitesse)."
+keywords = ["poison", "brulure", "gel", "etourdi", "buff", "debuff", "effets de statut", "bonus", "malus", "empoisonne"]
+depends = ["health"]
+produces = ["EffectApplied", "EffectExpired"]
+data = ["StatusEffectData"]
+network = "serverAuthority"
+tests = ["Un effet expire après sa durée", "Deux effets identiques suivent la règle de cumul"]
+
+[[system]]
+id = "interaction"
+name = "Interactions"
+category = "player"
+role = "Ramasser, ouvrir, activer, parler : tout ce qu'on utilise avec une touche d'action."
+keywords = ["interagir", "interaction", "ramasser", "levier", "leviers", "interactions"]
+depends = ["player_controller"]
+produces = ["Interacted"]
+network = "serverAuthority"
+tests = ["Seul l'objet visé et à portée réagit"]
+
+[[system]]
+id = "abilities"
+name = "Capacités"
+category = "player"
+role = "Pouvoirs actifs avec coût, temps de recharge et effets."
+keywords = ["capacite speciale", "capacites speciales", "pouvoirs", "competences actives", "abilities", "ultime", "cooldown"]
+depends = ["player_controller"]
+produces = ["AbilityUsed"]
+data = ["AbilityData"]
+network = "predicted"
+tests = ["Une capacité en recharge ne peut pas être relancée"]
+
+[[system]]
+id = "respawn"
+name = "Réapparition et points de contrôle"
+category = "player"
+role = "Points de contrôle, feux de camp, réapparition après la mort."
+keywords = ["point de controle", "checkpoint", "reapparition", "respawn", "feu de camp", "bonfire"]
+depends = ["health"]
+produces = ["Respawned", "CheckpointReached"]
+network = "serverAuthority"
+tests = ["Le joueur réapparaît au dernier point de contrôle atteint"]
+
+# ─── Caméra ─────────────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "camera_first_person"
+name = "Caméra à la première personne"
+category = "camera"
+role = "Vue à travers les yeux du personnage, avec bras et arme visibles."
+keywords = ["premiere personne", "first person", "vue subjective", "fps"]
+depends = ["player_controller"]
+network = "clientOnly"
+tests = ["La sensibilité et l'inversion se règlent"]
+
+[[system]]
+id = "camera_third_person"
+name = "Caméra à la troisième personne"
+category = "camera"
+role = "Caméra derrière le personnage, qui évite les murs."
+keywords = ["troisieme personne", "third person", "vue a l epaule", "over the shoulder", "tps"]
+depends = ["player_controller"]
+network = "clientOnly"
+tests = ["La caméra ne traverse jamais les murs"]
+
+[[system]]
+id = "camera_top_down"
+name = "Caméra vue du dessus"
+category = "camera"
+role = "Vue plongeante ou isométrique qui suit l'action."
+keywords = ["vue du dessus", "top down", "top-down", "isometrique", "isometric", "vue de dessus", "twin stick"]
+network = "clientOnly"
+tests = ["Le joueur reste visible dans toutes les zones"]
+
+[[system]]
+id = "camera_side"
+name = "Caméra de profil"
+category = "camera"
+role = "Défilement horizontal ou vertical qui suit le personnage."
+keywords = ["vue de cote", "side scroller", "side-scroller", "defilement horizontal", "scrolling", "de profil"]
+network = "clientOnly"
+tests = ["La caméra anticipe le mouvement sans à-coups"]
+
+[[system]]
+id = "camera_strategy"
+name = "Caméra de stratégie"
+category = "camera"
+role = "Caméra libre au-dessus de la carte : déplacement par les bords, zoom, rotation."
+keywords = ["camera libre", "vue strategique", "zoom sur la carte", "vue d ensemble"]
+depends = ["input"]
+network = "clientOnly"
+tests = ["La caméra reste dans les limites de la carte"]
+
+[[system]]
+id = "cinematics"
+name = "Cinématiques"
+category = "narrative"
+role = "Séquences mises en scène (caméra, personnages, sous-titres), passables."
+keywords = ["cinematique", "cinematiques", "cutscene", "cut-scene", "mise en scene"]
+depends = ["subtitles"]
+network = "clientOnly"
+tests = ["Chaque cinématique peut être passée et reprend le jeu au bon état"]
+
+# ─── Combat ─────────────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "combat_core"
+name = "Combat"
+category = "combat"
+role = "Règles communes des affrontements : qui peut toucher qui, dégâts, mort des combattants."
+keywords = ["combat", "combats", "combattre", "se battre", "affrontement", "attaquer", "attaque", "tuer", "fight", "fighting", "battre", "combattent"]
+depends = ["health", "damage", "animation"]
+produces = ["AttackStarted", "HitLanded", "Killed"]
+network = "serverAuthority"
+tests = ["Une attaque réussie retire des points de vie", "On ne peut pas toucher un allié si le tir ami est coupé"]
+
+[[system]]
+id = "damage"
+name = "Dégâts"
+category = "combat"
+role = "Types de dégâts, résistances, coups critiques, éléments."
+keywords = ["degats", "damage", "coup critique", "coups critiques", "resistances", "elementaire", "degats elementaires"]
+depends = ["health"]
+produces = ["DamageDealt"]
+data = ["DamageType"]
+network = "serverAuthority"
+tests = ["Une résistance réduit les dégâts de son type"]
+
+[[system]]
+id = "combat_melee"
+name = "Combat au corps à corps"
+category = "combat"
+role = "Armes de mêlée, fenêtres d'attaque, zones de coup."
+keywords = ["corps a corps", "melee", "epee", "hache", "katana", "coup d epee", "frapper", "armes blanches"]
+depends = ["combat_core", "hitboxes"]
+network = "serverAuthority"
+tests = ["Un coup ne touche qu'une fois la même cible par attaque"]
+
+[[system]]
+id = "combat_ranged"
+name = "Combat à distance"
+category = "combat"
+role = "Projectiles (flèches, sorts, balles lentes) : trajectoire, gravité, impact."
+keywords = ["a distance", "combat a distance", "projectile", "arc et fleches", "fleche", "arbalete", "ranged"]
+depends = ["combat_core"]
+network = "serverAuthority"
+tests = ["Le projectile touche là où il est affiché"]
+
+[[system]]
+id = "shooting"
+name = "Armes à feu"
+category = "combat"
+role = "Tir instantané (hitscan) ou à projectiles, munitions, recul, rechargement, dispersion."
+keywords = ["tir", "tirer", "fusil", "pistolet", "arme a feu", "armes a feu", "munitions", "sniper", "shooter", "hitscan", "recharger", "gun", "guns"]
+depends = ["combat_core", "weapons"]
+produces = ["ShotFired", "Reloaded"]
+data = ["WeaponData"]
+network = "predicted"
+tests = ["Le chargeur vide empêche de tirer", "Le recul revient à la visée de départ"]
+
+[[system]]
+id = "weapons"
+name = "Armes"
+category = "combat"
+role = "Définition des armes en données : statistiques, cadence, effets, emplacements."
+keywords = ["arme", "armes", "weapon", "weapons", "arsenal"]
+depends = ["game_data"]
+data = ["WeaponData"]
+network = "serverAuthority"
+tests = ["Une arme ajoutée en données est utilisable sans code"]
+
+[[system]]
+id = "magic"
+name = "Magie"
+category = "combat"
+role = "Sorts, mana, écoles de magie."
+keywords = ["magie", "sorts", "mana", "sorcier", "magicien", "spell", "incantation", "incantations"]
+depends = ["abilities", "combat_core"]
+data = ["SpellData"]
+network = "serverAuthority"
+tests = ["Un sort sans mana suffisant échoue proprement"]
+
+[[system]]
+id = "combos"
+name = "Combos"
+category = "combat"
+role = "Enchaînements d'attaques selon le timing et les touches."
+keywords = ["combo", "combos", "enchainement", "enchainements"]
+depends = ["combat_melee"]
+network = "predicted"
+tests = ["La fenêtre de combo est indépendante de la fréquence d'images"]
+
+[[system]]
+id = "defense_moves"
+name = "Esquive, parade et blocage"
+category = "combat"
+role = "Esquives avec invincibilité, parades au bon moment, blocage qui consomme l'endurance."
+keywords = ["esquive", "esquiver", "parade", "parer", "parry", "dodge", "bloquer", "blocage", "block"]
+depends = ["combat_core"]
+network = "predicted"
+tests = ["Une parade au bon moment annule les dégâts"]
+
+[[system]]
+id = "lock_on"
+name = "Verrouillage de cible"
+category = "combat"
+role = "Fixer un ennemi : la caméra et les attaques le suivent."
+keywords = ["verrouillage", "verrouiller", "lock on", "lock-on", "cibler", "ciblage"]
+depends = ["combat_core"]
+network = "clientOnly"
+tests = ["Le verrou passe à la cible suivante et se lâche hors de portée"]
+
+[[system]]
+id = "hitboxes"
+name = "Zones de coup"
+category = "combat"
+role = "Hitboxes et hurtboxes calées sur les animations, frames d'invincibilité."
+keywords = ["hitbox", "hitboxes", "hurtbox", "hurtboxes", "invincibilite", "i-frames"]
+depends = ["animation", "physics"]
+network = "serverAuthority"
+tests = ["Les zones suivent l'animation image par image"]
+
+# ─── IA ─────────────────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "enemy_ai"
+name = "IA des ennemis"
+category = "ai"
+role = "Comportement des adversaires : patrouille, poursuite, attaque, fuite."
+keywords = ["ennemi", "ennemis", "enemy", "enemies", "monstre", "monstres", "mob", "mobs", "creatures hostiles", "zombie", "zombies", "adversaire", "adversaires"]
+depends = ["navigation", "perception", "ai_decision", "health", "animation"]
+produces = ["EnemySpotted", "EnemyDied"]
+data = ["EnemyData"]
+network = "serverAuthority"
+tests = ["Un ennemi repère le joueur puis le poursuit", "Un ennemi bloqué change de chemin"]
+
+[[system]]
+id = "navigation"
+name = "Navigation"
+category = "ai"
+role = "Recherche de chemin (navmesh, grille, A*) et évitement."
+keywords = ["pathfinding", "navmesh", "navigation"]
+depends = ["physics"]
+network = "serverAuthority"
+tests = ["Un agent atteint toute zone accessible"]
+
+[[system]]
+id = "perception"
+name = "Perception"
+category = "ai"
+role = "Vue, ouïe et mémoire courte des agents : ce qu'ils ont repéré."
+keywords = ["perception", "detecter", "detection", "reperer", "entendre", "champ de vision"]
+network = "serverAuthority"
+tests = ["Un agent ne voit pas à travers les murs"]
+
+[[system]]
+id = "ai_decision"
+name = "Décision de l'IA"
+category = "ai"
+role = "Arbres de comportement, machines à états, IA utilitaire ou GOAP selon le moteur et le besoin."
+keywords = ["arbre de comportement", "behavior tree", "behaviour tree", "goap", "utility ai", "machine a etats", "state machine", "intelligence artificielle des ennemis"]
+network = "serverAuthority"
+tests = ["Chaque comportement a une sortie : aucun agent ne reste figé"]
+
+[[system]]
+id = "boss_ai"
+name = "Boss"
+category = "ai"
+role = "Adversaires majeurs à phases, attaques signalées, arènes."
+keywords = ["boss", "boss fight", "gardien", "gardiens"]
+depends = ["enemy_ai", "combat_core"]
+produces = ["BossPhaseChanged", "BossDefeated"]
+data = ["BossData"]
+network = "serverAuthority"
+tests = ["Chaque phase se déclenche à son seuil de vie"]
+
+[[system]]
+id = "companions"
+name = "Compagnons"
+category = "ai"
+role = "Alliés contrôlés par l'IA qui suivent, aident et reçoivent des ordres simples."
+keywords = ["compagnon", "compagnons", "allie", "allies", "familier", "pet", "acolyte", "companion"]
+depends = ["navigation", "ai_decision"]
+network = "serverAuthority"
+tests = ["Un compagnon rattrape le joueur après une téléportation"]
+
+[[system]]
+id = "wildlife"
+name = "Faune"
+category = "ai"
+role = "Animaux qui vivent, fuient, chassent ou se laissent chasser."
+keywords = ["animaux", "animal", "faune", "chasse", "chasser", "betail", "wildlife"]
+depends = ["navigation", "ai_decision"]
+network = "serverAuthority"
+tests = ["Les animaux fuient une menace et reviennent au calme"]
+
+[[system]]
+id = "factions"
+name = "Factions et réputation"
+category = "npc"
+role = "Groupes aux relations entre eux et avec le joueur ; réputation qui change les réactions."
+keywords = ["faction", "factions", "reputation", "clan", "clans", "allegeance"]
+produces = ["ReputationChanged"]
+data = ["FactionData"]
+network = "serverAuthority"
+tests = ["Attaquer une faction baisse sa réputation"]
+
+[[system]]
+id = "squad_tactics"
+name = "Tactiques de groupe"
+category = "ai"
+role = "Couverture, contournement, coordination entre agents."
+keywords = ["tactique", "tactiques", "couverture", "contourner", "flanquer", "coordination", "tactical"]
+depends = ["enemy_ai"]
+network = "serverAuthority"
+tests = ["Deux agents ne prennent pas la même couverture"]
+
+[[system]]
+id = "crowds"
+name = "Civils et foules"
+category = "npc"
+role = "Passants et gardes nombreux, peu coûteux, qui réagissent aux événements."
+keywords = ["civils", "foule", "foules", "passants", "pietons", "gardes", "habitants"]
+depends = ["navigation"]
+network = "replicated"
+tests = ["Cent agents tiennent le budget processeur"]
+risk = "Coût processeur qui grandit avec le nombre d'agents : prévoir des niveaux de détail d'IA."
+
+# ─── PNJ et simulation ──────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "npc_core"
+name = "PNJ"
+category = "npc"
+role = "Personnages non joueurs : identité, apparence, interaction."
+keywords = ["pnj", "npc", "villageois", "personnages non joueurs", "habitant", "citadins"]
+depends = ["interaction", "navigation", "animation"]
+data = ["NpcData"]
+network = "replicated"
+tests = ["Chaque PNJ a un comportement par défaut sans erreur"]
+
+[[system]]
+id = "npc_schedules"
+name = "Routines des PNJ"
+category = "npc"
+role = "Emplois du temps : se lever, travailler, manger, se retrouver, rentrer, dormir."
+keywords = ["routine", "routines", "emploi du temps", "horaires", "schedule", "schedules", "vie quotidienne", "journee type"]
+depends = ["npc_core", "day_night"]
+data = ["ScheduleData"]
+network = "serverAuthority"
+tests = ["Un PNJ est au bon endroit à l'heure de son activité"]
+
+[[system]]
+id = "npc_needs"
+name = "Besoins des PNJ"
+category = "npc"
+role = "Faim, sommeil, humeur qui guident les choix des PNJ."
+keywords = ["besoins des pnj", "besoins des habitants", "humeur", "moral des pnj"]
+depends = ["npc_core"]
+network = "serverAuthority"
+tests = ["Un besoin critique passe avant la routine"]
+
+[[system]]
+id = "relationships"
+name = "Relations"
+category = "npc"
+role = "Amitié, affinité, romance entre le joueur et les PNJ."
+keywords = ["relations avec les pnj", "amitie", "affinite", "romance", "mariage"]
+depends = ["npc_core"]
+produces = ["RelationshipChanged"]
+network = "serverAuthority"
+tests = ["Les cadeaux et dialogues font évoluer l'affinité"]
+
+[[system]]
+id = "npc_memory"
+name = "Mémoire et réactions des PNJ"
+category = "npc"
+role = "Les PNJ se souviennent des actes du joueur et réagissent aux événements du monde."
+keywords = ["se souviennent", "comportements emergents", "emergent", "emergents", "reagissent aux evenements"]
+depends = ["npc_core", "event_bus"]
+network = "serverAuthority"
+tests = ["Un PNJ témoin d'un vol change d'attitude"]
+
+# ─── Progression ────────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "stats"
+name = "Statistiques et attributs"
+category = "rpg"
+role = "Force, agilité, intelligence… et leurs effets calculés."
+keywords = ["statistiques", "stats", "attributs", "caracteristiques", "agilite"]
+data = ["StatBlock"]
+network = "serverAuthority"
+tests = ["Changer un attribut met à jour les valeurs dérivées"]
+
+[[system]]
+id = "leveling"
+name = "Niveaux et expérience"
+category = "rpg"
+role = "Gain d'expérience, montée de niveau, courbe de progression."
+keywords = ["monter de niveau", "niveau du personnage", "experience", "xp", "level up", "points d experience", "leveling", "progression"]
+depends = ["stats"]
+adds = ["save_system"]
+produces = ["LeveledUp", "XpGained"]
+data = ["LevelCurve"]
+network = "serverAuthority"
+tests = ["La courbe d'expérience suit les données"]
+
+[[system]]
+id = "classes"
+name = "Classes"
+category = "rpg"
+role = "Archétypes de personnage (guerrier, mage…) avec leurs capacités."
+keywords = ["classes de personnage", "classe de personnage", "guerrier", "mage", "voleur", "archer", "archetype"]
+depends = ["stats", "abilities"]
+data = ["ClassData"]
+network = "serverAuthority"
+tests = ["Chaque classe démarre avec ses capacités"]
+
+[[system]]
+id = "skill_tree"
+name = "Arbre de talents"
+category = "rpg"
+role = "Talents et atouts à débloquer, prérequis, remise à zéro."
+keywords = ["arbre de competences", "arbre de talents", "talents", "talent", "perks", "atouts", "skill tree", "competences"]
+depends = ["leveling"]
+adds = ["skill_tree_ui"]
+data = ["SkillNodeData"]
+network = "serverAuthority"
+tests = ["Un talent verrouillé ne peut pas être pris"]
+
+[[system]]
+id = "loot"
+name = "Butin et rareté"
+category = "rpg"
+role = "Tables de butin, rareté, objets aléatoires."
+keywords = ["loot", "butin", "rarete", "legendaire", "drop", "coffre", "coffres", "tresor", "tresors"]
+depends = ["item_database"]
+data = ["LootTable"]
+network = "serverAuthority"
+tests = ["Les taux de butin suivent les tables sur dix mille tirages"]
+
+# ─── Objets ─────────────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "item_database"
+name = "Objets"
+category = "items"
+role = "Définition des objets en données (armes, outils, ressources, consommables, objets de quête)."
+keywords = ["objet", "objets", "item", "items", "ressource", "ressources", "outils", "outil"]
+depends = ["game_data"]
+data = ["ItemData"]
+network = "serverAuthority"
+tests = ["Chaque objet a un identifiant unique et une icône"]
+
+[[system]]
+id = "inventory"
+name = "Inventaire"
+category = "items"
+role = "Emplacements, piles, poids, tri et transferts d'objets."
+keywords = ["inventaire", "inventory", "sac", "stockage", "coffre de stockage", "empiler"]
+depends = ["item_database"]
+adds = ["inventory_ui", "save_system"]
+produces = ["ItemAdded", "ItemRemoved", "InventoryChanged"]
+network = "serverAuthority"
+tests = ["Un objet ajouté puis retiré laisse l'inventaire identique", "Les piles respectent leur maximum"]
+
+[[system]]
+id = "equipment"
+name = "Équipement"
+category = "items"
+role = "Emplacements équipés (arme, armure, accessoires) et leurs effets."
+keywords = ["equipement", "equiper", "equipment", "casque", "armure", "accessoire", "accessoires", "tenue"]
+depends = ["inventory", "stats"]
+produces = ["EquipmentChanged"]
+network = "serverAuthority"
+tests = ["Équiper un objet applique ses statistiques, le retirer les enlève"]
+
+[[system]]
+id = "durability"
+name = "Durabilité"
+category = "items"
+role = "Usure des objets, réparation, casse."
+keywords = ["durabilite", "usure", "reparer", "reparation", "s usent", "durability"]
+depends = ["item_database"]
+network = "serverAuthority"
+tests = ["Un objet à zéro de durabilité ne s'utilise plus"]
+
+[[system]]
+id = "consumables"
+name = "Consommables"
+category = "items"
+role = "Potions, nourriture, objets à usage unique."
+keywords = ["potion", "potions", "consommable", "consommables", "nourriture", "manger", "boire"]
+depends = ["item_database", "status_effects"]
+network = "serverAuthority"
+tests = ["Un consommable utilisé disparaît de l'inventaire"]
+
+[[system]]
+id = "item_modifiers"
+name = "Enchantements et modificateurs"
+category = "items"
+role = "Affixes, gemmes, emplacements, enchantements qui modifient un objet."
+keywords = ["enchantement", "enchantements", "gemme", "gemmes", "socket", "sockets", "affixe", "affixes", "modificateur", "modificateurs"]
+depends = ["item_database"]
+network = "serverAuthority"
+tests = ["Un modificateur est gardé à la sauvegarde"]
+
+# ─── Fabrication ────────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "crafting"
+name = "Fabrication"
+category = "crafting"
+role = "Recettes, ingrédients, stations, temps de fabrication, déblocages."
+keywords = ["craft", "crafting", "fabriquer", "fabrication", "recette", "recettes", "etabli", "forger", "confectionner", "fabrique", "fabriquent"]
+depends = ["inventory"]
+adds = ["crafting_ui"]
+produces = ["ItemCrafted"]
+data = ["RecipeData"]
+network = "serverAuthority"
+tests = ["Fabriquer consomme exactement les ingrédients de la recette"]
+
+[[system]]
+id = "gathering"
+name = "Récolte de ressources"
+category = "crafting"
+role = "Miner, couper, cueillir : ressources qui se régénèrent ou non."
+keywords = ["recolter", "recolte de ressources", "miner", "minerai", "couper du bois", "bois", "cueillir", "collecter", "gathering", "recolte des ressources", "mine des minerais"]
+depends = ["inventory", "interaction"]
+produces = ["ResourceGathered"]
+data = ["ResourceNodeData"]
+network = "serverAuthority"
+tests = ["Une ressource épuisée réapparaît selon sa règle"]
+
+[[system]]
+id = "tech_tree"
+name = "Technologies"
+category = "crafting"
+role = "Recherches et déblocages successifs."
+keywords = ["technologie", "tech tree", "arbre technologique", "deblocage", "recherches scientifiques"]
+data = ["TechData"]
+network = "serverAuthority"
+tests = ["Une technologie exige ses prérequis"]
+
+[[system]]
+id = "automation"
+name = "Automatisation"
+category = "crafting"
+role = "Machines, convoyeurs et chaînes de production qui tournent seules."
+keywords = ["usine", "usines", "automatisation", "convoyeur", "convoyeurs", "tapis roulant", "chaine de production", "factory"]
+depends = ["crafting"]
+network = "serverAuthority"
+tests = ["Une chaîne produit au même rythme que l'écran soit ouvert ou non"]
+risk = "Simulation continue coûteuse à grande échelle : calcul par lots et hors écran à prévoir."
+
+# ─── Construction ───────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "building"
+name = "Construction"
+category = "building"
+role = "Placer, tourner, aimanter, valider et améliorer des constructions (grille ou libre)."
+keywords = ["construire", "construction", "batir", "batiment", "base building", "construire une base", "construire des maisons", "building", "construit", "construis", "construisent"]
+depends = ["inventory", "physics"]
+adds = ["world_persistence"]
+produces = ["StructurePlaced", "StructureRemoved"]
+data = ["BuildPieceData"]
+network = "serverAuthority"
+tests = ["Une pièce ne se pose pas dans un obstacle", "Les constructions reviennent après chargement"]
+
+[[system]]
+id = "destruction"
+name = "Destruction"
+category = "building"
+role = "Objets, bâtiments ou terrain qui se cassent, et ce qu'il reste."
+keywords = ["detruire", "destruction", "destructible", "destructibles", "casser", "exploser", "demolir", "ecrouler"]
+depends = ["physics"]
+adds = ["world_persistence"]
+produces = ["Destroyed"]
+network = "serverAuthority"
+tests = ["Un débris ne bloque pas un passage obligatoire"]
+risk = "Débris physiques et état persistant coûteux en réseau et en sauvegarde : limiter et regrouper."
+
+# ─── Véhicules ──────────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "vehicles"
+name = "Véhicules"
+category = "vehicles"
+role = "Monter, conduire, descendre ; physique, caméra, dégâts et passagers."
+keywords = ["vehicule", "vehicules", "voiture", "voitures", "conduire", "conduite", "moto", "camion", "vehicle", "vehicles", "car", "cars", "conduit", "conduisent", "pilote des vehicules"]
+depends = ["physics", "input", "interaction"]
+produces = ["VehicleEntered", "VehicleExited"]
+data = ["VehicleData"]
+network = "predicted"
+tests = ["Monter et descendre ne bloque jamais le joueur", "La conduite reste stable à haute vitesse"]
+
+[[system]]
+id = "boats"
+name = "Bateaux"
+category = "vehicles"
+role = "Flottaison, navigation, vagues."
+keywords = ["bateau", "bateaux", "navire", "navires", "barque", "voilier", "naviguer", "boat", "boats"]
+depends = ["vehicles"]
+network = "predicted"
+tests = ["Le bateau flotte sans tressauter"]
+
+[[system]]
+id = "aircraft"
+name = "Avions et vaisseaux"
+category = "vehicles"
+role = "Aérodynamique simplifiée ou vol spatial."
+keywords = ["avion", "helicoptere", "vaisseau", "vaisseau spatial", "vol spatial", "spacecraft", "spaceship", "plane"]
+depends = ["vehicles"]
+network = "predicted"
+tests = ["Décollage et atterrissage sans collision fantôme"]
+
+[[system]]
+id = "mounts"
+name = "Montures"
+category = "vehicles"
+role = "Chevaux et créatures que l'on chevauche."
+keywords = ["monture", "montures", "cheval", "chevaux", "chevaucher", "mount"]
+depends = ["vehicles", "animation"]
+network = "predicted"
+tests = ["La monture suit le terrain sans flotter"]
+
+[[system]]
+id = "racing"
+name = "Courses"
+category = "gameplay"
+role = "Circuits, tours, chronos, classement, adversaires."
+keywords = ["course", "courses", "racing", "circuit", "circuits", "tour de piste", "chrono", "chronometre", "podium"]
+depends = ["vehicles"]
+produces = ["LapCompleted", "RaceFinished"]
+data = ["TrackData"]
+network = "predicted"
+tests = ["Un raccourci hors piste n'est pas compté comme un tour"]
+
+# ─── Quêtes et narration ────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "quests"
+name = "Quêtes"
+category = "narrative"
+role = "Quêtes principales et secondaires en données : objectifs, prérequis, récompenses."
+keywords = ["quete", "quest", "mission"]
+depends = ["event_bus", "game_data"]
+adds = ["quest_log_ui", "save_system"]
+produces = ["QuestStarted", "ObjectiveCompleted", "QuestCompleted"]
+data = ["QuestData"]
+network = "serverAuthority"
+tests = ["Chaque objectif se valide par son événement", "Une quête terminée ne se redonne pas"]
+
+[[system]]
+id = "dynamic_quests"
+name = "Quêtes dynamiques"
+category = "narrative"
+role = "Quêtes générées selon l'état du monde."
+keywords = ["quetes dynamiques", "quetes procedurales", "quetes generees", "dynamic quests"]
+depends = ["quests"]
+network = "serverAuthority"
+tests = ["Une quête générée est toujours réalisable"]
+
+[[system]]
+id = "dialogue"
+name = "Dialogues"
+category = "narrative"
+role = "Arbres de dialogue, conditions, variables, choix."
+keywords = ["dialogue", "dialogues", "parler", "discuter", "conversation", "conversations", "repliques"]
+depends = ["game_data"]
+adds = ["dialogue_ui", "subtitles"]
+produces = ["DialogueStarted", "DialogueChoiceMade"]
+data = ["DialogueData"]
+network = "serverAuthority"
+tests = ["Chaque branche atteint une fin"]
+
+[[system]]
+id = "narrative_choices"
+name = "Choix et conséquences"
+category = "narrative"
+role = "Variables d'histoire, embranchements, fins multiples."
+keywords = ["choix moraux", "choix narratifs", "choix qui comptent", "embranchement", "consequences", "fins multiples", "branching", "narratif", "narrative", "narration"]
+depends = ["dialogue", "save_system"]
+network = "serverAuthority"
+tests = ["Chaque fin est atteignable"]
+
+[[system]]
+id = "subtitles"
+name = "Sous-titres"
+category = "platform"
+role = "Sous-titres synchronisés, taille réglable, noms des locuteurs."
+keywords = ["sous titres", "sous-titres", "subtitles"]
+network = "clientOnly"
+tests = ["La taille des sous-titres se règle"]
+
+# ─── Économie ───────────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "economy"
+name = "Monnaie et économie"
+category = "economy"
+role = "Monnaies, gains, dépenses, équilibre des prix."
+keywords = ["argent", "monnaie", "pieces d or", "gold", "economie", "economy", "prix", "gagner de l argent"]
+depends = ["game_data"]
+produces = ["CurrencyChanged"]
+data = ["CurrencyData", "PriceTable"]
+network = "serverAuthority"
+tests = ["Aucune transaction ne crée ou ne perd d'argent"]
+
+[[system]]
+id = "shops"
+name = "Boutiques"
+category = "economy"
+role = "Marchands, achat, revente, stock."
+keywords = ["boutique", "boutiques", "magasin", "marchand", "marchands", "acheter", "vendre", "shop", "shops", "commerce"]
+depends = ["economy", "inventory"]
+adds = ["shop_ui"]
+network = "serverAuthority"
+tests = ["Acheter sans assez d'argent est refusé"]
+
+[[system]]
+id = "trading"
+name = "Échanges entre joueurs"
+category = "economy"
+role = "Échanges directs ou hôtel des ventes."
+keywords = ["echanges entre joueurs", "trade", "trading", "hotel des ventes", "marche entre joueurs"]
+depends = ["economy", "inventory"]
+network = "serverAuthority"
+tests = ["Un échange annulé rend chaque objet à son propriétaire"]
+risk = "Cible de triche et de duplication : transaction atomique côté serveur obligatoire."
+
+[[system]]
+id = "market_simulation"
+name = "Offre et demande"
+category = "economy"
+role = "Prix qui varient avec l'offre, la demande et les événements."
+keywords = ["offre et demande", "simulation economique", "prix dynamiques", "fluctuation", "supply and demand"]
+depends = ["economy"]
+network = "serverAuthority"
+tests = ["Les prix restent dans leurs bornes"]
+
+# ─── Monde ──────────────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "level_design"
+name = "Niveaux"
+category = "world"
+role = "Niveaux ou zones construits à la main, enchaînés par la progression."
+keywords = ["niveaux", "levels", "stages", "zone", "arene", "donjon", "donjons"]
+depends = ["scene_management"]
+network = "serverAuthority"
+tests = ["Chaque niveau se termine sans passer à travers le décor"]
+
+[[system]]
+id = "open_world"
+name = "Monde ouvert"
+category = "world"
+role = "Grand monde continu à explorer librement."
+keywords = ["monde ouvert", "open world", "open-world", "explorer librement", "vaste monde", "monde immense", "grand monde", "monde vaste"]
+depends = ["world_streaming", "lod_culling"]
+adds = ["world_map"]
+network = "serverAuthority"
+tests = ["Traverser le monde ne provoque pas d'arrêt de plus de 100 ms"]
+
+[[system]]
+id = "world_streaming"
+name = "Streaming du monde"
+category = "world"
+role = "Chargement et déchargement asynchrones des zones autour du joueur."
+keywords = ["streaming", "chargement asynchrone", "world partition", "level streaming"]
+depends = ["scene_management"]
+network = "serverAuthority"
+tests = ["La mémoire reste stable pendant une longue traversée"]
+
+[[system]]
+id = "lod_culling"
+name = "Niveaux de détail et élimination"
+category = "visual"
+role = "LOD, élimination hors champ et occlusion pour tenir le budget graphique."
+keywords = ["lod", "niveaux de detail", "occlusion", "culling"]
+network = "clientOnly"
+tests = ["Le nombre de triangles affichés reste sous le budget"]
+
+[[system]]
+id = "world_map"
+name = "Carte et minicarte"
+category = "ui"
+role = "Carte du monde, minicarte, marqueurs, boussole."
+keywords = ["carte du monde", "minicarte", "minimap", "boussole", "marqueurs", "world map"]
+network = "clientOnly"
+tests = ["La position sur la carte correspond au monde"]
+
+[[system]]
+id = "fast_travel"
+name = "Voyage rapide"
+category = "world"
+role = "Téléportation entre lieux découverts."
+keywords = ["voyage rapide", "fast travel", "teleportation", "teleporter"]
+depends = ["world_map"]
+network = "serverAuthority"
+tests = ["On ne voyage que vers un lieu découvert"]
+
+[[system]]
+id = "tilemap_world"
+name = "Monde en tuiles"
+category = "world"
+role = "Carte en grille de tuiles 2D, couches, collisions par tuile."
+keywords = ["tuiles", "tuile", "tilemap", "tileset", "tile", "tiles", "grille 2d"]
+depends = ["sprites_2d"]
+network = "serverAuthority"
+tests = ["Les collisions suivent les tuiles"]
+
+[[system]]
+id = "voxel_world"
+name = "Monde en voxels"
+category = "world"
+role = "Blocs stockés par chunks, maillage (greedy meshing), collisions et lumière par bloc."
+keywords = ["voxel", "cubes", "blocs", "block building", "minecraft", "minecraft like", "minecraft-like"]
+depends = ["chunk_streaming", "block_editing"]
+adds = ["world_persistence"]
+produces = ["ChunkLoaded", "ChunkUnloaded"]
+data = ["BlockData"]
+network = "serverAuthority"
+tests = ["Remaillage d'un chunk sous 16 ms", "Aucune face cachée n'est maillée"]
+risk = "Un monde de voxels ne se gère pas comme une scène 3D classique : mémoire, maillage et sauvegarde par chunk."
+
+[[system]]
+id = "chunk_streaming"
+name = "Chargement par chunks"
+category = "world"
+role = "Chunks chargés, générés et déchargés selon la distance, sur des fils séparés."
+keywords = ["chunk", "chunks", "distance de vue", "render distance"]
+depends = ["world_streaming"]
+network = "serverAuthority"
+tests = ["Se déplacer vite ne laisse pas de trou dans le monde"]
+
+[[system]]
+id = "block_editing"
+name = "Poser et casser des blocs"
+category = "building"
+role = "Modification du monde bloc par bloc, synchronisée et sauvegardée."
+keywords = ["poser des blocs", "casser des blocs", "creuser", "miner des blocs", "modifier le terrain"]
+depends = ["interaction", "inventory"]
+produces = ["BlockPlaced", "BlockBroken"]
+network = "serverAuthority"
+tests = ["Un bloc cassé revient dans l'inventaire"]
+
+# ─── Génération procédurale ─────────────────────────────────────────────────────────────
+
+[[system]]
+id = "world_generation"
+name = "Génération du monde"
+category = "generation"
+role = "Monde produit à partir d'une graine : même graine, même monde."
+keywords = ["procedural", "procedurale", "procedurales", "proceduraux", "procedurally", "seed", "graine", "monde infini", "infinite world", "carte infinie", "generation procedurale", "monde genere", "carte aleatoire", "niveaux aleatoires", "generes aleatoirement"]
+depends = ["game_data"]
+data = ["WorldGenSettings"]
+network = "serverAuthority"
+tests = ["Deux générations avec la même graine sont identiques"]
+
+[[system]]
+id = "terrain_generation"
+name = "Terrain procédural"
+category = "generation"
+role = "Relief, altitude, érosion simplifiée par bruit."
+keywords = ["terrain procedural", "relief", "heightmap", "montagnes"]
+depends = ["world_generation"]
+network = "serverAuthority"
+tests = ["Les bords de chunks se raccordent sans marche"]
+
+[[system]]
+id = "dungeon_generation"
+name = "Donjons procéduraux"
+category = "generation"
+role = "Salles et couloirs générés, toujours finissables."
+keywords = ["donjon procedural", "donjons proceduraux", "salles generees", "dungeon generation"]
+depends = ["world_generation"]
+network = "serverAuthority"
+tests = ["La sortie est toujours atteignable"]
+
+[[system]]
+id = "biomes"
+name = "Biomes"
+category = "generation"
+role = "Régions aux climats, ressources et créatures propres, dessinées ou générées."
+keywords = ["biome", "desert", "foret", "toundra", "jungle", "marais", "savane", "ocean"]
+data = ["BiomeData"]
+network = "serverAuthority"
+tests = ["Les transitions entre biomes sont progressives"]
+
+[[system]]
+id = "vegetation"
+name = "Végétation"
+category = "generation"
+role = "Arbres, herbe, plantes répartis et rendus en grand nombre."
+keywords = ["arbres", "herbe", "vegetation", "plantes", "fleurs", "buissons"]
+network = "replicated"
+tests = ["La végétation tient le budget d'affichage"]
+
+[[system]]
+id = "structure_generation"
+name = "Structures générées"
+category = "generation"
+role = "Villages, ruines et points d'intérêt posés par la génération."
+keywords = ["villages generes", "structures generees", "points d interet generes"]
+depends = ["world_generation"]
+network = "serverAuthority"
+tests = ["Aucune structure ne flotte ni ne s'enterre"]
+
+[[system]]
+id = "caves"
+name = "Grottes"
+category = "generation"
+role = "Grottes et réseaux souterrains, construits à la main ou générés."
+keywords = ["grotte", "caverne", "souterrain", "reseau de grottes"]
+network = "serverAuthority"
+tests = ["Les grottes sont reliées à la surface"]
+
+[[system]]
+id = "rivers_roads"
+name = "Routes et rivières"
+category = "generation"
+role = "Tracés continus qui relient les lieux ou suivent le relief."
+keywords = ["route", "routes", "riviere", "rivieres", "fleuve", "chemins"]
+network = "serverAuthority"
+tests = ["Une rivière descend toujours"]
+
+[[system]]
+id = "spawning"
+name = "Apparitions"
+category = "generation"
+role = "Apparition des ennemis, animaux et ressources : règles, limites, vagues."
+keywords = ["apparition", "apparitions", "spawn", "spawner", "vague", "vagues", "waves"]
+network = "serverAuthority"
+tests = ["Le nombre d'entités ne dépasse jamais la limite"]
+
+# ─── Temps et environnement ─────────────────────────────────────────────────────────────
+
+[[system]]
+id = "day_night"
+name = "Cycle jour et nuit"
+category = "environment"
+role = "Heure du jeu, lumière qui change, effets sur le gameplay."
+keywords = ["jour et nuit", "jour nuit", "cycle jour", "day night", "nuit", "heure du jeu", "journee"]
+depends = ["lighting"]
+produces = ["HourChanged", "DayStarted", "NightStarted"]
+network = "replicated"
+tests = ["L'heure est la même pour tous les joueurs"]
+
+[[system]]
+id = "seasons"
+name = "Saisons"
+category = "environment"
+role = "Saisons qui changent le monde et les activités."
+keywords = ["saison", "hiver", "printemps", "automne"]
+depends = ["day_night"]
+produces = ["SeasonChanged"]
+network = "replicated"
+tests = ["Chaque saison change ce qu'elle doit changer"]
+
+[[system]]
+id = "weather"
+name = "Météo"
+category = "environment"
+role = "Pluie, neige, orage, brouillard, vent, avec effets visuels et sur le jeu."
+keywords = ["meteo", "pluie", "neige", "orage", "orages", "tempete", "tempetes", "brouillard", "vent", "weather"]
+depends = ["vfx"]
+produces = ["WeatherChanged"]
+network = "replicated"
+tests = ["La météo change en douceur", "Tous les joueurs voient la même météo"]
+
+[[system]]
+id = "temperature"
+name = "Température"
+category = "environment"
+role = "Froid et chaud qui affectent le personnage."
+keywords = ["temperature", "froid", "chaleur", "hypothermie", "geler"]
+depends = ["status_effects"]
+network = "serverAuthority"
+tests = ["S'abriter protège du froid"]
+
+[[system]]
+id = "survival_needs"
+name = "Survie"
+category = "player"
+role = "Faim, soif, fatigue du joueur."
+keywords = ["survie", "survival", "faim", "soif", "fatigue", "survivre"]
+depends = ["health", "consumables"]
+network = "serverAuthority"
+tests = ["Chaque jauge descend à son rythme et se remplit"]
+
+# ─── Multijoueur ────────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "networking"
+name = "Réseau"
+category = "multiplayer"
+role = "Connexions, sessions, réplication de l'état, autorité : le socle du multijoueur."
+keywords = ["multijoueur", "multi joueur", "multiplayer", "en ligne", "online", "coop", "co-op", "cooperatif", "cooperation", "pvp", "lan", "entre amis", "avec des amis", "avec mes amis", "reseau", "serveur", "mmo", "mmorpg"]
+produces = ["PlayerJoined", "PlayerLeft", "Disconnected"]
+network = "serverAuthority"
+tests = ["Un joueur qui se déconnecte puis revient retrouve son état"]
+
+[[system]]
+id = "replication"
+name = "Réplication"
+category = "multiplayer"
+role = "Choix de ce qui est copié, à quelle fréquence et pour qui."
+keywords = ["replication", "synchronisation", "synchroniser"]
+depends = ["networking"]
+network = "serverAuthority"
+tests = ["Seules les données utiles sont envoyées"]
+
+[[system]]
+id = "client_prediction"
+name = "Prédiction et interpolation"
+category = "multiplayer"
+role = "Le client anticipe ses actions et lisse celles des autres ; le serveur corrige."
+keywords = ["prediction", "interpolation", "reconciliation"]
+depends = ["replication"]
+network = "predicted"
+tests = ["Avec 150 ms de latence, le déplacement reste fluide"]
+
+[[system]]
+id = "lag_compensation"
+name = "Compensation de latence"
+category = "multiplayer"
+role = "Le serveur juge un tir d'après ce que le tireur voyait."
+keywords = ["compensation de latence", "lag compensation", "latence", "rollback"]
+depends = ["client_prediction"]
+network = "serverAuthority"
+tests = ["Un tir juste à 100 ms de latence touche"]
+
+[[system]]
+id = "lobby"
+name = "Salons et invitations"
+category = "multiplayer"
+role = "Groupes, invitations d'amis, préparation de la partie."
+keywords = ["lobby", "salon", "salons", "inviter", "invitation", "groupe", "party"]
+depends = ["networking"]
+adds = ["lobby_ui"]
+network = "serverAuthority"
+tests = ["L'hôte qui part transmet ou ferme proprement le salon"]
+
+[[system]]
+id = "matchmaking"
+name = "Matchmaking"
+category = "multiplayer"
+role = "Appariement des joueurs par niveau, région, file d'attente."
+keywords = ["matchmaking", "mode classe", "parties classees", "ranked", "file d attente", "appariement"]
+depends = ["lobby", "accounts"]
+network = "serverAuthority"
+tests = ["Deux joueurs de niveaux éloignés ne sont pas appariés en premier"]
+
+[[system]]
+id = "dedicated_server"
+name = "Serveur dédié"
+category = "multiplayer"
+role = "Build serveur sans affichage qui fait autorité, hébergeable."
+keywords = ["serveur dedie", "serveurs dedies", "dedicated server", "heberger un serveur"]
+depends = ["networking"]
+network = "serverAuthority"
+tests = ["Le serveur tourne sans carte graphique", "Le serveur redémarre sans perdre l'état persistant"]
+
+[[system]]
+id = "teams"
+name = "Équipes"
+category = "gameplay"
+role = "Camps, couleurs, tir ami, équilibrage."
+keywords = ["equipe", "team", "5v5", "escouade"]
+depends = ["networking"]
+network = "serverAuthority"
+tests = ["Les équipes restent équilibrées après un départ"]
+
+[[system]]
+id = "match_rules"
+name = "Règles de partie"
+category = "gameplay"
+role = "Manches, score, réapparition, conditions de victoire, fin de partie."
+keywords = ["manche", "round", "score", "victoire", "match", "deathmatch", "capture du drapeau"]
+depends = ["game_state"]
+produces = ["RoundStarted", "RoundEnded", "MatchEnded"]
+network = "serverAuthority"
+tests = ["Une égalité suit la règle prévue"]
+
+[[system]]
+id = "anti_cheat"
+name = "Protection contre la triche"
+category = "multiplayer"
+role = "Validation serveur, détection d'anomalies, jamais de confiance au client."
+keywords = ["triche", "anti triche", "anti-cheat", "tricheurs", "competitif", "competitive", "e-sport", "esport"]
+depends = ["dedicated_server"]
+network = "serverAuthority"
+tests = ["Une vitesse impossible envoyée par un client est refusée"]
+
+[[system]]
+id = "chat"
+name = "Discussion"
+category = "multiplayer"
+role = "Messages texte ou voix entre joueurs, modération."
+keywords = ["chat vocal", "chat textuel", "tchat", "voice chat", "text chat", "messagerie entre joueurs"]
+depends = ["networking"]
+network = "serverAuthority"
+tests = ["Un joueur mis en sourdine n'est plus entendu"]
+
+[[system]]
+id = "split_screen"
+name = "Écran partagé"
+category = "multiplayer"
+role = "Plusieurs joueurs sur la même machine, une vue chacun."
+keywords = ["ecran partage", "split screen", "split-screen", "sur le meme ecran", "canape", "couch"]
+depends = ["input"]
+network = "local"
+tests = ["Chaque manette pilote son joueur"]
+
+# ─── Services en ligne ──────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "accounts"
+name = "Comptes joueurs"
+category = "backend"
+role = "Authentification, profils, identité entre sessions."
+keywords = ["comptes joueurs", "compte joueur", "authentification", "login", "connexion au compte", "profil joueur"]
+network = "serverAuthority"
+tests = ["Une session expirée demande de se reconnecter"]
+
+[[system]]
+id = "cloud_saves"
+name = "Sauvegardes en ligne"
+category = "backend"
+role = "Sauvegardes synchronisées entre machines."
+keywords = ["sauvegarde cloud", "sauvegardes cloud", "sauvegarde en ligne", "cross save", "cloud save"]
+depends = ["save_system", "accounts"]
+network = "serverAuthority"
+tests = ["Un conflit de sauvegarde est proposé à la personne"]
+
+[[system]]
+id = "leaderboards"
+name = "Classements"
+category = "backend"
+role = "Meilleurs scores, classements par saison."
+keywords = ["classement", "classements", "leaderboard", "leaderboards", "meilleurs scores", "high score", "highscore"]
+depends = ["accounts"]
+network = "serverAuthority"
+tests = ["Un score non vérifié par le serveur est refusé"]
+
+[[system]]
+id = "analytics"
+name = "Télémétrie"
+category = "backend"
+role = "Statistiques de jeu anonymes, avec consentement."
+keywords = ["telemetrie", "analytics", "statistiques de jeu", "metriques"]
+network = "serverAuthority"
+tests = ["Aucune donnée n'est envoyée sans consentement"]
+
+[[system]]
+id = "persistent_world"
+name = "Monde persistant"
+category = "backend"
+role = "Monde partagé qui continue d'exister entre les connexions."
+keywords = ["persistant", "monde persistant", "persistent", "mmo", "mmorpg", "monde partage"]
+depends = ["dedicated_server", "accounts", "world_persistence"]
+network = "serverAuthority"
+tests = ["Le monde garde son état après redémarrage du serveur"]
+risk = "Architecture serveur à dimensionner : répartition par zones, base de données, montée en charge."
+
+# ─── Sauvegarde ─────────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "save_system"
+name = "Sauvegarde et chargement"
+category = "persistence"
+role = "Emplacements de sauvegarde, format versionné, sauvegarde automatique."
+keywords = ["sauvegarde", "sauvegarder", "save system", "save game", "charger une partie", "continuer la partie"]
+produces = ["GameSaved", "GameLoaded"]
+data = ["SaveSchema"]
+network = "serverAuthority"
+tests = ["Sauvegarder puis charger redonne exactement le même état", "Une ancienne sauvegarde est migrée"]
+
+[[system]]
+id = "world_persistence"
+name = "Persistance du monde"
+category = "persistence"
+role = "Modifications du monde (constructions, destructions, blocs) enregistrées et rechargées."
+keywords = ["persistance du monde", "modifications gardees"]
+depends = ["save_system"]
+network = "serverAuthority"
+tests = ["Une modification du monde survit au rechargement"]
+risk = "La taille des sauvegardes grandit avec le monde modifié : compression et enregistrement par zone."
+
+# ─── Interface ──────────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "inventory_ui"
+name = "Écran d'inventaire"
+category = "ui"
+role = "Grille ou liste d'objets, glisser-déposer, infobulles, tri."
+depends = ["inventory", "ui_menus"]
+network = "clientOnly"
+tests = ["L'écran reflète l'inventaire réel après chaque changement"]
+
+[[system]]
+id = "crafting_ui"
+name = "Écran de fabrication"
+category = "ui"
+role = "Recettes disponibles, ingrédients manquants, file de fabrication."
+depends = ["crafting", "ui_menus"]
+network = "clientOnly"
+tests = ["Une recette impossible est signalée avec la raison"]
+
+[[system]]
+id = "shop_ui"
+name = "Écran de boutique"
+category = "ui"
+role = "Achat, vente, comparaison d'objets."
+depends = ["shops", "ui_menus"]
+network = "clientOnly"
+tests = ["Le prix affiché est celui débité"]
+
+[[system]]
+id = "dialogue_ui"
+name = "Fenêtre de dialogue"
+category = "ui"
+role = "Texte, portraits, choix au clavier et à la manette."
+depends = ["dialogue", "ui_menus"]
+network = "clientOnly"
+tests = ["Les choix se sélectionnent à la manette"]
+
+[[system]]
+id = "quest_log_ui"
+name = "Journal de quêtes"
+category = "ui"
+role = "Quêtes en cours, objectifs, suivi à l'écran."
+depends = ["quests", "ui_menus"]
+network = "clientOnly"
+tests = ["L'objectif suivi s'affiche dans le HUD"]
+
+[[system]]
+id = "skill_tree_ui"
+name = "Écran des talents"
+category = "ui"
+role = "Arbre navigable, prérequis visibles."
+depends = ["skill_tree", "ui_menus"]
+network = "clientOnly"
+tests = ["Les talents verrouillés disent ce qui manque"]
+
+[[system]]
+id = "lobby_ui"
+name = "Écran des salons"
+category = "ui"
+role = "Liste des salons, invitations, joueurs prêts."
+depends = ["lobby", "ui_menus"]
+network = "clientOnly"
+tests = ["L'état « prêt » de chacun est visible"]
+
+# ─── Audio ──────────────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "music"
+name = "Musique"
+category = "audio"
+role = "Pistes, transitions, musique qui suit l'action."
+keywords = ["musique", "musiques", "bande son", "soundtrack", "musique dynamique", "ambiance sonore"]
+depends = ["audio_core"]
+network = "clientOnly"
+tests = ["Les transitions de musique se font sur le temps"]
+
+[[system]]
+id = "spatial_audio"
+name = "Son spatialisé"
+category = "audio"
+role = "Sons positionnés dans l'espace, occlusion, réverbération."
+keywords = ["son 3d", "spatialise", "audio spatial", "entendre les pas", "bruits de pas", "spatial audio"]
+depends = ["audio_core"]
+network = "clientOnly"
+tests = ["Un son à gauche s'entend à gauche"]
+
+[[system]]
+id = "voice_over"
+name = "Voix et doublage"
+category = "audio"
+role = "Répliques enregistrées, synchronisées avec les sous-titres."
+keywords = ["doublage", "voix off", "voice acting", "voix des personnages", "doubles"]
+depends = ["audio_core", "subtitles"]
+network = "clientOnly"
+tests = ["Chaque réplique a sa voix ou un repli en sous-titres"]
+
+# ─── Rendu, animation, effets ───────────────────────────────────────────────────────────
+
+[[system]]
+id = "animation"
+name = "Animation"
+category = "visual"
+role = "Squelettes, mélanges, machines à états d'animation, événements d'animation (2D ou 3D)."
+keywords = ["animation", "animations", "anime", "animes", "blend tree", "squelette"]
+network = "clientOnly"
+tests = ["Aucune transition ne saute d'une pose à l'autre sans fondu"]
+
+[[system]]
+id = "procedural_animation"
+name = "Animation procédurale"
+category = "visual"
+role = "Cinématique inverse (pieds, mains), regard, ragdoll."
+keywords = ["ik", "cinematique inverse", "inverse kinematics", "animation procedurale", "ragdoll", "retargeting"]
+depends = ["animation"]
+network = "clientOnly"
+tests = ["Les pieds restent posés sur une pente"]
+
+[[system]]
+id = "sprites_2d"
+name = "Sprites 2D"
+category = "visual"
+role = "Sprites, feuilles de sprites, animations image par image, ordre d'affichage."
+keywords = ["sprite", "sprites", "pixel art", "pixel-art", "feuille de sprites", "spritesheet"]
+network = "clientOnly"
+tests = ["Les sprites s'affichent au pixel près sans flou"]
+foundation = "2d"
+
+[[system]]
+id = "parallax"
+name = "Parallaxe"
+category = "visual"
+role = "Plans de décor qui défilent à des vitesses différentes."
+keywords = ["parallaxe", "parallax", "arriere plan", "plans de decor"]
+depends = ["sprites_2d"]
+network = "clientOnly"
+tests = ["Les plans restent alignés après une téléportation"]
+
+[[system]]
+id = "vfx"
+name = "Effets visuels"
+category = "visual"
+role = "Particules : impacts, explosions, magie, fumée, feu, eau, traînées."
+keywords = ["effets visuels", "particules", "particule", "explosion", "explosions", "vfx", "fumee", "feu", "flammes", "etincelles"]
+network = "clientOnly"
+tests = ["Les effets respectent le budget de particules"]
+
+[[system]]
+id = "post_processing"
+name = "Post-traitement"
+category = "visual"
+role = "Étalonnage, bloom, profondeur de champ, flou de mouvement."
+keywords = ["post processing", "post-traitement", "bloom", "flou de mouvement", "etalonnage", "color grading"]
+network = "clientOnly"
+tests = ["Chaque effet se désactive dans les réglages"]
+
+[[system]]
+id = "shaders"
+name = "Shaders et matériaux"
+category = "visual"
+role = "Matériaux et shaders du style visuel (toon, stylisé, réaliste)."
+keywords = ["shader", "shaders", "materiau", "materiaux", "cel shading", "toon", "stylise", "realiste", "photorealiste"]
+network = "clientOnly"
+tests = ["Les shaders compilent sur chaque plateforme visée"]
+
+# ─── Règles de jeu ──────────────────────────────────────────────────────────────────────
+
+[[system]]
+id = "fishing"
+name = "Pêche"
+category = "gameplay"
+role = "Lancer, attendre, ferrer, remonter ; espèces selon le lieu, l'heure et la météo."
+keywords = ["peche", "pecher", "poisson", "poissons", "canne a peche", "fishing", "fish", "appat", "pechent"]
+depends = ["interaction", "item_database"]
+produces = ["FishHooked", "FishCaught"]
+data = ["FishData"]
+network = "serverAuthority"
+tests = ["Chaque espèce n'apparaît que dans ses conditions"]
+
+[[system]]
+id = "farming"
+name = "Agriculture et élevage"
+category = "gameplay"
+role = "Planter, arroser, récolter, faire pousser selon le temps ; animaux de ferme."
+keywords = ["ferme", "fermes", "agriculture", "cultiver", "cultures", "planter", "semer", "arroser", "farming", "elevage", "potager", "cultive", "cultiver des legumes"]
+depends = ["day_night", "inventory"]
+data = ["CropData"]
+network = "serverAuthority"
+tests = ["Une plante pousse d'un stade par jour arrosé"]
+
+[[system]]
+id = "cooking"
+name = "Cuisine"
+category = "gameplay"
+role = "Recettes de cuisine et plats aux effets."
+keywords = ["cuisiner", "cuisine", "repas", "cooking", "recettes de cuisine"]
+depends = ["crafting", "consumables"]
+network = "serverAuthority"
+tests = ["Un plat cuisiné a les effets de sa recette"]
+
+[[system]]
+id = "stealth"
+name = "Infiltration"
+category = "gameplay"
+role = "Se cacher, bruit, lumière, alertes des gardes."
+keywords = ["infiltration", "discretion", "furtif", "furtivite", "stealth", "se cacher", "sans etre vu", "se cache", "se faufiler"]
+depends = ["perception", "enemy_ai"]
+network = "serverAuthority"
+tests = ["Un joueur dans l'ombre et immobile n'est pas vu"]
+
+[[system]]
+id = "horror_tension"
+name = "Tension et peur"
+category = "gameplay"
+role = "Menace qui rôde, santé mentale, ressources rares, moments de peur rythmés."
+keywords = ["horreur", "horror", "peur", "terreur", "sante mentale", "sanity", "effrayant", "angoisse"]
+depends = ["audio_core", "lighting"]
+network = "serverAuthority"
+tests = ["Les moments de peur ne se répètent pas à l'identique"]
+
+[[system]]
+id = "puzzles"
+name = "Énigmes"
+category = "gameplay"
+role = "Mécanismes à résoudre, indices, remise à zéro."
+keywords = ["enigme", "puzzle", "casse tete", "casse-tete"]
+depends = ["interaction"]
+network = "serverAuthority"
+tests = ["Chaque énigme a une solution et se réinitialise"]
+
+[[system]]
+id = "platforming"
+name = "Plateformes"
+category = "gameplay"
+role = "Sauts précis, plateformes mobiles, pièges, pics."
+keywords = ["jeu de plateforme", "jeux de plateforme", "platformer", "plateformes mobiles", "pieges", "pics"]
+depends = ["jumping"]
+network = "predicted"
+tests = ["Chaque saut obligatoire est faisable avec les capacités du moment"]
+
+[[system]]
+id = "ability_gating"
+name = "Capacités qui ouvrent le monde"
+category = "gameplay"
+role = "Zones fermées jusqu'à une capacité, retours en arrière (metroidvania)."
+keywords = ["metroidvania", "backtracking", "zones verrouillees", "debloquer des zones", "nouvelles capacites"]
+depends = ["abilities", "world_map"]
+network = "serverAuthority"
+tests = ["Aucune zone n'est atteignable avant sa capacité"]
+
+[[system]]
+id = "cards"
+name = "Cartes et decks"
+category = "gameplay"
+role = "Cartes en données, pioche, main, défausse, construction de deck."
+keywords = ["carte a jouer", "cartes a jouer", "deck", "decks", "deckbuilder", "deckbuilding", "jeu de cartes", "tcg", "ccg"]
+depends = ["turn_based", "game_data"]
+data = ["CardData"]
+network = "serverAuthority"
+tests = ["Le paquet mélangé contient toujours les mêmes cartes"]
+
+[[system]]
+id = "turn_based"
+name = "Tour par tour"
+category = "gameplay"
+role = "Ordre des tours, actions par tour, initiative."
+keywords = ["tour par tour", "turn based", "turn-based", "initiative", "au tour"]
+depends = ["game_state"]
+produces = ["TurnStarted", "TurnEnded"]
+network = "serverAuthority"
+tests = ["Un joueur ne peut pas agir hors de son tour"]
+
+[[system]]
+id = "rts_units"
+name = "Unités et ordres"
+category = "gameplay"
+role = "Sélection d'unités, ordres, groupes, déplacement en formation."
+keywords = ["rts", "strategie en temps reel", "unites", "unite", "armee", "armees", "selectionner des unites", "troupes"]
+depends = ["camera_strategy", "navigation", "ai_decision"]
+data = ["UnitData"]
+network = "serverAuthority"
+tests = ["Cent unités se déplacent sans se bloquer"]
+risk = "Réseau en lockstep ou par ordres à étudier au-delà de quelques centaines d'unités."
+
+[[system]]
+id = "tower_defense"
+name = "Défense de tours"
+category = "gameplay"
+role = "Tours placées sur un chemin, vagues d'ennemis, améliorations."
+keywords = ["tower defense", "defense de tours", "tours de defense", "tourelle", "tourelles"]
+depends = ["spawning", "enemy_ai", "building"]
+network = "serverAuthority"
+tests = ["Une tour ne vise que dans sa portée"]
+
+[[system]]
+id = "city_building"
+name = "Gestion de ville"
+category = "gameplay"
+role = "Zones, bâtiments, citoyens, services, besoins de la ville."
+keywords = ["city builder", "gestion de ville", "urbanisme", "citoyens", "ville a construire", "batir une ville"]
+depends = ["building", "economy", "camera_strategy"]
+network = "serverAuthority"
+tests = ["Les services couvrent leur rayon"]
+
+[[system]]
+id = "management_sim"
+name = "Simulation de gestion"
+category = "gameplay"
+role = "Ressources, employés, clients, rentabilité."
+keywords = ["jeu de gestion", "simulation de gestion", "tycoon", "gerer une entreprise", "gerer un restaurant", "gerer un magasin", "entreprise"]
+depends = ["economy"]
+network = "serverAuthority"
+tests = ["La simulation donne le même résultat à vitesse x1 et x4"]
+
+[[system]]
+id = "rhythm"
+name = "Rythme"
+category = "gameplay"
+role = "Notes calées sur la musique, jugement de précision, latence compensée."
+keywords = ["rythme", "rhythm", "jeu de rythme", "musique synchronisee", "danse"]
+depends = ["music", "input"]
+network = "local"
+tests = ["La calibration de latence décale le jugement"]
+
+[[system]]
+id = "sports_rules"
+name = "Règles de sport"
+category = "gameplay"
+role = "Ballon, terrain, arbitrage, fautes, temps de jeu."
+keywords = ["football", "basket", "basketball", "tennis", "sport", "sports", "ballon", "arbitre", "golf", "hockey"]
+depends = ["physics", "match_rules"]
+network = "predicted"
+tests = ["Le ballon sorti du terrain déclenche la bonne remise en jeu"]
+
+[[system]]
+id = "fighting_versus"
+name = "Combat en versus"
+category = "gameplay"
+role = "Données d'images par coup, annulations, file d'entrées, rollback en ligne."
+keywords = ["jeu de combat", "fighting game", "versus", "frame data", "street fighter", "tekken"]
+depends = ["combat_melee", "combos"]
+network = "predicted"
+tests = ["Chaque coup a le même nombre d'images à 30 et 144 FPS"]
+
+[[system]]
+id = "roguelike_runs"
+name = "Parties à recommencer"
+category = "gameplay"
+role = "Runs, mort définitive, déblocages entre les parties (méta-progression)."
+keywords = ["roguelike", "roguelite", "rogue-like", "rogue-lite", "permadeath", "mort permanente", "meta progression", "meta-progression"]
+depends = ["world_generation", "save_system"]
+network = "serverAuthority"
+tests = ["Ce qui est débloqué reste après la mort, le reste disparaît"]
+
+[[system]]
+id = "collection"
+name = "Collection"
+category = "gameplay"
+role = "Bestiaire, espèces, objets à collectionner, progression d'album."
+keywords = ["collection", "collectionner", "bestiaire", "encyclopedie", "album", "pokedex", "collectionnables"]
+depends = ["save_system"]
+network = "serverAuthority"
+tests = ["Une entrée découverte reste découverte"]
+
+[[system]]
+id = "achievements"
+name = "Succès"
+category = "platform"
+role = "Succès du jeu, reliés aux plateformes quand elles existent."
+keywords = ["succes", "achievement", "achievements", "trophee", "trophees"]
+depends = ["event_bus"]
+network = "serverAuthority"
+tests = ["Chaque succès se débloque une seule fois"]
+
+[[system]]
+id = "battle_royale"
+name = "Zone qui rétrécit"
+category = "gameplay"
+role = "Largage, zone qui se resserre, dernier survivant."
+keywords = ["battle royale", "zone qui retrecit", "dernier survivant", "last man standing"]
+depends = ["match_rules", "dedicated_server"]
+network = "serverAuthority"
+tests = ["La zone inflige ses dégâts hors du cercle"]
+risk = "100 joueurs ou plus par partie : bande passante et pertinence de réplication à mesurer tôt."
+
+[[system]]
+id = "extraction"
+name = "Extraction"
+category = "gameplay"
+role = "Entrer dans une zone, récupérer du butin, en sortir vivant ou tout perdre."
+keywords = ["extraction", "extraction shooter", "s extraire", "raid"]
+depends = ["loot", "inventory", "match_rules"]
+network = "serverAuthority"
+tests = ["Mourir fait perdre l'équipement non assuré"]
+
+[[system]]
+id = "sandbox_physics"
+name = "Bac à sable physique"
+category = "gameplay"
+role = "Objets physiques combinables, outils de création libre."
+keywords = ["bac a sable physique", "physics sandbox", "gmod"]
+depends = ["physics", "interaction"]
+network = "serverAuthority"
+tests = ["Mille objets physiques tiennent le budget"]
+risk = "Physique partagée en réseau : autorité et budget d'objets à fixer."
+
+[[system]]
+id = "education"
+name = "Contenus pédagogiques"
+category = "gameplay"
+role = "Leçons, quiz, suivi des acquis."
+keywords = ["educatif", "educative", "pedagogique", "quiz", "lecon", "eleve", "jeu educatif"]
+depends = ["game_data", "save_system"]
+network = "local"
+tests = ["La progression de l'élève est gardée"]
+
+[[system]]
+id = "minigames"
+name = "Mini-jeux"
+category = "gameplay"
+role = "Petits jeux enchaînés, règles courtes, scores."
+keywords = ["mini jeux", "mini-jeux", "minijeux", "party game", "minigames"]
+depends = ["match_rules"]
+network = "serverAuthority"
+tests = ["Chaque mini-jeu explique sa règle en moins de 5 secondes"]
+
+[[system]]
+id = "photo_mode"
+name = "Mode photo"
+category = "visual"
+role = "Caméra libre, filtres, capture."
+keywords = ["mode photo", "photo mode", "capture d ecran"]
+network = "clientOnly"
+tests = ["Le mode photo met le jeu en pause"]
+
+# ─── Plateformes et accessibilité ───────────────────────────────────────────────────────
+
+[[system]]
+id = "localization"
+name = "Localisation"
+category = "platform"
+role = "Textes extraits, fichiers de traduction, changement de langue."
+keywords = ["traduction", "traduit", "langues", "langue", "localisation", "multilingue", "localization"]
+network = "clientOnly"
+tests = ["Aucun texte affiché n'est écrit en dur"]
+
+[[system]]
+id = "accessibility"
+name = "Accessibilité"
+category = "platform"
+role = "Remappage, sous-titres, modes daltoniens, taille du texte, aides à la difficulté."
+keywords = ["accessibilite", "accessible", "daltonien", "daltoniens", "malvoyants", "taille du texte"]
+depends = ["settings_menu", "subtitles"]
+network = "clientOnly"
+tests = ["Toutes les informations de couleur ont un autre repère"]
+
+[[system]]
+id = "controller_support"
+name = "Manettes"
+category = "platform"
+role = "Manettes branchées à chaud, icônes adaptées, vibrations."
+keywords = ["manette", "manettes", "gamepad", "controller", "xbox", "playstation", "dualsense"]
+depends = ["input"]
+network = "clientOnly"
+tests = ["Brancher une manette en jeu la rend active"]
+
+[[system]]
+id = "touch_controls"
+name = "Contrôles tactiles"
+category = "platform"
+role = "Joysticks virtuels, gestes, interface adaptée aux petits écrans."
+keywords = ["tactile", "mobile", "telephone", "smartphone", "tablette", "android", "ios", "iphone"]
+depends = ["input"]
+network = "clientOnly"
+tests = ["Les zones tactiles font au moins 44 points"]
+
+[[system]]
+id = "difficulty"
+name = "Difficulté"
+category = "platform"
+role = "Niveaux de difficulté et réglages fins."
+keywords = ["difficulte", "difficile", "facile", "mode histoire", "hardcore"]
+depends = ["settings_menu"]
+network = "serverAuthority"
+tests = ["Changer la difficulté en partie applique les nouvelles valeurs"]
+
+[[system]]
+id = "tutorial"
+name = "Tutoriel"
+category = "platform"
+role = "Apprendre en jouant, rappels contextuels."
+keywords = ["tutoriel", "tutorial", "didacticiel", "apprentissage"]
+network = "clientOnly"
+tests = ["Le tutoriel peut être passé et rejoué"]

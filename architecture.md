@@ -67,7 +67,15 @@ SDAI ARCHIMED/
 │   ├── 0007-mcstudio-gemini-textures.md
 │   ├── 0008-mcstudio-texture-workshop.md
 │   ├── 0009-mcstudio-3d-models.md
-│   └── 0010-image-maker-and-core-imaging.md
+│   ├── 0010-image-maker-and-core-imaging.md
+│   ├── 0011-code-terminal-and-project-search.md
+│   ├── 0012-skill-maker.md
+│   ├── 0013-in-app-updates.md
+│   ├── 0014-local-module-updates.md
+│   ├── 0015-chat-claude-code-parity.md
+│   ├── 0016-voice-assistant.md
+│   ├── 0017-module-command-database.md
+│   └── 0018-game-studio.md
 ├── scripts/
 │   ├── new-module.mjs                   # pnpm new:module <id> [--category] [--backend]
 │   └── check-modules.mjs                # invariants de modularité (pnpm check)
@@ -125,6 +133,13 @@ SDAI ARCHIMED/
 │       │   │                            #   · ChangesPanel · BuildPanel · BuildResult)
 │       │   └── lib/                     # naming (Mod ID, package, registre) · logs (niveaux) · format · textures
 │       │                                # · paths · assistant (correction bornée) ; editor.ts (onglets, vérification)
+│       ├── game-studio/                 # Game Studio (ADR 0018) : module.config · index · api · store · agent-actions · README
+│       │   ├── components/              # ProjectList · NewGameWizard (idée → analyse → projet) · EnvironmentPanel · ui
+│       │   │   └── workspace/           # Workspace (sections) · Dashboard · DesignSection · SystemsSection (SystemGraph,
+│       │   │                            #   SystemDetail) · TasksSection · HistorySection · JournalSection · SettingsSection
+│       │   │                            #   · CapabilitiesTable
+│       │   └── lib/                     # labels · graph-layout (couches du graphe) · graph (utilisateurs, impact) · selection
+│       │                                # · tasks (tâches prêtes) · naming
 │       ├── image-maker/                 # Image Maker : module.config · index · api · store · actions · clipboard · README
 │       │   ├── components/              # ProjectList · Studio (barre du haut, actions rapides) · Canvas · Tools
 │       │   │                            # · AiPanel (Créer, Retoucher) · ImagePanel (sur la machine) · Dock (historique,
@@ -207,6 +222,12 @@ SDAI ARCHIMED/
             │                            # models (atelier 3D : modèles JSON, entités + code Java, armures),
             │                            # importer (projets existants), porting (changement de version),
             │                            # export (sources en ZIP)
+            ├── game_studio/             # Game Studio : catalog/ (systems.toml : 180 systèmes, genres.toml) · catalog (mots-clés,
+            │                            # négations) · analysis (idée → systèmes, monde, réseau, hypothèses, décisions, moteur)
+            │                            # · engines/ (trait EngineAdapter : godot · unity · unreal — détection, création, capacités,
+            │                            # commandes) · tools (rapport d'environnement, installations winget) · graph (opérations
+            │                            # du graphe de connaissance) · store (projets, .gamestudio/) · vcs (points de restauration
+            │                            # Git sans toucher aux branches) · journal (JSONL, secrets masqués) · builds · service
             ├── image_maker/             # projets et arbre de versions (store), traitements locaux (local),
             │                            # opérations IA et recollage hors zone (pipeline), file de tâches (jobs),
             │                            # service, commandes, vue navigateur du mode compte (browser) ;
@@ -688,6 +709,8 @@ arrête son processus puis efface son entrée.
 | Copie de travail de l'assistant IA de Mod Studio | `%APPDATA%\com.sdai.archimed\modules\mcstudio\work\` (`<projet>/`, `<projet>.base.json`) |
 | JDK installés par Mod Studio, source de téléchargement | `%APPDATA%\com.sdai.archimed\modules\mcstudio\` (`jdks/<version>/`, `env.json` : `adoptiumApi`, `openrouterApi`, HTTPS uniquement) |
 | Identité et builds d'un projet de mod | `<projet>/.mcstudio/` (`project.json`, `builds.json`, `builds/<id>.log`, `history/textures/`, `snapshots/<id>/`) — le projet reste autonome |
+| Projets Game Studio (liste), chemins d'outils choisis | `%APPDATA%\com.sdai.archimed\modules\game-studio\` (`projects.json`, `tools.json`) |
+| Identité, graphe de connaissance, journal, builds et points de restauration d'un jeu | `<projet>/.gamestudio/` (`project.json`, `graph.json`, `checkpoints.json`, `logs/journal.jsonl`, `builds/`) — les commits des points sont sous `refs/gamestudio/checkpoints/` du dépôt Git du jeu |
 | Projets Image Maker (arbre de versions, images, vignettes, masques), réglages, listes de modèles | `%APPDATA%\com.sdai.archimed\modules\image-maker\` (`projects/<id>/`, `settings.json`, `cache/`) |
 | Clés des fournisseurs d'images d'Image Maker | Gestionnaire d'identifiants Windows (`image-maker-openrouter`, `image-maker-gemini`, `image-maker-higgsfield`) ; une clé d'un autre module pour le même fournisseur est relue sur place |
 | Offres, profil, CV et compte d'envoi de JobAgent | `%APPDATA%\com.sdai.archimed\modules\jobagent\` (mot de passe SMTP chiffré par DPAPI) |

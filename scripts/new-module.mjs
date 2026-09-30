@@ -34,7 +34,7 @@ for (const file of walk(target)) {
     .replaceAll("__SNAKE__", snake)
     .replaceAll("__PASCAL__", pascal)
     .replaceAll("__CATEGORY__", category)
-    .replaceAll("__BACKEND__", withBackend ? `\n  backend: { plugin: "${snake}" },` : "");
+    .replaceAll("__BACKEND__", withBackend ? `\n  backend: { plugin: "${id}" },` : "");
   writeFileSync(file, content);
 }
 

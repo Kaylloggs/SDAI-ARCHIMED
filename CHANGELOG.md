@@ -4,6 +4,22 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+### Ajouté
+- **Game Studio (nouveau module).** Décrivez un jeu en une phrase : Game Studio en tire les
+  systèmes (parmi 180 : combat, inventaire, météo, réseau, génération de monde…), leurs
+  dépendances, le plan du monde et du réseau, les plateformes, les hypothèses à confirmer, les
+  risques et une feuille de route. « Sans combat » exclut un système ; le genre ne limite rien.
+  Il conseille un moteur (Godot, Unity ou Unreal) d'après le projet et ce qui est installé, puis
+  crée un vrai projet qui s'ouvre et se lance, avec git. Un jeu peut aussi être créé sans moteur
+  (conception seule) et en recevoir un plus tard, ou être importé depuis un dossier existant.
+- **Espace de chaque jeu.** Tableau de bord, conception (idée, hypothèses, décisions, monde,
+  réseau, feuille de route, charte), graphe des systèmes (dépendances et ce qui casse si l'on
+  retire un système), tâches prêtes ou bloquées, points de restauration git qui ne touchent ni
+  votre branche ni vos fichiers indexés, journal, réglages (plateformes, budget de performance).
+- **Votre machine pour le jeu vidéo.** Moteurs trouvés (winget, Steam, Hub Unity, lanceur Epic,
+  registre), Blender, git et LFS, Python, .NET, Visual Studio, SDK Android : installation en un
+  clic ou exécutable désigné à la main. Commandes pour l'assistant vocal et les agents.
+
 ## [0.14.0] - 2026-09-28
 
 ### Ajouté

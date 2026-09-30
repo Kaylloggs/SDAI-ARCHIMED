@@ -132,6 +132,7 @@ Press **Ctrl Shift Space**, or click the pill at the top of the window, and spea
 | 🧩 | **Skills** · `skills` | A library of skills (reusable instructions) you can switch on for each assistant, and a workshop to create one: describe it or pick a past conversation, an AI writes it, ARCHIMED checks it, you try it on test requests before saving. |
 | 💼 | **Job Agent** · `jobagent` | Job search on seven boards, world map, cover letters and batch applications after confirmation. |
 | ⛏️ | **Mod Studio** · `mcstudio` | Minecraft mods: 3D models, AI textures, AI coding assistant, one-click build, game and server testing, version porting. |
+| 🎮 | **Game Studio** · `game-studio` | Describe a game in one sentence: Game Studio works out the systems it needs, their dependencies, the world and network architecture and the engine that fits, then creates a real Godot, Unity or Unreal project with its plan. Detects your engines, Blender and Git, keeps a knowledge graph of the game, and restore points you can go back to. |
 | 🎨 | **Image Maker** · `image-maker` | An AI image studio: create from a description, change only the area you select, extend to 16:9, sharpen, make variations, remove the background, export. Works with OpenRouter, Google AI Studio and Higgsfield; the original is never lost. |
 | 📊 | **Usage** · `usage` | How much of your AI plan is left, and how many tokens each assistant used. |
 
