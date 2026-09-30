@@ -8,7 +8,7 @@ import { Workspace } from "./components/workspace/Workspace";
 import { useGameStudioStore, type SectionId } from "./store";
 
 const SELF = "game-studio";
-const SECTIONS: SectionId[] = ["dashboard", "design", "systems", "tasks", "build", "map", "history", "journal", "tools", "settings"];
+const SECTIONS: SectionId[] = ["dashboard", "design", "systems", "tasks", "build", "map", "history", "journal", "tools", "integrations", "settings"];
 
 /** Page de Game Studio : la liste des jeux, l'assistant de création, ou l'espace d'un projet. */
 export default function GameStudioModule() {

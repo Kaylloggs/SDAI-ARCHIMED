@@ -18,7 +18,7 @@ décisions, points de restauration). Il ne génère pas de jeu par genre (ADR 00
 |---|---|---|
 | 1 | Analyse d'idée, graphe, adaptateurs, création, import, points de restauration, environnement, interface | ✓ (Godot 4.4.1 vérifié de bout en bout ; Unity et Unreal à essayer sur Windows) |
 | 2 | Exécution des commandes moteur en direct (arrêt, délai, silence signalé), erreurs expliquées, problèmes ouverts et refermés, carte d'un projet existant | ✓ (vérification, tests et erreurs Godot vérifiés de bout en bout) |
-| 3 | Outils MCP de Game Studio, client MCP | à venir |
+| 3 | Client MCP : serveurs des outils de la personne découverts, testés pour de vrai, capacités « via MCP », serveurs ajoutés transmis aux agents | ✓ (échanges stdio et HTTP testés ; `uvx blender-mcp` réel) |
 | 4 | Agents par rôle, boucle de débogage, GDD et TDD | à venir |
 | 5 | Ressources, images IA, Blender sans interface | à venir |
 
@@ -55,6 +55,16 @@ Rien n'est simulé : un geste qui n'a pas encore de moteur n'a pas de bouton.
    fichiers hors LFS, dossiers générés non ignorés, scène de démarrage absente, version du moteur
    différente, aucun test, scripts très longs). Analyse incrémentale ; lancée d'office à l'import
    d'un projet existant, sans rien modifier dans ses fichiers.
+6. **Intégrations** (`IntegrationsSection`) : serveurs MCP déclarés dans Claude Code
+   (`~/.claude.json`, portée utilisateur et locale), `.mcp.json` du projet, Claude Desktop,
+   Cursor, Codex (`~/.codex/config.toml`), Gemini CLI et Antigravity ; outil piloté deviné
+   (Godot, Unity, Unreal, Blender) ; agents qui les reçoivent. « Tester » lance ou contacte le
+   serveur (`initialize`, `tools/list`) et liste ses outils ; un serveur du moteur testé devient
+   une capacité « via MCP » du projet. Les valeurs des variables et en-têtes ne quittent jamais
+   leur fichier ; arguments et adresses secrets sont masqués. Les serveurs ajoutés ici (commande
+   ou adresse, sans secret) sont déclarés dans `<données>/mcp/game-studio.json`, donc proposés
+   à Claude Code et Antigravity lancés par ARCHIMED. Les commandes de Game Studio elles-mêmes
+   passent déjà par le serveur MCP d'ARCHIMED (`search_commands`, `run_action`).
 
 ## Backend
 
@@ -72,6 +82,7 @@ Rien n'est simulé : un geste qui n'a pas encore de moteur n'a pas de bouton.
 | `runner.rs` | Exécution des commandes (une action par projet, sortie en flux par `Channel<GameJobEvent>`, délai, arrêt de l'arbre de processus, silence signalé, secrets masqués) |
 | `diagnostics.rs` | Erreurs lues dans la sortie : GDScript et Godot, C# (Unity, MSBuild), C++ (MSVC, clang, éditeur de liens), Unreal et UAT, Python, résultats NUnit ; causes et pistes ; systèmes concernés d'après les fichiers rattachés |
 | `scanner.rs` | Carte d'un projet (`.gamestudio/cache/`), incrémentale |
+| `mcp_client.rs` | Serveurs MCP de la machine : découverte, masquage des secrets, test réel stdio et HTTP (JSON ou SSE), serveurs ajoutés et leur déclaration |
 | `builds.rs` | Historique des exécutions (`.gamestudio/builds/history.json`, journal complet par exécution) |
 | `service.rs`, `commands.rs` | Façade et commandes Tauri |
 
@@ -80,7 +91,8 @@ Commandes : `game_environment`, `set_tool_path`, `install_tool`, `analyze_idea`,
 `update_game`, `forget_game`, `set_game_engine`, `graph_op`, `read_journal`, `vcs_state`,
 `vcs_init`, `create_checkpoint`, `checkpoint_changes`, `checkpoint_diff`, `restore_checkpoint`,
 `run_game_action`, `cancel_game_action`, `current_game_action`, `open_game_editor`,
-`list_game_runs`, `read_game_run_log`, `scan_game`, `game_map`.
+`list_game_runs`, `read_game_run_log`, `scan_game`, `game_map`, `list_mcp_servers`,
+`check_mcp_server`, `add_mcp_server`, `remove_mcp_server`.
 
 ## Ce que contient un projet créé
 

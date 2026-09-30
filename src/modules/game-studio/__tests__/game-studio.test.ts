@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { layoutGraph, neighbourhood, NODE_W } from "../lib/graph-layout";
 import { consumers, impact, systemId } from "../lib/graph";
 import { availability } from "../lib/actions";
-import { bytes, duration, shortVersion, topicLabel } from "../lib/labels";
+import { bytes, duration, shortVersion, splitCommand, topicLabel } from "../lib/labels";
 import { adoptOps } from "../lib/map";
 import { folderName, joinPath } from "../lib/naming";
 import { neededBy, prune, withDependencies } from "../lib/selection";
@@ -179,5 +179,13 @@ describe("mesures lisibles", () => {
     expect(duration(4200)).toBe("4 s");
     expect(duration(65_000)).toBe("1 min 05 s");
     expect(duration(120_000)).toBe("2 min");
+  });
+});
+
+describe("ligne de commande d'un serveur MCP", () => {
+  it("garde les chemins entre guillemets", () => {
+    expect(splitCommand('node "C:\\Mes outils\\serveur.js" --port 3000')).toEqual(["node", "C:\\Mes outils\\serveur.js", "--port", "3000"]);
+    expect(splitCommand("  npx -y godot-mcp  ")).toEqual(["npx", "-y", "godot-mcp"]);
+    expect(splitCommand("uvx 'blender mcp' ''")).toEqual(["uvx", "blender mcp", ""]);
   });
 });

@@ -9,6 +9,8 @@ import type { GameCapabilityVia } from "@/core/ipc/bindings/GameCapabilityVia";
 import type { GameDimension } from "@/core/ipc/bindings/GameDimension";
 import type { GameEngine } from "@/core/ipc/bindings/GameEngine";
 import type { GameLogCategory } from "@/core/ipc/bindings/GameLogCategory";
+import type { GameMcpSource } from "@/core/ipc/bindings/GameMcpSource";
+import type { GameMcpState } from "@/core/ipc/bindings/GameMcpState";
 import type { GameMode } from "@/core/ipc/bindings/GameMode";
 import type { GameNetMode } from "@/core/ipc/bindings/GameNetMode";
 import type { GameNetTopology } from "@/core/ipc/bindings/GameNetTopology";
@@ -255,6 +257,52 @@ export function duration(ms: number): string {
   const minutes = Math.floor(total / 60);
   const rest = total % 60;
   return rest ? `${minutes} min ${String(rest).padStart(2, "0")} s` : `${minutes} min`;
+}
+
+export const MCP_SOURCE: Record<GameMcpSource, string> = {
+  claudeCode: "Claude Code",
+  project: "Projet (.mcp.json)",
+  claudeDesktop: "Claude Desktop",
+  cursor: "Cursor",
+  codex: "Codex",
+  gemini: "Gemini CLI",
+  antigravity: "Antigravity",
+  gameStudio: "Ajouté dans Game Studio",
+};
+
+export const MCP_STATE: Record<GameMcpState, { label: string; tone: Tone }> = {
+  ok: { label: "Prêt", tone: "success" },
+  error: { label: "Erreur", tone: "danger" },
+  timeout: { label: "Sans réponse", tone: "warning" },
+  missing: { label: "Programme absent", tone: "danger" },
+  authRequired: { label: "Connexion requise", tone: "warning" },
+  unsupported: { label: "Non testable", tone: "neutral" },
+};
+
+/** Découpe une ligne de commande en programme et arguments (guillemets simples ou doubles). */
+export function splitCommand(line: string): string[] {
+  const parts: string[] = [];
+  let current = "";
+  let quote: string | null = null;
+  let started = false;
+  for (const char of line.trim()) {
+    if (quote) {
+      if (char === quote) quote = null;
+      else current += char;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+      started = true;
+    } else if (/\s/.test(char)) {
+      if (started || current) parts.push(current);
+      current = "";
+      started = false;
+    } else {
+      current += char;
+      started = true;
+    }
+  }
+  if (started || current) parts.push(current);
+  return parts;
 }
 
 const TOPIC: Record<string, string> = {

@@ -9,6 +9,7 @@ use tauri::State;
 use crate::core::{AppError, AppResult};
 
 use super::engines::GameAction;
+use super::mcp_client::{GameMcpHealth, GameMcpOwnServer, GameMcpServer};
 use super::runner::{GameJobEvent, GameRunningJob};
 use super::scanner::GameProjectMap;
 use super::service::GameStudio;
@@ -268,4 +269,38 @@ pub async fn scan_game(studio: Studio<'_>, id: String) -> AppResult<GameProjectM
 #[tauri::command]
 pub async fn game_map(studio: Studio<'_>, id: String) -> AppResult<Option<GameProjectMap>> {
     blocking(&studio, move |s| s.map(&id)).await
+}
+
+// ── Serveurs MCP ──────────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn list_mcp_servers(
+    studio: Studio<'_>,
+    project: Option<String>,
+) -> AppResult<Vec<GameMcpServer>> {
+    blocking(&studio, move |s| Ok(s.mcp_servers(project.as_deref()))).await
+}
+
+/// Test réel d'un serveur (geste explicite : il lance le programme configuré).
+#[tauri::command]
+pub async fn check_mcp_server(
+    studio: Studio<'_>,
+    key: String,
+    project: Option<String>,
+) -> AppResult<GameMcpHealth> {
+    let studio = studio.inner().clone();
+    studio.check_mcp(&key, project.as_deref()).await
+}
+
+#[tauri::command]
+pub async fn add_mcp_server(
+    studio: Studio<'_>,
+    server: GameMcpOwnServer,
+) -> AppResult<Vec<GameMcpServer>> {
+    blocking(&studio, move |s| s.add_mcp(server)).await
+}
+
+#[tauri::command]
+pub async fn remove_mcp_server(studio: Studio<'_>, name: String) -> AppResult<Vec<GameMcpServer>> {
+    blocking(&studio, move |s| s.remove_mcp(&name)).await
 }

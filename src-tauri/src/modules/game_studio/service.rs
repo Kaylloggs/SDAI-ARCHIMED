@@ -14,6 +14,7 @@ use super::diagnostics;
 use super::engines::{self, display, folder_name, ActionContext, GameAction, NewProject};
 use super::graph;
 use super::journal;
+use super::mcp_client::{self, GameMcpHealth, GameMcpOwnServer, GameMcpServer, GameMcpState};
 use super::runner::{self, GameJobEvent, GameRunningJob, Jobs, PreparedJob, RunOutcome};
 use super::scanner::{self, GameProjectMap, ScanInput};
 use super::store::{self, Store};
@@ -505,7 +506,8 @@ impl GameStudio {
                     languages: p.languages,
                     packages: p.packages,
                 });
-                let caps = adapter.capabilities(Some(&root), install.as_ref());
+                let mut caps = adapter.capabilities(Some(&root), install.as_ref());
+                caps.extend(self.mcp_capabilities(engine, &root));
                 (info, install, caps)
             }
             None => (None, None, Vec::new()),
@@ -1122,6 +1124,112 @@ impl GameStudio {
 
     pub fn map(&self, id: &str) -> AppResult<Option<GameProjectMap>> {
         Ok(scanner::load_map(&self.root(id)?))
+    }
+
+    // ── Serveurs MCP ──────────────────────────────────────────────────────────────────
+
+    fn mcp_entries(&self, root: Option<PathBuf>) -> Vec<mcp_client::Entry> {
+        mcp_client::Locations::system(root, mcp_client::load_own(&self.dir))
+            .map(|loc| mcp_client::discover(&loc))
+            .unwrap_or_default()
+    }
+
+    /// Serveurs MCP de la machine (et du projet), avec le résultat de leur dernier test.
+    pub fn mcp_servers(&self, project: Option<&str>) -> Vec<GameMcpServer> {
+        let root = project.and_then(|id| self.root(id).ok());
+        let health = mcp_client::load_health(&self.dir);
+        self.mcp_entries(root)
+            .into_iter()
+            .map(|e| {
+                let mut server = e.server;
+                server.health = health.get(&server.key).cloned();
+                server
+            })
+            .collect()
+    }
+
+    /// Teste un serveur pour de vrai (lancement ou connexion, `initialize`, `tools/list`).
+    pub async fn check_mcp(&self, key: &str, project: Option<&str>) -> AppResult<GameMcpHealth> {
+        let root = project.and_then(|id| self.root(id).ok());
+        let entry = self
+            .mcp_entries(root)
+            .into_iter()
+            .find(|e| e.server.key == key)
+            .ok_or_else(|| AppError::not_found("Serveur MCP introuvable : relisez la liste."))?;
+        crate::core::audit::record(
+            "game-studio.mcp.check",
+            &entry.server.key,
+            "started",
+            "user",
+        );
+        let result = mcp_client::check(&entry).await;
+        let mut all = mcp_client::load_health(&self.dir);
+        all.insert(key.to_string(), result.clone());
+        mcp_client::save_health(&self.dir, &all);
+        Ok(result)
+    }
+
+    /// Ajoute (ou remplace) un serveur déclaré aux agents d'ARCHIMED.
+    pub fn add_mcp(&self, server: GameMcpOwnServer) -> AppResult<Vec<GameMcpServer>> {
+        let server = mcp_client::validate(&server)?;
+        let mut own = mcp_client::load_own(&self.dir);
+        own.retain(|s| s.name != server.name);
+        own.push(server);
+        mcp_client::save_own(&self.dir, crate::core::mcp::dir().as_deref(), &own)?;
+        Ok(self.mcp_servers(None))
+    }
+
+    pub fn remove_mcp(&self, name: &str) -> AppResult<Vec<GameMcpServer>> {
+        let mut own = mcp_client::load_own(&self.dir);
+        let before = own.len();
+        own.retain(|s| s.name != name);
+        if own.len() == before {
+            return Err(AppError::not_found(
+                "Ce serveur n'a pas été ajouté dans Game Studio.",
+            ));
+        }
+        mcp_client::save_own(&self.dir, crate::core::mcp::dir().as_deref(), &own)?;
+        Ok(self.mcp_servers(None))
+    }
+
+    /// Pilotage de l'éditeur par un serveur MCP du moteur : disponible seulement une fois testé.
+    fn mcp_capabilities(&self, engine: GameEngine, root: &Path) -> Vec<GameCapability> {
+        let health = mcp_client::load_health(&self.dir);
+        self.mcp_entries(Some(root.to_path_buf()))
+            .into_iter()
+            .filter(|e| e.server.target.as_deref() == Some(engine.slug()))
+            .map(|e| {
+                let checked = health.get(&e.server.key);
+                let (available, detail) = match checked {
+                    Some(h) if h.state == GameMcpState::Ok => {
+                        let names: Vec<&str> =
+                            h.tools.iter().take(6).map(|t| t.name.as_str()).collect();
+                        (
+                            Some(true),
+                            Some(format!(
+                                "{} outil(s) : {}{}",
+                                h.tools.len(),
+                                names.join(", "),
+                                if h.tools.len() > 6 { "…" } else { "" }
+                            )),
+                        )
+                    }
+                    Some(h) => (Some(false), Some(h.message.clone())),
+                    None => (None, None),
+                };
+                GameCapability {
+                    id: format!("mcp:{}", e.server.key),
+                    label: format!("Piloter {} par MCP ({})", engine.label(), e.server.name),
+                    via: GameCapabilityVia::Mcp,
+                    requires: Some(format!(
+                        "Serveur testé dans Intégrations ; agents : {}",
+                        e.server.agents.join(", ")
+                    )),
+                    available,
+                    detail,
+                }
+            })
+            .collect()
     }
 
     // ── Historique (Git) ──────────────────────────────────────────────────────────────

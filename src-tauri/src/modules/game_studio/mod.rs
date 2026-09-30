@@ -14,6 +14,7 @@ mod diagnostics;
 pub mod engines;
 mod graph;
 mod journal;
+mod mcp_client;
 mod runner;
 mod scanner;
 mod service;
@@ -56,6 +57,10 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             commands::read_game_run_log,
             commands::scan_game,
             commands::game_map,
+            commands::list_mcp_servers,
+            commands::check_mcp_server,
+            commands::add_mcp_server,
+            commands::remove_mcp_server,
         ])
         .setup(|app, _api| {
             let paths = crate::core::paths::Paths::resolve(app)?;

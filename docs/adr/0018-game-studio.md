@@ -1,7 +1,7 @@
 # ADR 0018 — Game Studio : studio de jeu orchestré par systèmes
 
 - **Date** : 2026-09-30
-- **Statut** : accepté (phases 1 et 2 livrées ; suivantes listées plus bas)
+- **Statut** : accepté (phases 1 à 3 livrées ; suivantes listées plus bas)
 
 ## Contexte
 
@@ -65,13 +65,20 @@ dans le moteur de son choix, avec des agents IA. Trois écueils à éviter :
     Un échec ouvre un problème du graphe (`source: run:<action>`), refermé par la réussite de la
     même action.
 
+11. **MCP : pas de faux serveur, un vrai client.** Les commandes de Game Studio passent déjà par
+    le serveur MCP d'ARCHIMED (`search_commands`, `run_action`, ADR 0017) : pas de second
+    serveur. Game Studio découvre les serveurs MCP des outils de la personne et ne les dit prêts
+    qu'après un échange réel (`initialize`, `tools/list`), lancé par elle. Les secrets restent
+    dans leurs fichiers (jamais renvoyés, jamais recopiés) ; seuls les serveurs ajoutés dans Game
+    Studio, sans secret, sont déclarés aux agents (`mcp/game-studio.json`, retiré avec le module).
+
 ## Phases
 
 | Phase | Contenu |
 |---|---|
 | 1 | Analyse système d'abord, graphe, adaptateurs, création et import, points de restauration, environnement, interface (tableau de bord, conception, systèmes, tâches, historique, journal, outils, réglages) |
 | 2 | Scanner de projet existant, exécution des commandes moteur en flux (annulation, délai), builds, analyse des erreurs (GDScript, C#, MSVC/UBT, journaux Unreal) |
-| 3 | Serveur MCP générique dans le core, outils MCP de Game Studio, client MCP (découverte, santé) |
+| 3 | Client MCP (découverte, test réel, capacités via MCP, serveurs déclarés aux agents) |
 | 4 | Agents par rôle autour du graphe (Directeur et spécialistes), boucle de débogage, documents (GDD, TDD) |
 | 5 | Registre des ressources, images par `core::imaging`, Blender sans interface |
 

@@ -23,6 +23,7 @@ export type SectionId =
   | "history"
   | "journal"
   | "tools"
+  | "integrations"
   | "settings";
 
 export type LogLine = { id: number; level: GameLogLevel; text: string };

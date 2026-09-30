@@ -28,6 +28,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 - **Game Studio › Carte du projet.** Pour un projet existant : fichiers, langages, systèmes déjà
   codés (à ajouter au graphe en un clic) et risques (pas de Git, gros fichiers hors LFS, version
   du moteur différente…). Analyse lancée à l'import, sans rien modifier dans le projet.
+- **Game Studio › Intégrations.** Les serveurs MCP déjà configurés dans Claude Code, Claude
+  Desktop, Cursor, Codex, Gemini CLI, Antigravity ou le projet, avec l'outil qu'ils pilotent
+  (Godot, Unity, Unreal, Blender) : « Tester » les lance vraiment et liste leurs outils. Un
+  serveur du moteur qui répond devient une capacité du projet. Ajoutez un serveur (commande ou
+  adresse) : il est proposé aux agents lancés par ARCHIMED. Aucune clé n'est affichée ni copiée.
 
 ## [0.14.0] - 2026-09-28
 

@@ -13,6 +13,9 @@ import type { GameGraphOp } from "@/core/ipc/bindings/GameGraphOp";
 import type { GameJobEvent } from "@/core/ipc/bindings/GameJobEvent";
 import type { GameLogCategory } from "@/core/ipc/bindings/GameLogCategory";
 import type { GameLogEntry } from "@/core/ipc/bindings/GameLogEntry";
+import type { GameMcpHealth } from "@/core/ipc/bindings/GameMcpHealth";
+import type { GameMcpOwnServer } from "@/core/ipc/bindings/GameMcpOwnServer";
+import type { GameMcpServer } from "@/core/ipc/bindings/GameMcpServer";
 import type { GamePlatform } from "@/core/ipc/bindings/GamePlatform";
 import type { GameProject } from "@/core/ipc/bindings/GameProject";
 import type { GameProjectMap } from "@/core/ipc/bindings/GameProjectMap";
@@ -70,6 +73,13 @@ export const gameStudioApi = {
   // Carte du projet
   scan: (id: string) => call<GameProjectMap>("scan_game", { id }),
   map: (id: string) => call<GameProjectMap | null>("game_map", { id }),
+
+  // Serveurs MCP
+  mcpServers: (project: string | null) => call<GameMcpServer[]>("list_mcp_servers", { project }),
+  /** Lance ou contacte le serveur pour de vrai (initialize puis tools/list). */
+  checkMcp: (key: string, project: string | null) => call<GameMcpHealth>("check_mcp_server", { key, project }),
+  addMcp: (server: GameMcpOwnServer) => call<GameMcpServer[]>("add_mcp_server", { server }),
+  removeMcp: (name: string) => call<GameMcpServer[]>("remove_mcp_server", { name }),
 };
 
 export function errorText(error: unknown): string {

@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Boxes, FolderSearch, Hammer, History, LayoutDashboard, ListChecks, ScrollText, Settings2, Wrench } from "lucide-react";
+import { ArrowLeft, BookOpen, Boxes, FolderSearch, Hammer, History, LayoutDashboard, ListChecks, Plug, ScrollText, Settings2, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/core/lib/cn";
 import { Badge, ResizeHandle, usePanelSize } from "@/design-system/primitives";
@@ -11,6 +11,7 @@ import { CapabilitiesTable } from "./CapabilitiesTable";
 import { Dashboard } from "./Dashboard";
 import { DesignSection } from "./DesignSection";
 import { HistorySection } from "./HistorySection";
+import { IntegrationsSection } from "./IntegrationsSection";
 import { JournalSection } from "./JournalSection";
 import { MapSection } from "./MapSection";
 import { SettingsSection } from "./SettingsSection";
@@ -47,6 +48,7 @@ export const SECTIONS: { title: string; items: SectionInfo[] }[] = [
     title: "Environnement",
     items: [
       { id: "tools", label: "Outils", description: "Moteurs, Blender, Git et SDK de la machine, et ce que le moteur du projet permet vraiment.", icon: Wrench },
+      { id: "integrations", label: "Intégrations", description: "Serveurs MCP de vos outils (Claude Code, Cursor, Codex, Antigravity…) qui permettent aux agents de piloter un moteur ou Blender : testés pour de vrai.", icon: Plug },
       { id: "settings", label: "Réglages", description: "Nom, moteur, ambition, liberté des agents, plateformes et budget de performance.", icon: Settings2 },
     ],
   },
@@ -79,6 +81,8 @@ function Content({ id }: { id: SectionId }) {
           <EnvironmentPanel />
         </div>
       );
+    case "integrations":
+      return <IntegrationsSection />;
     case "settings":
       return <SettingsSection />;
   }

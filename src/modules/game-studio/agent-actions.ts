@@ -916,6 +916,85 @@ export default defineActions([
       return graphOp(s.project.id, { op: "setIssueOpen", id: issue.id, open }, open ? "Problème rouvert." : "Problème marqué résolu.");
     },
   },
+  // ── Serveurs MCP ─────────────────────────────────────────────────────────────────────
+  {
+    name: "list_mcp_servers",
+    description: "Liste les serveurs MCP de la machine (Claude Code, Claude Desktop, Cursor, Codex, Gemini, Antigravity, projet, ajoutés dans Game Studio) : outil piloté (Godot, Unity, Unreal, Blender), agents qui les reçoivent, résultat du dernier test. Aucun secret.",
+    params: { project: project_param },
+    risk: "read",
+    run: async (args) => {
+      const t = typeof args["project"] === "string" ? await target(args["project"]) : null;
+      if (t && isError(t)) return t;
+      try {
+        const servers = await gameStudioApi.mcpServers(t?.id ?? useGameStudioStore.getState().openId);
+        return {
+          ok: true,
+          message: servers.length ? `${servers.length} serveur(s) MCP.` : "Aucun serveur MCP configuré sur cette machine.",
+          data: { servers: servers.map((s) => ({ key: s.key, name: s.name, source: s.source, target: s.target, transport: s.transport, agents: s.agents, state: s.health?.state ?? null, tools: s.health?.tools.map((x) => x.name) ?? [] })) },
+        };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+  {
+    name: "test_mcp_server",
+    description: "Teste pour de vrai un serveur MCP (le lance ou le contacte, puis initialize et tools/list) et rend ses outils. Lance le programme configuré.",
+    params: { server: { type: "string", required: true, description: "Clé (list_mcp_servers) ou nom." }, project: project_param },
+    risk: "write",
+    run: async (args) => {
+      try {
+        const projectId = useGameStudioStore.getState().openId;
+        const servers = await gameStudioApi.mcpServers(projectId);
+        const wanted = String(args["server"] ?? "");
+        const server = servers.find((s) => s.key === wanted) ?? findByName(servers, wanted, (s) => s.name, (s) => s.key);
+        if (!server) return { ok: false, message: "Serveur introuvable : appelle list_mcp_servers." };
+        const health = await gameStudioApi.checkMcp(server.key, projectId);
+        return { ok: health.state === "ok", message: `${server.name} : ${health.message}`, data: { health } };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+  {
+    name: "add_mcp_server",
+    description: "Ajoute un serveur MCP (commande locale ou adresse http) proposé aux agents d'ARCHIMED (Claude Code, Antigravity). Aucun secret : ils restent dans la configuration du serveur.",
+    params: {
+      name: { type: "string", required: true },
+      command: { type: "string", description: "Programme (ex. node, npx, uvx)." },
+      args: { type: "array", description: "Arguments de la commande." },
+      url: { type: "string", description: "Adresse http(s):// à la place d'une commande." },
+    },
+    risk: "write",
+    run: async (args) => {
+      try {
+        const servers = await gameStudioApi.addMcp({
+          name: String(args["name"] ?? ""),
+          command: typeof args["command"] === "string" && args["command"] ? args["command"] : null,
+          args: list(args["args"]),
+          url: typeof args["url"] === "string" && args["url"] ? args["url"] : null,
+        });
+        return { ok: true, message: `Serveur ajouté (${servers.filter((s) => s.removable).length} ajouté(s) dans Game Studio). Teste-le avec test_mcp_server.` };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+  {
+    name: "remove_mcp_server",
+    description: "Retire un serveur MCP ajouté dans Game Studio (les agents ne le reçoivent plus).",
+    params: { name: { type: "string", required: true } },
+    risk: "write",
+    run: async (args) => {
+      try {
+        await gameStudioApi.removeMcp(String(args["name"] ?? ""));
+        return { ok: true, message: "Serveur retiré." };
+      } catch (e) {
+        return { ok: false, message: errorText(e) };
+      }
+    },
+  },
+
   // ── Historique ──────────────────────────────────────────────────────────────────────
   {
     name: "history_status",
