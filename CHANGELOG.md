@@ -4,6 +4,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
 
 ## [Non publié]
 
+## [0.15.0] - 2026-10-01
+
 ### Ajouté
 - **Game Studio (nouveau module).** Décrivez un jeu en une phrase : Game Studio en tire les
   systèmes (parmi 180 : combat, inventaire, météo, réseau, génération de monde…), leurs
@@ -50,6 +52,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions en [
   lesquelles le moteur a vraiment prises en compte.
 - **Game Studio › Documents.** Le document de game design (GDD) et le document technique (TDD)
   du jeu, écrits à partir de son graphe et à jour à chaque changement, à enregistrer dans `docs/`.
+
+### Corrigé
+- **Zone de saisie des agents.** Un message préparé ailleurs (tâche confiée, correction d'une
+  erreur) s'affiche en entier dans la zone de saisie, au lieu de sa seule dernière ligne.
 
 ## [0.14.0] - 2026-09-28
 
